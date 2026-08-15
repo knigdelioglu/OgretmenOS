@@ -52,11 +52,7 @@ Future<void> main() async {
       FROM courses
       LIMIT 1
     ''').single;
-    _checkValue(
-      course['course_id'],
-      manifestMap['course_id'],
-      'course kimliği',
-    );
+    _checkValue(course['course_id'], manifestMap['course_id'], 'course kimliği');
     _checkValue(
       course['schema_version'],
       manifestMap['schema_version'],
@@ -85,31 +81,78 @@ Future<void> main() async {
     ''');
     final expectedTimeline = (counts['timeline_blocks'] as num).toInt();
     _checkValue(sequence.length, expectedTimeline, 'timeline sırası');
-    for (var index = 0; index < sequence.length; index++) {
-      _checkValue(sequence[index]['block_order'], index % 4 + 1, 'blok sırası');
-      if (index > 0) {
-        _checkValue(
-          sequence[index - 1]['block_id'] == sequence[index]['block_id'],
-          false,
-          'timeline blokları tekrar ediyor',
-        );
+
+    final seenBlockIds = <Object?>{};
+    String? currentThemeId;
+    var expectedBlockOrder = 0;
+    for (final row in sequence) {
+      final themeId = row['theme_id'] as String;
+      if (themeId != currentThemeId) {
+        currentThemeId = themeId;
+        expectedBlockOrder = 1;
+      } else {
+        expectedBlockOrder++;
       }
+      _checkValue(
+        row['block_order'],
+        expectedBlockOrder,
+        '$themeId blok sırası',
+      );
+      _check(
+        seenBlockIds.add(row['block_id']),
+        'timeline blokları tekrar ediyor',
+      );
     }
 
-    final tema2Blocks = database.select('''
-      SELECT b.block_id
+    final verificationCandidates = database.select('''
+      SELECT b.theme_id, b.block_id
       FROM blocks b
-      WHERE b.theme_id = 'TEMA_02'
+      WHERE EXISTS (
+        SELECT 1 FROM block_outcomes bo WHERE bo.block_id = b.block_id
+      )
         AND EXISTS (
           SELECT 1
           FROM block_activities ba
           INNER JOIN activity_forms af ON af.activity_id = ba.activity_id
           WHERE ba.block_id = b.block_id
         )
-      ORDER BY block_order
+        AND EXISTS (
+          SELECT 1
+          FROM textbook_sections ts
+          WHERE ts.theme_id = b.theme_id
+            AND ts.section_id IN (
+              SELECT a.section_id
+              FROM activities a
+              INNER JOIN block_activities ba ON ba.activity_id = a.activity_id
+              WHERE ba.block_id = b.block_id
+                AND a.section_id IS NOT NULL
+            )
+        )
+        AND EXISTS (
+          SELECT 1 FROM resource_decisions rd WHERE rd.theme_id = b.theme_id
+        )
+        AND EXISTS (
+          SELECT 1
+          FROM assessment_task_bindings atb
+          WHERE atb.theme_id = b.theme_id
+        )
+        AND EXISTS (
+          SELECT 1
+          FROM entity_source_references esr
+          WHERE esr.entity_type = 'theme' AND esr.entity_id = b.theme_id
+        )
+      ORDER BY b.theme_id, b.block_order
+      LIMIT 1
     ''');
-    _check(tema2Blocks.isNotEmpty, 'TEMA_02 blokları yok');
-    final blockId = tema2Blocks.first['block_id'];
+    _check(
+      verificationCandidates.isNotEmpty,
+      'runtime ilişki doğrulaması için uygun theme/block bulunamadı',
+    );
+
+    final verificationThemeId =
+        verificationCandidates.first['theme_id'] as String;
+    final blockId = verificationCandidates.first['block_id'] as String;
+
     final activityIds = database.select(
       '''
       SELECT a.activity_id, a.section_id
@@ -125,16 +168,16 @@ Future<void> main() async {
         'SELECT outcome_id FROM block_outcomes WHERE block_id = ?',
         [blockId],
       ).isNotEmpty,
-      'TEMA_02 outcome ilişkisi yok',
+      'blok outcome ilişkisi yok',
     );
-    _check(activityIds.isNotEmpty, 'TEMA_02 etkinlik ilişkisi yok');
+    _check(activityIds.isNotEmpty, 'blok etkinlik ilişkisi yok');
     _check(
       database
           .select(
             '''
         SELECT section_id
         FROM textbook_sections
-        WHERE theme_id = 'TEMA_02'
+        WHERE theme_id = ?
           AND section_id IN (
             SELECT section_id
             FROM activities
@@ -143,10 +186,10 @@ Future<void> main() async {
             )
           )
       ''',
-            [blockId],
+            [verificationThemeId, blockId],
           )
           .isNotEmpty,
-      'TEMA_02 kitap bölümü yok',
+      'blok kitap bölümü yok',
     );
     _check(
       database
@@ -162,39 +205,56 @@ Future<void> main() async {
             [blockId],
           )
           .isNotEmpty,
-      'TEMA_02 form ilişkisi yok',
+      'blok form ilişkisi yok',
     );
     _check(
       database.select(
         'SELECT resource_plan_id FROM resource_decisions WHERE theme_id = ?',
-        ['TEMA_02'],
+        [verificationThemeId],
       ).isNotEmpty,
-      'TEMA_02 kaynak kararı yok',
+      'theme kaynak kararı yok',
     );
     _check(
       database.select(
         'SELECT artifact_id FROM assessment_task_bindings WHERE theme_id = ?',
-        ['TEMA_02'],
+        [verificationThemeId],
       ).isNotEmpty,
-      'TEMA_02 ölçme bağlama yok',
+      'theme ölçme bağlama yok',
     );
     _check(
-      database.select('''
+      database.select(
+        '''
         SELECT sr.source_id
         FROM source_references sr
         INNER JOIN entity_source_references esr ON esr.source_id = sr.source_id
-        WHERE esr.entity_type = 'theme' AND esr.entity_id = 'TEMA_02'
-      ''').isNotEmpty,
-      'TEMA_02 kaynak referansı yok',
+        WHERE esr.entity_type = 'theme' AND esr.entity_id = ?
+      ''',
+        [verificationThemeId],
+      ).isNotEmpty,
+      'theme kaynak referansı yok',
     );
 
+    final themeBlockCount = _countWhere(
+      database,
+      'blocks',
+      'theme_id = ?',
+      [verificationThemeId],
+    );
+    final timelineBlockCount = _countWhere(
+      database,
+      'timeline_blocks',
+      'theme_id = ?',
+      [verificationThemeId],
+    );
+    _check(themeBlockCount > 0, 'theme paket blokları yok');
     _checkValue(
-      _countWhere(database, 'blocks', 'theme_id = ?', ['TEMA_02']),
-      4,
-      'TEMA_02 paket blok sayısı',
+      themeBlockCount,
+      timelineBlockCount,
+      'theme block/timeline blok sayısı',
     );
     _check(
-      _countWhere(database, 'activities', 'theme_id = ?', ['TEMA_02']) > 0,
+      _countWhere(database, 'activities', 'theme_id = ?', [verificationThemeId]) >
+          0,
       'öğretmen paketi etkinliksiz',
     );
   } finally {

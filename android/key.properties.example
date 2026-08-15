@@ -1,0 +1,6 @@
+# Copy this file to android/key.properties and replace the placeholders.
+# Never commit android/key.properties or the keystore itself.
+storeFile=/absolute/path/to/ogretmenos-release.jks
+storePassword=CHANGE_ME
+keyAlias=ogretmenos
+keyPassword=CHANGE_ME

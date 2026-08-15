@@ -1,4 +1,4 @@
-package com.tymm.ogretmen_os
+package io.github.knigdelioglu.ogretmenos
 
 import io.flutter.embedding.android.FlutterActivity
 

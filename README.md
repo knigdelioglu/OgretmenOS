@@ -14,9 +14,9 @@ runtime SQLite ve manifest senkronize edilir:
 dart run tool/sync_course_runtime.dart
 ```
 
-Senkronizasyon `PASS` manifest doğrulaması yapar ve `assets/courses/TDE_9/`
-altında yerel build girdisi oluşturur. Bu dosyalar generated olduğu için Git'e
-alınmaz.
+Senkronizasyon `PASS` + `RUNTIME_FRESH` manifest doğrulaması yapar ve
+`assets/courses/TDE_9/` altında yerel build girdisi oluşturur. Bu dosyalar
+generated olduğu için Git'e alınmaz.
 
 ## Doğrulama
 
@@ -24,17 +24,32 @@ alınmaz.
 flutter pub get
 flutter analyze
 flutter test
-cd tool/runtime_verifier && flutter pub get && dart run bin/verify_runtime.dart
+cd tool/runtime_verifier && dart pub get && dart run bin/verify_runtime.dart
 flutter build apk --release
 ```
 
-GitHub Actions, `main` push'larında ve pull request'lerde `flutter analyze` ile
-`flutter test` çalıştırır. Canonical runtime asset'leri Git'e alınmadığı için CI,
-widget/unit test asset bundle'ı için yalnız geçici ve bilinçli olarak geçersiz
-placeholder dosyaları üretir; gerçek runtime doğrulaması bu placeholder'ları
-kullanmaz.
+GitHub Actions, `main` push'larında ve pull request'lerde ayrı **Analyze** ve
+**Tests** kontrolleri çalıştırır. Bu kontroller geçtikten sonra **Android Release
+Build** kapısı gerçek release Gradle yolunu derler. CI signing anahtarı koşu
+sırasında geçici üretilir ve dağıtım için kullanılmaz.
 
-Host-only runtime verifier gerçek SQLite dosyasını salt-okunur açarak manifest,
-ilişkiler ve data-source akışını kontrol eder. Uygulama runtime veritabanını
-uygulamaya özel SQLite dizininde salt-okunur açar;
+Canonical runtime asset'leri Git'e alınmadığı için CI asset bundle aşamasında
+geçici placeholder dosyaları kullanır. Repository/data-source SQL sözleşmesi ise
+in-memory SQLite runtime fixture ile test edilir. Gerçek canonical runtime paketi
+mevcut olduğunda `runtime_verifier` manifest, row count ve ilişkileri salt-okunur
+DB üzerinde doğrular.
+
+## Android release signing
+
+Gerçek dağıtım için örneği kopyalayın ve kendi keystore bilgilerinizle doldurun:
+
+```sh
+cp android/key.properties.example android/key.properties
+```
+
+`android/key.properties`, `*.jks` ve `*.keystore` Git tarafından yok sayılır.
+Release build debug anahtarı kullanmaz; `key.properties` mevcutsa tanımlanan
+release anahtarıyla imzalanır.
+
+Uygulama runtime veritabanını uygulamaya özel SQLite dizininde salt-okunur açar;
 öğretmen konumu gibi izinli yerel durum `shared_preferences` içinde ayrı tutulur.
