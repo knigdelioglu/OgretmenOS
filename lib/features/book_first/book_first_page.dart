@@ -161,12 +161,17 @@ class _ThemeSelector extends StatelessWidget {
     icon: Icons.layers_outlined,
     child: DropdownButtonFormField<String>(
       initialValue: selectedThemeId,
+      isExpanded: true,
       decoration: const InputDecoration(labelText: 'Tema'),
       items: [
         for (final theme in themes)
           DropdownMenuItem<String>(
             value: theme.id,
-            child: Text(theme.title),
+            child: Text(
+              theme.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
       ],
       onChanged: (value) {
