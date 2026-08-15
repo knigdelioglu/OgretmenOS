@@ -51,8 +51,13 @@ void main() {
     expect(find.text('Türk Dili ve Edebiyatı'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.text('Yıllık Plan').last);
+    await tester.tap(find.byIcon(Icons.view_timeline_outlined));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Planlanan öğretim sırası'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(find.text('Planlanan öğretim sırası'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -74,8 +79,13 @@ void main() {
     await _configureView(tester, const Size(360, 800));
     await _pumpApp(tester);
 
-    await tester.tap(find.text('Yıllık Plan').last);
+    await tester.tap(find.byIcon(Icons.view_timeline_outlined));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byTooltip('Burada kaldım'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
 
     final bookmark = find.byTooltip('Burada kaldım');
     expect(bookmark, findsOneWidget);

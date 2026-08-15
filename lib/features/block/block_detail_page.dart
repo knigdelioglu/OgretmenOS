@@ -407,7 +407,7 @@ class _FormItem extends StatelessWidget {
           ? null
           : Text(
               [
-                if (evaluator != null) evaluator,
+                ?evaluator,
                 if (pages.isNotEmpty) pages,
               ].join(' · '),
             ),

@@ -1,5 +1,5 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/widgets.dart';
 import 'package:ogretmen_os/app/app.dart';
 import 'package:ogretmen_os/app/app_dependencies.dart';
 import 'package:ogretmen_os/data/preferences/user_preferences_repository.dart';
@@ -8,46 +8,52 @@ import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart
 
 void main() {
   testWidgets('uygulama ana navigasyonu yüklenir', (tester) async {
-    await tester.pumpWidget(
-      TeacherOsApp(
-        dependencies: AppDependencies(
-          repository: _FakeRepository(),
-          preferences: _FakePreferences(),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+    _usePhoneViewport(tester);
+    await _pumpApp(tester, preferences: _FakePreferences());
 
     expect(find.text('Test Course'), findsOneWidget);
     expect(find.text('Kaldığınız yeri seçin'), findsOneWidget);
-    expect(find.text('Test Tema'), findsOneWidget);
 
+    await tester.scrollUntilVisible(
+      find.text('Test Tema'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.tap(find.text('Test Tema'));
     await tester.pumpAndSettle();
-    expect(find.text('Test Blok'), findsWidgets);
 
-    await tester.tap(find.text('Test Blok').last);
+    await tester.scrollUntilVisible(
+      find.text('Test Blok'),
+      400,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Test Blok'), findsOneWidget);
+
+    await tester.tap(find.text('Test Blok'));
     await tester.pumpAndSettle();
     expect(find.text('Ders Bloğu'), findsOneWidget);
   });
 
   testWidgets('yıllık planda manuel plan konumu seçilebilir', (tester) async {
+    _usePhoneViewport(tester);
     final preferences = _FakePreferences();
-    await tester.pumpWidget(
-      TeacherOsApp(
-        dependencies: AppDependencies(
-          repository: _FakeRepository(),
-          preferences: preferences,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await _pumpApp(tester, preferences: preferences);
 
-    await tester.tap(find.text('Yıllık Plan').first);
+    await _tapBottomDestination(tester, Icons.view_timeline_outlined);
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Planlanan öğretim sırası'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(find.text('Planlanan öğretim sırası'), findsOneWidget);
     expect(find.textContaining('Plan sırası: 1 / 1'), findsOneWidget);
 
+    await tester.scrollUntilVisible(
+      find.byTooltip('Burada kaldım'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.tap(find.byTooltip('Burada kaldım'));
     await tester.pumpAndSettle();
     expect(find.text('Burada kaldım'), findsOneWidget);
@@ -57,21 +63,14 @@ void main() {
   testWidgets('kitap ve materyal ile öğretmen paketi ekranlarına erişilir', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      TeacherOsApp(
-        dependencies: AppDependencies(
-          repository: _FakeRepository(),
-          preferences: _FakePreferences(),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+    _usePhoneViewport(tester);
+    await _pumpApp(tester, preferences: _FakePreferences());
 
     expect(find.text('Bugünkü Ders'), findsNothing);
     await tester.scrollUntilVisible(
       find.text('Kitap ve materyal'),
       400,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find.byType(Scrollable).last,
     );
     await tester.tap(find.text('Kitap ve materyal'));
     await tester.pumpAndSettle();
@@ -79,21 +78,59 @@ void main() {
 
     await tester.pageBack();
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Öğretmen Paketi').first);
+    await _tapBottomDestination(tester, Icons.inventory_2_outlined);
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Tema dosyası'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(find.text('Tema dosyası'), findsOneWidget);
   });
 }
 
+void _usePhoneViewport(WidgetTester tester) {
+  tester.view.physicalSize = const Size(412, 915);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
+
+Future<void> _pumpApp(
+  WidgetTester tester, {
+  required _FakePreferences preferences,
+}) async {
+  await tester.pumpWidget(
+    TeacherOsApp(
+      dependencies: AppDependencies(
+        repository: _FakeRepository(),
+        preferences: preferences,
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapBottomDestination(
+  WidgetTester tester,
+  IconData icon,
+) async {
+  final navigationBar = find.byType(NavigationBar);
+  expect(navigationBar, findsOneWidget);
+  final target = find.descendant(of: navigationBar, matching: find.byIcon(icon));
+  expect(target, findsOneWidget);
+  await tester.tap(target);
+}
+
 class _FakeRepository implements CourseKnowledgeRepository {
-  final _course = const Course(
+  static const _course = Course(
     courseId: 'TDE_9',
     grade: 9,
     title: 'Test Course',
     schemaVersion: '1.0.0',
     sourceManifestFingerprint: 'test',
   );
-  final _theme = const Theme(
+  static const _theme = Theme(
     id: 'TEST_THEME',
     order: 1,
     title: 'Test Tema',
@@ -103,7 +140,7 @@ class _FakeRepository implements CourseKnowledgeRepository {
     anlatmaHours: null,
     sourceLocator: null,
   );
-  final _block = const Block(
+  static const _block = Block(
     id: 'TEST_BLOCK',
     themeId: 'TEST_THEME',
     order: 1,
@@ -131,19 +168,19 @@ class _FakeRepository implements CourseKnowledgeRepository {
   );
 
   @override
-  Future<List<Theme>> getThemes() async => [_theme];
+  Future<List<Theme>> getThemes() async => const [_theme];
 
   @override
   Future<Theme> getTheme(String themeId) async => _theme;
 
   @override
-  Future<List<Block>> getBlocks(String themeId) async => [_block];
+  Future<List<Block>> getBlocks(String themeId) async => const [_block];
 
   @override
   Future<BlockDetail> getBlock(String blockId) async => _detail;
 
   @override
-  Future<List<TimelineEntry>> getAnnualSequence() async => [
+  Future<List<TimelineEntry>> getAnnualSequence() async => const [
     TimelineEntry(
       sequencePosition: 1,
       theme: _theme,
@@ -162,17 +199,8 @@ class _FakeRepository implements CourseKnowledgeRepository {
   @override
   Future<TeacherPackage> getTeacherPackage(String themeId) async =>
       const TeacherPackage(
-        theme: Theme(
-          id: 'TEST_THEME',
-          order: 1,
-          title: 'Test Tema',
-          pageRange: null,
-          plannedHours: null,
-          anlamaHours: null,
-          anlatmaHours: null,
-          sourceLocator: null,
-        ),
-        blocks: [],
+        theme: _theme,
+        blocks: [_block],
         outcomes: [],
         textbookSections: [],
         activities: [],
@@ -184,28 +212,9 @@ class _FakeRepository implements CourseKnowledgeRepository {
         sourceReferences: [],
       );
 
-  BlockDetail get _detail => const BlockDetail(
-    theme: Theme(
-      id: 'TEST_THEME',
-      order: 1,
-      title: 'Test Tema',
-      pageRange: null,
-      plannedHours: null,
-      anlamaHours: null,
-      anlatmaHours: null,
-      sourceLocator: null,
-    ),
-    block: Block(
-      id: 'TEST_BLOCK',
-      themeId: 'TEST_THEME',
-      order: 1,
-      title: 'Test Blok',
-      skillDomain: null,
-      learningArea: null,
-      plannedHours: null,
-      timeStatus: 'ORDER_ONLY',
-      sourceLocators: [],
-    ),
+  static const _detail = BlockDetail(
+    theme: _theme,
+    block: _block,
     outcomes: [],
     textbookSections: [],
     activities: [],
