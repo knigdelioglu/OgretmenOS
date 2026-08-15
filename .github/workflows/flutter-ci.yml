@@ -40,19 +40,35 @@ jobs:
         working-directory: tool/runtime_verifier
         run: dart pub get
 
-      - name: Prepare CI-only generated asset placeholders
-        shell: bash
-        run: |
-          mkdir -p assets/courses/TDE_9
-          printf '%s\n' '{"ci_placeholder":true}' > assets/courses/TDE_9/runtime_manifest.json
-          printf 'CI_PLACEHOLDER_ONLY\n' > assets/courses/TDE_9/course_runtime.sqlite
-
       - name: Analyze app
         run: flutter analyze
 
       - name: Analyze runtime verifier
         working-directory: tool/runtime_verifier
         run: dart analyze
+
+  runtime-contract:
+    name: Runtime Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install runtime verifier dependencies
+        working-directory: tool/runtime_verifier
+        run: dart pub get
+
+      - name: Verify versioned canonical runtime
+        working-directory: tool/runtime_verifier
+        run: dart run bin/verify_runtime.dart
 
   tests:
     name: Tests
@@ -72,19 +88,12 @@ jobs:
       - name: Install app dependencies
         run: flutter pub get
 
-      - name: Prepare CI-only generated asset placeholders
-        shell: bash
-        run: |
-          mkdir -p assets/courses/TDE_9
-          printf '%s\n' '{"ci_placeholder":true}' > assets/courses/TDE_9/runtime_manifest.json
-          printf 'CI_PLACEHOLDER_ONLY\n' > assets/courses/TDE_9/course_runtime.sqlite
-
-      - name: Run tests
+      - name: Run tests against versioned runtime
         run: flutter test --reporter expanded
 
   android-release:
     name: Android Release Build
-    needs: [analyze, tests]
+    needs: [analyze, runtime-contract, tests]
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -100,13 +109,6 @@ jobs:
 
       - name: Install app dependencies
         run: flutter pub get
-
-      - name: Prepare CI-only generated asset placeholders
-        shell: bash
-        run: |
-          mkdir -p assets/courses/TDE_9
-          printf '%s\n' '{"ci_placeholder":true}' > assets/courses/TDE_9/runtime_manifest.json
-          printf 'CI_PLACEHOLDER_ONLY\n' > assets/courses/TDE_9/course_runtime.sqlite
 
       - name: Create ephemeral CI release key
         shell: bash
@@ -127,5 +129,5 @@ jobs:
           keyPassword=ci-release-password
           EOF
 
-      - name: Build Android release APK
+      - name: Build Android release APK with versioned runtime
         run: flutter build apk --release --no-pub
