@@ -29,6 +29,15 @@ Future<void> main() async {
     manifestMap['validation_status'] == 'PASS',
     'validation_status PASS değil',
   );
+  _check(
+    manifestMap['runtime_status'] == 'RUNTIME_FRESH',
+    'runtime_status RUNTIME_FRESH değil',
+  );
+  _check(
+    (manifestMap['canonical_content_fingerprint']?.toString().trim() ?? '')
+        .isNotEmpty,
+    'canonical_content_fingerprint eksik',
+  );
   final rawCounts = manifestMap['row_counts'];
   _check(rawCounts is Map, 'runtime manifest row_counts eksik');
   final counts = rawCounts as Map;

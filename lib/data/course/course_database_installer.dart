@@ -7,6 +7,7 @@ import 'package:sqflite/sqflite.dart';
 
 import 'course_database_data_source.dart';
 import '../../domain/models/course_models.dart';
+import '../../domain/runtime/runtime_manifest_policy.dart';
 
 class InstalledRuntime {
   const InstalledRuntime({required this.manifest, required this.databasePath});
@@ -73,6 +74,7 @@ class CourseDatabaseInstaller {
     if (decoded is! Map<String, dynamic>) {
       throw StateError('Bundled runtime manifest geçersiz.');
     }
+    validateRuntimeManifest(decoded);
     return RuntimeManifest.fromJson(decoded);
   }
 
@@ -86,6 +88,7 @@ class CourseDatabaseInstaller {
     try {
       final decoded = jsonDecode(await manifestFile.readAsString());
       if (decoded is! Map<String, dynamic>) return true;
+      validateRuntimeManifest(decoded);
       final local = RuntimeManifest.fromJson(decoded);
       return local.runtimePackageVersion != expected.runtimePackageVersion ||
           local.schemaVersion != expected.schemaVersion ||

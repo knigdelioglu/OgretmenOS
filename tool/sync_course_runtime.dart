@@ -3,10 +3,10 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../lib/domain/runtime/runtime_manifest_policy.dart';
+
 const _defaultSourceRoot = '/Users/kadir/Desktop/tymm/courses/TDE_9/runtime';
 const _defaultTargetRoot = 'assets/courses/TDE_9';
-const _courseId = 'TDE_9';
-const _supportedSchemaMajor = '1.';
 
 Future<void> main(List<String> args) async {
   try {
@@ -26,7 +26,7 @@ Future<void> main(List<String> args) async {
     if (manifestJson is! Map<String, dynamic>) {
       throw StateError('Runtime manifest JSON nesnesi olmalı.');
     }
-    _validateManifest(manifestJson);
+    validateRuntimeManifest(manifestJson);
 
     final targetDirectory = Directory(targetRoot);
     await targetDirectory.create(recursive: true);
@@ -36,11 +36,10 @@ Future<void> main(List<String> args) async {
     await sourceDatabase.copy(targetDatabase.path);
     await sourceManifest.copy(targetManifest.path);
 
-    if (!targetDatabase.existsSync() ||
-        targetDatabase.lengthSync() != sourceDatabase.lengthSync()) {
+    if (!await _filesEqual(sourceDatabase, targetDatabase)) {
       throw StateError('Runtime SQLite hedef doğrulaması başarısız.');
     }
-    if (!targetManifest.existsSync() || targetManifest.lengthSync() == 0) {
+    if (!await _filesEqual(sourceManifest, targetManifest)) {
       throw StateError('Runtime manifest hedef doğrulaması başarısız.');
     }
 
@@ -51,6 +50,7 @@ Future<void> main(List<String> args) async {
     );
     stdout.writeln('SCHEMA_VERSION: ${manifestJson['schema_version']}');
     stdout.writeln('VALIDATION_STATUS: ${manifestJson['validation_status']}');
+    stdout.writeln('RUNTIME_STATUS: ${manifestJson['runtime_status']}');
     stdout.writeln('DATABASE_BYTES: ${targetDatabase.lengthSync()}');
   } catch (error, stackTrace) {
     stderr.writeln('RUNTIME_SYNC: FAIL');
@@ -66,20 +66,14 @@ String? _valueFor(List<String> args, String name) {
   return args[index + 1];
 }
 
-void _validateManifest(Map<String, dynamic> manifest) {
-  if (manifest['course_id'] != _courseId) {
-    throw StateError('Beklenmeyen course_id: ${manifest['course_id']}');
+Future<bool> _filesEqual(File source, File target) async {
+  if (!source.existsSync() || !target.existsSync()) return false;
+  if (await source.length() != await target.length()) return false;
+
+  final sourceBytes = await source.readAsBytes();
+  final targetBytes = await target.readAsBytes();
+  for (var index = 0; index < sourceBytes.length; index++) {
+    if (sourceBytes[index] != targetBytes[index]) return false;
   }
-  final schemaVersion = manifest['schema_version']?.toString() ?? '';
-  if (!schemaVersion.startsWith(_supportedSchemaMajor)) {
-    throw StateError('Desteklenmeyen schema_version: $schemaVersion');
-  }
-  if (manifest['validation_status'] != 'PASS') {
-    throw StateError(
-      'Runtime validation PASS değil: ${manifest['validation_status']}',
-    );
-  }
-  if (manifest['runtime_database_path'] != 'runtime/course_runtime.sqlite') {
-    throw StateError('Runtime database yolu manifest ile uyumlu değil.');
-  }
+  return true;
 }

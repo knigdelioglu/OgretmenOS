@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../domain/models/course_models.dart';
+import '../../domain/services/sequence_navigation.dart';
 
 class CourseDatabaseDataSource {
   const CourseDatabaseDataSource(this._database);
@@ -299,45 +300,11 @@ class CourseDatabaseDataSource {
     ];
   }
 
-  Future<Block?> getPreviousBlock(Block current) async {
-    final rows = await _database.rawQuery(
-      '''
-      SELECT b.block_id, b.theme_id, b.block_order, b.title,
-             b.skill_domain, b.learning_area, b.planned_hours,
-             b.time_status, b.source_locators_json
-      FROM blocks b
-      INNER JOIN themes t ON t.theme_id = b.theme_id
-      INNER JOIN themes current_theme ON current_theme.theme_id = ?
-      WHERE t.theme_order < current_theme.theme_order
-         OR (t.theme_order = current_theme.theme_order
-             AND b.block_order < ?)
-      ORDER BY t.theme_order DESC, b.block_order DESC
-      LIMIT 1
-    ''',
-      [current.themeId, current.order],
-    );
-    return rows.isEmpty ? null : Block.fromRow(rows.first);
-  }
+  Future<Block?> getPreviousBlock(Block current) async =>
+      previousBlockInSequence(await getAnnualSequence(), current.id);
 
-  Future<Block?> getNextBlock(Block current) async {
-    final rows = await _database.rawQuery(
-      '''
-      SELECT b.block_id, b.theme_id, b.block_order, b.title,
-             b.skill_domain, b.learning_area, b.planned_hours,
-             b.time_status, b.source_locators_json
-      FROM blocks b
-      INNER JOIN themes t ON t.theme_id = b.theme_id
-      INNER JOIN themes current_theme ON current_theme.theme_id = ?
-      WHERE t.theme_order > current_theme.theme_order
-         OR (t.theme_order = current_theme.theme_order
-             AND b.block_order > ?)
-      ORDER BY t.theme_order, b.block_order
-      LIMIT 1
-    ''',
-      [current.themeId, current.order],
-    );
-    return rows.isEmpty ? null : Block.fromRow(rows.first);
-  }
+  Future<Block?> getNextBlock(Block current) async =>
+      nextBlockInSequence(await getAnnualSequence(), current.id);
 
   Future<BlockDetail> getBlockDetail(String blockId) async {
     final block = await getBlock(blockId);
