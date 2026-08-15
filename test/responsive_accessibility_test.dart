@@ -51,7 +51,7 @@ void main() {
     expect(find.text('Türk Dili ve Edebiyatı'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.byIcon(Icons.view_timeline_outlined));
+    await _tapBottomDestination(tester, Icons.view_timeline_outlined);
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('Planlanan öğretim sırası'),
@@ -79,7 +79,7 @@ void main() {
     await _configureView(tester, const Size(360, 800));
     await _pumpApp(tester);
 
-    await tester.tap(find.byIcon(Icons.view_timeline_outlined));
+    await _tapBottomDestination(tester, Icons.view_timeline_outlined);
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.byTooltip('Burada kaldım'),
@@ -123,6 +123,17 @@ Future<void> _pumpApp(WidgetTester tester) async {
     ),
   );
   await tester.pumpAndSettle();
+}
+
+Future<void> _tapBottomDestination(
+  WidgetTester tester,
+  IconData icon,
+) async {
+  final navigationBar = find.byType(NavigationBar);
+  expect(navigationBar, findsOneWidget);
+  final target = find.descendant(of: navigationBar, matching: find.byIcon(icon));
+  expect(target, findsOneWidget);
+  await tester.tap(target);
 }
 
 class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
