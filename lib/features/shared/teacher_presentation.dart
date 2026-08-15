@@ -38,6 +38,17 @@ String? teacherTextbookCoverageLabel(String? value) => switch (value) {
   _ => null,
 };
 
+String? teacherEvaluatorLabel(String? value) => switch (value) {
+  'student_self' => 'Öğrenci öz değerlendirmesi',
+  'student_peer' || 'peer' => 'Akran değerlendirmesi',
+  'teacher' => 'Öğretmen değerlendirmesi',
+  'teacher_and_student' || 'student_and_teacher' =>
+    'Öğretmen ve öğrenci değerlendirmesi',
+  'teacher_and_peer' || 'peer_and_teacher' =>
+    'Öğretmen ve akran değerlendirmesi',
+  _ => null,
+};
+
 String? teacherLocatorLabel(String? raw) {
   if (raw == null || raw.trim().isEmpty) return null;
   final value = raw.trim();
