@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 import '../features/annual_plan/annual_plan_page.dart';
 import '../features/home/home_page.dart';
-import '../features/runtime_spike/runtime_spike_page.dart';
 import '../features/teacher_package/teacher_package_page.dart';
 import 'app_dependencies.dart';
 import 'theme/app_theme.dart';
@@ -147,21 +146,7 @@ class _AppShellState extends State<_AppShell> {
     final repository = widget.dependencies.repository;
     final preferences = widget.dependencies.preferences;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_titles[_selectedIndex]),
-        actions: [
-          if (kDebugMode)
-            IconButton(
-              tooltip: 'Veri doğrulama',
-              icon: const Icon(Icons.bug_report_outlined),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => RuntimeSpikePage(repository: repository),
-                ),
-              ),
-            ),
-        ],
-      ),
+      appBar: AppBar(title: Text(_titles[_selectedIndex])),
       body: IndexedStack(
         index: _selectedIndex,
         children: [
