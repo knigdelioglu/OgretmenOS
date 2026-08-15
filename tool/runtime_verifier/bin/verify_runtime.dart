@@ -277,7 +277,11 @@ void _checkFreshnessEvidence(
   Map<String, dynamic> manifest,
   String? validationReport,
 ) {
-  if (manifest['runtime_status'] == 'RUNTIME_FRESH') return;
+  final manifestStatus = manifest['runtime_status']?.toString().trim();
+  if (manifestStatus != null && manifestStatus.isNotEmpty) {
+    if (manifestStatus == 'RUNTIME_FRESH') return;
+    throw StateError('runtime_status fresh değil: $manifestStatus');
+  }
 
   if (validationReport != null) {
     for (final line in validationReport.split('\n')) {
