@@ -56,13 +56,15 @@ void validateRuntimeFreshnessEvidence(
   final manifestStatus = manifest['runtime_status']?.toString().trim();
   if (manifestStatus == requiredRuntimeFreshStatus) return;
 
-  final reportLine = validationReport
-      ?.split('\n')
-      .where(
-        (line) => line.toLowerCase().contains('source fingerprint status'),
-      )
-      .cast<String?>()
-      .firstOrNull;
+  String? reportLine;
+  if (validationReport != null) {
+    for (final line in validationReport.split('\n')) {
+      if (line.toLowerCase().contains('source fingerprint status')) {
+        reportLine = line;
+        break;
+      }
+    }
+  }
 
   if (reportLine != null) {
     final normalized = reportLine.toUpperCase();
