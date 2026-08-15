@@ -132,16 +132,21 @@ Future<void> _createRuntimeContractFixture(Database database) async {
 
     for (var blockOrder = 1; blockOrder <= 4; blockOrder++) {
       final blockId = '${themeId}_BLOK_0$blockOrder';
-      final block = {
+      await database.insert('blocks', {
         'block_id': blockId,
         'theme_id': themeId,
         'block_order': blockOrder,
         'title': 'Blok $blockOrder',
         'time_status': 'ORDER_ONLY',
         'source_locators_json': '[]',
-      };
-      await database.insert('blocks', block);
-      await database.insert('timeline_blocks', block);
+      });
+      await database.insert('timeline_blocks', {
+        'block_id': blockId,
+        'theme_id': themeId,
+        'block_order': blockOrder,
+        'time_status': 'ORDER_ONLY',
+        'source_locators_json': '[]',
+      });
     }
   }
 }
