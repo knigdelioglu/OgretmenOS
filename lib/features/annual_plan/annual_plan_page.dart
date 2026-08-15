@@ -5,6 +5,7 @@ import '../../domain/models/course_models.dart' as model;
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../block/block_detail_page.dart';
 import '../shared/feature_widgets.dart';
+import '../shared/teacher_presentation.dart';
 
 class AnnualPlanPage extends StatefulWidget {
   const AnnualPlanPage({
@@ -90,7 +91,7 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
             eyebrow: 'ÖĞRETİM ROTASI',
             title: 'Yıllık Plan',
             description:
-                'Dersin doğrulanmış öğretim sırasını izleyin ve sınıfta kaldığınız konumu işaretleyin.',
+                'Dersin programdaki öğretim sırasını izleyin ve sınıfta kaldığınız konumu işaretleyin.',
           ),
           _PlanOverview(
             data: data,
@@ -191,7 +192,7 @@ class _PlanOverview extends StatelessWidget {
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
-                        '${timelineResolutionLabel(data.manifest.timelineResolution)}. Takvim eşlemesi doğrulanmadığı için tarih üzerinden otomatik ders konumu gösterilmez.',
+                        '${teacherTimelineResolutionLabel(data.manifest.timelineResolution)}. Akademik takvim eşlemesi olmadığı için uygulama tarih üzerinden otomatik ders konumu seçmez.',
                         style: const TextStyle(height: 1.45),
                       ),
                     ),
@@ -466,15 +467,13 @@ class _TimelineEntryCard extends StatelessWidget {
                                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
-                            if (entry.block.timeStatus != null) ...[
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(
-                                blockTimeStatusLabel(entry.block.timeStatus!),
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              teacherBlockTimeLabel(entry.block.timeStatus),
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
-                            ],
+                            ),
                           ],
                         ),
                       ),
