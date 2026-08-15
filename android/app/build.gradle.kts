@@ -22,7 +22,7 @@ val hasReleaseSigning = listOf(
 android {
     namespace = "io.github.knigdelioglu.ogretmenos"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "29.0.14206865"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
