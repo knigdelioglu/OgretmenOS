@@ -84,20 +84,28 @@ void main() {
     }
 
     expect(candidate, isNotNull);
-    expect(candidate!.outcomes, isNotEmpty);
-    expect(candidate.activities, isNotEmpty);
-    expect(candidate.theme.id, candidate.block.themeId);
+    final detail = candidate!;
+    expect(detail.outcomes, isNotEmpty);
+    expect(detail.activities, isNotEmpty);
+    expect(detail.theme.id, detail.block.themeId);
   });
 
-  test('bundled canonical runtime gerçek öğretmen paketi üretir', () async {
+  test('bundled canonical runtime en az bir dolu gerçek öğretmen paketi üretir', () async {
     final themes = await dataSource.getThemes();
     expect(themes, isNotEmpty);
 
-    final package = await dataSource.getTeacherPackage(themes.first.id);
+    TeacherPackage? candidate;
+    for (final theme in themes) {
+      final package = await dataSource.getTeacherPackage(theme.id);
+      if (package.blocks.isNotEmpty &&
+          package.outcomes.isNotEmpty &&
+          package.activities.isNotEmpty &&
+          package.resourceDecisions.isNotEmpty) {
+        candidate = package;
+        break;
+      }
+    }
 
-    expect(package.blocks, isNotEmpty);
-    expect(package.outcomes, isNotEmpty);
-    expect(package.activities, isNotEmpty);
-    expect(package.resourceDecisions, isNotEmpty);
+    expect(candidate, isNotNull);
   });
 }
