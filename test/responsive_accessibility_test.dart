@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ogretmen_os/app/app.dart';
 import 'package:ogretmen_os/app/app_dependencies.dart';
 import 'package:ogretmen_os/data/preferences/user_preferences_repository.dart';
-import 'package:ogretmen_os/domain/models/course_models.dart';
+import 'package:ogretmen_os/domain/models/course_models.dart' as model;
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
 
 void main() {
@@ -65,8 +65,7 @@ void main() {
     );
     await _pumpApp(tester);
 
-    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
-    final context = tester.element(find.byWidget(scaffold));
+    final context = tester.element(find.byType(Scaffold).first);
     expect(Theme.of(context).brightness, Brightness.dark);
     expect(tester.takeException(), isNull);
   });
@@ -117,7 +116,7 @@ Future<void> _pumpApp(WidgetTester tester) async {
 }
 
 class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
-  static const _course = Course(
+  static const _course = model.Course(
     courseId: 'TDE_9',
     grade: 9,
     title: 'Türk Dili ve Edebiyatı',
@@ -125,7 +124,7 @@ class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
     sourceManifestFingerprint: 'test',
   );
 
-  static const _theme = Theme(
+  static const _theme = model.Theme(
     id: 'TEST_THEME',
     order: 1,
     title: '1. Tema: Sözün İnceliği ve Edebî Anlatım',
@@ -136,7 +135,7 @@ class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
     sourceLocator: null,
   );
 
-  static const _block = Block(
+  static const _block = model.Block(
     id: 'TEST_BLOCK',
     themeId: 'TEST_THEME',
     order: 1,
@@ -149,10 +148,10 @@ class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
   );
 
   @override
-  Future<Course> getCourse() async => _course;
+  Future<model.Course> getCourse() async => _course;
 
   @override
-  Future<RuntimeManifest> getManifest() async => const RuntimeManifest(
+  Future<model.RuntimeManifest> getManifest() async => const model.RuntimeManifest(
     runtimePackageVersion: '1.0.0',
     schemaVersion: '1.0.0',
     courseId: 'TDE_9',
@@ -164,20 +163,20 @@ class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
   );
 
   @override
-  Future<List<Theme>> getThemes() async => const [_theme];
+  Future<List<model.Theme>> getThemes() async => const [_theme];
 
   @override
-  Future<Theme> getTheme(String themeId) async => _theme;
+  Future<model.Theme> getTheme(String themeId) async => _theme;
 
   @override
-  Future<List<Block>> getBlocks(String themeId) async => const [_block];
+  Future<List<model.Block>> getBlocks(String themeId) async => const [_block];
 
   @override
-  Future<BlockDetail> getBlock(String blockId) async => _detail;
+  Future<model.BlockDetail> getBlock(String blockId) async => _detail;
 
   @override
-  Future<List<TimelineEntry>> getAnnualSequence() async => const [
-    TimelineEntry(
+  Future<List<model.TimelineEntry>> getAnnualSequence() async => const [
+    model.TimelineEntry(
       sequencePosition: 1,
       theme: _theme,
       block: _block,
@@ -189,12 +188,12 @@ class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
   ];
 
   @override
-  Future<List<ResourceDecision>> getResourceDecisions(String themeId) async =>
+  Future<List<model.ResourceDecision>> getResourceDecisions(String themeId) async =>
       const [];
 
   @override
-  Future<TeacherPackage> getTeacherPackage(String themeId) async =>
-      const TeacherPackage(
+  Future<model.TeacherPackage> getTeacherPackage(String themeId) async =>
+      const model.TeacherPackage(
         theme: _theme,
         blocks: [_block],
         outcomes: [],
@@ -208,7 +207,7 @@ class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
         sourceReferences: [],
       );
 
-  static const _detail = BlockDetail(
+  static const _detail = model.BlockDetail(
     theme: _theme,
     block: _block,
     outcomes: [],

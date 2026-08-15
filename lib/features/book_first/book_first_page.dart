@@ -356,9 +356,8 @@ class _AdditionalSupportDecisions extends StatelessWidget {
   }
 }
 
-bool _isExistingResourceDecision(model.ResourceDecision decision) => switch (
-      decision.appCategory,
-    ) {
+bool _isExistingResourceDecision(model.ResourceDecision decision) =>
+    switch (decision.appCategory) {
       'BOOK_SUFFICIENT' ||
       'USE_EXISTING_TEXTBOOK_ACTIVITY' ||
       'USE_EXISTING_FORM' ||
