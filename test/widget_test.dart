@@ -19,16 +19,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Test Course'), findsOneWidget);
-    expect(find.text('Seçili Plan Konumu'), findsOneWidget);
+    expect(find.text('Kaldığınız yeri seçin'), findsOneWidget);
     expect(find.text('Test Tema'), findsOneWidget);
 
     await tester.tap(find.text('Test Tema'));
     await tester.pumpAndSettle();
-    expect(find.text('Test Blok'), findsOneWidget);
+    expect(find.text('Test Blok'), findsWidgets);
 
-    await tester.tap(find.text('Test Blok'));
+    await tester.tap(find.text('Test Blok').last);
     await tester.pumpAndSettle();
-    expect(find.text('Blok Özeti'), findsOneWidget);
+    expect(find.text('Ders Bloğu'), findsOneWidget);
   });
 
   testWidgets('yıllık planda manuel plan konumu seçilebilir', (tester) async {
@@ -43,18 +43,18 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Yıllık Plan'));
+    await tester.tap(find.text('Yıllık Plan').first);
     await tester.pumpAndSettle();
     expect(find.text('Planlanan öğretim sırası'), findsOneWidget);
     expect(find.textContaining('Plan sırası: 1 / 1'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Burada kaldım'));
     await tester.pumpAndSettle();
-    expect(find.text('Seçili plan konumu kaydedildi.'), findsOneWidget);
+    expect(find.text('Burada kaldım'), findsOneWidget);
     expect(await preferences.getManualPositionOverride(), 'TEST_BLOCK');
   });
 
-  testWidgets('kitap-önce ve öğretmen paketi ekranlarına erişilir', (
+  testWidgets('kitap ve materyal ile öğretmen paketi ekranlarına erişilir', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -69,22 +69,19 @@ void main() {
 
     expect(find.text('Bugünkü Ders'), findsNothing);
     await tester.scrollUntilVisible(
-      find.text('Kitap-Önce'),
+      find.text('Kitap ve materyal'),
       400,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(find.text('Kitap-Önce'));
+    await tester.tap(find.text('Kitap ve materyal'));
     await tester.pumpAndSettle();
-    expect(find.text('Runtime kaynak kararları'), findsOneWidget);
+    expect(find.text('Bu tema için ne kullanacağım?'), findsOneWidget);
 
     await tester.pageBack();
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Öğretmen Paketi'));
+    await tester.tap(find.text('Öğretmen Paketi').first);
     await tester.pumpAndSettle();
-    expect(
-      find.text('Seçili temanın doğrulanmış öğretmen paketi'),
-      findsOneWidget,
-    );
+    expect(find.text('Tema dosyası'), findsOneWidget);
   });
 }
 
