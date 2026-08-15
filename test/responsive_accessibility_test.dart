@@ -7,109 +7,118 @@ import 'package:ogretmen_os/domain/models/course_models.dart' as model;
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
 
 void main() {
-  testWidgets('uygulama ana navigasyonu yüklenir', (tester) async {
-    _usePhoneViewport(tester);
-    await _pumpApp(tester, preferences: _FakePreferences());
+  testWidgets('phone portrait uses bottom navigation without overflow', (
+    tester,
+  ) async {
+    await _configureView(tester, const Size(360, 800));
+    await _pumpApp(tester);
 
-    expect(find.text('Test Course'), findsOneWidget);
-    expect(find.text('Kaldığınız yeri seçin'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.text('Test Tema'),
-      300,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.tap(find.text('Test Tema'));
-    await tester.pumpAndSettle();
-
-    final blockTitle = find.text('Test Blok');
-    await tester.scrollUntilVisible(
-      blockTitle,
-      300,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.ensureVisible(blockTitle);
-    await tester.pumpAndSettle();
-    expect(blockTitle, findsOneWidget);
-
-    await tester.tap(blockTitle);
-    await tester.pumpAndSettle();
-    expect(find.text('Ders Bloğu'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(NavigationRail), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
-  testWidgets('yıllık planda manuel plan konumu seçilebilir', (tester) async {
-    _usePhoneViewport(tester);
-    final preferences = _FakePreferences();
-    await _pumpApp(tester, preferences: preferences);
+  testWidgets('tablet portrait uses navigation rail without overflow', (
+    tester,
+  ) async {
+    await _configureView(tester, const Size(800, 1280));
+    await _pumpApp(tester);
+
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('tablet landscape uses navigation rail without overflow', (
+    tester,
+  ) async {
+    await _configureView(tester, const Size(1280, 800));
+    await _pumpApp(tester);
+
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('large system text remains usable on phone', (tester) async {
+    await _configureView(
+      tester,
+      const Size(360, 800),
+      textScaleFactor: 2,
+    );
+    await _pumpApp(tester);
+
+    expect(find.text('Türk Dili ve Edebiyatı'), findsOneWidget);
+    expect(tester.takeException(), isNull);
 
     await _tapBottomDestination(tester, Icons.view_timeline_outlined);
     await tester.pumpAndSettle();
-
-    final sequenceLabel = find.textContaining('Plan sırası: 1 / 1');
     await tester.scrollUntilVisible(
-      sequenceLabel,
+      find.text('Planlanan öğretim sırası'),
       300,
       scrollable: find.byType(Scrollable).last,
     );
     expect(find.text('Planlanan öğretim sırası'), findsOneWidget);
-    expect(sequenceLabel, findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.byTooltip('Burada kaldım'),
-      200,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.tap(find.byTooltip('Burada kaldım'));
-    await tester.pumpAndSettle();
-    expect(find.text('Burada kaldım'), findsOneWidget);
-    expect(await preferences.getManualPositionOverride(), 'TEST_BLOCK');
+    expect(tester.takeException(), isNull);
   });
 
-  testWidgets('kitap ve materyal ile öğretmen paketi ekranlarına erişilir', (
-    tester,
-  ) async {
-    _usePhoneViewport(tester);
-    await _pumpApp(tester, preferences: _FakePreferences());
-
-    expect(find.text('Bugünkü Ders'), findsNothing);
-    await tester.scrollUntilVisible(
-      find.text('Kitap ve materyal'),
-      400,
-      scrollable: find.byType(Scrollable).last,
+  testWidgets('dark mode renders the product shell', (tester) async {
+    await _configureView(
+      tester,
+      const Size(412, 915),
+      brightness: Brightness.dark,
     );
-    await tester.tap(find.text('Kitap ve materyal'));
-    await tester.pumpAndSettle();
-    expect(find.text('Bu tema için ne kullanacağım?'), findsOneWidget);
+    await _pumpApp(tester);
 
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    await _tapBottomDestination(tester, Icons.inventory_2_outlined);
+    final context = tester.element(find.byType(Scaffold).first);
+    expect(Theme.of(context).brightness, Brightness.dark);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('bookmark action keeps a 48dp touch target', (tester) async {
+    await _configureView(tester, const Size(360, 800));
+    await _pumpApp(tester);
+
+    await _tapBottomDestination(tester, Icons.view_timeline_outlined);
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.text('Tema dosyası'),
+      find.byTooltip('Burada kaldım'),
       300,
       scrollable: find.byType(Scrollable).last,
     );
-    expect(find.text('Tema dosyası'), findsOneWidget);
+
+    final bookmark = find.byTooltip('Burada kaldım');
+    expect(bookmark, findsOneWidget);
+    final size = tester.getSize(bookmark);
+    expect(size.width, greaterThanOrEqualTo(48));
+    expect(size.height, greaterThanOrEqualTo(48));
+    expect(tester.takeException(), isNull);
   });
 }
 
-void _usePhoneViewport(WidgetTester tester) {
-  tester.view.physicalSize = const Size(412, 915);
+Future<void> _configureView(
+  WidgetTester tester,
+  Size size, {
+  double textScaleFactor = 1,
+  Brightness brightness = Brightness.light,
+}) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
+  tester.platformDispatcher.textScaleFactorTestValue = textScaleFactor;
+  tester.platformDispatcher.platformBrightnessTestValue = brightness;
+
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
+  addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+  addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
 }
 
-Future<void> _pumpApp(
-  WidgetTester tester, {
-  required _FakePreferences preferences,
-}) async {
+Future<void> _pumpApp(WidgetTester tester) async {
   await tester.pumpWidget(
     TeacherOsApp(
       dependencies: AppDependencies(
-        repository: _FakeRepository(),
-        preferences: preferences,
+        repository: _ResponsiveFakeRepository(),
+        preferences: _ResponsiveFakePreferences(),
       ),
     ),
   );
@@ -127,29 +136,31 @@ Future<void> _tapBottomDestination(
   await tester.tap(target);
 }
 
-class _FakeRepository implements CourseKnowledgeRepository {
+class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
   static const _course = model.Course(
     courseId: 'TDE_9',
     grade: 9,
-    title: 'Test Course',
+    title: 'Türk Dili ve Edebiyatı',
     schemaVersion: '1.0.0',
     sourceManifestFingerprint: 'test',
   );
+
   static const _theme = model.Theme(
     id: 'TEST_THEME',
     order: 1,
-    title: 'Test Tema',
-    pageRange: null,
-    plannedHours: null,
+    title: '1. Tema: Sözün İnceliği ve Edebî Anlatım',
+    pageRange: '20-64',
+    plannedHours: 43,
     anlamaHours: null,
     anlatmaHours: null,
     sourceLocator: null,
   );
+
   static const _block = model.Block(
     id: 'TEST_BLOCK',
     themeId: 'TEST_THEME',
     order: 1,
-    title: 'Test Blok',
+    title: 'Okuma Bloğu: Şiir ve Deneme Metinlerini İnceleme',
     skillDomain: null,
     learningArea: null,
     plannedHours: null,
@@ -190,10 +201,10 @@ class _FakeRepository implements CourseKnowledgeRepository {
       sequencePosition: 1,
       theme: _theme,
       block: _block,
-      officialTotalHours: null,
-      coreInstructionHours: null,
+      officialTotalHours: 43,
+      coreInstructionHours: 43,
       schoolBasedHours: null,
-      schoolBasedHoursStatus: null,
+      schoolBasedHoursStatus: 'UNRESOLVED',
     ),
   ];
 
@@ -234,7 +245,7 @@ class _FakeRepository implements CourseKnowledgeRepository {
   );
 }
 
-class _FakePreferences implements UserPreferencesRepository {
+class _ResponsiveFakePreferences implements UserPreferencesRepository {
   String? _value;
 
   @override

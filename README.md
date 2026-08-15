@@ -7,18 +7,38 @@ olarak sunar. V1 dağıtım hedefi Android'dir.
 
 ## Runtime paketi
 
-Flutter asset'leri canonical knowledge deposundan kopyalanmaz; yalnızca derlenmiş
-runtime SQLite ve manifest senkronize edilir:
+Uygulamanın kullandığı versioned runtime girdileri:
+
+```text
+assets/courses/TDE_9/course_runtime.sqlite
+assets/courses/TDE_9/runtime_manifest.json
+assets/courses/TDE_9/runtime_validation_report.md
+```
+
+Bunlar canonical source of truth değildir; TYMM reposundaki deterministik runtime
+compiler çıktısının uygulama kopyasıdır. Canonical kaynak repo:
+
+```text
+knigdelioglu/tymm
+courses/TDE_9/runtime/
+```
+
+Yerel canonical runtime yenilendiğinde uygulama kopyası şu komutla senkronize
+edilir:
 
 ```sh
 dart run tool/sync_course_runtime.dart
 ```
 
-Senkronizasyon `PASS` + `RUNTIME_FRESH` manifest doğrulaması yapar ve
-`assets/courses/TDE_9/` altında yerel build girdisi oluşturur. Bu dosyalar
-generated olduğu için Git'e alınmaz.
+Sync, startup compatibility contract'ını ve build-time freshness kanıtını
+doğrular. Mevcut TDE_9 runtime paketi freshness sonucunu
+`runtime_validation_report.md` içindeki `source fingerprint status = PASS /
+RUNTIME_FRESH` kaydıyla taşır. Gelecekte compiler aynı bilgiyi manifest içindeki
+`runtime_status` alanında verirse o kanıt da desteklenir.
 
 ## Doğrulama
+
+Nihai doğrulama zinciri:
 
 ```sh
 flutter pub get
@@ -28,16 +48,21 @@ cd tool/runtime_verifier && dart pub get && dart run bin/verify_runtime.dart
 flutter build apk --release
 ```
 
-GitHub Actions, `main` push'larında ve pull request'lerde ayrı **Analyze** ve
-**Tests** kontrolleri çalıştırır. Bu kontroller geçtikten sonra **Android Release
-Build** kapısı gerçek release Gradle yolunu derler. CI signing anahtarı koşu
-sırasında geçici üretilir ve dağıtım için kullanılmaz.
+GitHub Actions, `main` push'larında ve pull request'lerde şu ayrı kapıları
+çalıştırır:
 
-Canonical runtime asset'leri Git'e alınmadığı için CI asset bundle aşamasında
-geçici placeholder dosyaları kullanır. Repository/data-source SQL sözleşmesi ise
-in-memory SQLite runtime fixture ile test edilir. Gerçek canonical runtime paketi
-mevcut olduğunda `runtime_verifier` manifest, row count ve ilişkileri salt-okunur
-DB üzerinde doğrular.
+```text
+Analyze
+Runtime Contract
+Tests
+Android Release Build
+```
+
+`Runtime Contract` versioned gerçek `course_runtime.sqlite` üzerinde manifest,
+freshness evidence, row count, sequence ve kritik ilişkileri doğrular. `Tests`
+job'ı da gerçek bundled runtime'ı kullanan integration testlerini çalıştırır.
+Placeholder runtime üretilmez. Bu kapılar geçtikten sonra Android release job'ı
+aynı gerçek runtime ile release Gradle yolunu derler.
 
 ## Android release signing
 

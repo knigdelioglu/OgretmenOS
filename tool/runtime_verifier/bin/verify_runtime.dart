@@ -14,6 +14,9 @@ Future<void> main() async {
   );
   final manifestFile = File(p.join(runtimeDirectory, 'runtime_manifest.json'));
   final databaseFile = File(p.join(runtimeDirectory, 'course_runtime.sqlite'));
+  final validationReportFile = File(
+    p.join(runtimeDirectory, 'runtime_validation_report.md'),
+  );
   _check(manifestFile.existsSync(), 'runtime manifest bulunamadı');
   _check(databaseFile.existsSync(), 'runtime SQLite bulunamadı');
 
@@ -29,14 +32,20 @@ Future<void> main() async {
     manifestMap['validation_status'] == 'PASS',
     'validation_status PASS değil',
   );
-  _check(
-    manifestMap['runtime_status'] == 'RUNTIME_FRESH',
-    'runtime_status RUNTIME_FRESH değil',
+  _checkFreshnessEvidence(
+    manifestMap,
+    validationReportFile.existsSync()
+        ? await validationReportFile.readAsString()
+        : null,
   );
   _check(
     (manifestMap['canonical_content_fingerprint']?.toString().trim() ?? '')
         .isNotEmpty,
     'canonical_content_fingerprint eksik',
+  );
+  _check(
+    manifestMap['runtime_database_path'] == 'runtime/course_runtime.sqlite',
+    'runtime_database_path beklenen değer değil',
   );
   final rawCounts = manifestMap['row_counts'];
   _check(rawCounts is Map, 'runtime manifest row_counts eksik');
@@ -262,6 +271,30 @@ Future<void> main() async {
   }
 
   stdout.writeln('RUNTIME_VERIFIER: PASS');
+}
+
+void _checkFreshnessEvidence(
+  Map<String, dynamic> manifest,
+  String? validationReport,
+) {
+  final manifestStatus = manifest['runtime_status']?.toString().trim();
+  if (manifestStatus != null && manifestStatus.isNotEmpty) {
+    if (manifestStatus == 'RUNTIME_FRESH') return;
+    throw StateError('runtime_status fresh değil: $manifestStatus');
+  }
+
+  if (validationReport != null) {
+    for (final line in validationReport.split('\n')) {
+      if (!line.toLowerCase().contains('source fingerprint status')) continue;
+      final normalized = line.toUpperCase();
+      if (normalized.contains('PASS') &&
+          normalized.contains('RUNTIME_FRESH')) {
+        return;
+      }
+    }
+  }
+
+  throw StateError('runtime freshness kanıtı bulunamadı');
 }
 
 int _count(Database database, String table) {

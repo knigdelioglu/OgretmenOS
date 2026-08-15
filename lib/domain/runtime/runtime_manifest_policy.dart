@@ -1,8 +1,14 @@
 const supportedRuntimeCourseId = 'TDE_9';
 const supportedRuntimeSchemaMajor = '1.';
-const requiredRuntimeStatus = 'RUNTIME_FRESH';
+const requiredRuntimeFreshStatus = 'RUNTIME_FRESH';
 const requiredRuntimeDatabasePath = 'runtime/course_runtime.sqlite';
 
+/// Validates the compatibility contract that must hold every time the app opens.
+///
+/// Freshness is intentionally not required here. Freshness is a build/sync
+/// concern and can be proven either by a manifest field or by the compiler's
+/// runtime validation report. The packaged manifest remains byte-identical to
+/// the canonical TYMM runtime manifest.
 void validateRuntimeManifest(Map<String, dynamic> manifest) {
   if (manifest['course_id'] != supportedRuntimeCourseId) {
     throw StateError('Beklenmeyen course_id: ${manifest['course_id']}');
@@ -25,12 +31,6 @@ void validateRuntimeManifest(Map<String, dynamic> manifest) {
     );
   }
 
-  if (manifest['runtime_status'] != requiredRuntimeStatus) {
-    throw StateError(
-      'Runtime package fresh değil: ${manifest['runtime_status']}',
-    );
-  }
-
   final fingerprint =
       manifest['canonical_content_fingerprint']?.toString().trim() ?? '';
   if (fingerprint.isEmpty) {
@@ -40,4 +40,42 @@ void validateRuntimeManifest(Map<String, dynamic> manifest) {
   if (manifest['runtime_database_path'] != requiredRuntimeDatabasePath) {
     throw StateError('Runtime database yolu manifest ile uyumlu değil.');
   }
+}
+
+/// Validates the build-time freshness evidence produced by the runtime compiler.
+///
+/// Newer compiler packages may expose `runtime_status` directly in the manifest.
+/// The current canonical TDE_9 package records the same authoritative result in
+/// `runtime_validation_report.md` under the `source fingerprint status` check.
+void validateRuntimeFreshnessEvidence(
+  Map<String, dynamic> manifest, {
+  String? validationReport,
+}) {
+  validateRuntimeManifest(manifest);
+
+  final manifestStatus = manifest['runtime_status']?.toString().trim();
+  if (manifestStatus != null && manifestStatus.isNotEmpty) {
+    if (manifestStatus == requiredRuntimeFreshStatus) return;
+    throw StateError('Runtime package fresh değil: $manifestStatus');
+  }
+
+  String? reportLine;
+  if (validationReport != null) {
+    for (final line in validationReport.split('\n')) {
+      if (line.toLowerCase().contains('source fingerprint status')) {
+        reportLine = line;
+        break;
+      }
+    }
+  }
+
+  if (reportLine != null) {
+    final normalized = reportLine.toUpperCase();
+    if (normalized.contains('PASS') &&
+        normalized.contains(requiredRuntimeFreshStatus)) {
+      return;
+    }
+  }
+
+  throw StateError('Runtime package freshness kanıtı yok veya geçersiz.');
 }

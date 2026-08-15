@@ -19,11 +19,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Ana sayfa verileri yüklenemedi.'), findsOneWidget);
+    expect(find.text('Ders planı yüklenemedi.'), findsOneWidget);
     expect(find.text('Tekrar dene'), findsOneWidget);
   });
 
-  testWidgets('boş runtime tema verisi unresolved state olarak gösterilir', (
+  testWidgets('boş tema verisi öğretmen dilinde empty state olarak gösterilir', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -36,10 +36,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('Runtime paketinde doğrulanmış tema bulunmuyor.'),
-      findsOneWidget,
-    );
+    expect(find.text('Tema bilgisi bulunamadı'), findsOneWidget);
+    expect(find.text('Ders içeriği şu anda görüntülenemiyor.'), findsOneWidget);
     expect(find.text('Bugünkü Ders'), findsNothing);
   });
 }
