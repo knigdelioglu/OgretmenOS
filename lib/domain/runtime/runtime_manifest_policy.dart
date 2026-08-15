@@ -54,7 +54,10 @@ void validateRuntimeFreshnessEvidence(
   validateRuntimeManifest(manifest);
 
   final manifestStatus = manifest['runtime_status']?.toString().trim();
-  if (manifestStatus == requiredRuntimeFreshStatus) return;
+  if (manifestStatus != null && manifestStatus.isNotEmpty) {
+    if (manifestStatus == requiredRuntimeFreshStatus) return;
+    throw StateError('Runtime package fresh değil: $manifestStatus');
+  }
 
   String? reportLine;
   if (validationReport != null) {
@@ -74,8 +77,5 @@ void validateRuntimeFreshnessEvidence(
     }
   }
 
-  throw StateError(
-    'Runtime package freshness kanıtı yok veya geçersiz: '
-    '${manifestStatus ?? 'manifest runtime_status yok'}',
-  );
+  throw StateError('Runtime package freshness kanıtı yok veya geçersiz.');
 }
