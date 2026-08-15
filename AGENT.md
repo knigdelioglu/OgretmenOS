@@ -465,6 +465,23 @@ Rules:
 - Do not delete generated/user files merely because they are untracked.
 - At task end, report the final `git status --short`.
 
+### Runtime Asset Versioning Policy
+
+**APPROVED VERSIONED SQLITE:**
+- `assets/courses/TDE_9/course_runtime.sqlite`
+- `assets/courses/TDE_9/runtime_manifest.json`
+
+**DO NOT VERSION / DO NOT BUNDLE:**
+- `knowledge.sqlite`
+- semantic/vector indexes
+- ONNX/model files
+- raw PDFs
+
+**Agent Rules:**
+- `course_runtime.sqlite` is an approved versioned application runtime artifact. It remains derived and rebuildable (non-canonical), but versioning it in Git is explicitly approved to enable clean clones, remote agent environments (Codex/Antigravity), and CI/build pipelines to operate immediately without a local compiler setup.
+- The agent must **never** automatically delete or ignore the versioned runtime SQLite under the assumption that "it is a binary/derived file and should be excluded".
+- Source runtime and app asset divergence is not permitted; hash and fingerprint verification must always be maintained.
+
 ---
 
 ## 12. Scope Change Protocol

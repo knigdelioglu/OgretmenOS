@@ -394,23 +394,41 @@ Sync script canonical dosyaları değiştiremez.
 
 ## 10. Runtime Asset Git Politikası
 
-Tercih edilen yaklaşım:
+Preferred V1 policy:
 
+**TYMM repo:**
+`courses/TDE_9/runtime/course_runtime.sqlite`
+→ **VERSIONED**
+
+**OgretmenOS repo:**
+`assets/courses/TDE_9/course_runtime.sqlite`
+→ **VERSIONED**
+
+Her iki dosya:
+- derived artifact
+- canonical değil
+- deterministic compiler output
+- hash/fingerprint ile doğrulanabilir
+
+Sync tool hâlâ gereklidir:
 ```text
-assets/courses/TDE_9/course_runtime.sqlite
+TYMM runtime
+    ↓ sync
+OgretmenOS asset
 ```
 
-build-time/generated asset kabul edilir ve Git'e alınmaz.
+Sync sonucu elde edilen asset Git'te tutulabilir ve versiyonlanması onaylıdır.
 
-Avantaj:
+Bu karar özellikle şunları kolaylaştırmak içindir:
+- Clean clone
+- Codex remote workspace
+- Antigravity workspace
+- CI / build ortamları
 
-- binary duplication azalır,
-- source of truth karışmaz,
-- her build öncesi fresh package sync edilir.
-
-İlk dağıtımı kolaylaştırmak için binary versionlanacaksa bile canonical kabul edilemez ve freshness check zorunlu kalır.
-
-Blueprint'in varsayılanı **generated/synced asset** yaklaşımıdır.
+Önemli ilkeler:
+- `course_runtime.sqlite` derived/rebuildable olmaya devam eder; canonical source of truth değildir.
+- `knowledge.sqlite` (RAG/search cache), vector index'ler ve ham PDF'ler kesinlikle OgretmenOS repo'suna taşınmaz ve versiyonlanmaz.
+- Source runtime ile app asset divergence kabul edilmez (hash/fingerprint eşitliği korunur).
 
 ---
 

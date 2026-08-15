@@ -120,6 +120,3 @@ app.*.symbols
 .idea/
 *.iml
 
-# Generated, validated runtime package; refresh with tool/sync_course_runtime.dart
-assets/courses/TDE_9/course_runtime.sqlite
-assets/courses/TDE_9/runtime_manifest.json
