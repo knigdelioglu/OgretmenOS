@@ -88,7 +88,7 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${data.sequence.length} doğrulanmış blok · tema zamanı ${data.manifest.timelineResolution.toLowerCase()}',
+                    '${data.sequence.length} doğrulanmış blok · ${timelineResolutionLabel(data.manifest.timelineResolution)}',
                   ),
                   const SizedBox(height: 8),
                   const UnresolvedText(
@@ -198,7 +198,7 @@ class _SequenceCard extends StatelessWidget {
         [
           'Plan sırası: ${entry.sequencePosition} / $total',
           if (entry.block.timeStatus != null)
-            'Süre durumu: ${entry.block.timeStatus}',
+            blockTimeStatusLabel(entry.block.timeStatus!),
         ].join(' · '),
       ),
       trailing: isSelected

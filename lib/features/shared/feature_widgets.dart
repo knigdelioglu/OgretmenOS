@@ -123,6 +123,7 @@ class ResourceDecisionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final category = decision.appCategory;
+    final priority = resourcePriorityLabel(decision.priority);
     final (label, icon, color) = _categoryPresentation(context, category);
     return Card(
       child: Padding(
@@ -141,12 +142,9 @@ class ResourceDecisionCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                if (decision.priority != null)
-                  Chip(label: Text(decision.priority!)),
+                if (priority != null) Chip(label: Text(priority)),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(decision.decisionCode),
             if (decision.purpose != null) ...[
               const SizedBox(height: 8),
               Text(decision.purpose!),
@@ -193,15 +191,23 @@ class ResourceDecisionCard extends StatelessWidget {
         Icons.auto_stories_outlined,
         scheme.primary,
       ),
+      'USE_EXISTING_FORM' => (
+        'Mevcut form kullanılır',
+        Icons.assignment_turned_in_outlined,
+        scheme.primary,
+      ),
+      'USE_ANNUAL_ASSESSMENT_ARTIFACT' => (
+        'Yıllık değerlendirme aracı kullanılır',
+        Icons.fact_check_outlined,
+        scheme.primary,
+      ),
       'ADDITIONAL_SUPPORT_REQUIRED' => (
         'Ek destek gerekli',
         Icons.add_task,
         scheme.tertiary,
       ),
       _ => (
-        category == null || category.isEmpty
-            ? 'Runtime kaynak kararı'
-            : 'Runtime: $category',
+        'Doğrulanmış kaynak kararı',
         Icons.fact_check_outlined,
         scheme.secondary,
       ),
@@ -219,3 +225,23 @@ String pageReference({String? printed, String? pdf}) {
   }
   return references.join(' · ');
 }
+
+String timelineResolutionLabel(String value) => switch (value) {
+  'THEME_TIME_RESOLVED' => 'Tema süreleri doğrulanmış',
+  'UNRESOLVED' => 'Zaman bilgisi henüz çözümlenmemiş',
+  _ => 'Runtime zaman bilgisi',
+};
+
+String blockTimeStatusLabel(String value) => switch (value) {
+  'ORDER_ONLY' => 'Yalnız plan sırası doğrulanmış',
+  'RESOLVED' => 'Blok süresi doğrulanmış',
+  'UNRESOLVED' => 'Ayrı blok süresi doğrulanmamış',
+  _ => 'Runtime zaman bilgisi',
+};
+
+String? resourcePriorityLabel(String? value) => switch (value) {
+  'HIGH' => 'Yüksek öncelik',
+  'MEDIUM' => 'Orta öncelik',
+  'LOW' => 'Düşük öncelik',
+  _ => null,
+};

@@ -129,7 +129,7 @@ class _TeacherPackagePageState extends State<TeacherPackagePage> {
               title: Text(block.title),
               subtitle: Text(
                 block.skillDomain ??
-                    'Blok süresi programda ayrı olarak doğrulanmamış.',
+                    'Beceri alanı için doğrulanmış değer bulunmuyor.',
               ),
             ),
           SectionHeading('Program çıktıları'),

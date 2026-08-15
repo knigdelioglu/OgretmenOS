@@ -377,7 +377,7 @@ class _ThemeBlocksPageState extends State<ThemeBlocksPage> {
                 title: Text(block.title),
                 subtitle: Text(
                   block.skillDomain ??
-                      'Blok süresi programda ayrı olarak doğrulanmamış.',
+                      'Beceri alanı için doğrulanmış değer bulunmuyor.',
                 ),
                 trailing: const Icon(Icons.chevron_right),
               ),

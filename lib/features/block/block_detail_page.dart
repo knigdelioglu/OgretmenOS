@@ -126,7 +126,7 @@ class _HeaderCard extends StatelessWidget {
             Text('Öğrenme alanı: ${detail.block.learningArea}'),
           if (detail.block.timeStatus != null) ...[
             const SizedBox(height: 8),
-            Text('Zaman durumu: ${detail.block.timeStatus}'),
+            Text(blockTimeStatusLabel(detail.block.timeStatus!)),
           ] else ...[
             const SizedBox(height: 8),
             const UnresolvedText(
