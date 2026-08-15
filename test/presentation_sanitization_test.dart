@@ -16,6 +16,11 @@ void main() {
       teacherBlockTimeLabel('ORDER_ONLY'),
       'Bu blok için yalnız plan sırası kullanılabilir.',
     );
+    expect(
+      teacherEvaluatorLabel('student_self'),
+      'Öğrenci öz değerlendirmesi',
+    );
+    expect(teacherEvaluatorLabel('UNKNOWN_EVALUATOR'), isNull);
   });
 
   test('technical locator is reduced to useful page information', () {
