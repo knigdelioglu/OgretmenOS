@@ -163,7 +163,7 @@ class _AppShellState extends State<_AppShell> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final useRail = constraints.maxWidth >= 840;
+        final useRail = constraints.maxWidth >= 720;
         final content = IndexedStack(index: _selectedIndex, children: pages);
 
         return Scaffold(
