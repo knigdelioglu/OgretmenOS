@@ -6,6 +6,7 @@ import '../features/home/home_page.dart';
 import '../features/runtime_spike/runtime_spike_page.dart';
 import '../features/teacher_package/teacher_package_page.dart';
 import 'app_dependencies.dart';
+import 'theme/app_theme.dart';
 
 class TeacherOsApp extends StatefulWidget {
   const TeacherOsApp({
@@ -44,18 +45,8 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
   Widget build(BuildContext context) => MaterialApp(
     title: 'TYMM Teacher OS',
     debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2F5D7C)),
-      visualDensity: VisualDensity.adaptivePlatformDensity,
-    ),
-    darkTheme: ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF8FB9D8),
-        brightness: Brightness.dark,
-      ),
-    ),
+    theme: AppTheme.light(),
+    darkTheme: AppTheme.dark(),
     home: FutureBuilder<AppDependencies>(
       future: _dependenciesFuture,
       builder: (context, snapshot) {
