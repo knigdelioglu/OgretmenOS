@@ -7,19 +7,47 @@ void main() {
     'schema_version': '1.0.0',
     'runtime_package_version': '1.0.0',
     'validation_status': 'PASS',
-    'runtime_status': 'RUNTIME_FRESH',
     'canonical_content_fingerprint': 'fingerprint',
     'runtime_database_path': 'runtime/course_runtime.sqlite',
   };
 
-  test('fresh ve doğrulanmış runtime manifest kabul edilir', () {
+  test('uyumlu ve doğrulanmış runtime manifest startup için kabul edilir', () {
     expect(() => validateRuntimeManifest(validManifest()), returnsNormally);
   });
 
-  test('stale runtime manifest reddedilir', () {
+  test('manifest runtime_status taşıyorsa freshness doğrudan doğrulanır', () {
+    final manifest = validManifest()..['runtime_status'] = 'RUNTIME_FRESH';
+    expect(
+      () => validateRuntimeFreshnessEvidence(manifest),
+      returnsNormally,
+    );
+  });
+
+  test('compiler validation raporu current canonical runtime freshness kanıtıdır', () {
+    const report = '''
+| Check | Status | Detail |
+| source fingerprint status | PASS | RUNTIME_FRESH |
+''';
+    expect(
+      () => validateRuntimeFreshnessEvidence(
+        validManifest(),
+        validationReport: report,
+      ),
+      returnsNormally,
+    );
+  });
+
+  test('freshness kanıtı yoksa build-time doğrulama reddedilir', () {
+    expect(
+      () => validateRuntimeFreshnessEvidence(validManifest()),
+      throwsA(isA<StateError>()),
+    );
+  });
+
+  test('stale runtime_status freshness doğrulamasında reddedilir', () {
     final manifest = validManifest()..['runtime_status'] = 'RUNTIME_STALE';
     expect(
-      () => validateRuntimeManifest(manifest),
+      () => validateRuntimeFreshnessEvidence(manifest),
       throwsA(isA<StateError>()),
     );
   });
