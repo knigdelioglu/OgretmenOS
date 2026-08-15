@@ -22,14 +22,17 @@ void main() {
     await tester.tap(find.text('Test Tema'));
     await tester.pumpAndSettle();
 
+    final blockTitle = find.text('Test Blok');
     await tester.scrollUntilVisible(
-      find.text('Test Blok'),
-      400,
+      blockTitle,
+      300,
       scrollable: find.byType(Scrollable).last,
     );
-    expect(find.text('Test Blok'), findsOneWidget);
+    await tester.ensureVisible(blockTitle);
+    await tester.pumpAndSettle();
+    expect(blockTitle, findsOneWidget);
 
-    await tester.tap(find.text('Test Blok'));
+    await tester.tap(blockTitle);
     await tester.pumpAndSettle();
     expect(find.text('Ders Bloğu'), findsOneWidget);
   });
@@ -41,17 +44,19 @@ void main() {
 
     await _tapBottomDestination(tester, Icons.view_timeline_outlined);
     await tester.pumpAndSettle();
+
+    final sequenceLabel = find.textContaining('Plan sırası: 1 / 1');
     await tester.scrollUntilVisible(
-      find.text('Planlanan öğretim sırası'),
+      sequenceLabel,
       300,
       scrollable: find.byType(Scrollable).last,
     );
     expect(find.text('Planlanan öğretim sırası'), findsOneWidget);
-    expect(find.textContaining('Plan sırası: 1 / 1'), findsOneWidget);
+    expect(sequenceLabel, findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.byTooltip('Burada kaldım'),
-      300,
+      200,
       scrollable: find.byType(Scrollable).last,
     );
     await tester.tap(find.byTooltip('Burada kaldım'));
