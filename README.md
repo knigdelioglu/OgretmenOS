@@ -1,5 +1,7 @@
 # TYMM Teacher OS
 
+![Flutter CI](https://github.com/knigdelioglu/OgretmenOS/actions/workflows/flutter-ci.yml/badge.svg)
+
 Offline-first Flutter uygulaması; doğrulanmış TDE_9 runtime paketini salt-okunur
 olarak sunar. V1 dağıtım hedefi Android'dir.
 
@@ -25,6 +27,12 @@ flutter test
 cd tool/runtime_verifier && flutter pub get && dart run bin/verify_runtime.dart
 flutter build apk --release
 ```
+
+GitHub Actions, `main` push'larında ve pull request'lerde `flutter analyze` ile
+`flutter test` çalıştırır. Canonical runtime asset'leri Git'e alınmadığı için CI,
+widget/unit test asset bundle'ı için yalnız geçici ve bilinçli olarak geçersiz
+placeholder dosyaları üretir; gerçek runtime doğrulaması bu placeholder'ları
+kullanmaz.
 
 Host-only runtime verifier gerçek SQLite dosyasını salt-okunur açarak manifest,
 ilişkiler ve data-source akışını kontrol eder. Uygulama runtime veritabanını
