@@ -14,6 +14,9 @@ Future<void> main(List<String> args) async {
 
     final sourceManifest = File(p.join(sourceRoot, 'runtime_manifest.json'));
     final sourceDatabase = File(p.join(sourceRoot, 'course_runtime.sqlite'));
+    final sourceValidationReport = File(
+      p.join(sourceRoot, 'runtime_validation_report.md'),
+    );
     if (!sourceManifest.existsSync()) {
       throw StateError('Runtime manifest bulunamadı: ${sourceManifest.path}');
     }
@@ -25,21 +28,37 @@ Future<void> main(List<String> args) async {
     if (manifestJson is! Map<String, dynamic>) {
       throw StateError('Runtime manifest JSON nesnesi olmalı.');
     }
-    validateRuntimeManifest(manifestJson);
+    final validationReport = sourceValidationReport.existsSync()
+        ? await sourceValidationReport.readAsString()
+        : null;
+    validateRuntimeFreshnessEvidence(
+      manifestJson,
+      validationReport: validationReport,
+    );
 
     final targetDirectory = Directory(targetRoot);
     await targetDirectory.create(recursive: true);
     final targetDatabase = File(p.join(targetRoot, 'course_runtime.sqlite'));
     final targetManifest = File(p.join(targetRoot, 'runtime_manifest.json'));
+    final targetValidationReport = File(
+      p.join(targetRoot, 'runtime_validation_report.md'),
+    );
 
     await sourceDatabase.copy(targetDatabase.path);
     await sourceManifest.copy(targetManifest.path);
+    if (sourceValidationReport.existsSync()) {
+      await sourceValidationReport.copy(targetValidationReport.path);
+    }
 
     if (!await _filesEqual(sourceDatabase, targetDatabase)) {
       throw StateError('Runtime SQLite hedef doğrulaması başarısız.');
     }
     if (!await _filesEqual(sourceManifest, targetManifest)) {
       throw StateError('Runtime manifest hedef doğrulaması başarısız.');
+    }
+    if (sourceValidationReport.existsSync() &&
+        !await _filesEqual(sourceValidationReport, targetValidationReport)) {
+      throw StateError('Runtime validation raporu hedef doğrulaması başarısız.');
     }
 
     stdout.writeln('RUNTIME_SYNC: PASS');
@@ -49,7 +68,7 @@ Future<void> main(List<String> args) async {
     );
     stdout.writeln('SCHEMA_VERSION: ${manifestJson['schema_version']}');
     stdout.writeln('VALIDATION_STATUS: ${manifestJson['validation_status']}');
-    stdout.writeln('RUNTIME_STATUS: ${manifestJson['runtime_status']}');
+    stdout.writeln('FRESHNESS_EVIDENCE: PASS');
     stdout.writeln('DATABASE_BYTES: ${targetDatabase.lengthSync()}');
   } catch (error, stackTrace) {
     stderr.writeln('RUNTIME_SYNC: FAIL');
