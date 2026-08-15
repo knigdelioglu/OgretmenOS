@@ -1,0 +1,10 @@
+name: runtime_verifier
+description: Host-only verification for the bundled TYMM runtime SQLite package.
+publish_to: 'none'
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  path: ^1.9.1
+  sqlite3: ^3.5.1
