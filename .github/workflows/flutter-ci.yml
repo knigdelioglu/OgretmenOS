@@ -33,8 +33,12 @@ jobs:
       - name: Flutter version
         run: flutter --version
 
-      - name: Install dependencies
+      - name: Install app dependencies
         run: flutter pub get
+
+      - name: Install runtime verifier dependencies
+        working-directory: tool/runtime_verifier
+        run: dart pub get
 
       - name: Prepare CI-only generated asset placeholders
         shell: bash
@@ -43,8 +47,12 @@ jobs:
           printf '%s\n' '{"ci_placeholder":true}' > assets/courses/TDE_9/runtime_manifest.json
           printf 'CI_PLACEHOLDER_ONLY\n' > assets/courses/TDE_9/course_runtime.sqlite
 
-      - name: Analyze
+      - name: Analyze app
         run: flutter analyze
+
+      - name: Analyze runtime verifier
+        working-directory: tool/runtime_verifier
+        run: dart analyze
 
       - name: Test
         run: flutter test --reporter expanded

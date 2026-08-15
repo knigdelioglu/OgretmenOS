@@ -1,9 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:ogretmen_os/domain/runtime/runtime_manifest_policy.dart';
 import 'package:path/path.dart' as p;
-
-import '../lib/domain/runtime/runtime_manifest_policy.dart';
 
 const _defaultSourceRoot = '/Users/kadir/Desktop/tymm/courses/TDE_9/runtime';
 const _defaultTargetRoot = 'assets/courses/TDE_9';
