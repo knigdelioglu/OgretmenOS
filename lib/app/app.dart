@@ -164,6 +164,8 @@ class _AppShellState extends State<_AppShell> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final useRail = constraints.maxWidth >= 720;
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final compactLabels = textScale >= 1.5;
         final content = IndexedStack(index: _selectedIndex, children: pages);
 
         return Scaffold(
@@ -176,7 +178,9 @@ class _AppShellState extends State<_AppShell> {
                       child: NavigationRail(
                         selectedIndex: _selectedIndex,
                         onDestinationSelected: _selectDestination,
-                        labelType: NavigationRailLabelType.all,
+                        labelType: compactLabels
+                            ? NavigationRailLabelType.selected
+                            : NavigationRailLabelType.all,
                         groupAlignment: -0.75,
                         destinations: const [
                           NavigationRailDestination(
@@ -209,6 +213,9 @@ class _AppShellState extends State<_AppShell> {
               ? null
               : NavigationBar(
                   selectedIndex: _selectedIndex,
+                  labelBehavior: compactLabels
+                      ? NavigationDestinationLabelBehavior.onlyShowSelected
+                      : NavigationDestinationLabelBehavior.alwaysShow,
                   onDestinationSelected: _selectDestination,
                   destinations: const [
                     NavigationDestination(
