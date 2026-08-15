@@ -4,6 +4,7 @@ import '../../domain/models/course_models.dart' as model;
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../block/block_detail_page.dart';
 import '../shared/feature_widgets.dart';
+import '../shared/teacher_presentation.dart';
 
 class TeacherPackagePage extends StatefulWidget {
   const TeacherPackagePage({super.key, required this.repository});
@@ -89,7 +90,7 @@ class _TeacherPackagePageState extends State<TeacherPackagePage> {
           ),
           const SizedBox(height: AppSpacing.md),
           _PackageHero(package: package),
-          SectionHeading(
+          const SectionHeading(
             'Tema dosyası',
             subtitle: 'İhtiyacınız olan bölümü açın; diğer ayrıntılar kapalı kalır',
             icon: Icons.folder_open_outlined,
@@ -278,8 +279,8 @@ class _PackageHero extends StatelessWidget {
                 Expanded(
                   child: Text(
                     supportCount == 0
-                        ? 'Ek destek gerektiren materyal kararı görünmüyor.'
-                        : '$supportCount materyal kararında ek destek gerekiyor.',
+                        ? 'Ek destek gerektiren materyal alanı görünmüyor.'
+                        : '$supportCount alanda ek destek gerekiyor.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onPrimaryContainer,
                       fontWeight: FontWeight.w600,
@@ -571,7 +572,7 @@ class _AssessmentContent extends StatelessWidget {
             index++) ...[
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.link_outlined),
+            leading: const Icon(Icons.checklist_outlined),
             title: Text(
               package.assessmentTaskBindings[index].taskTitle ??
                   'Değerlendirme görevi',
@@ -596,13 +597,13 @@ class _MaterialsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (decisions.isEmpty) {
-      return const UnresolvedText(label: 'Materyal kararı bulunmuyor.');
+      return const UnresolvedText(label: 'Materyal bilgisi bulunmuyor.');
     }
 
     return Column(
       children: [
         for (var index = 0; index < decisions.length; index++) ...[
-          ResourceDecisionCard(decision: decisions[index]),
+          TeacherResourceDecisionCard(decision: decisions[index]),
           if (index != decisions.length - 1) const SizedBox(height: AppSpacing.md),
         ],
       ],
@@ -628,13 +629,9 @@ class _SourcesContent extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.article_outlined),
             title: Text(sources[index].title),
-            subtitle: Text(
-              [
-                if (sources[index].entityLocator != null)
-                  sources[index].entityLocator!,
-                if (sources[index].locator != null) sources[index].locator!,
-              ].join(' · '),
-            ),
+            subtitle: teacherSourceSubtitle(sources[index]) == null
+                ? null
+                : Text(teacherSourceSubtitle(sources[index])!),
           ),
           if (index != sources.length - 1) const Divider(),
         ],
