@@ -73,7 +73,7 @@ class _StartupPage extends StatelessWidget {
         children: [
           CircularProgressIndicator(),
           SizedBox(height: 16),
-          Text('Runtime paketi hazırlanıyor…'),
+          Text('Ders verileri hazırlanıyor…'),
         ],
       ),
     ),
@@ -104,13 +104,13 @@ class _StartupErrorPage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Runtime paketi açılamadı.',
+                'Ders verileri açılamadı.',
                 style: Theme.of(context).textTheme.titleLarge,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               const Text(
-                'Uygulama doğrulanmış ders verisi olmadan devam etmiyor.',
+                'Uygulama ders içeriği yüklenmeden devam edemiyor.',
                 textAlign: TextAlign.center,
               ),
               if (kDebugMode && error != null) ...[
@@ -152,7 +152,7 @@ class _AppShellState extends State<_AppShell> {
         actions: [
           if (kDebugMode)
             IconButton(
-              tooltip: 'Runtime doğrulama',
+              tooltip: 'Veri doğrulama',
               icon: const Icon(Icons.bug_report_outlined),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
