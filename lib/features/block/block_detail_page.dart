@@ -378,25 +378,39 @@ class _FormsSection extends StatelessWidget {
       child: Column(
         children: [
           for (var index = 0; index < forms.length; index++) ...[
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.description_outlined),
-              title: Text(forms[index].title),
-              subtitle: Text(
-                [
-                  if (forms[index].evaluator != null)
-                    'Değerlendiren: ${forms[index].evaluator}',
-                  pageReference(
-                    printed: forms[index].printedPage?.toString(),
-                    pdf: forms[index].pdfPage?.toString(),
-                  ),
-                ].where((value) => value.isNotEmpty).join(' · '),
-              ),
-            ),
+            _FormItem(form: forms[index]),
             if (index != forms.length - 1) const Divider(),
           ],
         ],
       ),
+    );
+  }
+}
+
+class _FormItem extends StatelessWidget {
+  const _FormItem({required this.form});
+
+  final model.Form form;
+
+  @override
+  Widget build(BuildContext context) {
+    final evaluator = teacherEvaluatorLabel(form.evaluator);
+    final pages = pageReference(
+      printed: form.printedPage?.toString(),
+      pdf: form.pdfPage?.toString(),
+    );
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.description_outlined),
+      title: Text(form.title),
+      subtitle: evaluator == null && pages.isEmpty
+          ? null
+          : Text(
+              [
+                if (evaluator != null) evaluator,
+                if (pages.isNotEmpty) pages,
+              ].join(' · '),
+            ),
     );
   }
 }
@@ -602,18 +616,28 @@ class _SourcesSection extends StatelessWidget {
       child: Column(
         children: [
           for (var index = 0; index < sources.length; index++) ...[
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.article_outlined),
-              title: Text(sources[index].title),
-              subtitle: teacherSourceSubtitle(sources[index]) == null
-                  ? null
-                  : Text(teacherSourceSubtitle(sources[index])!),
-            ),
+            _SourceItem(source: sources[index]),
             if (index != sources.length - 1) const Divider(),
           ],
         ],
       ),
+    );
+  }
+}
+
+class _SourceItem extends StatelessWidget {
+  const _SourceItem({required this.source});
+
+  final model.SourceReference source;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = teacherSourceSubtitle(source);
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.article_outlined),
+      title: Text(source.title),
+      subtitle: subtitle == null ? null : Text(subtitle),
     );
   }
 }
