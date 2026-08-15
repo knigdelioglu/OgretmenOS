@@ -74,11 +74,15 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
       }
 
       final data = snapshot.data!;
-      final selectedEntry = data.manualIsValid
-          ? data.sequence
-                .where((entry) => entry.block.id == data.manualPosition)
-                .firstOrNull
-          : null;
+      model.TimelineEntry? selectedEntry;
+      if (data.manualIsValid) {
+        for (final entry in data.sequence) {
+          if (entry.block.id == data.manualPosition) {
+            selectedEntry = entry;
+            break;
+          }
+        }
+      }
 
       return AppPage(
         children: [
@@ -88,7 +92,11 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
             description:
                 'Dersin doğrulanmış öğretim sırasını izleyin ve sınıfta kaldığınız konumu işaretleyin.',
           ),
-          _PlanOverview(data: data, selectedEntry: selectedEntry),
+          _PlanOverview(
+            data: data,
+            selectedEntry: selectedEntry,
+            onClear: _clearPosition,
+          ),
           if (data.sequence.isEmpty) ...[
             const SizedBox(height: AppSpacing.xl),
             const StatusPanel(
@@ -137,10 +145,15 @@ class _PlanData {
 }
 
 class _PlanOverview extends StatelessWidget {
-  const _PlanOverview({required this.data, required this.selectedEntry});
+  const _PlanOverview({
+    required this.data,
+    required this.selectedEntry,
+    required this.onClear,
+  });
 
   final _PlanData data;
   final model.TimelineEntry? selectedEntry;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -200,7 +213,7 @@ class _PlanOverview extends StatelessWidget {
           _SelectedPlanCard(
             entry: selectedEntry!,
             total: data.sequence.length,
-            onClear: data.manualPosition == null ? null : () {},
+            onClear: onClear,
           ),
       ],
     );
@@ -216,7 +229,7 @@ class _SelectedPlanCard extends StatelessWidget {
 
   final model.TimelineEntry entry;
   final int total;
-  final VoidCallback? onClear;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -256,6 +269,12 @@ class _SelectedPlanCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSecondaryContainer,
                   ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                TextButton.icon(
+                  onPressed: onClear,
+                  icon: const Icon(Icons.restart_alt),
+                  label: const Text('Plan sırasına dön'),
                 ),
               ],
             ),
@@ -376,105 +395,107 @@ class _TimelineEntryCard extends StatelessWidget {
   final VoidCallback onOpen;
 
   @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      SizedBox(
-        width: 42,
-        child: Column(
-          children: [
-            Container(
-              width: 30,
-              height: 30,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.surfaceContainerHighest,
-                shape: BoxShape.circle,
-              ),
-              child: Text(
-                '${entry.sequencePosition}',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+  Widget build(BuildContext context) => IntrinsicHeight(
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: 42,
+          child: Column(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
                   color: isSelected
-                      ? Theme.of(context).colorScheme.onPrimary
-                      : Theme.of(context).colorScheme.onSurface,
-                  fontWeight: FontWeight.w800,
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.surfaceContainerHighest,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '${entry.sequencePosition}',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-            ),
-            if (!isLastInTheme)
-              Expanded(
-                child: Container(
-                  width: 2,
-                  color: Theme.of(context).colorScheme.outlineVariant,
+              if (!isLastInTheme)
+                Expanded(
+                  child: Container(
+                    width: 2,
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
-      ),
-      const SizedBox(width: AppSpacing.sm),
-      Expanded(
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-          child: Card(
-            color: isSelected
-                ? Theme.of(context).colorScheme.secondaryContainer
-                : null,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: onOpen,
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            entry.block.title,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: Card(
+              color: isSelected
+                  ? Theme.of(context).colorScheme.secondaryContainer
+                  : null,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: onOpen,
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              entry.block.title,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            'Plan sırası: ${entry.sequencePosition} / $total',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          if (entry.block.timeStatus != null) ...[
                             const SizedBox(height: AppSpacing.xs),
                             Text(
-                              blockTimeStatusLabel(entry.block.timeStatus!),
+                              'Plan sırası: ${entry.sequencePosition} / $total',
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
+                            if (entry.block.timeStatus != null) ...[
+                              const SizedBox(height: AppSpacing.xs),
+                              Text(
+                                blockTimeStatusLabel(entry.block.timeStatus!),
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    IconButton(
-                      tooltip: isSelected ? 'Seçili plan konumu' : 'Burada kaldım',
-                      onPressed: onSelect,
-                      icon: Icon(
-                        isSelected
-                            ? Icons.bookmark_added
-                            : Icons.bookmark_add_outlined,
+                      const SizedBox(width: AppSpacing.sm),
+                      IconButton(
+                        tooltip: isSelected ? 'Seçili plan konumu' : 'Burada kaldım',
+                        onPressed: onSelect,
+                        icon: Icon(
+                          isSelected
+                              ? Icons.bookmark_added
+                              : Icons.bookmark_add_outlined,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-    ],
+      ],
+    ),
   );
 }
