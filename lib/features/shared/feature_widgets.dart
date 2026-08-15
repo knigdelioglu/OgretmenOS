@@ -255,7 +255,7 @@ class SectionHeading extends StatelessWidget {
               Text(
                 title,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w750,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               if (subtitle != null) ...[
