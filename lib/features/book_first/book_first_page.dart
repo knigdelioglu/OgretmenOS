@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../domain/models/course_models.dart' as model;
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../shared/feature_widgets.dart';
+import '../shared/teacher_presentation.dart';
 
 class BookFirstPage extends StatefulWidget {
   const BookFirstPage({
@@ -94,7 +95,7 @@ class _BookFirstPageState extends State<BookFirstPage> {
               eyebrow: 'KİTAP-ÖNCE',
               title: 'Bu tema için ne kullanacağım?',
               description:
-                  'Önce ders kitabındaki karşılıkları görün; yalnız doğrulanmış ihtiyaç varsa ek destek kararlarını inceleyin.',
+                  'Önce ders kitabındaki karşılıkları görün; yalnız ihtiyaç görülen alanlarda ek destek kararlarını inceleyin.',
             ),
             _ThemeSelector(
               themes: data.themes,
@@ -111,15 +112,15 @@ class _BookFirstPageState extends State<BookFirstPage> {
               icon: Icons.menu_book_outlined,
             ),
             _TextbookCoverage(package: package),
-            SectionHeading(
+            const SectionHeading(
               'Mevcut kitap ve araçlarla karşılananlar',
-              subtitle: 'Doğrudan kullanılabilecek veya yeniden kullanılabilecek kayıtlar',
+              subtitle: 'Doğrudan kullanılabilecek kitap etkinlikleri ve mevcut araçlar',
               icon: Icons.library_add_check_outlined,
             ),
             _ExistingResourceDecisions(decisions: package.resourceDecisions),
-            SectionHeading(
+            const SectionHeading(
               'Ek destek gereken alanlar',
-              subtitle: 'Yalnız ek destek kararı bulunan kayıtlar',
+              subtitle: 'Ek destek gerektiren içerik ve araçlar',
               icon: Icons.add_task,
             ),
             _AdditionalSupportDecisions(decisions: package.resourceDecisions),
@@ -156,7 +157,7 @@ class _ThemeSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InfoCard(
     title: 'Tema seçimi',
-    subtitle: 'Kitap ve materyal kararlarını tema bazında inceleyin',
+    subtitle: 'Kitap ve materyal bilgilerini tema bazında inceleyin',
     icon: Icons.layers_outlined,
     child: DropdownButtonFormField<String>(
       initialValue: selectedThemeId,
@@ -196,14 +197,14 @@ class _DecisionOverview extends StatelessWidget {
         StatusPanel(
           icon: supportCount == 0 ? Icons.check_circle_outline : Icons.add_task,
           title: decisions.isEmpty
-              ? 'Materyal kararı bulunmuyor'
+              ? 'Materyal bilgisi bulunmuyor'
               : supportCount == 0
-                  ? 'Ek destek gerektiren karar görünmüyor'
+                  ? 'Ek destek gerektiren alan görünmüyor'
                   : '$supportCount alanda ek destek gerekiyor',
           message: decisions.isEmpty
-              ? 'Bu tema için gösterilebilir kitap veya ek materyal kararı bulunmuyor.'
+              ? 'Bu tema için gösterilebilir kitap veya ek materyal bilgisi bulunmuyor.'
               : supportCount == 0
-                  ? 'Kayıtlı kararlar kitapta veya mevcut araçlarda karşılığı bulunan kullanımlara yönlendiriyor.'
+                  ? 'Mevcut kitap ve araçlar bu temadaki ihtiyaçları karşılıyor.'
                   : 'Önce mevcut kitap ve araçları kullanın; ek destek işaretli alanları ayrıca inceleyin.',
           tone: supportCount == 0 && decisions.isNotEmpty
               ? StatusTone.positive
@@ -222,7 +223,7 @@ class _DecisionOverview extends StatelessWidget {
                 children: [
                   MetricChip(
                     icon: Icons.menu_book_outlined,
-                    label: 'mevcut kaynak kararı',
+                    label: 'mevcut kaynak',
                     value: '$knownExistingCount',
                   ),
                   MetricChip(
@@ -233,7 +234,7 @@ class _DecisionOverview extends StatelessWidget {
                   if (reviewCount > 0)
                     MetricChip(
                       icon: Icons.visibility_outlined,
-                      label: 'inceleme',
+                      label: 'öğretmen incelemesi',
                       value: '$reviewCount',
                     ),
                 ],
@@ -264,7 +265,7 @@ class _TextbookCoverage extends StatelessWidget {
     return InfoCard(
       title: package.theme.title,
       subtitle: package.theme.pageRange == null
-          ? 'Ders kitabı eşleştirmeleri'
+          ? 'Ders kitabı bölümleri'
           : 'Tema sayfaları: ${package.theme.pageRange}',
       icon: Icons.auto_stories_outlined,
       child: Column(
@@ -304,15 +305,15 @@ class _ExistingResourceDecisions extends StatelessWidget {
     if (visible.isEmpty) {
       return const StatusPanel(
         icon: Icons.info_outline,
-        title: 'Mevcut kaynak kararı bulunmuyor',
-        message: 'Bu tema için bu grupta gösterilecek karar bulunmuyor.',
+        title: 'Mevcut kaynak bilgisi bulunmuyor',
+        message: 'Bu tema için bu bölümde gösterilecek içerik bulunmuyor.',
       );
     }
 
     return Column(
       children: [
         for (var index = 0; index < visible.length; index++) ...[
-          ResourceDecisionCard(decision: visible[index]),
+          TeacherResourceDecisionCard(decision: visible[index]),
           if (index != visible.length - 1) const SizedBox(height: AppSpacing.md),
         ],
       ],
@@ -333,8 +334,8 @@ class _AdditionalSupportDecisions extends StatelessWidget {
     if (visible.isEmpty) {
       return const StatusPanel(
         icon: Icons.check_circle_outline,
-        title: 'Ek destek gerektiren karar yok',
-        message: 'Bu tema için ek materyal desteği gerektiren bir karar görünmüyor.',
+        title: 'Ek destek gereken alan yok',
+        message: 'Bu tema için ek materyal desteği gerektiren bir alan görünmüyor.',
         tone: StatusTone.positive,
       );
     }
@@ -342,7 +343,7 @@ class _AdditionalSupportDecisions extends StatelessWidget {
     return Column(
       children: [
         for (var index = 0; index < visible.length; index++) ...[
-          ResourceDecisionCard(decision: visible[index]),
+          TeacherResourceDecisionCard(decision: visible[index]),
           if (index != visible.length - 1) const SizedBox(height: AppSpacing.md),
         ],
       ],
