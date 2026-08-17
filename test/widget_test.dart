@@ -49,6 +49,11 @@ void main() {
 
     expect(find.text('Haftalık Plan'), findsWidgets);
     expect(find.textContaining('14 Eylül - 18 Eylül 2026'), findsWidgets);
+    await tester.scrollUntilVisible(
+      find.text('TEST.1'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(find.text('TEST.1'), findsOneWidget);
   });
 
