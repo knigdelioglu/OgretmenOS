@@ -186,7 +186,7 @@ class _WeekHero extends StatelessWidget {
                       ? Icons.celebration_outlined
                       : Icons.schedule_outlined,
                   value: '${week.plannedLessonHours}',
-                  label: 'planlanan ders saati',
+                  label: 'ders saati',
                 ),
                 if (!week.isEventWeek)
                   MetricChip(
