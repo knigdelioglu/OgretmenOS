@@ -26,3 +26,4 @@ flutter:
   assets:
     - assets/courses/TDE_9/course_runtime.sqlite
     - assets/courses/TDE_9/runtime_manifest.json
+    - assets/calendars/
