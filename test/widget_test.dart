@@ -25,11 +25,11 @@ void main() {
     );
     expect(find.text('Planlı'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('Test kazanımı'),
+      find.textContaining('Test kazanımı'),
       250,
       scrollable: find.byType(Scrollable).last,
     );
-    expect(find.text('Test kazanımı'), findsOneWidget);
+    expect(find.textContaining('Test kazanımı'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.widgetWithText(FilledButton, 'İşlendi'),
       250,
@@ -41,16 +41,87 @@ void main() {
     expect(find.text('İşlendi'), findsOneWidget);
   });
 
+  testWidgets('kazanım ana ekranı blok saatini ve uzun metin açılımını gösterir', (
+    tester,
+  ) async {
+    _usePhoneViewport(tester);
+    await _pumpApp(tester, preferences: _FakePreferences());
+
+    await tester.scrollUntilVisible(
+      find.text('Bu hafta ilgili blok: 5 saat'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Bu hafta ilgili blok: 5 saat'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.widgetWithText(TextButton, 'Devamını göster'),
+      250,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.widgetWithText(TextButton, 'Devamını göster'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextButton, 'Kısalt'), findsOneWidget);
+  });
+
+  testWidgets('kazanım kartından öğretmen notu eklenebilir', (tester) async {
+    _usePhoneViewport(tester);
+    await _pumpApp(tester, preferences: _FakePreferences());
+
+    await tester.scrollUntilVisible(
+      find.widgetWithText(TextButton, 'Not'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.widgetWithText(TextButton, 'Not'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Öğretmen notu'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Örnek ders notu');
+    await tester.tap(find.widgetWithText(FilledButton, 'Kaydet'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Not var'),
+      250,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Not var'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Notu düzenle'), findsOneWidget);
+  });
+
+  testWidgets('hafta swipe ile değişir ve bu haftaya dön kısayolu çalışır', (
+    tester,
+  ) async {
+    _usePhoneViewport(tester);
+    await _pumpApp(tester, preferences: _FakePreferences());
+
+    expect(find.text('14 Eylül - 18 Eylül 2026'), findsOneWidget);
+    await tester.fling(
+      find.text('Kazanım Takibi'),
+      const Offset(-420, 0),
+      1200,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('21 Eylül - 25 Eylül 2026'), findsOneWidget);
+    expect(find.text('Bu haftaya dön'), findsOneWidget);
+
+    await tester.tap(find.text('Bu haftaya dön'));
+    await tester.pumpAndSettle();
+    expect(find.text('14 Eylül - 18 Eylül 2026'), findsOneWidget);
+  });
+
   testWidgets('kazanım kartı mevcut blok ayrıntı bağlamına açılır', (tester) async {
     _usePhoneViewport(tester);
     await _pumpApp(tester, preferences: _FakePreferences());
 
     await tester.scrollUntilVisible(
-      find.text('Test kazanımı'),
+      find.textContaining('Test kazanımı'),
       250,
       scrollable: find.byType(Scrollable).last,
     );
-    await tester.tap(find.text('Test kazanımı'));
+    await tester.tap(find.textContaining('Test kazanımı'));
     await tester.pumpAndSettle();
 
     expect(find.text('KAZANIM AYRINTISI'), findsOneWidget);
@@ -191,7 +262,8 @@ class _FakeRepository implements CourseKnowledgeRepository {
     id: 'TEST_OUTCOME',
     themeId: 'TEST_THEME',
     code: 'TEST.1',
-    officialText: 'Test kazanımı',
+    officialText:
+        'Test kazanımı; öğrencinin metni bağlam, yapı, anlam ilişkileri ve dil özellikleri bakımından incelemesini, elde ettiği bulguları gerekçelendirmesini ve farklı metinlerle ilişkilendirerek açıklamasını kapsayan uzun bir resmî kazanım metnidir.',
     processComponents: null,
     sourceLocator: null,
     verificationStatus: 'PASS',
@@ -289,6 +361,23 @@ class _FakeWeeklyPlanning implements WeeklyPlanningService {
         end: DateTime(2026, 9, 18),
         type: AcademicWeekType.instruction,
         label: '1. Hafta',
+        plannedLessonHours: 5,
+        segments: const [
+          WeeklyPlanSegment(
+            type: WeeklyPlanSegmentType.block,
+            theme: _FakeRepository._theme,
+            block: _FakeRepository._block,
+            hours: 5,
+          ),
+        ],
+        outcomes: const [_FakeRepository._outcome],
+      ),
+      AcademicWeekPlan(
+        weekNumber: 2,
+        start: DateTime(2026, 9, 21),
+        end: DateTime(2026, 9, 25),
+        type: AcademicWeekType.instruction,
+        label: '2. Hafta',
         plannedLessonHours: 5,
         segments: const [
           WeeklyPlanSegment(
