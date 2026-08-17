@@ -4,6 +4,7 @@ import 'package:ogretmen_os/app/app.dart';
 import 'package:ogretmen_os/app/app_dependencies.dart';
 import 'package:ogretmen_os/data/preferences/user_preferences_repository.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart' as model;
+import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
 
 void main() {
@@ -119,6 +120,7 @@ Future<void> _pumpApp(WidgetTester tester) async {
       dependencies: AppDependencies(
         repository: _ResponsiveFakeRepository(),
         preferences: _ResponsiveFakePreferences(),
+        weeklyPlanning: _ResponsiveFakeWeeklyPlanning(),
       ),
     ),
   );
@@ -242,6 +244,36 @@ class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
     sourceReferences: [],
     previousBlock: null,
     nextBlock: null,
+  );
+}
+
+class _ResponsiveFakeWeeklyPlanning implements WeeklyPlanningService {
+  @override
+  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async => AnnualWeeklyPlan(
+    academicYear: '2026-2027',
+    courseId: 'TDE_9',
+    weeklyLessonHours: 5,
+    annualHours: 180,
+    currentWeekNumber: 1,
+    weeks: [
+      AcademicWeekPlan(
+        weekNumber: 1,
+        start: DateTime(2026, 9, 14),
+        end: DateTime(2026, 9, 18),
+        type: AcademicWeekType.instruction,
+        label: '1. Hafta',
+        plannedLessonHours: 5,
+        segments: const [
+          WeeklyPlanSegment(
+            type: WeeklyPlanSegmentType.block,
+            theme: _ResponsiveFakeRepository._theme,
+            block: _ResponsiveFakeRepository._block,
+            hours: 5,
+          ),
+        ],
+        outcomes: const [],
+      ),
+    ],
   );
 }
 
