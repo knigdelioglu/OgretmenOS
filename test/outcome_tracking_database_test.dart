@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ogretmen_os/data/tracking/outcome_tracking_database.dart';
 import 'package:ogretmen_os/domain/models/outcome_tracking_models.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {

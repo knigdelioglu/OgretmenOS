@@ -109,7 +109,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
               eyebrow: 'Kazanım Ayrıntısı',
               title: outcome.code,
               description: outcome.officialText,
-              trailing: OutcomeStatusChip(status: _item.status),
+              trailing: OutcomeStatusChip(status: _item.presentationStatus),
             ),
             if (_item.isCarriedIn)
               StatusPanel(
@@ -525,7 +525,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
       if (!mounted) return;
       setState(() {
         _plan = refreshed;
-        if (next != null) _item = next!;
+        if (next != null) _item = next;
         _noteController.text = _item.teacherNote ?? '';
         _changed = true;
       });
