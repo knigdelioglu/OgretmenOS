@@ -1,20 +1,47 @@
-# PRODUCT_SCOPE.md — TYMM Teacher OS V1
+# PRODUCT_SCOPE.md — ÖğretmenOS V1.2
 
-**Product:** TYMM Teacher OS  
-**Document version:** 1.1.0  
+**Product:** ÖğretmenOS  
+**Document version:** 1.2.0  
 **Status:** Binding Product Scope Authority  
 **Implementation:** Flutter + Dart + Material 3  
 **V1 Distribution Target:** Android  
 **Initial Course Package:** `TDE_9`  
-**Operation Mode:** Offline-first, deterministic, local  
-**LLM Dependency:** None  
-**Backend Dependency:** None
+**Operation Mode:** Offline-first, deterministic, local
 
 ---
 
-## 1. Purpose and authority
+## 1. Product definition
 
-This document defines what TYMM Teacher OS V1 is allowed and required to be.
+ÖğretmenOS, öğretmenin derse girerken haftalık kazanımlarını görüp ders defterini güvenilir program verisine bakarak doldurabildiği **kazanım takip ve ders yürütme uygulamasıdır**.
+
+Ürün ön yüzde kazanım odaklıdır. Arka planda ise:
+
+```text
+verified TYMM course runtime
++
+versioned academic calendar
++
+versioned course scheduling profile
++
+local teacher tracking state
+```
+
+birleştirilir.
+
+Uygulama şu soruları en fazla birkaç dokunuşta cevaplamalıdır:
+
+```text
+Bu hafta hangi kazanımlar planlı?
+Hangi tema/blok içindeyim?
+Bu hafta kaç ders saati var?
+Hangi kazanımları işledim, hangileri kısmen kaldı veya sarktı?
+Ders defterine bakarken hangi resmî kazanım metnini kullanacağım?
+Bu kazanımın bulunduğu blokta hangi kitap, etkinlik, materyal ve değerlendirme verileri var?
+```
+
+---
+
+## 2. Authority and immutable knowledge
 
 Authority order:
 
@@ -24,485 +51,294 @@ Authority order:
 3. AGENT.md
 ```
 
-If a lower authority conflicts with this document, this document wins and the lower document must be aligned before implementation proceeds.
-
----
-
-## 2. Product definition
-
-TYMM Teacher OS V1 is an offline teacher workflow application that combines:
-
-```text
-verified TYMM course runtime
-+
-versioned academic calendar
-+
-versioned course scheduling profile
-```
-
-and presents the result as an operational weekly teaching plan.
-
-The application must answer, without daily manual maintenance:
-
-```text
-Bu eğitim öğretim yılının kaçıncı okul haftasındayım?
-Bu hafta TDE 9 için hangi tema/bloklar planlanıyor?
-Bu hafta kaç ders saati var?
-Bu haftaki program çıktıları/kazanımları neler?
-Ders kitabında nereye bakacağım?
-Hangi etkinlik ve değerlendirme araçları ilgili?
-Ek materyale ihtiyaç var mı?
-Sonraki hafta ne geliyor?
-```
-
-The application remains a consumer of verified course knowledge. It must not become a second curriculum interpretation engine.
-
----
-
-## 3. Authoritative data inputs
-
-### 3.1 Course knowledge authority
-
-Course facts continue to come from the verified TYMM runtime package:
+Course knowledge remains authoritative only in the verified runtime package:
 
 ```text
 Canonical TYMM Knowledge
-        ↓
-Deterministic Runtime Compiler
-        ↓
-course_runtime.sqlite + runtime_manifest.json
-        ↓
-Flutter Application
+→ deterministic runtime compiler
+→ course_runtime.sqlite
+→ read-only CourseKnowledgeRepository
 ```
 
-The runtime database is read-only, derived, rebuildable and source-traceable.
+The app must never edit runtime outcomes, themes, blocks, textbook relationships, activities, assessment mappings or resource decisions.
 
-### 3.2 Academic calendar authority
+---
 
-Academic-year dates must come from a versioned calendar package consumed by the calendar service.
+## 3. Calendar and scheduling authority
 
-Dart source code must not hardcode annual dates such as:
+Academic-year dates and scheduling parameters remain versioned data assets. Dart UI code must not hardcode yearly dates or curriculum facts.
 
-```text
-term start/end
-mid-term breaks
-semester break
-school closing date
-event week
-orientation dates
-```
-
-A new academic year is introduced by adding/updating calendar data and switching the active academic-year entry in the calendar index. UI and planning code must consume the service output without yearly source-code edits.
-
-### 3.3 Course scheduling profile
-
-Weekly lesson hours and annual scheduling rules are versioned planning data, not widget constants.
-
-For `TDE_9` in the 2026-2027 planning profile:
+For `TDE_9` 2026-2027:
 
 ```text
 weekly lesson hours = 5
 annual course hours = 180
-number of themes = 4
-hours per theme = 45
-structured programme hours per theme = 43
-school-based planning hours per theme = 2
-instructional course weeks = 36
-final active school week = EVENT_WEEK
+4 themes × 45 hours
+43 structured + 2 school-based hours per theme
+36 instructional weeks consume 180 hours
+37th active week = EVENT_WEEK
 ```
 
-Therefore:
-
-```text
-4 × 45 = 180 hours
-36 × 5 = 180 hours
-```
-
-The final active school week is an event week and must not receive newly invented curriculum outcomes.
-
----
-
-## 4. Core capabilities
-
-### Capability A — Ders Yürütme Merkezi
-
-A selected block can present verified runtime data including:
-
-```text
-theme
-block
-block order
-outcomes
-process components
-textbook sections/pages
-activities
-forms
-assessment artifacts
-resource decisions
-source references
-previous/next block
-```
-
-The UI must not invent missing curriculum relationships.
-
-### Capability B — Takvim Tabanlı Haftalık Plan
-
-The application must provide a week-oriented teacher view.
-
-The teacher must be able to select an academic school week such as:
-
-```text
-3. Hafta
-28 Eylül - 2 Ekim 2026
-```
-
-and see:
-
-```text
-week type
-planned TDE lesson hours
-active theme(s)
-active block(s)
-hours assigned to each segment
-school-based planning segment, when applicable
-outcomes/kazanımlar belonging to the active block segments
-```
-
-The service must also be able to resolve the current academic week from a date.
-
-Break weeks must not consume course hours.
-
-The final active school week marked `EVENT_WEEK` must not consume the 180-hour TDE course budget and must not fabricate new block/outcome assignments.
-
-### Capability C — Akademik Takvime Bağlı Yıllık Plan
-
-The annual plan is no longer only an abstract 1..N block sequence. It must be able to expose the sequence through academic weeks.
-
-Required relation:
-
-```text
-academic calendar
-→ active school weeks
-→ weekly course-hour budget
-→ theme-hour budget
-→ block planning allocation
-→ weekly block segments
-→ outcomes from verified runtime
-```
-
-The annual plan represents a planned teaching schedule, not student mastery.
-
-### Capability D — Kitap-Önce / Materyal Gerekliliği
-
-Resource sufficiency and material-need decisions continue to come only from the verified runtime contract.
-
-The application may translate machine codes into teacher-facing language but may not independently decide that a resource is sufficient or required.
-
-### Capability E — Otomatik Öğretmen Paketi
-
-The app may aggregate a selected theme's verified blocks, outcomes, textbook sections, activities, forms, assessment artifacts, resource decisions and source references into an on-screen teacher package.
-
----
-
-## 5. Block-hour planning policy
-
-The source TYMM package currently verifies theme-level hours but does not define official sub-hours for each pedagogical block.
-
-Therefore the application must distinguish:
-
-```text
-OFFICIAL COURSE FACT
-vs
-DERIVED PLANNING ALLOCATION
-```
-
-For TDE 9:
-
-```text
-43 structured hours per theme = official programme fact
-2 school-based planning hours per theme = official annual/theme planning budget used by this product profile
-individual block-hour allocation = derived planning policy
-```
-
-A derived block allocation is permitted because weekly scheduling requires a deterministic mapping, but it must satisfy all of the following:
-
-1. it is stored in versioned planning/calendar data, not hardcoded in widgets;
-2. it preserves block order from the runtime;
-3. its total structured hours per theme equals 43;
-4. school-based planning remains a separate 2-hour segment;
-5. it is presented as a planning allocation, not as an official block duration;
-6. changing the policy requires a data/version update, not silent UI inference.
-
-The initial deterministic profile uses the ordered four-block allocation:
+The current deterministic block planning allocation remains:
 
 ```text
 12 + 11 + 10 + 10 = 43 structured hours
-+ 2 school-based planning hours
-= 45 hours per theme
 ```
 
-This distribution is a product planning policy, not an assertion that the official curriculum specifies those individual block durations.
+This is a product scheduling policy, not an official block-duration claim.
 
 ---
 
-## 6. 2026-2027 academic calendar contract
+## 4. Core capability A — Kazanım Takibi
 
-The bundled 2026-2027 calendar must represent at minimum:
+**Kazanımlar is the default application surface.** The app must look and behave primarily like a weekly learning-outcome tracker rather than a runtime browser.
+
+For the selected academic week the teacher can see card-based outcomes with:
 
 ```text
-Orientation / guidance week: 7-11 September 2026
-First term: 14 September 2026 - 22 January 2027
-First mid-term break: 16-20 November 2026
-Semester break: 25 January - 5 February 2027
-Second term: 8 February - 25 June 2027
-Second mid-term break: 8-12 March 2027
-Final active school week: 21-25 June 2027 = EVENT_WEEK
+outcome code
+official outcome text
+week/date context
+theme and block context
+planned lesson context
+tracking status
+carry-over indicator
+teacher note indicator
+available book/material context summary
 ```
 
-For TDE 9 the first 36 active teaching weeks consume the full 180-hour course plan. The 37th active school week is reserved as event week.
-
-Orientation/guidance activity before the first-term start is stored as calendar metadata and is not counted as one of the 36 TDE instructional weeks.
-
----
-
-## 7. Current-week semantics
-
-When calendar data and a matching course scheduling profile exist, the app may truthfully use labels such as:
+Supported local tracking states:
 
 ```text
-Bu Haftanın Planı
-3. Hafta
-Bu haftaki kazanımlar
+PLANNED
+IN_PROGRESS
+COMPLETED
+PARTIALLY_COMPLETED
+CARRIED_OVER
 ```
 
-provided those labels are resolved by the calendar service.
+Absence of a local tracking row means `PLANNED`.
 
-The app must not claim that planned schedule equals actual classroom progress.
-
-An optional manual teacher position override may remain available for real-world schedule drift, but it is an override of the planned position, not the primary source of the annual plan.
+Planned progression is not student mastery. Tracking state means only the teacher's classroom execution state for that week.
 
 ---
 
-## 8. Zero-input behavior
+## 5. Core capability B — Kazanım Detail / Ders Yürütme
 
-Without daily teacher data entry, the user must be able to:
+Tapping an outcome opens a detail surface centred on the selected outcome.
+
+The screen may expose only data that can be reached truthfully through the current runtime/planning contracts, including:
 
 ```text
-view the active academic year
-view/select school weeks
-view the weekly TDE plan
-view weekly outcomes/kazanımlar
-view the annual sequence
-browse themes and blocks
-inspect block details
-inspect textbook/activity references
-inspect forms and assessment artifacts
-inspect resource decisions
-view teacher packages
+official outcome text
+process components
+planned week and date range
+theme
+block
+block-level textbook sections/page ranges
+block-level activities
+forms
+assessment artifacts
+targeted assessment task bindings when the runtime explicitly targets the outcome
+resource decisions
+source/block navigation
 ```
+
+If a relationship is only known at block level, the UI must label it as **block context** and must not imply an outcome-specific relationship.
+
+No pedagogical text or missing relationship may be invented.
 
 ---
 
-## 9. Allowed mutable user state
+## 6. Core capability C — Ders Defteri Desteği
 
-Allowed local state includes:
+The selected week provides a compact **Deftere Bakış** view containing only verified/derived planning facts:
+
+```text
+academic week/date range
+theme(s)
+block(s)
+outcome codes
+official outcome texts when expanded/copied
+```
+
+The app may provide copy-to-clipboard convenience. It must not fabricate a new official lesson-log sentence unless such text exists in authoritative data.
+
+The primary goal is to replace the common workflow of carrying Excel-table screenshots on a phone.
+
+---
+
+## 7. Core capability D — Takvim Tabanlı Haftalık Plan
+
+The existing weekly plan remains available as the scheduling view and must expose:
+
+```text
+week type
+planned TDE hours
+active block segments
+segment hours
+school-based planning segments
+weekly outcomes
+```
+
+Break weeks do not consume course hours. `EVENT_WEEK` consumes zero new curriculum hours.
+
+---
+
+## 8. Core capability E — Annual plan, book/material and teacher package
+
+Existing capabilities remain supported:
+
+```text
+Akademik Takvime Bağlı Yıllık Plan
+Kitap-Önce / Materyal Gerekliliği
+Otomatik Öğretmen Paketi
+Block Detail
+```
+
+They are secondary/detail surfaces behind the outcome-first workflow.
+
+---
+
+## 9. Mutable teacher state
+
+Teacher-local tracking is explicitly in scope and must remain physically/logically separate from `course_runtime.sqlite`.
+
+Allowed local mutable state:
 
 ```text
 manual_position_override
-basic UI preferences
+UI preferences
+learning_outcome_tracking
 ```
 
-Course knowledge, academic calendar facts and scheduling profiles are versioned application data and must not be edited as user state.
+A tracking record may store:
+
+```text
+academic_year
+outcome_id
+planned_week_number
+status
+actual_hours (optional)
+teacher_note (optional)
+completed_at (optional)
+carried_to_week_number (optional)
+updated_at
+```
+
+Tracking rows may be written to a dedicated local teacher-state database. Runtime DB remains read-only.
+
+Runtime/calendar asset updates must not erase teacher tracking state.
 
 ---
 
-## 10. Explicitly out of scope
+## 10. Carry-over semantics
 
-Still out of V1 scope:
+The canonical plan never moves when classroom execution drifts.
+
+The application shows two separate truths:
+
+```text
+PLANLANAN
+vs
+GERÇEKLEŞEN / TAKİP DURUMU
+```
+
+When an outcome is carried forward:
+
+- its original planned week remains known;
+- the source week shows `CARRIED_OVER`;
+- the target instructional week may additionally show it as `Geçen haftadan`;
+- event week is not a valid carry target;
+- carry-over does not rewrite the annual planning service.
+
+---
+
+## 11. Navigation and UX identity
+
+Top-level navigation is outcome-first:
+
+```text
+Kazanımlar
+Haftalık
+Yıllık Plan
+Paket
+```
+
+`Kazanımlar` opens by default.
+
+The teacher should be able to answer **“Bu hafta ne işleyeceğim?”** immediately after launch.
+
+Outcome cards should use clear visual state chips, concise context, large touch targets and progressive disclosure. Technical runtime codes that do not help classroom use should not dominate the card.
+
+Phone and tablet layouts, large text and dark mode must remain usable.
+
+---
+
+## 12. Offline and privacy boundary
+
+All core capability remains offline after installation.
+
+Still out of scope:
 
 ```text
 student roster / attendance / grades
 student mastery tracking
-teacher diary / notes / task manager
-LLM / RAG / AI generation
 cloud account / backend / sync
 MEBBİS or e-Okul integration
 Google Calendar integration
 school timetable synchronization
-PDF/OCR ingestion
-runtime DB editing
-PDF/DOCX export
+LLM / RAG / AI generation
+OCR/PDF ingestion
+curriculum editing
 ```
 
-A local academic calendar service is in scope; a general-purpose personal calendar manager is not.
+A teacher note attached to a weekly outcome tracking record is in scope; a general-purpose notes/task-manager product is not.
 
 ---
 
-## 11. No hardcoded curriculum or yearly-calendar rule
+## 13. Required invariants
 
-Dart source must not hardcode:
+The product must preserve:
 
 ```text
-outcomes
-theme contents
-activities
-textbook mappings
-assessment mappings
-resource decisions
-curriculum hour totals
-yearly term dates
-yearly break dates
-yearly event-week dates
+runtime DB is read-only
+tracking DB/state is separate
+weekly_hours = 5 for the active TDE_9 profile
+36 × 5 = 180
+4 × 45 = 180
+43 + 2 = 45 per theme
+37th active week = EVENT_WEEK
+EVENT_WEEK new curriculum assignment = 0
+tracking never changes canonical outcome text or planned schedule
+outcome detail never invents unavailable relationships
 ```
-
-Course knowledge comes from the runtime package. Annual dates and scheduling parameters come from versioned calendar/planning data.
 
 ---
 
-## 12. No pedagogical invention
+## 14. Definition of success
 
-Unknown course facts remain unknown.
+V1.2 is successful when a teacher can:
 
-The application may execute an explicitly versioned scheduling policy, but it must not convert that policy into an official curriculum claim.
+1. open the app directly into `Kazanımlar`;
+2. see the current/selected week's outcome cards;
+3. understand theme/block/date context without opening an Excel image;
+4. mark an outcome in progress, completed, partial or carried over;
+5. add a short local teacher note;
+6. reopen the app and retain tracking state;
+7. open an outcome and reach the verified block/book/activity/assessment/resource data currently available;
+8. use `Deftere Bakış` while filling the class record;
+9. distinguish planned schedule from actual classroom tracking;
+10. use all of the above offline without modifying canonical course knowledge.
 
-Correct:
+---
+
+## 15. Change protocol
+
+Future product changes follow:
 
 ```text
-Planlama dağıtımı: bu blok için 12 saat
+scope → blueprint → implementation → tests/CI
 ```
 
-Incorrect:
-
-```text
-Programda bu blok 12 saattir
-```
-
-when the source programme does not specify that fact.
-
----
-
-## 13. Offline requirement
-
-All V1 core capabilities, including weekly planning, must work offline after installation.
-
-Calendar packages and scheduling profiles required for the active academic year are bundled/versioned application assets.
-
-No network availability, login or API call may be required to display the weekly plan.
-
----
-
-## 14. Calendar update protocol
-
-For each new academic year:
-
-```text
-1. add the new versioned academic calendar data;
-2. add or update the course scheduling profile if weekly hours/rules changed;
-3. mark the active academic year in calendar_index.json;
-4. validate term and break ranges;
-5. validate active-school-week count;
-6. validate course-hour conservation;
-7. run weekly-planning tests;
-8. release the application update.
-```
-
-Application feature code must not require yearly date edits.
-
----
-
-## 15. Required invariants for TDE_9 2026-2027
-
-The application must reject or surface an error if any of these fail:
-
-```text
-weekly_hours = 5
-theme_count = 4
-theme_hours = 45
-structured_theme_hours = 43
-school_based_theme_hours = 2
-annual_hours = 180
-instructional_week_count = 36
-instructional_week_count × weekly_hours = annual_hours
-sum(theme_hours) = annual_hours
-sum(block planning allocations per theme) = structured_theme_hours
-37th active school week = EVENT_WEEK
-EVENT_WEEK new curriculum hours = 0
-```
-
----
-
-## 16. UX principles
-
-Primary teacher-facing navigation must make week access cheap.
-
-A teacher should be able to reach a requested week such as “3. hafta” without calculating dates or block positions manually.
-
-Weekly plan UI should prioritize:
-
-```text
-week number and date range
-week type
-planned lesson hours
-active block(s)
-block-hour segments
-weekly outcomes/kazanımlar
-school-based planning indicator
-```
-
-Avoid presenting planning position as student success or completion percentage.
-
----
-
-## 17. Unresolved and invalid states
-
-The product supports:
-
-```text
-Loading
-Content
-Empty
-Error
-Unresolved
-```
-
-If the active academic year has no valid calendar profile, weekly planning must fail visibly rather than fall back to fabricated dates.
-
-If course scheduling hours do not conserve to the annual total, the service must reject the profile.
-
----
-
-## 18. Definition of V1 success
-
-V1 is successful when a teacher can:
-
-1. open the Android application offline;
-2. see the active academic year;
-3. open a numbered school week, including week 3;
-4. see that week's TDE 9 block allocation and lesson hours;
-5. see outcomes/kazanımlar belonging to those planned blocks;
-6. distinguish structured instruction from school-based planning;
-7. see event week without fabricated curriculum content;
-8. inspect block, textbook, activity, assessment and resource details;
-9. use the app without daily logging, account, backend or AI.
-
----
-
-## 19. Scope change protocol
-
-Future product changes follow this order:
-
-```text
-1. revise PRODUCT_SCOPE.md;
-2. align FLUTTER_BLUEPRINT.md;
-3. update versioned runtime/calendar/planning contracts;
-4. implement;
-5. validate with tests and CI.
-```
-
-Implementation must not silently precede a required scope revision.
-
----
-
-## 20. Final product boundary
-
-TYMM Teacher OS V1 is a small, offline, deterministic teacher application that combines verified TDE 9 course knowledge with a versioned academic calendar and course scheduling profile to produce a truthful week-by-week teaching plan, including weekly outcomes, textbook/resource guidance and a distinct school-based planning budget, without requiring daily teacher maintenance.
+New academic years remain data updates through versioned calendar/profile assets.

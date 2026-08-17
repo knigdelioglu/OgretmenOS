@@ -1,407 +1,375 @@
-# TYMM Teacher OS — Flutter Uygulama Blueprint'i
+# ÖğretmenOS — Flutter Blueprint V1.2
 
-**Belge sürümü:** 1.1.0  
+**Belge sürümü:** 1.2.0  
 **Durum:** Bağlayıcı teknik blueprint  
-**Uygulama teknolojisi:** Flutter + Dart + Material 3  
-**İlk dağıtım hedefi:** Android  
-**İlk course package:** `TDE_9`  
+**Teknoloji:** Flutter + Dart + Material 3  
 **Çalışma modu:** Offline-first / yerel / deterministik
 
-Bu belge `docs/PRODUCT_SCOPE.md` altındadır. Çelişkide product scope geçerlidir.
+`PRODUCT_SCOPE.md` bu belgenin üst otoritesidir.
 
 ---
 
 ## 1. Architecture summary
 
-ÖğretmenOS iki ayrı doğrulanabilir veri eksenini birleştirir:
+ÖğretmenOS dört ayrı kaynağı birleştirir:
 
 ```text
-TYMM canonical knowledge
-        ↓
-runtime compiler
-        ↓
-course_runtime.sqlite
+course_runtime.sqlite (read-only course knowledge)
         ↓
 CourseKnowledgeRepository
 
-versioned academic calendar assets
-        ↓
-AcademicCalendarService
+calendar/profile assets
         ↓
 WeeklyPlanningService
 
-CourseKnowledgeRepository + WeeklyPlanningService
+teacher_state.sqlite (mutable local tracking)
         ↓
-Flutter feature UI
+OutcomeTrackingRepository
+
+CourseKnowledgeRepository + WeeklyPlanningService + OutcomeTrackingRepository
+        ↓
+OutcomePlanningService
+        ↓
+Outcome-first Flutter UI
 ```
 
-Curriculum knowledge ile yıllık tarih/scheduling verisi aynı dosyada tutulmaz.
+Runtime course knowledge ile teacher tracking aynı veritabanına yazılmaz.
 
 ---
 
-## 2. Runtime course package
+## 2. Runtime boundary
 
-`course_runtime.sqlite`:
+`course_runtime.sqlite` read-only kalır. Outcomes, themes, blocks, textbook sections, activities, forms, assessment artifacts, resource decisions ve source references bu kaynaktan gelir.
 
-- read-only açılır,
-- canonical source değildir,
-- verified projection'dır,
-- outcomes, themes, blocks, textbook sections, activities, forms, assessment ve resource decision ilişkilerini taşır,
-- uygulama tarafından değiştirilmez.
-
-Flutter presentation katmanı curriculum ilişkilerini yeniden üretmez.
+Widget katmanı curriculum ilişkisi üretmez. Bir ilişki yalnız block seviyesinde biliniyorsa outcome detail bunu block context olarak sunar.
 
 ---
 
-## 3. Academic calendar package
+## 3. Calendar / weekly planning
 
-Takvim verileri source code içine gömülmez.
-
-Asset yapısı:
+Mevcut versioned calendar flow korunur:
 
 ```text
-assets/
-├── courses/
-│   └── TDE_9/
-│       ├── course_runtime.sqlite
-│       └── runtime_manifest.json
-└── calendars/
-    ├── calendar_index.json
-    └── academic_calendar_2026_2027.json
-```
-
-`calendar_index.json` aktif akademik yılı ve ilgili asset yolunu gösterir.
-
-Yeni eğitim öğretim yılında:
-
-1. yeni calendar JSON eklenir,
-2. gerekiyorsa course scheduling profile güncellenir,
-3. index içindeki aktif yıl değiştirilir,
-4. service ve invariant testleri çalıştırılır.
-
-Feature kodunun tarih sabitleri değiştirilmez.
-
----
-
-## 4. Calendar data contract
-
-Bir academic calendar package en az şunları taşır:
-
-```text
-schema_version
-academic_year
-term date ranges
-break date ranges
-orientation/guidance metadata
-special weeks
-course scheduling profiles
+calendar_index.json
+→ active academic calendar JSON
+→ AssetWeeklyPlanningService
+→ AnnualWeeklyPlan
 ```
 
 2026-2027 TDE_9 profile:
 
 ```text
-weekly_lesson_hours = 5
-annual_hours = 180
-theme_hours = 45
-structured_hours_per_theme = 43
-school_based_hours_per_theme = 2
-instructional_week_count = 36
-final active week = EVENT_WEEK
+5 hours/week
+180 annual hours
+4 × 45 theme hours
+43 structured + 2 school-based per theme
+36 instruction weeks
+37th active week EVENT_WEEK
 ```
 
-Service `36 × 5 = 180` ve `4 × 45 = 180` invariantlarını doğrular.
+Derived block allocation `12,11,10,10` calendar/profile data authority altında kalır.
 
 ---
 
-## 5. Block scheduling policy
+## 4. Teacher tracking database
 
-Canonical runtime block order verir fakat blok başına resmî ders saati vermemektedir.
-
-Bu nedenle scheduling service iki kavramı ayırır:
+Yeni mutable store:
 
 ```text
-verified curriculum fact
-vs
-derived scheduling allocation
+teacher_state.sqlite
 ```
 
-İlk profile göre her temanın 43 yapılandırılmış saati dört sıralı bloğa:
+İlk schema:
 
 ```text
-12, 11, 10, 10
+outcome_tracking
+  academic_year TEXT
+  outcome_id TEXT
+  planned_week_number INTEGER
+  status TEXT
+  actual_hours INTEGER NULL
+  teacher_note TEXT NULL
+  completed_at TEXT NULL
+  carried_to_week_number INTEGER NULL
+  updated_at TEXT
+  PRIMARY KEY (academic_year, outcome_id, planned_week_number)
 ```
 
-olarak planlama amacıyla dağıtılır. Ardından 2 saat `SCHOOL_BASED_PLANNING` segmenti gelir.
+Bu DB uygulama-local veridir ve runtime asset refresh işleminden bağımsızdır.
 
-Bu değerler Dart widget'larında hardcode edilmez; calendar/planning profile'dan okunur.
+Valid status values:
 
-UI bu süreleri "planlama dağıtımı" olarak ifade eder.
+```text
+planned
+in_progress
+completed
+partially_completed
+carried_over
+```
+
+Eksik row = `planned`.
 
 ---
 
-## 6. Weekly plan algorithm
+## 5. OutcomePlanningService
 
-`WeeklyPlanningService` şu algoritmayı uygular:
-
-```text
-1. active academic year calendar'ı yükle
-2. term tarih aralıklarını üret
-3. ara tatil ve yarıyıl tatili haftalarını çıkar
-4. active school weeks listesini sırala
-5. EVENT_WEEK'i curriculum budget dışında bırak
-6. annual runtime sequence'i theme/block sırasıyla al
-7. theme başına scheduling profile hour budget oluştur
-8. block segmentlerini profile'daki derived allocation ile sırala
-9. her instructional week'e weekly_lesson_hours kadar segment tüket
-10. segmentlerde geçen block'ların verified outcome'larını repository'den al
-11. haftalık planı UI'ya dön
-```
-
-Bir hafta blok sınırını kesebilir. Örnek:
+Service input:
 
 ```text
-3. hafta
-2 saat: Blok 1
-3 saat: Blok 2
+WeeklyPlanningService
+CourseKnowledgeRepository
+OutcomeTrackingRepository
 ```
 
-Bu desteklenmesi gereken normal bir durumdur.
+Service responsibilities:
+
+1. annual weekly planı yükle;
+2. week segmentlerindeki unique block detail'leri repository'den al;
+3. weekly outcomes ile block context'i eşleştir;
+4. local tracking records ile merge et;
+5. carry-over kayıtlarını hedef instruction week'e ek görünüm olarak taşı;
+6. weekly summary/count üret;
+7. status, note ve carry mutationlarını tracking repository üzerinden kaydet.
+
+The service never mutates `AnnualWeeklyPlan` authority or runtime objects.
 
 ---
 
-## 7. Week semantics
-
-Academic school week numarası yalnız aktif okul haftaları üzerinden artar.
-
-Break haftaları curriculum budget tüketmez.
-
-2026-2027 için:
+## 6. Outcome domain types
 
 ```text
-active school weeks = 37
-TDE instructional weeks = 36
-week 37 = EVENT_WEEK
+OutcomeTrackingStatus
+LearningOutcomeTrackingRecord
+OutcomeBlockContext
+TrackedOutcome
+WeeklyOutcomeSummary
+AnnualOutcomePlan
 ```
 
-Etkinlik haftasında:
+`TrackedOutcome` bir projection'dır:
 
 ```text
-planned curriculum lesson hours = 0
-new block allocation = 0
-new outcomes = []
+verified Outcome
++
+planned week
++
+verified block context(s)
++
+local teacher tracking state
 ```
 
-Event week UI'da görünür fakat curriculum içeriği uydurulmaz.
+`isCarriedIn` yalnız UI context bilgisidir; canonical planı değiştirmez.
 
 ---
 
-## 8. Domain/data types
-
-Takvim-planning tarafı course domain'den ayrı modeller kullanır:
+## 7. Top-level navigation
 
 ```text
-AcademicCalendarDefinition
-AcademicTerm
-AcademicBreak
-CourseScheduleProfile
-AcademicWeekPlan
-WeeklyPlanSegment
-AnnualWeeklyPlan
-```
-
-`WeeklyPlanSegment` iki ana tür taşır:
-
-```text
-BLOCK
-SCHOOL_BASED_PLANNING
-```
-
-BLOCK segmenti runtime `Theme` ve `Block` ile bağlanır.
-
-Weekly outcomes sadece BLOCK segmentlerinden ve `CourseKnowledgeRepository.getBlock()` üzerinden elde edilir.
-
----
-
-## 9. Dependency wiring
-
-Production dependency graph:
-
-```text
-CourseDatabase.open()
-        ↓
-CourseKnowledgeRepositoryImpl
-        ↓
-AssetAcademicPlanningService(repository)
-        ↓
-AppDependencies
-```
-
-Takvim service testlerde fake/in-memory bağımlılıkla değiştirilebilir olmalıdır.
-
----
-
-## 10. Navigation
-
-Top-level navigation:
-
-```text
-Ana Sayfa
-Haftalık Plan
+Kazanımlar
+Haftalık
 Yıllık Plan
-Öğretmen Paketi
+Paket
 ```
 
-`Haftalık Plan` öğretmenin tarih/hafta odaklı ana scheduling ekranıdır.
+Default index = `Kazanımlar`.
 
-`Yıllık Plan` curriculum sequence ve manuel gerçek-dünya sapma override'ı için korunabilir.
+Existing Home dashboard top-level navigation'dan çıkarılır; reusable underlying feature pages remain available where needed.
 
 ---
 
-## 11. Weekly Plan screen
+## 8. Outcome Tracker screen
 
-Ekran şunları göstermelidir:
+`OutcomeTrackerPage` loads `AnnualOutcomePlan` and defaults to calendar-resolved current week, otherwise first active week.
+
+Required screen elements:
 
 ```text
 academic year
-week number
+week selector + previous/next controls
 date range
-week type
 planned lesson hours
-active theme(s)
-block segments + segment hours
-school-based planning segment
-weekly outcomes/kazanımlar
+summary metrics
+filter chips
+Deftere Bakış
+outcome cards
 ```
 
-Öğretmen herhangi bir active school week'i seçebilmelidir.
+Outcome card:
 
-Block segmentine dokununca mevcut `BlockDetailPage` açılabilir.
+```text
+code
+official text
+status chip
+theme/block context
+carry-over marker
+book/page context if available
+note indicator
+quick Complete action
+more-actions menu
+```
 
-Event week için ayrı durum paneli gösterilir.
+Filters:
+
+```text
+all
+open
+completed
+carried
+```
+
+Event week shows event status and no fabricated new outcomes.
 
 ---
 
-## 12. Existing features
+## 9. Outcome Detail screen
 
-Aşağıdaki mevcut feature'lar korunur:
+`OutcomeDetailPage` receives a `TrackedOutcome` and current annual outcome plan.
+
+Sections:
 
 ```text
-Home / Course Dashboard
-Annual Plan
-Block Detail
-Book First / Materials
-Teacher Package
+Outcome / official text
+Tracking controls
+Teacher note
+Deftere Bakış
+Plan context
+Block context navigation
+Textbook sections/pages
+Activities
+Forms
+Assessment artifacts
+Explicitly targeted assessment task bindings
+Resource decisions
 ```
 
-Takvim feature'ı bunların curriculum logic'ini kopyalamaz; yalnız zaman eksenini ekler.
+Aggregations must deduplicate by stable runtime IDs.
+
+Outcome-specific targeting is shown only if runtime data explicitly targets the outcome. Otherwise labels state that the data belongs to the containing block.
 
 ---
 
-## 13. User state
+## 10. Carry-over behavior
 
-`course_runtime.sqlite` ve calendar assets user state değildir.
-
-Minimal mutable state ayrı tutulur:
+Carry action stores:
 
 ```text
-manual_position_override
-UI preferences
+status = carried_over
+carried_to_week_number = target
 ```
 
-Manual position override planned calendar output'u değiştiren authoritative data değildir; gerçek sınıf ilerlemesini işaretlemek için optional user override'dır.
+Target choices include only instructional weeks after the planned/source week. Event week cannot be selected.
+
+Source week keeps the canonical planned card with carried status. Target week gets an additional `Geçen haftadan` card projection.
+
+If the teacher later marks the carried item completed, the same original tracking row is updated; no duplicate canonical record is created.
 
 ---
 
-## 14. Error handling
+## 11. Deftere Bakış
 
-Weekly planning fail-fast davranmalıdır.
-
-Reject examples:
+The tracker screen exposes a compact copy-friendly summary built only from:
 
 ```text
-missing active calendar
-invalid date ranges
-weekly_hours <= 0
-annual_hours mismatch
-wrong active-school-week count
-instructional weeks × weekly hours != annual hours
-block allocation sum != structured theme hours
-theme count incompatible with annual profile
+week/date
+runtime theme/block names
+runtime outcome codes and official texts
 ```
 
-Invalid profile varsa UI açık Error/Unresolved durumu göstermelidir; tarih veya saat uydurmamalıdır.
+Clipboard output must not invent a rewritten curriculum sentence.
+
+---
+
+## 12. Dependency wiring
+
+Production:
+
+```text
+CourseDatabase.open()
+OutcomeTrackingDatabase.open()
+CourseKnowledgeRepositoryImpl
+SqfliteOutcomeTrackingRepository
+AssetWeeklyPlanningService
+OutcomePlanningService
+AppDependencies
+```
+
+Dispose closes teacher-state DB and runtime DB.
+
+Tests may inject an in-memory tracking repository.
+
+---
+
+## 13. UX guardrails
+
+- Material 3.
+- Cards must remain readable at large text scale.
+- Avoid fixed-height outcome cards.
+- Use `Wrap` for state/actions likely to overflow.
+- Tablet uses existing NavigationRail breakpoint.
+- Dark theme inherits app color scheme; no hardcoded light-only colors.
+- Long official texts use progressive disclosure on cards and full text in detail.
+- Touch targets remain at least standard Material interactive size.
+
+---
+
+## 14. Error / empty states
+
+Supported states:
+
+```text
+Loading
+Content
+Empty
+Error
+Unresolved
+Event week
+```
+
+Tracking DB failure is a startup error because persistence is a core capability in V1.2.
+
+Stale tracking rows whose outcome no longer exists in the active runtime are ignored in projections; they must not manufacture course content.
 
 ---
 
 ## 15. Test strategy
 
-Minimum automated tests:
-
-1. 2026-2027 calendar term/break parsing,
-2. 37 active school week üretimi,
-3. 16-20 Kasım ara tatilinin course budget tüketmemesi,
-4. 25 Ocak-5 Şubat yarıyıl tatilinin course budget tüketmemesi,
-5. 8-12 Mart ara tatilinin course budget tüketmemesi,
-6. 36 instructional week × 5 = 180,
-7. theme başına 45 saat,
-8. 43 structured + 2 school-based conservation,
-9. derived block allocation 12+11+10+10=43,
-10. week 3 için block segmentleri ve verified outcomes,
-11. week 37 EVENT_WEEK ve zero curriculum assignment,
-12. weekly-plan widget smoke test,
-13. existing runtime/integration tests regression.
-
-CI gate sırası korunur:
+After implementation completes, run as one validation batch:
 
 ```text
-Analyze
-Runtime Contract
-Tests
-Android Release Build
+flutter analyze
+runtime contract checks
+flutter test
+flutter build apk --release
 ```
+
+Required new tests include:
+
+1. tracking DB CRUD and persistence;
+2. default missing row = planned;
+3. status update does not mutate runtime;
+4. carry-over appears in target week while source remains planned-origin aware;
+5. event week is not a valid carry target;
+6. completed/partial/in-progress summary counts;
+7. OutcomeTracker phone/tablet/large-text smoke;
+8. outcome detail block-context aggregation;
+9. existing weekly/annual/runtime regressions.
 
 ---
 
-## 16. Offline guarantee
+## 16. Data truth rule
 
-Calendar planning core feature tamamen offline çalışır.
+The UI may reorganize verified information for teacher usability but never upgrade the certainty of a relationship.
 
-Yıllık güncelleme app release ile gelen versioned asset update'idir. Runtime sırasında network, API, authentication veya remote calendar zorunlu değildir.
-
----
-
-## 17. 2026-2027 calendar facts
-
-Bundled package:
+Correct:
 
 ```text
-Orientation/guidance: 7-11 September 2026
-Term 1: 14 September 2026 - 22 January 2027
-Break 1: 16-20 November 2026
-Semester break: 25 January - 5 February 2027
-Term 2: 8 February - 25 June 2027
-Break 2: 8-12 March 2027
-Event week: 21-25 June 2027
-Academic year end: 25 June 2027
+Bu kazanımın yer aldığı blokta erişilebilen kitap bölümleri
 ```
 
-Bu tarihler calendar asset'ten okunur; feature code içinde tekrar edilmez.
-
----
-
-## 18. Acceptance criteria
-
-Feature complete kabulü için:
+Incorrect when no direct mapping exists:
 
 ```text
-teacher can open week 3
-teacher sees week 3 date range
-teacher sees 5 planned TDE hours
-teacher sees one or more planned block segments
-teacher sees outcomes belonging to those blocks
-school-based planning appears as a distinct segment at each theme boundary
-all 180 hours are conserved across first 36 active weeks
-week 37 is shown as Event Week with no fabricated curriculum outcomes
-new academic year can be introduced via calendar data/index update
-existing block/textbook/assessment/resource navigation continues to work
+Bu kitap sayfası doğrudan bu kazanıma aittir
 ```
+
+Planning and tracking remain separate truths throughout the UI.
