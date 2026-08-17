@@ -272,40 +272,10 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
   }
 
   Future<void> _editTeacherNote(TrackedOutcome item) async {
-    final controller = TextEditingController(text: item.teacherNote ?? '');
     final result = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Öğretmen notu'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          minLines: 3,
-          maxLines: 6,
-          textInputAction: TextInputAction.newline,
-          decoration: const InputDecoration(
-            hintText: 'Bu kazanım için kısa bir ders notu…',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          if (item.teacherNote?.isNotEmpty == true)
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, ''),
-              child: const Text('Notu sil'),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Vazgeç'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, controller.text),
-            child: const Text('Kaydet'),
-          ),
-        ],
-      ),
+      builder: (_) => _TeacherNoteDialog(initialNote: item.teacherNote),
     );
-    controller.dispose();
     if (result == null) return;
     await _runMutation(() => widget.service.saveTeacherNote(item, result));
   }
@@ -393,6 +363,62 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
       ),
     );
   }
+}
+
+class _TeacherNoteDialog extends StatefulWidget {
+  const _TeacherNoteDialog({this.initialNote});
+
+  final String? initialNote;
+
+  @override
+  State<_TeacherNoteDialog> createState() => _TeacherNoteDialogState();
+}
+
+class _TeacherNoteDialogState extends State<_TeacherNoteDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialNote ?? '');
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Öğretmen notu'),
+    content: TextField(
+      controller: _controller,
+      autofocus: true,
+      minLines: 3,
+      maxLines: 6,
+      textInputAction: TextInputAction.newline,
+      decoration: const InputDecoration(
+        hintText: 'Bu kazanım için kısa bir ders notu…',
+        border: OutlineInputBorder(),
+      ),
+    ),
+    actions: [
+      if (widget.initialNote?.isNotEmpty == true)
+        TextButton(
+          onPressed: () => Navigator.pop(context, ''),
+          child: const Text('Notu sil'),
+        ),
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Vazgeç'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.pop(context, _controller.text),
+        child: const Text('Kaydet'),
+      ),
+    ],
+  );
 }
 
 class _WeekNavigator extends StatelessWidget {
