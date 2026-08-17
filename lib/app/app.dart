@@ -50,6 +50,14 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
     theme: AppTheme.light(),
     darkTheme: AppTheme.dark(),
     themeMode: ThemeMode.system,
+    builder: (context, child) => SafeArea(
+      key: const ValueKey('app-system-bottom-safe-area'),
+      top: false,
+      left: false,
+      right: false,
+      bottom: true,
+      child: child ?? const SizedBox.shrink(),
+    ),
     home: FutureBuilder<AppDependencies>(
       future: _dependenciesFuture,
       builder: (context, snapshot) {
