@@ -49,13 +49,12 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
     try {
       await action();
       if (!mounted) return;
+      _reload();
       if (strongFeedback) {
         await HapticFeedback.mediumImpact();
       } else {
         await HapticFeedback.selectionClick();
       }
-      if (!mounted) return;
-      _reload();
     } on Object catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
