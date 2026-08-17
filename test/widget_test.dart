@@ -96,12 +96,11 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Kaydet'));
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(
-      find.text('Not var'),
-      250,
-      scrollable: _currentPageScrollable(),
-    );
-    expect(find.text('Not var'), findsOneWidget);
+    final noteChip = find.text('Not var');
+    await _pumpUntilFound(tester, noteChip);
+    expect(noteChip, findsOneWidget);
+    await tester.ensureVisible(noteChip);
+    await tester.pumpAndSettle();
     expect(find.widgetWithText(TextButton, 'Notu düzenle'), findsOneWidget);
   });
 
@@ -219,6 +218,17 @@ Finder _currentPageScrollable() => find
       matching: find.byType(Scrollable),
     )
     .first;
+
+Future<void> _pumpUntilFound(
+  WidgetTester tester,
+  Finder finder, {
+  int attempts = 20,
+}) async {
+  for (var attempt = 0; attempt < attempts; attempt++) {
+    await tester.pump(const Duration(milliseconds: 50));
+    if (finder.evaluate().isNotEmpty) return;
+  }
+}
 
 void _usePhoneViewport(WidgetTester tester) {
   tester.view.physicalSize = const Size(412, 915);
