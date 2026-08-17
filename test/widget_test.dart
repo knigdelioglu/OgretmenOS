@@ -256,6 +256,7 @@ Future<void> _pumpApp(
 }) async {
   await tester.pumpWidget(
     TeacherOsApp(
+      key: UniqueKey(),
       dependencies: AppDependencies(
         repository: _FakeRepository(),
         preferences: preferences,
