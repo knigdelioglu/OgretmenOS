@@ -163,17 +163,17 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
   List<TrackedOutcome> _applyFilter(List<TrackedOutcome> items) => switch (_filter) {
     _OutcomeFilter.all => items,
     _OutcomeFilter.open => items
-        .where((item) => item.status != OutcomeTrackingStatus.completed)
+        .where((item) => item.presentationStatus != OutcomeTrackingStatus.completed)
         .toList(growable: false),
     _OutcomeFilter.completed => items
-        .where((item) => item.status == OutcomeTrackingStatus.completed)
+        .where((item) => item.presentationStatus == OutcomeTrackingStatus.completed)
         .toList(growable: false),
     _OutcomeFilter.carried => items
         .where(
           (item) =>
               item.isCarriedIn ||
               item.carriedToWeekNumber != null ||
-              item.status == OutcomeTrackingStatus.carriedOver,
+              item.presentationStatus == OutcomeTrackingStatus.carriedOver,
         )
         .toList(growable: false),
   };
@@ -202,6 +202,7 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
         await _runMutation(
           () => widget.service.setStatus(item, OutcomeTrackingStatus.inProgress),
         );
+        return;
       case _OutcomeAction.partial:
         await _runMutation(
           () => widget.service.setStatus(
@@ -209,6 +210,7 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
             OutcomeTrackingStatus.partiallyCompleted,
           ),
         );
+        return;
       case _OutcomeAction.carry:
         final target = await _pickCarryWeek(plan, item);
         if (target == null) return;
@@ -219,8 +221,10 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
             plan: plan,
           ),
         );
+        return;
       case _OutcomeAction.reset:
         await _runMutation(() => widget.service.resetTracking(item));
+        return;
     }
   }
 
@@ -561,7 +565,7 @@ class _OutcomeCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
-                  OutcomeStatusChip(status: item.status),
+                  OutcomeStatusChip(status: item.presentationStatus),
                 ],
               ),
               if (item.isCarriedIn) ...[
@@ -590,32 +594,55 @@ class _OutcomeCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(height: 1.45),
               ),
-              const SizedBox(height: AppSpacing.md),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: [
-                  if (theme != null) Chip(label: Text(theme.title)),
-                  if (block != null) Chip(label: Text(block.title)),
-                  if (pageHint != null)
-                    Chip(
-                      avatar: const Icon(Icons.menu_book_outlined, size: 17),
-                      label: Text(pageHint),
+              if (theme != null || block != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.account_tree_outlined,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                  if (item.teacherNote?.isNotEmpty == true)
-                    const Chip(
-                      avatar: Icon(Icons.sticky_note_2_outlined, size: 17),
-                      label: Text('Not var'),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        [theme?.title, block?.title].whereType<String>().join(' · '),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          height: 1.35,
+                        ),
+                      ),
                     ),
-                ],
-              ),
+                  ],
+                ),
+              ],
+              if (pageHint != null || item.teacherNote?.isNotEmpty == true) ...[
+                const SizedBox(height: AppSpacing.md),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    if (pageHint != null)
+                      Chip(
+                        avatar: const Icon(Icons.menu_book_outlined, size: 17),
+                        label: Text(pageHint),
+                      ),
+                    if (item.teacherNote?.isNotEmpty == true)
+                      const Chip(
+                        avatar: Icon(Icons.sticky_note_2_outlined, size: 17),
+                        label: Text('Not var'),
+                      ),
+                  ],
+                ),
+              ],
               const SizedBox(height: AppSpacing.md),
               Wrap(
                 spacing: AppSpacing.sm,
                 runSpacing: AppSpacing.sm,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  if (item.status != OutcomeTrackingStatus.completed)
+                  if (item.presentationStatus != OutcomeTrackingStatus.completed)
                     FilledButton.tonalIcon(
                       onPressed: onComplete,
                       icon: const Icon(Icons.check),

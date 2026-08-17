@@ -8,34 +8,48 @@ import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
 
 void main() {
-  testWidgets('uygulama ana navigasyonu yüklenir', (tester) async {
+  testWidgets('uygulama kazanım takibi ekranında açılır ve durum güncellenir', (
+    tester,
+  ) async {
     _usePhoneViewport(tester);
     await _pumpApp(tester, preferences: _FakePreferences());
 
-    expect(find.text('Test Course'), findsOneWidget);
-    expect(find.text('Kaldığınız yeri seçin'), findsOneWidget);
+    expect(find.text('Kazanım Takibi'), findsOneWidget);
+    expect(find.text('Deftere Bakış'), findsOneWidget);
+    expect(find.text('TEST.1'), findsWidgets);
+    expect(find.text('Test kazanımı'), findsOneWidget);
+    expect(find.text('Planlı'), findsOneWidget);
 
     await tester.scrollUntilVisible(
-      find.text('Test Tema'),
+      find.widgetWithText(FilledButton, 'İşlendi'),
+      250,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'İşlendi'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('İşlendi'), findsOneWidget);
+  });
+
+  testWidgets('kazanım kartı mevcut blok ayrıntı bağlamına açılır', (tester) async {
+    _usePhoneViewport(tester);
+    await _pumpApp(tester, preferences: _FakePreferences());
+
+    await tester.scrollUntilVisible(
+      find.text('Test kazanımı'),
+      250,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('Test kazanımı'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('KAZANIM AYRINTISI'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Test Blok'),
       300,
       scrollable: find.byType(Scrollable).last,
     );
-    await tester.tap(find.text('Test Tema'));
-    await tester.pumpAndSettle();
-
-    final blockTitle = find.text('Test Blok');
-    await tester.scrollUntilVisible(
-      blockTitle,
-      300,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.ensureVisible(blockTitle);
-    await tester.pumpAndSettle();
-    expect(blockTitle, findsOneWidget);
-
-    await tester.tap(blockTitle);
-    await tester.pumpAndSettle();
-    expect(find.text('Ders Bloğu'), findsOneWidget);
+    expect(find.text('Test Blok'), findsOneWidget);
   });
 
   testWidgets('haftalık plan ekranı takvim haftasını ve kazanımı gösterir', (
@@ -85,23 +99,10 @@ void main() {
     expect(await preferences.getManualPositionOverride(), 'TEST_BLOCK');
   });
 
-  testWidgets('kitap ve materyal ile öğretmen paketi ekranlarına erişilir', (
-    tester,
-  ) async {
+  testWidgets('öğretmen paketi ana navigasyondan erişilir', (tester) async {
     _usePhoneViewport(tester);
     await _pumpApp(tester, preferences: _FakePreferences());
 
-    await tester.scrollUntilVisible(
-      find.text('Kitap ve materyal'),
-      400,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.tap(find.text('Kitap ve materyal'));
-    await tester.pumpAndSettle();
-    expect(find.text('Bu tema için ne kullanacağım?'), findsOneWidget);
-
-    await tester.pageBack();
-    await tester.pumpAndSettle();
     await _tapBottomDestination(tester, Icons.inventory_2_outlined);
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(

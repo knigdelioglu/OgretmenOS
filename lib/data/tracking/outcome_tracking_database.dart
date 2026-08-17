@@ -12,10 +12,10 @@ class OutcomeTrackingDatabase {
 
   final Database database;
 
-  static Future<OutcomeTrackingDatabase> open() async {
-    final root = await getDatabasesPath();
+  static Future<OutcomeTrackingDatabase> open({String? pathOverride}) async {
+    final path = pathOverride ?? p.join(await getDatabasesPath(), fileName);
     final database = await openDatabase(
-      p.join(root, fileName),
+      path,
       version: schemaVersion,
       onCreate: (db, version) async {
         await db.execute('''
@@ -95,7 +95,7 @@ class SqfliteOutcomeTrackingRepository implements OutcomeTrackingRepository {
         teacherNote: row['teacher_note'] as String?,
         completedAt: _parseDate(row['completed_at']),
         carriedToWeekNumber: row['carried_to_week_number'] as int?,
-        updatedAt: DateTime.parse(row['updated_at']! as String),
+        updatedAt: DateTime.parse(row['updated_at']! as String).toLocal(),
       );
 
   Map<String, Object?> _toRow(LearningOutcomeTrackingRecord record) => {
