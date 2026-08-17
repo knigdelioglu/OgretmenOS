@@ -79,11 +79,10 @@ void main() {
     _usePhoneViewport(tester);
     await _pumpApp(tester, preferences: _FakePreferences());
 
-    final pageScrollable = find.byType(Scrollable).first;
     await tester.scrollUntilVisible(
       find.widgetWithText(TextButton, 'Not'),
       300,
-      scrollable: pageScrollable,
+      scrollable: find.byType(Scrollable).first,
     );
     final noteButton = find.widgetWithText(TextButton, 'Not');
     await tester.ensureVisible(noteButton);
@@ -96,12 +95,10 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Kaydet'));
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(
-      find.text('Not var'),
-      250,
-      scrollable: pageScrollable,
-    );
-    expect(find.text('Not var'), findsOneWidget);
+    final noteChip = find.text('Not var');
+    expect(noteChip, findsOneWidget);
+    await tester.ensureVisible(noteChip);
+    await tester.pumpAndSettle();
     expect(find.widgetWithText(TextButton, 'Notu düzenle'), findsOneWidget);
   });
 
@@ -131,11 +128,10 @@ void main() {
     _usePhoneViewport(tester);
     await _pumpApp(tester, preferences: _FakePreferences());
 
-    final pageScrollable = find.byType(Scrollable).first;
     await tester.scrollUntilVisible(
       find.textContaining('Test kazanımı'),
       250,
-      scrollable: pageScrollable,
+      scrollable: find.byType(Scrollable).first,
     );
     final outcomeText = find.textContaining('Test kazanımı');
     await tester.ensureVisible(outcomeText);
@@ -147,7 +143,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Test Blok'),
       300,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('Test Blok'), findsOneWidget);
   });
