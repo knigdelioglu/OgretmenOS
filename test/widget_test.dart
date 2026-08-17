@@ -4,6 +4,7 @@ import 'package:ogretmen_os/app/app.dart';
 import 'package:ogretmen_os/app/app_dependencies.dart';
 import 'package:ogretmen_os/data/preferences/user_preferences_repository.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart' as model;
+import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
 
 void main() {
@@ -35,6 +36,20 @@ void main() {
     await tester.tap(blockTitle);
     await tester.pumpAndSettle();
     expect(find.text('Ders Bloğu'), findsOneWidget);
+  });
+
+  testWidgets('haftalık plan ekranı takvim haftasını ve kazanımı gösterir', (
+    tester,
+  ) async {
+    _usePhoneViewport(tester);
+    await _pumpApp(tester, preferences: _FakePreferences());
+
+    await _tapBottomDestination(tester, Icons.calendar_view_week_outlined);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Haftalık Plan'), findsWidgets);
+    expect(find.textContaining('14 Eylül - 18 Eylül 2026'), findsWidgets);
+    expect(find.text('TEST.1'), findsOneWidget);
   });
 
   testWidgets('yıllık planda manuel plan konumu seçilebilir', (tester) async {
@@ -71,7 +86,6 @@ void main() {
     _usePhoneViewport(tester);
     await _pumpApp(tester, preferences: _FakePreferences());
 
-    expect(find.text('Bugünkü Ders'), findsNothing);
     await tester.scrollUntilVisible(
       find.text('Kitap ve materyal'),
       400,
@@ -110,6 +124,7 @@ Future<void> _pumpApp(
       dependencies: AppDependencies(
         repository: _FakeRepository(),
         preferences: preferences,
+        weeklyPlanning: _FakeWeeklyPlanning(),
       ),
     ),
   );
@@ -155,6 +170,15 @@ class _FakeRepository implements CourseKnowledgeRepository {
     plannedHours: null,
     timeStatus: 'ORDER_ONLY',
     sourceLocators: [],
+  );
+  static const _outcome = model.Outcome(
+    id: 'TEST_OUTCOME',
+    themeId: 'TEST_THEME',
+    code: 'TEST.1',
+    officialText: 'Test kazanımı',
+    processComponents: null,
+    sourceLocator: null,
+    verificationStatus: 'PASS',
   );
 
   @override
@@ -206,7 +230,7 @@ class _FakeRepository implements CourseKnowledgeRepository {
       const model.TeacherPackage(
         theme: _theme,
         blocks: [_block],
-        outcomes: [],
+        outcomes: [_outcome],
         textbookSections: [],
         activities: [],
         forms: [],
@@ -220,7 +244,7 @@ class _FakeRepository implements CourseKnowledgeRepository {
   static const _detail = model.BlockDetail(
     theme: _theme,
     block: _block,
-    outcomes: [],
+    outcomes: [_outcome],
     textbookSections: [],
     activities: [],
     forms: [],
@@ -231,6 +255,36 @@ class _FakeRepository implements CourseKnowledgeRepository {
     sourceReferences: [],
     previousBlock: null,
     nextBlock: null,
+  );
+}
+
+class _FakeWeeklyPlanning implements WeeklyPlanningService {
+  @override
+  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async => AnnualWeeklyPlan(
+    academicYear: '2026-2027',
+    courseId: 'TDE_9',
+    weeklyLessonHours: 5,
+    annualHours: 180,
+    currentWeekNumber: 1,
+    weeks: const [
+      AcademicWeekPlan(
+        weekNumber: 1,
+        start: DateTime(2026, 9, 14),
+        end: DateTime(2026, 9, 18),
+        type: AcademicWeekType.instruction,
+        label: '1. Hafta',
+        plannedLessonHours: 5,
+        segments: [
+          WeeklyPlanSegment(
+            type: WeeklyPlanSegmentType.block,
+            theme: _FakeRepository._theme,
+            block: _FakeRepository._block,
+            hours: 5,
+          ),
+        ],
+        outcomes: [_FakeRepository._outcome],
+      ),
+    ],
   );
 }
 
