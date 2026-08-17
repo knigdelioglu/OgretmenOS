@@ -6,6 +6,9 @@ import 'package:ogretmen_os/data/preferences/user_preferences_repository.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart' as model;
 import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
+import 'package:ogretmen_os/domain/repositories/outcome_tracking_repository.dart';
+import 'package:ogretmen_os/domain/services/outcome_planning_service.dart';
+import 'package:ogretmen_os/features/shared/feature_widgets.dart';
 
 void main() {
   testWidgets('uygulama kazanım takibi ekranında açılır ve durum güncellenir', (
@@ -16,29 +19,134 @@ void main() {
 
     expect(find.text('Kazanım Takibi'), findsOneWidget);
     expect(find.text('Deftere Bakış'), findsOneWidget);
-    expect(find.text('TEST.1'), findsWidgets);
 
+    await tester.scrollUntilVisible(
+      find.text('TEST.1'),
+      250,
+      scrollable: _currentPageScrollable(),
+    );
+    expect(find.text('TEST.1'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Planlı'),
       250,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
     expect(find.text('Planlı'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('Test kazanımı'),
+      find.textContaining('Test kazanımı'),
       250,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
-    expect(find.text('Test kazanımı'), findsOneWidget);
+    expect(find.textContaining('Test kazanımı'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.widgetWithText(FilledButton, 'İşlendi'),
       250,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'İşlendi'));
+    final completedButton = find.widgetWithText(FilledButton, 'İşlendi');
+    await tester.ensureVisible(completedButton);
+    await tester.pumpAndSettle();
+    await tester.tap(completedButton);
     await tester.pumpAndSettle();
 
     expect(find.text('İşlendi'), findsOneWidget);
+  });
+
+  testWidgets('kazanım ana ekranı blok saatini ve uzun metin açılımını gösterir', (
+    tester,
+  ) async {
+    _usePhoneViewport(tester);
+    await _pumpApp(tester, preferences: _FakePreferences());
+
+    await tester.scrollUntilVisible(
+      find.text('Bu hafta ilgili blok: 5 saat'),
+      300,
+      scrollable: _currentPageScrollable(),
+    );
+    expect(find.text('Bu hafta ilgili blok: 5 saat'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.widgetWithText(TextButton, 'Devamını göster'),
+      250,
+      scrollable: _currentPageScrollable(),
+    );
+    final expandButton = find.widgetWithText(TextButton, 'Devamını göster');
+    await tester.ensureVisible(expandButton);
+    await tester.pumpAndSettle();
+    await tester.tap(expandButton);
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextButton, 'Kısalt'), findsOneWidget);
+  });
+
+  testWidgets('kazanım kartından öğretmen notu eklenebilir', (tester) async {
+    _usePhoneViewport(tester);
+    final preferences = _FakePreferences();
+    final tracking = MemoryOutcomeTrackingRepository();
+    final outcomePlanning = OutcomePlanningService(
+      repository: _FakeRepository(),
+      weeklyPlanning: _FakeWeeklyPlanning(),
+      trackingRepository: tracking,
+    );
+    await _pumpApp(
+      tester,
+      preferences: preferences,
+      outcomePlanning: outcomePlanning,
+    );
+
+    await tester.scrollUntilVisible(
+      find.widgetWithText(TextButton, 'Not'),
+      300,
+      scrollable: _currentPageScrollable(),
+    );
+    final noteButton = find.widgetWithText(TextButton, 'Not');
+    await tester.ensureVisible(noteButton);
+    await tester.pumpAndSettle();
+    await tester.tap(noteButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Öğretmen notu'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Örnek ders notu');
+    await tester.tap(find.widgetWithText(FilledButton, 'Kaydet'));
+    await tester.pumpAndSettle();
+
+    final records = await tracking.getForAcademicYear('2026-2027');
+    expect(records, hasLength(1));
+    expect(records.single.teacherNote, 'Örnek ders notu');
+
+    await _pumpApp(
+      tester,
+      preferences: preferences,
+      outcomePlanning: outcomePlanning,
+    );
+    await tester.scrollUntilVisible(
+      find.text('Not var'),
+      300,
+      scrollable: _currentPageScrollable(),
+    );
+    expect(find.text('Not var'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Notu düzenle'), findsOneWidget);
+  });
+
+  testWidgets('hafta swipe ile değişir ve bu haftaya dön kısayolu çalışır', (
+    tester,
+  ) async {
+    _usePhoneViewport(tester);
+    await _pumpApp(tester, preferences: _FakePreferences());
+
+    expect(find.text('14 Eylül - 18 Eylül 2026'), findsOneWidget);
+    await tester.fling(
+      find.text('Kazanım Takibi'),
+      const Offset(-420, 0),
+      1200,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('21 Eylül - 25 Eylül 2026'), findsOneWidget);
+    expect(find.text('Bu haftaya dön'), findsOneWidget);
+
+    await tester.tap(find.text('Bu haftaya dön'));
+    await tester.pumpAndSettle();
+    expect(find.text('14 Eylül - 18 Eylül 2026'), findsOneWidget);
   });
 
   testWidgets('kazanım kartı mevcut blok ayrıntı bağlamına açılır', (tester) async {
@@ -46,18 +154,21 @@ void main() {
     await _pumpApp(tester, preferences: _FakePreferences());
 
     await tester.scrollUntilVisible(
-      find.text('Test kazanımı'),
+      find.textContaining('Test kazanımı'),
       250,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
-    await tester.tap(find.text('Test kazanımı'));
+    final outcomeText = find.textContaining('Test kazanımı');
+    await tester.ensureVisible(outcomeText);
+    await tester.pumpAndSettle();
+    await tester.tap(outcomeText);
     await tester.pumpAndSettle();
 
     expect(find.text('KAZANIM AYRINTISI'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Test Blok'),
       300,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
     expect(find.text('Test Blok'), findsOneWidget);
   });
@@ -76,7 +187,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('TEST.1'),
       300,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
     expect(find.text('TEST.1'), findsOneWidget);
   });
@@ -93,7 +204,7 @@ void main() {
     await tester.scrollUntilVisible(
       sequenceLabel,
       300,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
     expect(find.text('Planlanan öğretim sırası'), findsOneWidget);
     expect(sequenceLabel, findsOneWidget);
@@ -101,7 +212,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.byTooltip('Burada kaldım'),
       200,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
     await tester.tap(find.byTooltip('Burada kaldım'));
     await tester.pumpAndSettle();
@@ -118,11 +229,18 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Tema dosyası'),
       300,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
     expect(find.text('Tema dosyası'), findsOneWidget);
   });
 }
+
+Finder _currentPageScrollable() => find
+    .descendant(
+      of: find.byType(AppPage),
+      matching: find.byType(Scrollable),
+    )
+    .first;
 
 void _usePhoneViewport(WidgetTester tester) {
   tester.view.physicalSize = const Size(412, 915);
@@ -134,13 +252,16 @@ void _usePhoneViewport(WidgetTester tester) {
 Future<void> _pumpApp(
   WidgetTester tester, {
   required _FakePreferences preferences,
+  OutcomePlanningService? outcomePlanning,
 }) async {
   await tester.pumpWidget(
     TeacherOsApp(
+      key: UniqueKey(),
       dependencies: AppDependencies(
         repository: _FakeRepository(),
         preferences: preferences,
         weeklyPlanning: _FakeWeeklyPlanning(),
+        outcomePlanning: outcomePlanning,
       ),
     ),
   );
@@ -191,7 +312,8 @@ class _FakeRepository implements CourseKnowledgeRepository {
     id: 'TEST_OUTCOME',
     themeId: 'TEST_THEME',
     code: 'TEST.1',
-    officialText: 'Test kazanımı',
+    officialText:
+        'Test kazanımı; öğrencinin metni bağlam, yapı, anlam ilişkileri ve dil özellikleri bakımından incelemesini, elde ettiği bulguları gerekçelendirmesini ve farklı metinlerle ilişkilendirerek açıklamasını kapsayan uzun bir resmî kazanım metnidir.',
     processComponents: null,
     sourceLocator: null,
     verificationStatus: 'PASS',
@@ -289,6 +411,23 @@ class _FakeWeeklyPlanning implements WeeklyPlanningService {
         end: DateTime(2026, 9, 18),
         type: AcademicWeekType.instruction,
         label: '1. Hafta',
+        plannedLessonHours: 5,
+        segments: const [
+          WeeklyPlanSegment(
+            type: WeeklyPlanSegmentType.block,
+            theme: _FakeRepository._theme,
+            block: _FakeRepository._block,
+            hours: 5,
+          ),
+        ],
+        outcomes: const [_FakeRepository._outcome],
+      ),
+      AcademicWeekPlan(
+        weekNumber: 2,
+        start: DateTime(2026, 9, 21),
+        end: DateTime(2026, 9, 25),
+        type: AcademicWeekType.instruction,
+        label: '2. Hafta',
         plannedLessonHours: 5,
         segments: const [
           WeeklyPlanSegment(
