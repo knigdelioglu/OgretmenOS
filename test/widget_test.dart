@@ -6,6 +6,8 @@ import 'package:ogretmen_os/data/preferences/user_preferences_repository.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart' as model;
 import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
+import 'package:ogretmen_os/domain/repositories/outcome_tracking_repository.dart';
+import 'package:ogretmen_os/domain/services/outcome_planning_service.dart';
 import 'package:ogretmen_os/features/shared/feature_widgets.dart';
 
 void main() {
@@ -78,7 +80,18 @@ void main() {
 
   testWidgets('kazanım kartından öğretmen notu eklenebilir', (tester) async {
     _usePhoneViewport(tester);
-    await _pumpApp(tester, preferences: _FakePreferences());
+    final preferences = _FakePreferences();
+    final tracking = MemoryOutcomeTrackingRepository();
+    final outcomePlanning = OutcomePlanningService(
+      repository: _FakeRepository(),
+      weeklyPlanning: _FakeWeeklyPlanning(),
+      trackingRepository: tracking,
+    );
+    await _pumpApp(
+      tester,
+      preferences: preferences,
+      outcomePlanning: outcomePlanning,
+    );
 
     await tester.scrollUntilVisible(
       find.widgetWithText(TextButton, 'Not'),
@@ -96,11 +109,21 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Kaydet'));
     await tester.pumpAndSettle();
 
-    final noteChip = find.text('Not var');
-    await _pumpUntilFound(tester, noteChip);
-    expect(noteChip, findsOneWidget);
-    await tester.ensureVisible(noteChip);
-    await tester.pumpAndSettle();
+    final records = await tracking.getForAcademicYear('2026-2027');
+    expect(records, hasLength(1));
+    expect(records.single.teacherNote, 'Örnek ders notu');
+
+    await _pumpApp(
+      tester,
+      preferences: preferences,
+      outcomePlanning: outcomePlanning,
+    );
+    await tester.scrollUntilVisible(
+      find.text('Not var'),
+      300,
+      scrollable: _currentPageScrollable(),
+    );
+    expect(find.text('Not var'), findsOneWidget);
     expect(find.widgetWithText(TextButton, 'Notu düzenle'), findsOneWidget);
   });
 
@@ -219,17 +242,6 @@ Finder _currentPageScrollable() => find
     )
     .first;
 
-Future<void> _pumpUntilFound(
-  WidgetTester tester,
-  Finder finder, {
-  int attempts = 20,
-}) async {
-  for (var attempt = 0; attempt < attempts; attempt++) {
-    await tester.pump(const Duration(milliseconds: 50));
-    if (finder.evaluate().isNotEmpty) return;
-  }
-}
-
 void _usePhoneViewport(WidgetTester tester) {
   tester.view.physicalSize = const Size(412, 915);
   tester.view.devicePixelRatio = 1;
@@ -240,6 +252,7 @@ void _usePhoneViewport(WidgetTester tester) {
 Future<void> _pumpApp(
   WidgetTester tester, {
   required _FakePreferences preferences,
+  OutcomePlanningService? outcomePlanning,
 }) async {
   await tester.pumpWidget(
     TeacherOsApp(
@@ -247,6 +260,7 @@ Future<void> _pumpApp(
         repository: _FakeRepository(),
         preferences: preferences,
         weeklyPlanning: _FakeWeeklyPlanning(),
+        outcomePlanning: outcomePlanning,
       ),
     ),
   );
