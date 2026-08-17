@@ -116,6 +116,11 @@ class TrackedOutcome {
 
   Theme? get primaryTheme => contexts.isEmpty ? null : contexts.first.theme;
   Block? get primaryBlock => contexts.isEmpty ? null : contexts.first.block;
+
+  OutcomeTrackingStatus get presentationStatus =>
+      !isCarriedIn && carriedToWeekNumber != null
+          ? OutcomeTrackingStatus.carriedOver
+          : status;
 }
 
 class WeeklyOutcomeSummary {
@@ -128,26 +133,27 @@ class WeeklyOutcomeSummary {
   final List<TrackedOutcome> outcomes;
 
   int get completedCount => outcomes
-      .where((item) => item.status == OutcomeTrackingStatus.completed)
+      .where((item) => item.presentationStatus == OutcomeTrackingStatus.completed)
       .length;
 
   int get inProgressCount => outcomes
       .where(
         (item) =>
-            item.status == OutcomeTrackingStatus.inProgress ||
-            item.status == OutcomeTrackingStatus.partiallyCompleted,
+            item.presentationStatus == OutcomeTrackingStatus.inProgress ||
+            item.presentationStatus == OutcomeTrackingStatus.partiallyCompleted,
       )
       .length;
 
   int get carriedCount => outcomes
       .where(
         (item) =>
-            item.status == OutcomeTrackingStatus.carriedOver || item.isCarriedIn,
+            item.isCarriedIn ||
+            item.presentationStatus == OutcomeTrackingStatus.carriedOver,
       )
       .length;
 
   int get plannedCount => outcomes
-      .where((item) => item.status == OutcomeTrackingStatus.planned)
+      .where((item) => item.presentationStatus == OutcomeTrackingStatus.planned)
       .length;
 
   TrackedOutcome? findByKey(String key) {
