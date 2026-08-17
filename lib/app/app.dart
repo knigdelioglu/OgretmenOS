@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../features/annual_plan/annual_plan_page.dart';
 import '../features/home/home_page.dart';
 import '../features/teacher_package/teacher_package_page.dart';
+import '../features/weekly_plan/weekly_plan_page.dart';
 import 'app_dependencies.dart';
 import 'theme/app_theme.dart';
 
@@ -144,18 +145,28 @@ class _AppShell extends StatefulWidget {
 class _AppShellState extends State<_AppShell> {
   int _selectedIndex = 0;
 
-  static const _titles = ['Ana Sayfa', 'Yıllık Plan', 'Öğretmen Paketi'];
+  static const _titles = [
+    'Ana Sayfa',
+    'Haftalık Plan',
+    'Yıllık Plan',
+    'Öğretmen Paketi',
+  ];
 
   @override
   Widget build(BuildContext context) {
     final repository = widget.dependencies.repository;
     final preferences = widget.dependencies.preferences;
+    final weeklyPlanning = widget.dependencies.weeklyPlanning;
     final pages = <Widget>[
       HomePage(
         repository: repository,
         preferences: preferences,
-        onOpenAnnualPlan: () => _selectDestination(1),
-        onOpenTeacherPackage: () => _selectDestination(2),
+        onOpenAnnualPlan: () => _selectDestination(2),
+        onOpenTeacherPackage: () => _selectDestination(3),
+      ),
+      WeeklyPlanPage(
+        repository: repository,
+        planningService: weeklyPlanning,
       ),
       AnnualPlanPage(repository: repository, preferences: preferences),
       TeacherPackagePage(repository: repository),
@@ -187,6 +198,11 @@ class _AppShellState extends State<_AppShell> {
                             icon: Icon(Icons.home_outlined),
                             selectedIcon: Icon(Icons.home),
                             label: Text('Ana Sayfa'),
+                          ),
+                          NavigationRailDestination(
+                            icon: Icon(Icons.calendar_view_week_outlined),
+                            selectedIcon: Icon(Icons.calendar_view_week),
+                            label: Text('Haftalık Plan'),
                           ),
                           NavigationRailDestination(
                             icon: Icon(Icons.view_timeline_outlined),
@@ -222,6 +238,11 @@ class _AppShellState extends State<_AppShell> {
                       icon: Icon(Icons.home_outlined),
                       selectedIcon: Icon(Icons.home),
                       label: 'Ana Sayfa',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.calendar_view_week_outlined),
+                      selectedIcon: Icon(Icons.calendar_view_week),
+                      label: 'Haftalık Plan',
                     ),
                     NavigationDestination(
                       icon: Icon(Icons.view_timeline_outlined),
