@@ -266,7 +266,7 @@ class _FakeWeeklyPlanning implements WeeklyPlanningService {
     weeklyLessonHours: 5,
     annualHours: 180,
     currentWeekNumber: 1,
-    weeks: const [
+    weeks: [
       AcademicWeekPlan(
         weekNumber: 1,
         start: DateTime(2026, 9, 14),
@@ -274,7 +274,7 @@ class _FakeWeeklyPlanning implements WeeklyPlanningService {
         type: AcademicWeekType.instruction,
         label: '1. Hafta',
         plannedLessonHours: 5,
-        segments: [
+        segments: const [
           WeeklyPlanSegment(
             type: WeeklyPlanSegmentType.block,
             theme: _FakeRepository._theme,
@@ -282,7 +282,7 @@ class _FakeWeeklyPlanning implements WeeklyPlanningService {
             hours: 5,
           ),
         ],
-        outcomes: [_FakeRepository._outcome],
+        outcomes: const [_FakeRepository._outcome],
       ),
     ],
   );
