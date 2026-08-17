@@ -17,8 +17,13 @@ void main() {
     expect(find.text('Kazanım Takibi'), findsOneWidget);
     expect(find.text('Deftere Bakış'), findsOneWidget);
     expect(find.text('TEST.1'), findsWidgets);
-    expect(find.text('Planlı'), findsOneWidget);
 
+    await tester.scrollUntilVisible(
+      find.text('Planlı'),
+      250,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Planlı'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Test kazanımı'),
       250,
