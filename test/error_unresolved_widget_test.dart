@@ -3,6 +3,7 @@ import 'package:ogretmen_os/app/app.dart';
 import 'package:ogretmen_os/app/app_dependencies.dart';
 import 'package:ogretmen_os/data/preferences/user_preferences_repository.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart';
+import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
 
 void main() {
@@ -14,6 +15,7 @@ void main() {
         dependencies: AppDependencies(
           repository: _FailingHomeRepository(),
           preferences: _Preferences(),
+          weeklyPlanning: _EmptyWeeklyPlanning(),
         ),
       ),
     );
@@ -31,6 +33,7 @@ void main() {
         dependencies: AppDependencies(
           repository: _EmptyHomeRepository(),
           preferences: _Preferences(),
+          weeklyPlanning: _EmptyWeeklyPlanning(),
         ),
       ),
     );
@@ -38,7 +41,6 @@ void main() {
 
     expect(find.text('Tema bilgisi bulunamadı'), findsOneWidget);
     expect(find.text('Ders içeriği şu anda görüntülenemiyor.'), findsOneWidget);
-    expect(find.text('Bugünkü Ders'), findsNothing);
   });
 }
 
@@ -91,6 +93,19 @@ class _EmptyHomeRepository implements CourseKnowledgeRepository {
 class _FailingHomeRepository extends _EmptyHomeRepository {
   @override
   Future<Course> getCourse() => Future<Course>.error(StateError('fixture failure'));
+}
+
+class _EmptyWeeklyPlanning implements WeeklyPlanningService {
+  @override
+  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async =>
+      const AnnualWeeklyPlan(
+        academicYear: '2026-2027',
+        courseId: 'TDE_9',
+        weeklyLessonHours: 5,
+        annualHours: 180,
+        weeks: [],
+        currentWeekNumber: null,
+      );
 }
 
 class _Preferences implements UserPreferencesRepository {

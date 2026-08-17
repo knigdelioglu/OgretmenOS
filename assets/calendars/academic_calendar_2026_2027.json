@@ -1,0 +1,77 @@
+{
+  "schema_version": "1.0",
+  "academic_year": "2026-2027",
+  "country": "TR",
+  "calendar_type": "MEB_SCHOOL_YEAR",
+  "source_note": "2026-2027 akademik takvim verileri ürün sahibi tarafından sağlanan MEB takvim metninden girilmiştir.",
+  "orientation_periods": [
+    {
+      "id": "ORIENTATION_2026",
+      "start": "2026-09-07",
+      "end": "2026-09-11",
+      "label": "Uyum ve rehberlik çalışmaları",
+      "counts_as_instructional_week": false
+    }
+  ],
+  "terms": [
+    {
+      "id": "TERM_1",
+      "start": "2026-09-14",
+      "end": "2027-01-22"
+    },
+    {
+      "id": "TERM_2",
+      "start": "2027-02-08",
+      "end": "2027-06-25"
+    }
+  ],
+  "breaks": [
+    {
+      "id": "MIDTERM_BREAK_1",
+      "type": "MIDTERM_BREAK",
+      "start": "2026-11-16",
+      "end": "2026-11-20",
+      "label": "Birinci dönem ara tatili"
+    },
+    {
+      "id": "SEMESTER_BREAK",
+      "type": "SEMESTER_BREAK",
+      "start": "2027-01-25",
+      "end": "2027-02-05",
+      "label": "Yarıyıl tatili"
+    },
+    {
+      "id": "MIDTERM_BREAK_2",
+      "type": "MIDTERM_BREAK",
+      "start": "2027-03-08",
+      "end": "2027-03-12",
+      "label": "İkinci dönem ara tatili"
+    }
+  ],
+  "special_weeks": [
+    {
+      "id": "EVENT_WEEK_2027",
+      "type": "EVENT_WEEK",
+      "start": "2027-06-21",
+      "end": "2027-06-25",
+      "label": "Etkinlik Haftası",
+      "consume_course_hours": false,
+      "assign_new_outcomes": false
+    }
+  ],
+  "course_profiles": {
+    "TDE_9": {
+      "weekly_lesson_hours": 5,
+      "annual_hours": 180,
+      "theme_hours": 45,
+      "structured_hours_per_theme": 43,
+      "school_based_hours_per_theme": 2,
+      "instructional_week_count": 36,
+      "event_week_count": 1,
+      "school_based_placement": "END_OF_THEME",
+      "block_hour_allocation": [12, 11, 10, 10],
+      "block_hour_allocation_status": "DERIVED_PLANNING_POLICY",
+      "block_hour_allocation_note": "Resmî kaynak blok bazında ayrı saat vermediği için 43 yapılandırılmış saat sıralı dört bloğa planlama amacıyla 12+11+10+10 dağıtılır. Bu değerler resmî blok süresi değildir."
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "active_academic_year": "2026-2027",
+  "calendars": [
+    {
+      "academic_year": "2026-2027",
+      "asset": "assets/calendars/academic_calendar_2026_2027.json"
+    }
+  ]
+}
