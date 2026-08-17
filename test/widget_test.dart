@@ -6,6 +6,7 @@ import 'package:ogretmen_os/data/preferences/user_preferences_repository.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart' as model;
 import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
+import 'package:ogretmen_os/features/shared/feature_widgets.dart';
 
 void main() {
   testWidgets('uygulama kazanım takibi ekranında açılır ve durum güncellenir', (
@@ -20,25 +21,25 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('TEST.1'),
       250,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
     expect(find.text('TEST.1'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Planlı'),
       250,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
     expect(find.text('Planlı'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.textContaining('Test kazanımı'),
       250,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
     expect(find.textContaining('Test kazanımı'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.widgetWithText(FilledButton, 'İşlendi'),
       250,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
     final completedButton = find.widgetWithText(FilledButton, 'İşlendi');
     await tester.ensureVisible(completedButton);
@@ -58,14 +59,14 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Bu hafta ilgili blok: 5 saat'),
       300,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
     expect(find.text('Bu hafta ilgili blok: 5 saat'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.widgetWithText(TextButton, 'Devamını göster'),
       250,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
     final expandButton = find.widgetWithText(TextButton, 'Devamını göster');
     await tester.ensureVisible(expandButton);
@@ -82,7 +83,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.widgetWithText(TextButton, 'Not'),
       300,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: _currentPageScrollable(),
     );
     final noteButton = find.widgetWithText(TextButton, 'Not');
     await tester.ensureVisible(noteButton);
@@ -95,10 +96,12 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Kaydet'));
     await tester.pumpAndSettle();
 
-    final noteChip = find.text('Not var');
-    expect(noteChip, findsOneWidget);
-    await tester.ensureVisible(noteChip);
-    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Not var'),
+      250,
+      scrollable: _currentPageScrollable(),
+    );
+    expect(find.text('Not var'), findsOneWidget);
     expect(find.widgetWithText(TextButton, 'Notu düzenle'), findsOneWidget);
   });
 
@@ -131,7 +134,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.textContaining('Test kazanımı'),
       250,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: _currentPageScrollable(),
     );
     final outcomeText = find.textContaining('Test kazanımı');
     await tester.ensureVisible(outcomeText);
@@ -143,7 +146,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Test Blok'),
       300,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: _currentPageScrollable(),
     );
     expect(find.text('Test Blok'), findsOneWidget);
   });
@@ -162,7 +165,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('TEST.1'),
       300,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
     expect(find.text('TEST.1'), findsOneWidget);
   });
@@ -179,7 +182,7 @@ void main() {
     await tester.scrollUntilVisible(
       sequenceLabel,
       300,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
     expect(find.text('Planlanan öğretim sırası'), findsOneWidget);
     expect(sequenceLabel, findsOneWidget);
@@ -187,7 +190,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.byTooltip('Burada kaldım'),
       200,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
     await tester.tap(find.byTooltip('Burada kaldım'));
     await tester.pumpAndSettle();
@@ -204,11 +207,18 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Tema dosyası'),
       300,
-      scrollable: find.byType(Scrollable).last,
+      scrollable: _currentPageScrollable(),
     );
     expect(find.text('Tema dosyası'), findsOneWidget);
   });
 }
+
+Finder _currentPageScrollable() => find
+    .descendant(
+      of: find.byType(AppPage),
+      matching: find.byType(Scrollable),
+    )
+    .first;
 
 void _usePhoneViewport(WidgetTester tester) {
   tester.view.physicalSize = const Size(412, 915);
