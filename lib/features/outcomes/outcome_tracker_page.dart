@@ -99,10 +99,11 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
   Widget build(BuildContext context) => FutureBuilder<AnnualOutcomePlan>(
     future: _future,
     builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done) {
+      if (snapshot.connectionState != ConnectionState.done &&
+          !snapshot.hasData) {
         return const LoadingView(label: 'Haftanın kazanımları hazırlanıyor…');
       }
-      if (snapshot.hasError || !snapshot.hasData) {
+      if (!snapshot.hasData) {
         return FeatureErrorView(
           message: 'Kazanım takip görünümü yüklenemedi.',
           onRetry: _reload,
