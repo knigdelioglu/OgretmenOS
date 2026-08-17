@@ -16,6 +16,7 @@ void main() {
 
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byType(NavigationRail), findsNothing);
+    expect(find.text('Kazanım Takibi'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -41,7 +42,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('large system text remains usable on phone', (tester) async {
+  testWidgets('large system text keeps outcome-first surface usable', (
+    tester,
+  ) async {
     await _configureView(
       tester,
       const Size(360, 800),
@@ -49,7 +52,7 @@ void main() {
     );
     await _pumpApp(tester);
 
-    expect(find.text('Türk Dili ve Edebiyatı'), findsOneWidget);
+    expect(find.text('Kazanım Takibi'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await _tapBottomDestination(tester, Icons.view_timeline_outlined);
@@ -63,7 +66,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('dark mode renders the product shell', (tester) async {
+  testWidgets('dark mode renders the outcome tracker shell', (tester) async {
     await _configureView(
       tester,
       const Size(412, 915),
@@ -73,10 +76,11 @@ void main() {
 
     final context = tester.element(find.byType(Scaffold).first);
     expect(Theme.of(context).brightness, Brightness.dark);
+    expect(find.text('Kazanım Takibi'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('bookmark action keeps a 48dp touch target', (tester) async {
+  testWidgets('annual bookmark action keeps a 48dp touch target', (tester) async {
     await _configureView(tester, const Size(360, 800));
     await _pumpApp(tester);
 
@@ -139,20 +143,12 @@ Future<void> _tapBottomDestination(
 }
 
 class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
-  static const _course = model.Course(
-    courseId: 'TDE_9',
-    grade: 9,
-    title: 'Türk Dili ve Edebiyatı',
-    schemaVersion: '1.0.0',
-    sourceManifestFingerprint: 'test',
-  );
-
   static const _theme = model.Theme(
     id: 'TEST_THEME',
     order: 1,
     title: '1. Tema: Sözün İnceliği ve Edebî Anlatım',
     pageRange: '20-64',
-    plannedHours: 43,
+    plannedHours: 45,
     anlamaHours: null,
     anlatmaHours: null,
     sourceLocator: null,
@@ -170,8 +166,41 @@ class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
     sourceLocators: [],
   );
 
+  static const _outcome = model.Outcome(
+    id: 'TEST_OUTCOME',
+    themeId: 'TEST_THEME',
+    code: 'TDE.TEST.1',
+    officialText:
+        'Uzun bir doğrulanmış kazanım metni büyük yazı ölçeğinde kartın taşmadan büyümesini doğrular.',
+    processComponents: null,
+    sourceLocator: null,
+    verificationStatus: 'PASS',
+  );
+
+  static const _detail = model.BlockDetail(
+    theme: _theme,
+    block: _block,
+    outcomes: [_outcome],
+    textbookSections: [],
+    activities: [],
+    forms: [],
+    assessmentArtifacts: [],
+    assessmentGaps: [],
+    assessmentTaskBindings: [],
+    resourceDecisions: [],
+    sourceReferences: [],
+    previousBlock: null,
+    nextBlock: null,
+  );
+
   @override
-  Future<model.Course> getCourse() async => _course;
+  Future<model.Course> getCourse() async => const model.Course(
+    courseId: 'TDE_9',
+    grade: 9,
+    title: 'Türk Dili ve Edebiyatı',
+    schemaVersion: '1.0.0',
+    sourceManifestFingerprint: 'test',
+  );
 
   @override
   Future<model.RuntimeManifest> getManifest() async => const model.RuntimeManifest(
@@ -203,10 +232,10 @@ class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
       sequencePosition: 1,
       theme: _theme,
       block: _block,
-      officialTotalHours: 43,
+      officialTotalHours: 45,
       coreInstructionHours: 43,
-      schoolBasedHours: null,
-      schoolBasedHoursStatus: 'UNRESOLVED',
+      schoolBasedHours: 2,
+      schoolBasedHoursStatus: 'RESOLVED',
     ),
   ];
 
@@ -219,7 +248,7 @@ class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
       const model.TeacherPackage(
         theme: _theme,
         blocks: [_block],
-        outcomes: [],
+        outcomes: [_outcome],
         textbookSections: [],
         activities: [],
         forms: [],
@@ -229,22 +258,6 @@ class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
         resourceDecisions: [],
         sourceReferences: [],
       );
-
-  static const _detail = model.BlockDetail(
-    theme: _theme,
-    block: _block,
-    outcomes: [],
-    textbookSections: [],
-    activities: [],
-    forms: [],
-    assessmentArtifacts: [],
-    assessmentGaps: [],
-    assessmentTaskBindings: [],
-    resourceDecisions: [],
-    sourceReferences: [],
-    previousBlock: null,
-    nextBlock: null,
-  );
 }
 
 class _ResponsiveFakeWeeklyPlanning implements WeeklyPlanningService {
@@ -271,7 +284,7 @@ class _ResponsiveFakeWeeklyPlanning implements WeeklyPlanningService {
             hours: 5,
           ),
         ],
-        outcomes: const [],
+        outcomes: const [_ResponsiveFakeRepository._outcome],
       ),
     ],
   );

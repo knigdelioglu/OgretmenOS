@@ -1,75 +1,97 @@
-# TYMM Teacher OS
+# ÖğretmenOS
 
 ![Flutter CI](https://github.com/knigdelioglu/OgretmenOS/actions/workflows/flutter-ci.yml/badge.svg)
 
-Offline-first Flutter uygulaması; doğrulanmış TDE_9 runtime paketini ve sürümlenmiş akademik takvim verisini kullanarak öğretmene blok, haftalık plan, kazanım, ders kitabı ve materyal görünümü sunar. V1 dağıtım hedefi Android'dir.
+Offline-first Flutter öğretmen uygulaması. Ana ürün yüzü artık haftalık **kazanım takibi**dir: öğretmen derse girerken o haftanın doğrulanmış TDE 9 kazanımlarını görür, işlenme durumunu yerel olarak takip eder ve ders defteri için gerekli program/kitap/materyal bağlamına ulaşır.
 
-## Veri kaynakları
+## Veri sınırları
 
-Course knowledge:
+### Read-only course knowledge
 
 ```text
 assets/courses/TDE_9/course_runtime.sqlite
 assets/courses/TDE_9/runtime_manifest.json
 ```
 
-Academic calendar:
+Runtime canonical source değildir; `knigdelioglu/tymm` içindeki deterministik compiler çıktısının uygulama kopyasıdır. Uygulama bu DB'ye yazmaz.
+
+### Versioned academic calendar
 
 ```text
 assets/calendars/calendar_index.json
 assets/calendars/academic_calendar_2026_2027.json
 ```
 
-Course runtime canonical source of truth değildir; `knigdelioglu/tymm` reposundaki deterministik compiler çıktısının uygulama kopyasıdır.
+Takvim ve scheduling profile feature code içine gömülmez.
+
+### Local teacher state
 
 ```text
-knigdelioglu/tymm
-courses/TDE_9/runtime/
+ogretmen_os_teacher_state.sqlite
 ```
 
-Yerel canonical runtime yenilendiğinde:
+Bu uygulama-local DB yalnız kazanım takip durumunu, kısa öğretmen notunu, optional gerçekleşen saati ve haftaya taşıma bilgisini saklar. Runtime/calendar güncellemesi bu veriyi silmez.
+
+## Ana kullanım
+
+Uygulama şu navigasyonla açılır:
+
+```text
+Kazanımlar
+Haftalık
+Yıllık Plan
+Paket
+```
+
+`Kazanımlar` varsayılan ekrandır.
+
+Bir haftada öğretmen:
+
+- kart tabanlı kazanımları görür;
+- `Planlı`, `Devam ediyor`, `Kısmen işlendi`, `İşlendi`, `Sarktı` durumlarını kullanır;
+- kazanımı sonraki bir öğretim haftasına taşıyabilir;
+- kısa yerel not ekleyebilir;
+- `Deftere Bakış` özetini panoya kopyalayabilir;
+- kazanıma dokunup doğrulanmış blok, kitap, etkinlik, form, değerlendirme ve materyal bağlamına iner.
+
+Planlanan yıllık program ile öğretmenin gerçekleşen takip durumu ayrı tutulur.
+
+## Haftalık scheduling
+
+Aktif 2026-2027 TDE 9 profile:
+
+```text
+Haftalık ders: 5 saat
+Yıllık: 180 saat
+4 tema × 45 saat
+Tema başına 43 yapılandırılmış + 2 okul temelli
+36 öğretim haftası = 180 saat
+37. aktif hafta = Etkinlik Haftası
+```
+
+Canonical runtime blok başına resmî saat vermediği için 43 yapılandırılmış saat versioned profile'da planlama amacıyla `12 + 11 + 10 + 10` dağıtılır. UI bunu resmî blok süresi olarak sunmaz.
+
+## Yeni akademik yıl
+
+1. yeni `academic_calendar_YYYY_YYYY.json` eklenir;
+2. gerekiyorsa scheduling profile güncellenir;
+3. `calendar_index.json` aktif yıl girdisi değiştirilir;
+4. toplu test/CI doğrulaması yapılır.
+
+## Runtime sync
 
 ```sh
 dart run tool/sync_course_runtime.dart
 ```
 
-komutu app asset kopyasını senkronize eder ve compatibility/freshness contract'ını doğrular.
-
-## Haftalık plan
-
-Aktif akademik yıl `calendar_index.json` üzerinden seçilir. Yıllık tarihler Flutter source code içine gömülmez.
-
-2026-2027 TDE 9 scheduling profile:
-
-```text
-Haftalık ders: 5 saat
-Yıllık toplam: 180 saat
-4 tema × 45 saat
-Tema başına: 43 yapılandırılmış + 2 okul temelli planlama
-İlk 36 aktif okul haftası: curriculum planı
-37. aktif okul haftası: Etkinlik Haftası
-```
-
-Canonical TYMM verisi blok başına resmî süre vermediğinden, 43 yapılandırılmış saat haftalık plan üretimi için versioned profile'da `12 + 11 + 10 + 10` olarak sıralı bloklara dağıtılır. Bu değerler öğretmen ekranında **planlama dağıtımı** olarak sunulur; resmî blok süresi olarak gösterilmez.
-
-Öğretmen `Haftalık Plan` ekranında herhangi bir okul haftasını (ör. 3. hafta) seçip o haftaya düşen blokları, saatleri ve runtime'dan gelen doğrulanmış kazanımları görebilir.
-
-## Yeni akademik yıl güncellemesi
-
-Yeni yıl için feature code değiştirmek yerine:
-
-1. yeni `academic_calendar_YYYY_YYYY.json` eklenir,
-2. course scheduling profile doğrulanır/güncellenir,
-3. `calendar_index.json` içindeki `active_academic_year` değiştirilir,
-4. testler ve CI çalıştırılır.
-
-## Doğrulama
+## Final validation
 
 ```sh
 flutter pub get
 flutter analyze
-flutter test
 cd tool/runtime_verifier && dart pub get && dart run bin/verify_runtime.dart
+cd ../..
+flutter test
 flutter build apk --release
 ```
 
@@ -82,16 +104,10 @@ Tests
 Android Release Build
 ```
 
-Runtime Contract gerçek versioned `course_runtime.sqlite` üzerinde manifest, freshness evidence, row count, sequence ve kritik ilişkileri doğrular. Tests job'ı gerçek bundled runtime ve akademik takvim planning testlerini çalıştırır.
-
-## Android release signing
-
-Gerçek dağıtım için:
+## Android signing
 
 ```sh
 cp android/key.properties.example android/key.properties
 ```
 
-`android/key.properties`, `*.jks` ve `*.keystore` Git tarafından yok sayılır. Release build debug anahtarı kullanmaz; `key.properties` mevcutsa tanımlanan release anahtarıyla imzalanır.
-
-Uygulama course runtime SQLite dosyasını uygulamaya özel dizinde salt-okunur açar. Öğretmen konumu gibi izinli yerel durum `shared_preferences` içinde ayrı tutulur.
+`android/key.properties`, `*.jks` ve `*.keystore` Git tarafından yok sayılır. Release signing bilgisi repo içine commit edilmez.

@@ -7,31 +7,31 @@ import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
 
 void main() {
-  testWidgets('ana sayfa repository hatasını kullanıcıya error state olarak gösterir', (
+  testWidgets('kazanım planı hatası kullanıcıya error state olarak gösterilir', (
     tester,
   ) async {
     await tester.pumpWidget(
       TeacherOsApp(
         dependencies: AppDependencies(
-          repository: _FailingHomeRepository(),
+          repository: _EmptyRepository(),
           preferences: _Preferences(),
-          weeklyPlanning: _EmptyWeeklyPlanning(),
+          weeklyPlanning: _FailingWeeklyPlanning(),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Ders planı yüklenemedi.'), findsOneWidget);
+    expect(find.text('Kazanım takip görünümü yüklenemedi.'), findsOneWidget);
     expect(find.text('Tekrar dene'), findsOneWidget);
   });
 
-  testWidgets('boş tema verisi öğretmen dilinde empty state olarak gösterilir', (
+  testWidgets('boş akademik plan unresolved state olarak gösterilir', (
     tester,
   ) async {
     await tester.pumpWidget(
       TeacherOsApp(
         dependencies: AppDependencies(
-          repository: _EmptyHomeRepository(),
+          repository: _EmptyRepository(),
           preferences: _Preferences(),
           weeklyPlanning: _EmptyWeeklyPlanning(),
         ),
@@ -39,12 +39,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Tema bilgisi bulunamadı'), findsOneWidget);
-    expect(find.text('Ders içeriği şu anda görüntülenemiyor.'), findsOneWidget);
+    expect(find.text('Gösterilebilir okul haftası bulunmuyor.'), findsOneWidget);
   });
 }
 
-class _EmptyHomeRepository implements CourseKnowledgeRepository {
+class _EmptyRepository implements CourseKnowledgeRepository {
   @override
   Future<Course> getCourse() async => const Course(
     courseId: 'TDE_9',
@@ -90,9 +89,10 @@ class _EmptyHomeRepository implements CourseKnowledgeRepository {
       throw UnimplementedError();
 }
 
-class _FailingHomeRepository extends _EmptyHomeRepository {
+class _FailingWeeklyPlanning implements WeeklyPlanningService {
   @override
-  Future<Course> getCourse() => Future<Course>.error(StateError('fixture failure'));
+  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) =>
+      Future<AnnualWeeklyPlan>.error(StateError('fixture failure'));
 }
 
 class _EmptyWeeklyPlanning implements WeeklyPlanningService {

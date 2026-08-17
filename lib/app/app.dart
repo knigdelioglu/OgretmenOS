@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../domain/repositories/outcome_tracking_repository.dart';
+import '../domain/services/outcome_planning_service.dart';
 import '../features/annual_plan/annual_plan_page.dart';
-import '../features/home/home_page.dart';
+import '../features/outcomes/outcome_tracker_page.dart';
 import '../features/teacher_package/teacher_package_page.dart';
 import '../features/weekly_plan/weekly_plan_page.dart';
 import 'app_dependencies.dart';
@@ -114,7 +116,7 @@ class _StartupErrorPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Uygulama ders içeriği yüklenmeden devam edemiyor.',
+                  'Uygulama ders içeriği ve yerel takip alanı yüklenmeden devam edemiyor.',
                   textAlign: TextAlign.center,
                 ),
                 if (kDebugMode && error != null) ...[
@@ -144,13 +146,25 @@ class _AppShell extends StatefulWidget {
 
 class _AppShellState extends State<_AppShell> {
   int _selectedIndex = 0;
+  late final OutcomePlanningService _outcomePlanning;
 
   static const _titles = [
-    'Ana Sayfa',
+    'Kazanımlar',
     'Haftalık Plan',
     'Yıllık Plan',
     'Öğretmen Paketi',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _outcomePlanning = widget.dependencies.outcomePlanning ??
+        OutcomePlanningService(
+          repository: widget.dependencies.repository,
+          weeklyPlanning: widget.dependencies.weeklyPlanning,
+          trackingRepository: MemoryOutcomeTrackingRepository(),
+        );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -158,12 +172,7 @@ class _AppShellState extends State<_AppShell> {
     final preferences = widget.dependencies.preferences;
     final weeklyPlanning = widget.dependencies.weeklyPlanning;
     final pages = <Widget>[
-      HomePage(
-        repository: repository,
-        preferences: preferences,
-        onOpenAnnualPlan: () => _selectDestination(2),
-        onOpenTeacherPackage: () => _selectDestination(3),
-      ),
+      OutcomeTrackerPage(repository: repository, service: _outcomePlanning),
       WeeklyPlanPage(
         repository: repository,
         planningService: weeklyPlanning,
@@ -195,14 +204,14 @@ class _AppShellState extends State<_AppShell> {
                         groupAlignment: -0.75,
                         destinations: const [
                           NavigationRailDestination(
-                            icon: Icon(Icons.home_outlined),
-                            selectedIcon: Icon(Icons.home),
-                            label: Text('Ana Sayfa'),
+                            icon: Icon(Icons.fact_check_outlined),
+                            selectedIcon: Icon(Icons.fact_check),
+                            label: Text('Kazanımlar'),
                           ),
                           NavigationRailDestination(
                             icon: Icon(Icons.calendar_view_week_outlined),
                             selectedIcon: Icon(Icons.calendar_view_week),
-                            label: Text('Haftalık Plan'),
+                            label: Text('Haftalık'),
                           ),
                           NavigationRailDestination(
                             icon: Icon(Icons.view_timeline_outlined),
@@ -212,7 +221,7 @@ class _AppShellState extends State<_AppShell> {
                           NavigationRailDestination(
                             icon: Icon(Icons.inventory_2_outlined),
                             selectedIcon: Icon(Icons.inventory_2),
-                            label: Text('Öğretmen Paketi'),
+                            label: Text('Paket'),
                           ),
                         ],
                       ),
@@ -235,14 +244,14 @@ class _AppShellState extends State<_AppShell> {
                   onDestinationSelected: _selectDestination,
                   destinations: const [
                     NavigationDestination(
-                      icon: Icon(Icons.home_outlined),
-                      selectedIcon: Icon(Icons.home),
-                      label: 'Ana Sayfa',
+                      icon: Icon(Icons.fact_check_outlined),
+                      selectedIcon: Icon(Icons.fact_check),
+                      label: 'Kazanımlar',
                     ),
                     NavigationDestination(
                       icon: Icon(Icons.calendar_view_week_outlined),
                       selectedIcon: Icon(Icons.calendar_view_week),
-                      label: 'Haftalık Plan',
+                      label: 'Haftalık',
                     ),
                     NavigationDestination(
                       icon: Icon(Icons.view_timeline_outlined),
@@ -252,7 +261,7 @@ class _AppShellState extends State<_AppShell> {
                     NavigationDestination(
                       icon: Icon(Icons.inventory_2_outlined),
                       selectedIcon: Icon(Icons.inventory_2),
-                      label: 'Öğretmen Paketi',
+                      label: 'Paket',
                     ),
                   ],
                 ),
