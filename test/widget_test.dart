@@ -16,8 +16,13 @@ void main() {
 
     expect(find.text('Kazanım Takibi'), findsOneWidget);
     expect(find.text('Deftere Bakış'), findsOneWidget);
-    expect(find.text('TEST.1'), findsWidgets);
 
+    await tester.scrollUntilVisible(
+      find.text('TEST.1'),
+      250,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('TEST.1'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Planlı'),
       250,
@@ -35,7 +40,10 @@ void main() {
       250,
       scrollable: find.byType(Scrollable).last,
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'İşlendi'));
+    final completedButton = find.widgetWithText(FilledButton, 'İşlendi');
+    await tester.ensureVisible(completedButton);
+    await tester.pumpAndSettle();
+    await tester.tap(completedButton);
     await tester.pumpAndSettle();
 
     expect(find.text('İşlendi'), findsOneWidget);
@@ -59,7 +67,10 @@ void main() {
       250,
       scrollable: find.byType(Scrollable).last,
     );
-    await tester.tap(find.widgetWithText(TextButton, 'Devamını göster'));
+    final expandButton = find.widgetWithText(TextButton, 'Devamını göster');
+    await tester.ensureVisible(expandButton);
+    await tester.pumpAndSettle();
+    await tester.tap(expandButton);
     await tester.pumpAndSettle();
     expect(find.widgetWithText(TextButton, 'Kısalt'), findsOneWidget);
   });
@@ -73,7 +84,10 @@ void main() {
       300,
       scrollable: find.byType(Scrollable).last,
     );
-    await tester.tap(find.widgetWithText(TextButton, 'Not'));
+    final noteButton = find.widgetWithText(TextButton, 'Not');
+    await tester.ensureVisible(noteButton);
+    await tester.pumpAndSettle();
+    await tester.tap(noteButton);
     await tester.pumpAndSettle();
 
     expect(find.text('Öğretmen notu'), findsOneWidget);
@@ -121,7 +135,10 @@ void main() {
       250,
       scrollable: find.byType(Scrollable).last,
     );
-    await tester.tap(find.textContaining('Test kazanımı'));
+    final outcomeText = find.textContaining('Test kazanımı');
+    await tester.ensureVisible(outcomeText);
+    await tester.pumpAndSettle();
+    await tester.tap(outcomeText);
     await tester.pumpAndSettle();
 
     expect(find.text('KAZANIM AYRINTISI'), findsOneWidget);
