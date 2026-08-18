@@ -644,10 +644,11 @@ class _DetailSection extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Opacity(
       opacity: isEmpty ? 0.55 : subdued ? 0.82 : 1,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerLow,
-          border: Border.all(color: scheme.outlineVariant),
+      child: Material(
+        color: scheme.surfaceContainerLow,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: scheme.outlineVariant),
           borderRadius: BorderRadius.circular(AppRadiusTokens.card),
         ),
         child: ExpansionTile(
