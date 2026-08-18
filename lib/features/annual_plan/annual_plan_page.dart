@@ -46,7 +46,9 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
   }
 
   void _refresh() {
-    setState(() => _future = _load());
+    setState(() {
+      _future = _load();
+    });
   }
 
   Future<void> _setPosition(String blockId) async {
