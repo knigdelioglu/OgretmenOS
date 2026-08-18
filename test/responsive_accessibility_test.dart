@@ -6,6 +6,7 @@ import 'package:ogretmen_os/data/preferences/user_preferences_repository.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart' as model;
 import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
+import 'package:ogretmen_os/features/shared/feature_widgets.dart';
 
 void main() {
   for (final size in const [
@@ -68,7 +69,13 @@ void main() {
 
     await _tapBottomDestination(tester, Icons.view_timeline_outlined);
     await tester.pumpAndSettle();
-    expect(find.text('Yıllık Plan'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(PageHeader),
+        matching: find.text('Yıllık Plan'),
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
 
     await _tapBottomDestination(tester, Icons.inventory_2_outlined);
