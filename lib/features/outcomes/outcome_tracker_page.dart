@@ -30,6 +30,7 @@ class OutcomeTrackerPage extends StatefulWidget {
 
 class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
   late Future<AnnualOutcomePlan> _future;
+  final ScrollController _scrollController = ScrollController();
   int? _selectedWeekNumber;
   _OutcomeFilter _filter = _OutcomeFilter.all;
 
@@ -39,8 +40,25 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
     _future = widget.service.buildPlan();
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   void _reload() {
     setState(() => _future = widget.service.buildPlan());
+  }
+
+  void _scrollToStart() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   Future<void> _runMutation(
@@ -74,6 +92,7 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
       _selectedWeekNumber = number;
       _filter = _OutcomeFilter.all;
     });
+    _scrollToStart();
   }
 
   void _moveWeek(AnnualOutcomePlan plan, int selectedWeekNumber, int delta) {
@@ -99,8 +118,7 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
   Widget build(BuildContext context) => FutureBuilder<AnnualOutcomePlan>(
     future: _future,
     builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done &&
-          !snapshot.hasData) {
+      if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData) {
         return const LoadingView(label: 'Haftanın kazanımları hazırlanıyor…');
       }
       if (!snapshot.hasData) {
@@ -116,6 +134,7 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
           child: UnresolvedText(label: 'Gösterilebilir okul haftası bulunmuyor.'),
         );
       }
+
       final selectedNumber = _selectedWeekNumber ??
           plan.currentWeekNumber ??
           plan.weeks.first.week.weekNumber;
@@ -127,6 +146,7 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
         onHorizontalDragEnd: (details) =>
             _handleHorizontalSwipe(plan, summary.week.weekNumber, details),
         child: AppPage(
+          controller: _scrollController,
           onRefresh: () async {
             _reload();
             await _future;
@@ -136,7 +156,7 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
               eyebrow: plan.academicYear,
               title: 'Kazanım Takibi',
               description:
-                  'Derse girerken bu haftanın kazanımlarına bakın, işlenme durumunu takip edin ve defter için doğrulanmış programa tek yerden ulaşın.',
+                  'Bu hafta ne işleyeceğinizi görün; durum ve kısa ders notunu doğrudan karttan güncelleyin.',
             ),
             AppWeekNavigator(
               options: [
@@ -149,15 +169,14 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
               ],
               selectedWeekNumber: summary.week.weekNumber,
               currentWeekNumber: plan.currentWeekNumber,
-              helperText:
-                  'Haftayı değiştirmek için sağa veya sola kaydırabilirsiniz.',
+              helperText: 'Sağa veya sola kaydırarak da hafta değiştirebilirsiniz.',
               onChanged: (number) => _selectWeek(plan, number),
             ),
             const SizedBox(height: AppSpacing.md),
-            _WeekHero(summary: summary),
+            _WeekContext(summary: summary),
             if (summary.week.isEventWeek)
               const Padding(
-                padding: EdgeInsets.only(top: AppSpacing.xl),
+                padding: EdgeInsets.only(top: AppSpacing.lg),
                 child: StatusPanel(
                   icon: Icons.celebration_outlined,
                   title: 'Etkinlik Haftası',
@@ -167,19 +186,10 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
                 ),
               )
             else ...[
-              const SizedBox(height: AppSpacing.lg),
-              _SummaryMetrics(summary: summary),
-              const SectionHeading(
-                'Deftere Bakış',
-                subtitle:
-                    'Tema, blok ve resmî kazanım metinlerinden oluşan kopyalanabilir haftalık özet',
-                icon: Icons.menu_book_outlined,
-              ),
-              _DiaryGlance(summary: summary),
               SectionHeading(
                 'Bu haftanın kazanımları',
                 subtitle:
-                    '${summary.outcomes.length} kazanım · Planlanan program ile öğretmen takip durumu ayrı tutulur.',
+                    '${summary.outcomes.length} kazanım · Planlanan program ile sınıftaki gerçekleşen takip ayrı tutulur.',
                 icon: Icons.flag_outlined,
               ),
               _FilterBar(
@@ -187,7 +197,6 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
                 selected: _filter,
                 onChanged: (filter) {
                   if (_filter == filter) return;
-                  HapticFeedback.selectionClick();
                   setState(() => _filter = filter);
                 },
               ),
@@ -224,6 +233,13 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
                   if (index != visibleOutcomes.length - 1)
                     const SizedBox(height: AppSpacing.md),
                 ],
+              const SectionHeading(
+                'Deftere Bakış',
+                subtitle:
+                    'Doğrulanmış tema, blok ve resmî kazanım metinlerini gerektiğinde açın veya kopyalayın.',
+                icon: Icons.menu_book_outlined,
+              ),
+              _DiaryGlance(summary: summary),
             ],
           ],
         ),
@@ -428,8 +444,8 @@ class _TeacherNoteDialogState extends State<_TeacherNoteDialog> {
   );
 }
 
-class _WeekHero extends StatelessWidget {
-  const _WeekHero({required this.summary});
+class _WeekContext extends StatelessWidget {
+  const _WeekContext({required this.summary});
 
   final WeeklyOutcomeSummary summary;
 
@@ -437,26 +453,49 @@ class _WeekHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final week = summary.week;
     final themes = week.segments.map((item) => item.theme.title).toSet();
+    final blocks = week.segments
+        .map((item) => item.block?.title)
+        .whereType<String>()
+        .toSet();
+
     return Card(
       color: Theme.of(context).colorScheme.primaryContainer,
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              week.isEventWeek ? week.label : '${week.weekNumber}. Hafta',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              outcomeDateRange(week.start, week.end),
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        week.isEventWeek ? week.label : '${week.weekNumber}. Hafta',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        outcomeDateRange(week.start, week.end),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                MetricChip(
+                  icon: Icons.schedule_outlined,
+                  value: '${week.plannedLessonHours}',
+                  label: 'ders saati',
+                ),
+              ],
             ),
             if (themes.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.md),
@@ -464,32 +503,22 @@ class _WeekHero extends StatelessWidget {
                 themes.join(' · '),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
-            if (week.segments.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.lg),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: [
-                  for (final segment in week.segments)
-                    Chip(
-                      avatar: Icon(
-                        segment.type == WeeklyPlanSegmentType.block
-                            ? Icons.view_agenda_outlined
-                            : Icons.school_outlined,
-                        size: 17,
-                      ),
-                      label: Text(
-                        segment.type == WeeklyPlanSegmentType.block
-                            ? '${segment.block?.title ?? 'Blok'} · ${segment.hours} saat'
-                            : 'Okul temelli planlama · ${segment.hours} saat',
-                      ),
-                    ),
-                ],
+            if (blocks.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                blocks.join(' · '),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
               ),
+            ],
+            if (!week.isEventWeek) ...[
+              const SizedBox(height: AppSpacing.md),
+              _SummaryMetrics(summary: summary),
             ],
           ],
         ),
@@ -516,15 +545,11 @@ class _SummaryMetrics extends StatelessWidget {
               item.presentationStatus == OutcomeTrackingStatus.partiallyCompleted,
         )
         .length;
+
     return Wrap(
       spacing: AppSpacing.sm,
       runSpacing: AppSpacing.sm,
       children: [
-        MetricChip(
-          icon: Icons.schedule_outlined,
-          value: '${summary.week.plannedLessonHours}',
-          label: 'ders saati',
-        ),
         MetricChip(
           icon: Icons.pending_actions_outlined,
           value: '${summary.plannedCount}',
@@ -534,13 +559,13 @@ class _SummaryMetrics extends StatelessWidget {
           MetricChip(
             icon: Icons.play_circle_outline,
             value: '$activeCount',
-            label: 'devam ediyor',
+            label: 'devam',
           ),
         if (partialCount > 0)
           MetricChip(
             icon: Icons.timelapse_outlined,
             value: '$partialCount',
-            label: 'kısmen işlendi',
+            label: 'kısmen',
           ),
         MetricChip(
           icon: Icons.check_circle_outline,
@@ -582,37 +607,50 @@ class _DiaryGlance extends StatelessWidget {
       copyText.writeln('${item.outcome.code} — ${item.outcome.officialText}');
     }
 
-    return InfoCard(
-      title: '${week.weekNumber}. hafta defter özeti',
-      subtitle: 'Yalnız doğrulanmış program ve planlama verisi',
-      icon: Icons.content_paste_outlined,
-      trailing: IconButton(
-        tooltip: 'Özeti kopyala',
-        onPressed: () async {
-          await Clipboard.setData(ClipboardData(text: copyText.toString().trim()));
-          await HapticFeedback.selectionClick();
-          if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Defter özeti panoya kopyalandı.')),
-          );
-        },
-        icon: const Icon(Icons.copy_outlined),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        leading: const Icon(Icons.content_paste_outlined),
+        title: Text('${week.weekNumber}. hafta defter özeti'),
+        subtitle: const Text('Yalnız doğrulanmış program ve planlama verisi'),
+        trailing: IconButton(
+          tooltip: 'Özeti kopyala',
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: copyText.toString().trim()));
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Defter özeti panoya kopyalandı.')),
+            );
+          },
+          icon: const Icon(Icons.copy_outlined),
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          0,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
         children: [
-          if (themes.isNotEmpty) Text('Tema: ${themes.join(' · ')}'),
-          if (blocks.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text('Blok: ${blocks.join(' · ')}'),
-          ],
-          const SizedBox(height: AppSpacing.md),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              for (final item in canonical) Chip(label: Text(item.outcome.code)),
-            ],
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (themes.isNotEmpty) Text('Tema: ${themes.join(' · ')}'),
+                if (blocks.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text('Blok: ${blocks.join(' · ')}'),
+                ],
+                const SizedBox(height: AppSpacing.md),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    for (final item in canonical) Chip(label: Text(item.outcome.code)),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -636,6 +674,7 @@ class _FilterBar extends StatelessWidget {
     final openCount = summary.outcomes
         .where((item) => item.presentationStatus != OutcomeTrackingStatus.completed)
         .length;
+
     return Wrap(
       spacing: AppSpacing.sm,
       runSpacing: AppSpacing.sm,
@@ -697,6 +736,7 @@ class _OutcomeCardState extends State<_OutcomeCard> {
     final theme = item.primaryTheme;
     final pageHint = _pageHint(item);
     final canExpand = item.outcome.officialText.length > 180;
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -721,24 +761,9 @@ class _OutcomeCardState extends State<_OutcomeCard> {
                   OutcomeStatusChip(status: item.presentationStatus),
                 ],
               ),
-              if (item.isCarriedIn) ...[
+              if (item.isCarriedIn || item.carriedToWeekNumber != null) ...[
                 const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Geçen haftadan · ${item.carriedFromWeekNumber}. haftadan taşındı',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.error,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ] else if (item.carriedToWeekNumber != null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  '${item.carriedToWeekNumber}. haftaya taşındı',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.error,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                _CarryLabel(item: item),
               ],
               const SizedBox(height: AppSpacing.md),
               AnimatedSize(
@@ -748,16 +773,13 @@ class _OutcomeCardState extends State<_OutcomeCard> {
                   item.outcome.officialText,
                   maxLines: _expanded ? null : 4,
                   overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
-                  style: const TextStyle(height: 1.45),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.45),
                 ),
               ),
               if (canExpand) ...[
                 const SizedBox(height: AppSpacing.xs),
                 TextButton.icon(
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _expanded = !_expanded);
-                  },
+                  onPressed: () => setState(() => _expanded = !_expanded),
                   icon: Icon(
                     _expanded ? Icons.expand_less : Icons.expand_more,
                     size: 18,
@@ -788,30 +810,58 @@ class _OutcomeCardState extends State<_OutcomeCard> {
                   ],
                 ),
               ],
-              const SizedBox(height: AppSpacing.md),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: [
-                  if (widget.relatedBlockHours > 0)
-                    Chip(
-                      avatar: const Icon(Icons.schedule_outlined, size: 17),
-                      label: Text(
-                        'Bu hafta ilgili blok: ${widget.relatedBlockHours} saat',
+              if (widget.relatedBlockHours > 0) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.schedule_outlined,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Bu hafta ilgili blok: ${widget.relatedBlockHours} saat',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            'Bu değer kazanıma atanmış resmî süre değil, haftalık blok planlama payıdır.',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  if (pageHint != null)
-                    Chip(
-                      avatar: const Icon(Icons.menu_book_outlined, size: 17),
-                      label: Text(pageHint),
-                    ),
-                  if (item.teacherNote?.isNotEmpty == true)
-                    const Chip(
-                      avatar: Icon(Icons.sticky_note_2_outlined, size: 17),
-                      label: Text('Not var'),
-                    ),
-                ],
-              ),
+                  ],
+                ),
+              ],
+              if (pageHint != null || item.teacherNote?.isNotEmpty == true) ...[
+                const SizedBox(height: AppSpacing.md),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    if (pageHint != null)
+                      Chip(
+                        avatar: const Icon(Icons.menu_book_outlined, size: 17),
+                        label: Text(pageHint),
+                      ),
+                    if (item.teacherNote?.isNotEmpty == true)
+                      const Chip(
+                        avatar: Icon(Icons.sticky_note_2_outlined, size: 17),
+                        label: Text('Not var'),
+                      ),
+                  ],
+                ),
+              ],
               const SizedBox(height: AppSpacing.md),
               Wrap(
                 spacing: AppSpacing.sm,
@@ -830,11 +880,6 @@ class _OutcomeCardState extends State<_OutcomeCard> {
                     label: Text(
                       item.teacherNote?.isNotEmpty == true ? 'Notu düzenle' : 'Not',
                     ),
-                  ),
-                  TextButton.icon(
-                    onPressed: widget.onOpen,
-                    icon: const Icon(Icons.open_in_new),
-                    label: const Text('Detay'),
                   ),
                   PopupMenuButton<_OutcomeAction>(
                     tooltip: 'Diğer işlemler',
@@ -890,5 +935,46 @@ class _OutcomeCardState extends State<_OutcomeCard> {
       }
     }
     return null;
+  }
+}
+
+class _CarryLabel extends StatelessWidget {
+  const _CarryLabel({required this.item});
+
+  final TrackedOutcome item;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = item.isCarriedIn
+        ? 'Geçen haftadan · ${item.carriedFromWeekNumber}. haftadan taşındı'
+        : '${item.carriedToWeekNumber}. haftaya taşındı';
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.redo_outlined, size: 17, color: scheme.onErrorContainer),
+          const SizedBox(width: AppSpacing.sm),
+          Flexible(
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: scheme.onErrorContainer,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
