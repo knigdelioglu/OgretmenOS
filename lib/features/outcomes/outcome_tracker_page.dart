@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -53,6 +55,11 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
   void _scrollToStart() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
+      final reduceMotion = MediaQuery.maybeOf(context)?.accessibleNavigation ?? false;
+      if (reduceMotion) {
+        _scrollController.jumpTo(0);
+        return;
+      }
       _scrollController.animateTo(
         0,
         duration: const Duration(milliseconds: 180),
@@ -63,17 +70,13 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
 
   Future<void> _runMutation(
     Future<void> Function() action, {
-    bool strongFeedback = false,
+    bool haptic = false,
   }) async {
     try {
       await action();
       if (!mounted) return;
       _reload();
-      if (strongFeedback) {
-        await HapticFeedback.mediumImpact();
-      } else {
-        await HapticFeedback.selectionClick();
-      }
+      if (haptic) unawaited(HapticFeedback.mediumImpact());
     } on Object catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -87,7 +90,6 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
         plan.currentWeekNumber ??
         plan.weeks.first.week.weekNumber;
     if (current == number || plan.week(number) == null) return;
-    HapticFeedback.selectionClick();
     setState(() {
       _selectedWeekNumber = number;
       _filter = _OutcomeFilter.all;
@@ -224,7 +226,7 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
                         visibleOutcomes[index],
                         OutcomeTrackingStatus.completed,
                       ),
-                      strongFeedback: true,
+                      haptic: true,
                     ),
                     onNote: () => _editTeacherNote(visibleOutcomes[index]),
                     onAction: (action) =>
@@ -279,6 +281,7 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
   };
 
   Future<void> _openDetail(AnnualOutcomePlan plan, TrackedOutcome item) async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
         builder: (_) => OutcomeDetailPage(
@@ -329,6 +332,7 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
             targetWeekNumber: target,
             plan: plan,
           ),
+          haptic: true,
         );
         return;
       case _OutcomeAction.reset:
@@ -420,10 +424,12 @@ class _TeacherNoteDialogState extends State<_TeacherNoteDialog> {
       autofocus: true,
       minLines: 3,
       maxLines: 6,
+      scrollPadding: EdgeInsets.only(
+        bottom: MediaQuery.viewInsetsOf(context).bottom + 96,
+      ),
       textInputAction: TextInputAction.newline,
       decoration: const InputDecoration(
         hintText: 'Bu kazanım için kısa bir ders notu…',
-        border: OutlineInputBorder(),
       ),
     ),
     actions: [
@@ -465,31 +471,31 @@ class _WeekContext extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Wrap(
+              spacing: AppSpacing.md,
+              runSpacing: AppSpacing.sm,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        week.isEventWeek ? week.label : '${week.weekNumber}. Hafta',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
-                          fontWeight: FontWeight.w800,
-                        ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      week.isEventWeek ? week.label : '${week.weekNumber}. Hafta',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w800,
                       ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        outcomeDateRange(week.start, week.end),
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
-                        ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      outcomeDateRange(week.start, week.end),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: AppSpacing.md),
                 MetricChip(
                   icon: Icons.schedule_outlined,
                   value: '${week.plannedLessonHours}',
@@ -736,6 +742,7 @@ class _OutcomeCardState extends State<_OutcomeCard> {
     final theme = item.primaryTheme;
     final pageHint = _pageHint(item);
     final canExpand = item.outcome.officialText.length > 180;
+    final reduceMotion = MediaQuery.of(context).accessibleNavigation;
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -767,7 +774,9 @@ class _OutcomeCardState extends State<_OutcomeCard> {
               ],
               const SizedBox(height: AppSpacing.md),
               AnimatedSize(
-                duration: const Duration(milliseconds: 180),
+                duration: reduceMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 180),
                 alignment: Alignment.topCenter,
                 child: Text(
                   item.outcome.officialText,
