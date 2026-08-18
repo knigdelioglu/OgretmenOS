@@ -11,9 +11,9 @@ class SystemViewportGuard extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Listener(
+  Widget build(BuildContext context) => GestureDetector(
         behavior: HitTestBehavior.translucent,
-        onPointerDown: _dismissFocusedEditableWhenOutside,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         child: SafeArea(
           key: const ValueKey('app-system-viewport-safe-area'),
           top: false,
@@ -24,24 +24,4 @@ class SystemViewportGuard extends StatelessWidget {
           child: child,
         ),
       );
-
-  void _dismissFocusedEditableWhenOutside(PointerDownEvent event) {
-    final focus = FocusManager.instance.primaryFocus;
-    final focusContext = focus?.context;
-    if (focus == null || focusContext == null || !focus.hasFocus) return;
-
-    final editableState = focusContext.findAncestorStateOfType<EditableTextState>();
-    final renderObject =
-        editableState?.context.findRenderObject() ?? focusContext.findRenderObject();
-    if (renderObject is! RenderBox || !renderObject.hasSize) {
-      focus.unfocus();
-      return;
-    }
-
-    final topLeft = renderObject.localToGlobal(Offset.zero);
-    final bounds = topLeft & renderObject.size;
-    if (!bounds.contains(event.position)) {
-      focus.unfocus();
-    }
-  }
 }
