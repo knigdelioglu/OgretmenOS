@@ -9,6 +9,7 @@ import '../features/teacher_package/teacher_package_page.dart';
 import '../features/weekly_plan/weekly_plan_page.dart';
 import 'app_dependencies.dart';
 import 'theme/app_theme.dart';
+import 'widgets/system_viewport_guard.dart';
 
 class TeacherOsApp extends StatefulWidget {
   const TeacherOsApp({
@@ -50,6 +51,9 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
     theme: AppTheme.light(),
     darkTheme: AppTheme.dark(),
     themeMode: ThemeMode.system,
+    builder: (context, child) => SystemViewportGuard(
+      child: child ?? const SizedBox.shrink(),
+    ),
     home: FutureBuilder<AppDependencies>(
       future: _dependenciesFuture,
       builder: (context, snapshot) {
@@ -148,13 +152,6 @@ class _AppShellState extends State<_AppShell> {
   int _selectedIndex = 0;
   late final OutcomePlanningService _outcomePlanning;
 
-  static const _titles = [
-    'Kazanımlar',
-    'Haftalık Plan',
-    'Yıllık Plan',
-    'Öğretmen Paketi',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -189,7 +186,7 @@ class _AppShellState extends State<_AppShell> {
         final content = IndexedStack(index: _selectedIndex, children: pages);
 
         return Scaffold(
-          appBar: AppBar(title: Text(_titles[_selectedIndex])),
+          appBar: AppBar(title: const Text('ÖğretmenOS')),
           body: useRail
               ? Row(
                   children: [
@@ -272,6 +269,7 @@ class _AppShellState extends State<_AppShell> {
 
   void _selectDestination(int index) {
     if (index == _selectedIndex) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _selectedIndex = index);
   }
 }
