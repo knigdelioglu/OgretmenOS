@@ -30,13 +30,19 @@ void main() {
   testWidgets('tapping outside the focused field dismisses keyboard focus', (
     tester,
   ) async {
+    final focusNode = FocusNode();
+    addTearDown(focusNode.dispose);
+
     await tester.pumpWidget(
       MaterialApp(
         home: SystemViewportGuard(
           child: Scaffold(
             body: Column(
               children: [
-                const TextField(key: ValueKey('field')),
+                TextField(
+                  key: const ValueKey('field'),
+                  focusNode: focusNode,
+                ),
                 Expanded(
                   child: Center(
                     child: Container(
@@ -56,10 +62,10 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('field')));
     await tester.pump();
-    expect(FocusManager.instance.primaryFocus?.hasFocus, isTrue);
+    expect(focusNode.hasFocus, isTrue);
 
     await tester.tap(find.byKey(const ValueKey('outside')));
     await tester.pump();
-    expect(FocusManager.instance.primaryFocus?.hasFocus ?? false, isFalse);
+    expect(focusNode.hasFocus, isFalse);
   });
 }
