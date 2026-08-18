@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/theme/app_tokens.dart';
 import '../../domain/models/course_models.dart' as model;
 
 class AppSpacing {
@@ -11,7 +12,7 @@ class AppSpacing {
   static const double lg = 16;
   static const double xl = 24;
   static const double xxl = 32;
-  static const double section = 36;
+  static const double section = 32;
 }
 
 class AppPage extends StatelessWidget {
@@ -20,7 +21,7 @@ class AppPage extends StatelessWidget {
     required this.children,
     this.onRefresh,
     this.controller,
-    this.maxWidth = 960,
+    this.maxWidth = AppLayoutTokens.contentMaxWidth,
   });
 
   final List<Widget> children;
@@ -31,17 +32,21 @@ class AppPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final horizontalPadding = constraints.maxWidth >= 840 ? 32.0 : 16.0;
+      final horizontalPadding =
+          constraints.maxWidth >= AppLayoutTokens.wideContentBreakpoint
+              ? AppLayoutTokens.wideHorizontalPadding
+              : AppLayoutTokens.phoneHorizontalPadding;
       final content = ListView(
         controller: controller,
         physics: onRefresh == null
             ? const ClampingScrollPhysics()
             : const AlwaysScrollableScrollPhysics(),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: EdgeInsets.fromLTRB(
           horizontalPadding,
           AppSpacing.lg,
           horizontalPadding,
-          AppSpacing.xxl,
+          AppLayoutTokens.pageBottomComfort,
         ),
         children: children,
       );
@@ -76,55 +81,83 @@ class PageHeader extends StatelessWidget {
   final Widget? trailing;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (eyebrow != null) ...[
-                Text(
-                  eyebrow!.toUpperCase(),
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.7,
-                  ),
+  Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stackTrailing = trailing != null &&
+            (constraints.maxWidth < 560 || textScale >= 1.5);
+        final text = _HeaderText(
+          title: title,
+          eyebrow: eyebrow,
+          description: description,
+        );
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+          child: stackTrailing
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    text,
+                    const SizedBox(height: AppSpacing.md),
+                    trailing!,
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: text),
+                    if (trailing != null) ...[
+                      const SizedBox(width: AppSpacing.lg),
+                      trailing!,
+                    ],
+                  ],
                 ),
-                const SizedBox(height: AppSpacing.sm),
-              ],
-              Text(
-                title,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  height: 1.15,
-                ),
-              ),
-              if (description != null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 680),
-                  child: Text(
-                    description!,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      height: 1.45,
-                    ),
-                  ),
-                ),
-              ],
-            ],
+        );
+      },
+    );
+  }
+}
+
+class _HeaderText extends StatelessWidget {
+  const _HeaderText({required this.title, this.eyebrow, this.description});
+
+  final String title;
+  final String? eyebrow;
+  final String? description;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      if (eyebrow != null) ...[
+        Text(
+          eyebrow!.toUpperCase(),
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.7,
           ),
         ),
-        if (trailing != null) ...[
-          const SizedBox(width: AppSpacing.lg),
-          trailing!,
-        ],
+        const SizedBox(height: AppSpacing.sm),
       ],
-    ),
+      Text(title, style: Theme.of(context).textTheme.headlineSmall),
+      if (description != null) ...[
+        const SizedBox(height: AppSpacing.sm),
+        ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: AppLayoutTokens.textMeasureMaxWidth,
+          ),
+          child: Text(
+            description!,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    ],
   );
 }
 
@@ -139,7 +172,7 @@ class FeatureErrorView extends StatelessWidget {
     child: Padding(
       padding: const EdgeInsets.all(AppSpacing.xl),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
+        constraints: const BoxConstraints(maxWidth: AppLayoutTokens.stateMaxWidth),
         child: StatusPanel(
           icon: Icons.error_outline,
           title: 'Bir şeyler ters gitti',
@@ -175,9 +208,8 @@ class UnresolvedText extends StatelessWidget {
       Expanded(
         child: Text(
           label,
-          style: TextStyle(
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
-            height: 1.4,
           ),
         ),
       ),
@@ -194,18 +226,22 @@ class LoadingView extends StatelessWidget {
   Widget build(BuildContext context) => Center(
     child: Padding(
       padding: const EdgeInsets.all(AppSpacing.xxl),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: AppLayoutTokens.stateMaxWidth),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );
@@ -228,54 +264,70 @@ class SectionHeading extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: AppSpacing.section, bottom: AppSpacing.md),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (icon != null) ...[
-          Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.secondaryContainer,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: Theme.of(context).colorScheme.onSecondaryContainer,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-        ],
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 520 ||
+            MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+        final heading = Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (icon != null) ...[
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondaryContainer,
+                  borderRadius: BorderRadius.circular(AppRadiusTokens.compact),
+                ),
+                child: Icon(
+                  icon,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.onSecondaryContainer,
                 ),
               ),
-              if (subtitle != null) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  subtitle!,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    height: 1.4,
-                  ),
-                ),
-              ],
+              const SizedBox(width: AppSpacing.md),
             ],
-          ),
-        ),
-        if (action != null) ...[
-          const SizedBox(width: AppSpacing.md),
-          action!,
-        ],
-      ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: Theme.of(context).textTheme.titleLarge),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      subtitle!,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        );
+
+        if (action == null) return heading;
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              heading,
+              const SizedBox(height: AppSpacing.sm),
+              Align(alignment: Alignment.centerLeft, child: action!),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: heading),
+            const SizedBox(width: AppSpacing.md),
+            action!,
+          ],
+        );
+      },
     ),
   );
 }
@@ -313,7 +365,7 @@ class InfoCard extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(11),
+                    borderRadius: BorderRadius.circular(AppRadiusTokens.compact),
                   ),
                   child: Icon(
                     icon,
@@ -327,12 +379,7 @@ class InfoCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    Text(title, style: Theme.of(context).textTheme.titleMedium),
                     if (subtitle != null) ...[
                       const SizedBox(height: AppSpacing.xs),
                       Text(
@@ -392,7 +439,7 @@ class StatusPanel extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadiusTokens.card),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,7 +454,6 @@ class StatusPanel extends StatelessWidget {
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: foreground,
-                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -415,7 +461,6 @@ class StatusPanel extends StatelessWidget {
                   message,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: foreground,
-                    height: 1.4,
                   ),
                 ),
                 if (action != null) ...[
@@ -451,18 +496,15 @@ class MetricChip extends StatelessWidget {
     ),
     decoration: BoxDecoration(
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadiusTokens.compact),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 17),
         const SizedBox(width: AppSpacing.sm),
-        Text(
-          '$value $label',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+        Flexible(
+          child: Text('$value $label', style: Theme.of(context).textTheme.labelLarge),
         ),
       ],
     ),
@@ -482,36 +524,66 @@ class LabeledValue extends StatelessWidget {
   final IconData? icon;
 
   @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      if (icon != null) ...[
-        Icon(
-          icon,
-          size: 18,
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final stack = constraints.maxWidth < 440 ||
+          MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+      final labelWidget = Text(
+        label,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
-        const SizedBox(width: AppSpacing.sm),
-      ],
-      SizedBox(
-        width: 118,
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+      );
+      final valueWidget = Text(
+        value,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          fontWeight: FontWeight.w600,
         ),
-      ),
-      const SizedBox(width: AppSpacing.sm),
-      Expanded(
-        child: Text(
-          value,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    ],
+      );
+
+      if (stack) {
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 18,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  labelWidget,
+                  const SizedBox(height: AppSpacing.xs),
+                  valueWidget,
+                ],
+              ),
+            ),
+          ],
+        );
+      }
+
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (icon != null) ...[
+            Icon(
+              icon,
+              size: 18,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          SizedBox(width: 118, child: labelWidget),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: valueWidget),
+        ],
+      );
+    },
   );
 }
 
@@ -531,8 +603,10 @@ class ResourceDecisionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Wrap(
+              spacing: AppSpacing.md,
+              runSpacing: AppSpacing.sm,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Container(
                   width: 40,
@@ -540,19 +614,11 @@ class ResourceDecisionCard extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadiusTokens.compact),
                   ),
                   child: Icon(icon, color: color, size: 21),
                 ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+                Text(label, style: Theme.of(context).textTheme.titleMedium),
                 if (priority != null) Chip(label: Text(priority)),
               ],
             ),
@@ -560,8 +626,7 @@ class ResourceDecisionCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               Text(decision.purpose!, style: const TextStyle(height: 1.4)),
             ],
-            if (decision.textbookCoverage != null ||
-                decision.locator != null) ...[
+            if (decision.textbookCoverage != null || decision.locator != null) ...[
               const SizedBox(height: AppSpacing.md),
               Wrap(
                 spacing: AppSpacing.md,
@@ -569,8 +634,7 @@ class ResourceDecisionCard extends StatelessWidget {
                 children: [
                   if (decision.textbookCoverage != null)
                     Text('Kitap kapsamı: ${decision.textbookCoverage}'),
-                  if (decision.locator != null)
-                    Text('Kaynak: ${decision.locator}'),
+                  if (decision.locator != null) Text('Kaynak: ${decision.locator}'),
                 ],
               ),
             ],

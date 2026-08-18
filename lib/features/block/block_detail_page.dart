@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/theme/app_tokens.dart';
 import '../../domain/models/course_models.dart' as model;
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../shared/feature_widgets.dart';
@@ -29,9 +30,7 @@ class _BlockDetailPageState extends State<BlockDetailPage> {
   }
 
   void _reload() {
-    setState(() {
-      _future = widget.repository.getBlock(widget.blockId);
-    });
+    setState(() => _future = widget.repository.getBlock(widget.blockId));
   }
 
   @override
@@ -66,56 +65,122 @@ class _BlockDetailContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AppPage(
+    maxWidth: AppLayoutTokens.detailMaxWidth,
     children: [
       PageHeader(
         eyebrow: detail.theme.title,
         title: detail.block.title,
         description:
-            'Bu blokta hedeflenen program çıktıları, kullanılacak kitap bölümleri, etkinlikler ve değerlendirme araçları.',
+            'Program çıktıları, kitap, etkinlik, değerlendirme ve materyal bağlamını ders sırasında gerektiği kadar açın.',
       ),
       _BlockSummary(detail: detail),
-      const SectionHeading(
-        'Bu derste ne hedefleniyor?',
-        subtitle: 'Program çıktıları ve varsa süreç bileşenleri',
-        icon: Icons.track_changes_outlined,
-      ),
-      _OutcomesSection(outcomes: detail.outcomes),
-      const SectionHeading(
-        'Kitapta ne kullanacağım?',
-        subtitle: 'İlgili kitap bölümleri, etkinlikler ve formlar',
-        icon: Icons.menu_book_outlined,
-      ),
-      _TextbookSection(sections: detail.textbookSections),
       const SizedBox(height: AppSpacing.md),
-      _ActivitiesSection(activities: detail.activities),
-      const SizedBox(height: AppSpacing.md),
-      _FormsSection(forms: detail.forms),
-      const SectionHeading(
-        'Nasıl değerlendireceğim?',
-        subtitle: 'Bu blokla ilişkilendirilmiş değerlendirme araçları ve görevler',
-        icon: Icons.fact_check_outlined,
-      ),
-      _AssessmentSection(detail: detail),
-      const SectionHeading(
-        'Ek materyal gerekiyor mu?',
-        subtitle: 'Kitap ve ek destek bilgilerini birlikte görün',
-        icon: Icons.library_add_check_outlined,
-      ),
-      _MaterialSection(decisions: detail.resourceDecisions),
-      const SectionHeading(
-        'Kaynaklar',
-        subtitle: 'Program ve ders kitabı dayanakları',
-        icon: Icons.source_outlined,
-      ),
-      _SourcesSection(sources: detail.sourceReferences),
-      const SectionHeading(
-        'Plan sırası',
-        subtitle: 'Önceki veya sonraki öğretim bloğuna geçin',
-        icon: Icons.swap_horiz,
-      ),
       _SequenceNavigation(detail: detail, repository: repository),
+      const SectionHeading(
+        'Ders yürütme dosyası',
+        subtitle: 'Sınıfta kullanacağınız bölümü açın; teknik dayanaklar kapalı kalır.',
+        icon: Icons.folder_open_outlined,
+      ),
+      _BlockSection(
+        icon: Icons.track_changes_outlined,
+        title: 'Program çıktıları',
+        summary: '${detail.outcomes.length} çıktı',
+        initiallyExpanded: true,
+        child: _OutcomesSection(outcomes: detail.outcomes),
+      ),
+      const SizedBox(height: AppSpacing.md),
+      _BlockSection(
+        icon: Icons.menu_book_outlined,
+        title: 'Kitap ve sınıf etkinlikleri',
+        summary:
+            '${detail.textbookSections.length} kitap bölümü · ${detail.activities.length} etkinlik · ${detail.forms.length} form',
+        initiallyExpanded: true,
+        child: Column(
+          children: [
+            _TextbookSection(sections: detail.textbookSections),
+            if (detail.activities.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.md),
+              _ActivitiesSection(activities: detail.activities),
+            ],
+            if (detail.forms.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.md),
+              _FormsSection(forms: detail.forms),
+            ],
+          ],
+        ),
+      ),
+      const SizedBox(height: AppSpacing.md),
+      _BlockSection(
+        icon: Icons.fact_check_outlined,
+        title: 'Değerlendirme',
+        summary:
+            '${detail.assessmentArtifacts.length} araç · ${detail.assessmentTaskBindings.length} görev',
+        child: _AssessmentSection(detail: detail),
+      ),
+      const SizedBox(height: AppSpacing.md),
+      _BlockSection(
+        icon: Icons.library_add_check_outlined,
+        title: 'Materyal durumu',
+        summary: '${detail.resourceDecisions.length} karar',
+        child: _MaterialSection(decisions: detail.resourceDecisions),
+      ),
+      const SizedBox(height: AppSpacing.md),
+      _BlockSection(
+        icon: Icons.source_outlined,
+        title: 'Kaynaklar ve dayanaklar',
+        summary: '${detail.sourceReferences.length} kaynak · teknik referans',
+        subdued: true,
+        child: _SourcesSection(sources: detail.sourceReferences),
+      ),
     ],
   );
+}
+
+class _BlockSection extends StatelessWidget {
+  const _BlockSection({
+    required this.icon,
+    required this.title,
+    required this.summary,
+    required this.child,
+    this.initiallyExpanded = false,
+    this.subdued = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String summary;
+  final Widget child;
+  final bool initiallyExpanded;
+  final bool subdued;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Opacity(
+      opacity: subdued ? 0.82 : 1,
+      child: Material(
+        color: scheme.surfaceContainerLow,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: scheme.outlineVariant),
+          borderRadius: BorderRadius.circular(AppRadiusTokens.card),
+        ),
+        child: ExpansionTile(
+          initiallyExpanded: initiallyExpanded,
+          leading: Icon(icon),
+          title: Text(title),
+          subtitle: Text(summary),
+          childrenPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.lg,
+          ),
+          children: [child],
+        ),
+      ),
+    );
+  }
 }
 
 class _BlockSummary extends StatelessWidget {
@@ -126,10 +191,11 @@ class _BlockSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skill = detail.block.skillDomain ?? detail.block.learningArea;
+    final scheme = Theme.of(context).colorScheme;
     return Card(
-      color: Theme.of(context).colorScheme.primaryContainer,
+      color: scheme.primaryContainer,
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -141,8 +207,8 @@ class _BlockSummary extends StatelessWidget {
                   height: 46,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(14),
+                    color: scheme.surface,
+                    borderRadius: BorderRadius.circular(AppRadiusTokens.control),
                   ),
                   child: Text(
                     '${detail.block.order}',
@@ -159,7 +225,7 @@ class _BlockSummary extends StatelessWidget {
                       Text(
                         'Tema içindeki ${detail.block.order}. blok',
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          color: scheme.onPrimaryContainer,
                         ),
                       ),
                       if (skill != null) ...[
@@ -167,7 +233,7 @@ class _BlockSummary extends StatelessWidget {
                         Text(
                           skill,
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            color: scheme.onPrimaryContainer,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -177,7 +243,7 @@ class _BlockSummary extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
@@ -193,22 +259,17 @@ class _BlockSummary extends StatelessWidget {
                   value: '${detail.activities.length}',
                 ),
                 MetricChip(
-                  icon: Icons.assignment_outlined,
-                  label: 'form',
-                  value: '${detail.forms.length}',
-                ),
-                MetricChip(
                   icon: Icons.fact_check_outlined,
                   label: 'değerlendirme',
                   value: '${detail.assessmentArtifacts.length}',
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             Text(
               teacherBlockTimeLabel(detail.block.timeStatus),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: scheme.onPrimaryContainer,
               ),
             ),
           ],
@@ -236,16 +297,23 @@ class _OutcomesSection extends StatelessWidget {
     return Column(
       children: [
         for (var index = 0; index < outcomes.length; index++) ...[
-          InfoCard(
-            title: outcomes[index].code,
-            subtitle: 'Program çıktısı',
-            icon: Icons.flag_outlined,
+          Align(
+            alignment: Alignment.centerLeft,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
+                  outcomes[index].code,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
                   outcomes[index].officialText,
-                  style: const TextStyle(height: 1.45),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    height: 1.45,
+                  ),
                 ),
                 if (outcomes[index].processComponents != null) ...[
                   const SizedBox(height: AppSpacing.md),
@@ -258,8 +326,11 @@ class _OutcomesSection extends StatelessWidget {
               ],
             ),
           ),
-          if (index != outcomes.length - 1)
+          if (index != outcomes.length - 1) ...[
             const SizedBox(height: AppSpacing.md),
+            const Divider(),
+            const SizedBox(height: AppSpacing.md),
+          ],
         ],
       ],
     );
@@ -277,35 +348,30 @@ class _TextbookSection extends StatelessWidget {
       return const StatusPanel(
         icon: Icons.menu_book_outlined,
         title: 'Kitap bölümü bulunmuyor',
-        message: 'Bu bloktaki etkinliklerle eşleştirilmiş kitap bölümü bulunmuyor.',
+        message: 'Bu blokla eşleştirilmiş kitap bölümü bulunmuyor.',
       );
     }
 
-    return InfoCard(
-      title: 'Ders kitabı',
-      subtitle: '${sections.length} ilgili bölüm',
-      icon: Icons.auto_stories_outlined,
-      child: Column(
-        children: [
-          for (var index = 0; index < sections.length; index++) ...[
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.book_outlined),
-              title: Text(sections[index].title),
-              subtitle: Text(
-                [
-                  if (sections[index].genre != null) sections[index].genre!,
-                  pageReference(
-                    printed: sections[index].printedPageRange,
-                    pdf: sections[index].pdfPageRange,
-                  ),
-                ].where((value) => value.isNotEmpty).join(' · '),
-              ),
+    return Column(
+      children: [
+        for (var index = 0; index < sections.length; index++) ...[
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.book_outlined),
+            title: Text(sections[index].title),
+            subtitle: Text(
+              [
+                if (sections[index].genre != null) sections[index].genre!,
+                pageReference(
+                  printed: sections[index].printedPageRange,
+                  pdf: sections[index].pdfPageRange,
+                ),
+              ].where((value) => value.isNotEmpty).join(' · '),
             ),
-            if (index != sections.length - 1) const Divider(),
-          ],
+          ),
+          if (index != sections.length - 1) const Divider(),
         ],
-      ),
+      ],
     );
   }
 }
@@ -316,50 +382,40 @@ class _ActivitiesSection extends StatelessWidget {
   final List<model.Activity> activities;
 
   @override
-  Widget build(BuildContext context) {
-    if (activities.isEmpty) return const SizedBox.shrink();
-
-    return InfoCard(
-      title: 'Etkinlikler',
-      subtitle: '${activities.length} etkinlik',
-      icon: Icons.task_alt_outlined,
-      child: Column(
-        children: [
-          for (var index = 0; index < activities.length; index++) ...[
-            ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              childrenPadding: const EdgeInsets.only(bottom: AppSpacing.lg),
-              title: Text(activities[index].title),
-              subtitle: Text(
-                pageReference(
-                  printed: activities[index].printedPage,
-                  pdf: activities[index].pdfPage,
-                ),
-              ),
-              children: [
-                if (activities[index].studentAction != null)
-                  LabeledValue(
-                    label: 'Öğrenci ne yapacak?',
-                    value: activities[index].studentAction!,
-                    icon: Icons.person_outline,
-                  ),
-                if (activities[index].studentAction != null &&
-                    activities[index].expectedEvidence != null)
-                  const SizedBox(height: AppSpacing.md),
-                if (activities[index].expectedEvidence != null)
-                  LabeledValue(
-                    label: 'Beklenen ürün',
-                    value: activities[index].expectedEvidence!,
-                    icon: Icons.check_circle_outline,
-                  ),
-              ],
+  Widget build(BuildContext context) => Column(
+    children: [
+      for (var index = 0; index < activities.length; index++) ...[
+        ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: const EdgeInsets.only(bottom: AppSpacing.md),
+          title: Text(activities[index].title),
+          subtitle: Text(
+            pageReference(
+              printed: activities[index].printedPage,
+              pdf: activities[index].pdfPage,
             ),
-            if (index != activities.length - 1) const Divider(),
+          ),
+          children: [
+            if (activities[index].studentAction != null)
+              LabeledValue(
+                label: 'Öğrenci ne yapacak?',
+                value: activities[index].studentAction!,
+                icon: Icons.person_outline,
+              ),
+            if (activities[index].expectedEvidence != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              LabeledValue(
+                label: 'Beklenen ürün',
+                value: activities[index].expectedEvidence!,
+                icon: Icons.check_circle_outline,
+              ),
+            ],
           ],
-        ],
-      ),
-    );
-  }
+        ),
+        if (index != activities.length - 1) const Divider(),
+      ],
+    ],
+  );
 }
 
 class _FormsSection extends StatelessWidget {
@@ -368,23 +424,14 @@ class _FormsSection extends StatelessWidget {
   final List<model.Form> forms;
 
   @override
-  Widget build(BuildContext context) {
-    if (forms.isEmpty) return const SizedBox.shrink();
-
-    return InfoCard(
-      title: 'Kullanılacak formlar',
-      subtitle: '${forms.length} form veya araç',
-      icon: Icons.assignment_outlined,
-      child: Column(
-        children: [
-          for (var index = 0; index < forms.length; index++) ...[
-            _FormItem(form: forms[index]),
-            if (index != forms.length - 1) const Divider(),
-          ],
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Column(
+    children: [
+      for (var index = 0; index < forms.length; index++) ...[
+        _FormItem(form: forms[index]),
+        if (index != forms.length - 1) const Divider(),
+      ],
+    ],
+  );
 }
 
 class _FormItem extends StatelessWidget {
@@ -433,87 +480,72 @@ class _AssessmentSection extends StatelessWidget {
     }
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (detail.assessmentArtifacts.isNotEmpty)
-          InfoCard(
-            title: 'Değerlendirme araçları',
-            subtitle: '${detail.assessmentArtifacts.length} araç',
-            icon: Icons.fact_check_outlined,
-            child: Column(
-              children: [
-                for (var index = 0;
-                    index < detail.assessmentArtifacts.length;
-                    index++) ...[
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.checklist_outlined),
-                    title: Text(detail.assessmentArtifacts[index].title),
-                    subtitle: Text(
-                      [
-                        if (detail.assessmentArtifacts[index].skillDomain != null)
-                          detail.assessmentArtifacts[index].skillDomain!,
-                        if (detail.assessmentArtifacts[index].teacherReviewRequired)
-                          'Kullanmadan önce öğretmen incelemesi gerekli',
-                      ].join(' · '),
-                    ),
-                  ),
-                  if (index != detail.assessmentArtifacts.length - 1)
-                    const Divider(),
-                ],
-              ],
+        if (detail.assessmentArtifacts.isNotEmpty) ...[
+          Text(
+            'Değerlendirme araçları',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
             ),
           ),
-        if (detail.assessmentArtifacts.isNotEmpty &&
-            detail.assessmentTaskBindings.isNotEmpty)
+          const SizedBox(height: AppSpacing.sm),
+          for (var index = 0; index < detail.assessmentArtifacts.length; index++) ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.checklist_outlined),
+              title: Text(detail.assessmentArtifacts[index].title),
+              subtitle: Text(
+                [
+                  if (detail.assessmentArtifacts[index].skillDomain != null)
+                    detail.assessmentArtifacts[index].skillDomain!,
+                  if (detail.assessmentArtifacts[index].teacherReviewRequired)
+                    'Öğretmen incelemesi gerekli',
+                ].join(' · '),
+              ),
+            ),
+            if (index != detail.assessmentArtifacts.length - 1) const Divider(),
+          ],
+        ],
+        if (detail.assessmentTaskBindings.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.md),
-        if (detail.assessmentTaskBindings.isNotEmpty)
-          InfoCard(
-            title: 'Değerlendirme görevleri',
-            subtitle: '${detail.assessmentTaskBindings.length} görev',
-            icon: Icons.checklist_outlined,
-            child: Column(
-              children: [
-                for (var index = 0;
-                    index < detail.assessmentTaskBindings.length;
-                    index++) ...[
-                  _AssessmentTaskItem(
-                    binding: detail.assessmentTaskBindings[index],
-                  ),
-                  if (index != detail.assessmentTaskBindings.length - 1)
-                    const Divider(),
-                ],
-              ],
+          Text(
+            'Değerlendirme görevleri',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
             ),
           ),
+          for (var index = 0; index < detail.assessmentTaskBindings.length; index++) ...[
+            _AssessmentTaskItem(binding: detail.assessmentTaskBindings[index]),
+            if (index != detail.assessmentTaskBindings.length - 1) const Divider(),
+          ],
+        ],
         if (detail.assessmentGaps.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.md),
-          InfoCard(
-            title: 'Dikkat edilmesi gereken değerlendirme ihtiyaçları',
-            subtitle: '${detail.assessmentGaps.length} ihtiyaç',
-            icon: Icons.info_outline,
-            child: Column(
-              children: [
-                for (var index = 0; index < detail.assessmentGaps.length; index++) ...[
-                  ExpansionTile(
-                    tilePadding: EdgeInsets.zero,
-                    childrenPadding: const EdgeInsets.only(bottom: AppSpacing.lg),
-                    title: Text(
-                      detail.assessmentGaps[index].officialRequirement ??
-                          'Değerlendirme ihtiyacı',
-                    ),
-                    children: [
-                      if (detail.assessmentGaps[index].exactRemainingGap != null)
-                        Text(
-                          detail.assessmentGaps[index].exactRemainingGap!,
-                          style: const TextStyle(height: 1.45),
-                        ),
-                    ],
-                  ),
-                  if (index != detail.assessmentGaps.length - 1) const Divider(),
-                ],
-              ],
+          Text(
+            'Değerlendirme ihtiyaçları',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
             ),
           ),
+          for (var index = 0; index < detail.assessmentGaps.length; index++) ...[
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: AppSpacing.md),
+              title: Text(
+                detail.assessmentGaps[index].officialRequirement ??
+                    'Değerlendirme ihtiyacı',
+              ),
+              children: [
+                if (detail.assessmentGaps[index].exactRemainingGap != null)
+                  Text(
+                    detail.assessmentGaps[index].exactRemainingGap!,
+                    style: const TextStyle(height: 1.45),
+                  ),
+              ],
+            ),
+            if (index != detail.assessmentGaps.length - 1) const Divider(),
+          ],
         ],
       ],
     );
@@ -530,7 +562,7 @@ class _AssessmentTaskItem extends StatelessWidget {
     final bookLocation = teacherLocatorLabel(binding.textbookLocator);
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
-      childrenPadding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      childrenPadding: const EdgeInsets.only(bottom: AppSpacing.md),
       title: Text(binding.taskTitle ?? 'Değerlendirme görevi'),
       subtitle: binding.evidence == null ? null : Text(binding.evidence!),
       children: [
@@ -564,7 +596,7 @@ class _MaterialSection extends StatelessWidget {
       return const StatusPanel(
         icon: Icons.info_outline,
         title: 'Materyal bilgisi bulunmuyor',
-        message: 'Bu tema için gösterilebilir materyal bilgisi bulunmuyor.',
+        message: 'Bu blok için gösterilebilir materyal bilgisi bulunmuyor.',
       );
     }
 
@@ -580,8 +612,8 @@ class _MaterialSection extends StatelessWidget {
               ? 'Ek destek gereken alan görünmüyor'
               : '$additional alanda ek destek gerekiyor',
           message: additional == 0
-              ? 'Mevcut kitap ve araçlar bu tema için kullanılabilir.'
-              : 'Aşağıdaki ek destek alanlarını ders hazırlığında ayrıca gözden geçirin.',
+              ? 'Mevcut kitap ve araçlar bu blok bağlamında kullanılabilir.'
+              : 'Ek destek alanlarını ders hazırlığında ayrıca gözden geçirin.',
           tone: additional == 0 ? StatusTone.positive : StatusTone.attention,
         ),
         const SizedBox(height: AppSpacing.md),
@@ -602,25 +634,16 @@ class _SourcesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (sources.isEmpty) {
-      return const StatusPanel(
-        icon: Icons.source_outlined,
-        title: 'Kaynak bilgisi bulunmuyor',
-        message: 'Bu blok için gösterilebilir kaynak bilgisi bulunmuyor.',
-      );
+      return const UnresolvedText(label: 'Bu blok için kaynak bilgisi bulunmuyor.');
     }
 
-    return InfoCard(
-      title: 'Dayanaklar',
-      subtitle: '${sources.length} kaynak',
-      icon: Icons.source_outlined,
-      child: Column(
-        children: [
-          for (var index = 0; index < sources.length; index++) ...[
-            _SourceItem(source: sources[index]),
-            if (index != sources.length - 1) const Divider(),
-          ],
+    return Column(
+      children: [
+        for (var index = 0; index < sources.length; index++) ...[
+          _SourceItem(source: sources[index]),
+          if (index != sources.length - 1) const Divider(),
         ],
-      ),
+      ],
     );
   }
 }
@@ -649,54 +672,62 @@ class _SequenceNavigation extends StatelessWidget {
   final CourseKnowledgeRepository repository;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final compact = constraints.maxWidth < 560;
-      final previous = OutlinedButton.icon(
-        onPressed: detail.previousBlock == null
-            ? null
-            : () => _open(context, detail.previousBlock!.id),
-        icon: const Icon(Icons.arrow_back),
-        label: Text(
-          detail.previousBlock == null ? 'Önceki blok' : detail.previousBlock!.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      );
-      final next = FilledButton.icon(
-        onPressed: detail.nextBlock == null
-            ? null
-            : () => _open(context, detail.nextBlock!.id),
-        icon: const Icon(Icons.arrow_forward),
-        label: Text(
-          detail.nextBlock == null ? 'Sonraki blok' : detail.nextBlock!.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      );
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 560 ||
+              MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+          final previous = OutlinedButton.icon(
+            onPressed: detail.previousBlock == null
+                ? null
+                : () => _open(context, detail.previousBlock!.id),
+            icon: const Icon(Icons.arrow_back),
+            label: Text(
+              detail.previousBlock == null
+                  ? 'Önceki blok'
+                  : detail.previousBlock!.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
+          final next = FilledButton.icon(
+            onPressed: detail.nextBlock == null
+                ? null
+                : () => _open(context, detail.nextBlock!.id),
+            icon: const Icon(Icons.arrow_forward),
+            label: Text(
+              detail.nextBlock == null ? 'Sonraki blok' : detail.nextBlock!.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
 
-      if (compact) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            previous,
-            const SizedBox(height: AppSpacing.sm),
-            next,
-          ],
-        );
-      }
-
-      return Row(
-        children: [
-          Expanded(child: previous),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(child: next),
-        ],
-      );
-    },
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                previous,
+                const SizedBox(height: AppSpacing.sm),
+                next,
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: previous),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(child: next),
+            ],
+          );
+        },
+      ),
+    ),
   );
 
   void _open(BuildContext context, String blockId) {
+    FocusManager.instance.primaryFocus?.unfocus();
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
         builder: (_) => BlockDetailPage(repository: repository, blockId: blockId),

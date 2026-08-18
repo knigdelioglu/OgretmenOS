@@ -6,19 +6,26 @@ import 'package:ogretmen_os/data/preferences/user_preferences_repository.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart' as model;
 import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
+import 'package:ogretmen_os/features/shared/feature_widgets.dart';
 
 void main() {
-  testWidgets('phone portrait uses bottom navigation without overflow', (
-    tester,
-  ) async {
-    await _configureView(tester, const Size(360, 800));
-    await _pumpApp(tester);
+  for (final size in const [
+    Size(360, 640),
+    Size(360, 800),
+    Size(412, 915),
+  ]) {
+    testWidgets('phone ${size.width.toInt()}x${size.height.toInt()} has no shell overflow', (
+      tester,
+    ) async {
+      await _configureView(tester, size);
+      await _pumpApp(tester);
 
-    expect(find.byType(NavigationBar), findsOneWidget);
-    expect(find.byType(NavigationRail), findsNothing);
-    expect(find.text('Kazanım Takibi'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(NavigationRail), findsNothing);
+      expect(find.text('Kazanım Takibi'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('tablet portrait uses navigation rail without overflow', (
     tester,
@@ -42,7 +49,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('large system text keeps outcome-first surface usable', (
+  testWidgets('2x system text keeps all primary phone destinations usable', (
     tester,
   ) async {
     await _configureView(
@@ -55,14 +62,25 @@ void main() {
     expect(find.text('Kazanım Takibi'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
+    await _tapBottomDestination(tester, Icons.calendar_view_week_outlined);
+    await tester.pumpAndSettle();
+    expect(find.text('Haftalık Plan'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
     await _tapBottomDestination(tester, Icons.view_timeline_outlined);
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('Planlanan öğretim sırası'),
-      300,
-      scrollable: find.byType(Scrollable).last,
+    expect(
+      find.descendant(
+        of: find.byType(PageHeader),
+        matching: find.text('Yıllık Plan'),
+      ),
+      findsOneWidget,
     );
-    expect(find.text('Planlanan öğretim sırası'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await _tapBottomDestination(tester, Icons.inventory_2_outlined);
+    await tester.pumpAndSettle();
+    expect(find.text('Öğretmen Paketi'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -80,19 +98,19 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('annual bookmark action keeps a 48dp touch target', (tester) async {
+  testWidgets('annual position action keeps a 48dp touch target', (tester) async {
     await _configureView(tester, const Size(360, 800));
     await _pumpApp(tester);
 
     await _tapBottomDestination(tester, Icons.view_timeline_outlined);
     await tester.pumpAndSettle();
+    final bookmark = find.widgetWithText(OutlinedButton, 'Burada kaldım');
     await tester.scrollUntilVisible(
-      find.byTooltip('Burada kaldım'),
+      bookmark,
       300,
       scrollable: find.byType(Scrollable).last,
     );
 
-    final bookmark = find.byTooltip('Burada kaldım');
     expect(bookmark, findsOneWidget);
     final size = tester.getSize(bookmark);
     expect(size.width, greaterThanOrEqualTo(48));

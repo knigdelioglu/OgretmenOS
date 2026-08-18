@@ -18,7 +18,6 @@ void main() {
     await _pumpApp(tester, preferences: _FakePreferences());
 
     expect(find.text('Kazanım Takibi'), findsOneWidget);
-    expect(find.text('Deftere Bakış'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.text('TEST.1'),
@@ -50,6 +49,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('İşlendi'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Deftere Bakış'),
+      300,
+      scrollable: _currentPageScrollable(),
+    );
+    expect(find.text('Deftere Bakış'), findsOneWidget);
   });
 
   testWidgets('kazanım ana ekranı blok saatini ve uzun metin açılımını gösterir', (
@@ -64,6 +70,10 @@ void main() {
       scrollable: _currentPageScrollable(),
     );
     expect(find.text('Bu hafta ilgili blok: 5 saat'), findsOneWidget);
+    expect(
+      find.textContaining('kazanıma atanmış resmî süre değil'),
+      findsOneWidget,
+    );
 
     await tester.scrollUntilVisible(
       find.widgetWithText(TextButton, 'Devamını göster'),
@@ -149,7 +159,7 @@ void main() {
     expect(find.text('14 Eylül - 18 Eylül 2026'), findsOneWidget);
   });
 
-  testWidgets('kazanım kartı mevcut blok ayrıntı bağlamına açılır', (tester) async {
+  testWidgets('kazanım kartı ders yürütme ayrıntısına açılır', (tester) async {
     _usePhoneViewport(tester);
     await _pumpApp(tester, preferences: _FakePreferences());
 
@@ -165,6 +175,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('KAZANIM AYRINTISI'), findsOneWidget);
+    expect(find.text('Sınıftaki gerçekleşen durum'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Test Blok'),
       300,
@@ -173,7 +184,35 @@ void main() {
     expect(find.text('Test Blok'), findsOneWidget);
   });
 
-  testWidgets('haftalık plan ekranı takvim haftasını ve kazanımı gösterir', (
+  testWidgets('kazanım detayında not yalnız değişince kaydedilebilir', (tester) async {
+    _usePhoneViewport(tester);
+    await _pumpApp(tester, preferences: _FakePreferences());
+
+    await tester.scrollUntilVisible(
+      find.textContaining('Test kazanımı'),
+      250,
+      scrollable: _currentPageScrollable(),
+    );
+    await tester.tap(find.textContaining('Test kazanımı'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Not güncel'),
+      300,
+      scrollable: _currentPageScrollable(),
+    );
+    final currentButton = find.widgetWithText(FilledButton, 'Not güncel');
+    expect(currentButton, findsOneWidget);
+    expect(tester.widget<ButtonStyleButton>(currentButton).onPressed, isNull);
+
+    final field = find.byType(TextField);
+    await tester.ensureVisible(field);
+    await tester.enterText(field, 'Detay notu');
+    await tester.pump();
+    expect(find.text('Notu kaydet'), findsOneWidget);
+  });
+
+  testWidgets('haftalık plan saat dağılımını öne çıkarır ve kazanım referansı açılır', (
     tester,
   ) async {
     _usePhoneViewport(tester);
@@ -182,13 +221,18 @@ void main() {
     await _tapBottomDestination(tester, Icons.calendar_view_week_outlined);
     await tester.pumpAndSettle();
 
-    expect(find.text('Haftalık Plan'), findsWidgets);
+    expect(find.text('Haftalık Plan'), findsOneWidget);
     expect(find.textContaining('14 Eylül - 18 Eylül 2026'), findsWidgets);
+    expect(find.text('5'), findsWidgets);
+    expect(find.text('ders saati'), findsWidgets);
+
     await tester.scrollUntilVisible(
-      find.text('TEST.1'),
+      find.text('1 program çıktısı'),
       300,
       scrollable: _currentPageScrollable(),
     );
+    await tester.tap(find.text('1 program çıktısı'));
+    await tester.pumpAndSettle();
     expect(find.text('TEST.1'), findsOneWidget);
   });
 
@@ -209,15 +253,18 @@ void main() {
     expect(find.text('Planlanan öğretim sırası'), findsOneWidget);
     expect(sequenceLabel, findsOneWidget);
 
+    final bookmark = find.widgetWithText(OutlinedButton, 'Burada kaldım');
     await tester.scrollUntilVisible(
-      find.byTooltip('Burada kaldım'),
+      bookmark,
       200,
       scrollable: _currentPageScrollable(),
     );
-    await tester.tap(find.byTooltip('Burada kaldım'));
     await tester.pumpAndSettle();
-    expect(find.text('Burada kaldım'), findsOneWidget);
+    await tester.tap(bookmark);
+    await tester.pumpAndSettle();
+    expect(find.text('Burada kaldım'), findsWidgets);
     expect(await preferences.getManualPositionOverride(), 'TEST_BLOCK');
+    expect(find.text('Rotada göster'), findsOneWidget);
   });
 
   testWidgets('öğretmen paketi ana navigasyondan erişilir', (tester) async {
@@ -232,6 +279,10 @@ void main() {
       scrollable: _currentPageScrollable(),
     );
     expect(find.text('Tema dosyası'), findsOneWidget);
+    expect(find.text('Kitap'), findsWidgets);
+    expect(find.text('Etkinlik'), findsWidgets);
+    expect(find.text('Değerlendirme'), findsWidgets);
+    expect(find.text('Materyal'), findsWidgets);
   });
 }
 
