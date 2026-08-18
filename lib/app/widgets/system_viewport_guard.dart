@@ -30,8 +30,13 @@ class SystemViewportGuard extends StatelessWidget {
     final focusContext = focus?.context;
     if (focus == null || focusContext == null || !focus.hasFocus) return;
 
-    final renderObject = focusContext.findRenderObject();
-    if (renderObject is! RenderBox || !renderObject.hasSize) return;
+    final editableState = focusContext.findAncestorStateOfType<EditableTextState>();
+    final renderObject =
+        editableState?.context.findRenderObject() ?? focusContext.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) {
+      focus.unfocus();
+      return;
+    }
 
     final topLeft = renderObject.localToGlobal(Offset.zero);
     final bounds = topLeft & renderObject.size;
