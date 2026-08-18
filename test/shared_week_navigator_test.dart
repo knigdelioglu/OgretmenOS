@@ -60,8 +60,12 @@ void main() {
       ),
     );
 
-    final previous = tester.widget<IconButton>(find.byTooltip('Önceki hafta'));
-    final next = tester.widget<IconButton>(find.byTooltip('Sonraki hafta'));
+    final previous = tester.widget<IconButton>(
+      find.widgetWithIcon(IconButton, Icons.chevron_left),
+    );
+    final next = tester.widget<IconButton>(
+      find.widgetWithIcon(IconButton, Icons.chevron_right),
+    );
     expect(previous.onPressed, isNull);
     expect(next.onPressed, isNotNull);
   });
