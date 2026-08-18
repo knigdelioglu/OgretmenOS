@@ -254,7 +254,12 @@ void main() {
     expect(sequenceLabel, findsOneWidget);
 
     final bookmark = find.widgetWithText(OutlinedButton, 'Burada kaldım');
-    await tester.ensureVisible(bookmark);
+    await tester.scrollUntilVisible(
+      bookmark,
+      200,
+      scrollable: _currentPageScrollable(),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(bookmark);
     await tester.pumpAndSettle();
     expect(find.text('Burada kaldım'), findsWidgets);
