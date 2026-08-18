@@ -186,9 +186,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.save_outlined),
-                      label: Text(
-                        _noteDirty ? 'Notu kaydet' : 'Not güncel',
-                      ),
+                      label: Text(_noteDirty ? 'Notu kaydet' : 'Not güncel'),
                     ),
                   ),
                 ],
@@ -335,7 +333,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
   }
 
   Future<void> _setStatus(OutcomeTrackingStatus status) async {
-    if (status == _item.status) return;
+    if (status == OutcomeTrackingStatus.carriedOver || status == _item.status) return;
     await _mutate(
       action: () => widget.service.setStatus(_item, status),
       savingAction: _SavingAction.status,
@@ -516,10 +514,10 @@ class _TrackingControls extends StatelessWidget {
               prefixIcon: Icon(Icons.fact_check_outlined),
             ),
             items: OutcomeTrackingStatus.values
-                .where((status) => status != OutcomeTrackingStatus.carriedOver)
                 .map(
-                  (status) => DropdownMenuItem(
+                  (status) => DropdownMenuItem<OutcomeTrackingStatus>(
                     value: status,
+                    enabled: status != OutcomeTrackingStatus.carriedOver,
                     child: Text(outcomeStatusLabel(status)),
                   ),
                 )
@@ -527,7 +525,10 @@ class _TrackingControls extends StatelessWidget {
             onChanged: savingAction == _SavingAction.status
                 ? null
                 : (value) {
-                    if (value != null) onStatusChanged(value);
+                    if (value != null &&
+                        value != OutcomeTrackingStatus.carriedOver) {
+                      onStatusChanged(value);
+                    }
                   },
           ),
           const SizedBox(height: AppSpacing.md),
