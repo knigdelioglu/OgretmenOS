@@ -19,6 +19,11 @@ class _TeacherPackagePageState extends State<TeacherPackagePage> {
   String? _selectedThemeId;
   late Future<_PackageData> _future;
 
+  final GlobalKey _bookKey = GlobalKey();
+  final GlobalKey _activityKey = GlobalKey();
+  final GlobalKey _assessmentKey = GlobalKey();
+  final GlobalKey _materialsKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -32,8 +37,7 @@ class _TeacherPackagePageState extends State<TeacherPackagePage> {
     }
 
     final selectedThemeId =
-        _selectedThemeId != null &&
-            themes.any((theme) => theme.id == _selectedThemeId)
+        _selectedThemeId != null && themes.any((theme) => theme.id == _selectedThemeId)
         ? _selectedThemeId!
         : themes.first.id;
     final package = await widget.repository.getTeacherPackage(selectedThemeId);
@@ -41,6 +45,7 @@ class _TeacherPackagePageState extends State<TeacherPackagePage> {
   }
 
   void _selectTheme(String themeId) {
+    if (_selectedThemeId == themeId) return;
     setState(() {
       _selectedThemeId = themeId;
       _future = _load();
@@ -48,32 +53,44 @@ class _TeacherPackagePageState extends State<TeacherPackagePage> {
   }
 
   void _reload() {
-    setState(() {
-      _future = _load();
-    });
+    setState(() => _future = _load());
+  }
+
+  void _jumpTo(GlobalKey key) {
+    final target = key.currentContext;
+    if (target == null) return;
+    Scrollable.ensureVisible(
+      target,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      alignment: 0.08,
+    );
   }
 
   @override
   Widget build(BuildContext context) => FutureBuilder<_PackageData>(
     future: _future,
     builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done) {
+      if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData) {
         return const LoadingView(label: 'Öğretmen paketi hazırlanıyor…');
       }
-      if (snapshot.hasError || !snapshot.hasData) {
+      if (snapshot.hasError && !snapshot.hasData) {
         return FeatureErrorView(
           message: 'Öğretmen paketi yüklenemedi.',
           onRetry: _reload,
         );
       }
 
-      final data = snapshot.data!;
-      final package = data.package;
-      if (package == null) {
+      final data = snapshot.data;
+      final package = data?.package;
+      if (data == null || package == null) {
         return const Center(
           child: UnresolvedText(label: 'Gösterilebilir tema paketi bulunmuyor.'),
         );
       }
+
+      final switchingTheme = snapshot.connectionState != ConnectionState.done;
+      final selectedThemeId = _selectedThemeId ?? package.theme.id;
 
       return AppPage(
         children: [
@@ -81,15 +98,26 @@ class _TeacherPackagePageState extends State<TeacherPackagePage> {
             eyebrow: 'HAZIRLIK DOSYASI',
             title: 'Öğretmen Paketi',
             description:
-                'Bir temanın program, kitap, etkinlik, değerlendirme ve materyal bilgilerini tek yerde inceleyin.',
+                'Seçili temanın kitap, etkinlik, değerlendirme, materyal ve program bağlamına hızlı erişin.',
           ),
           _ThemeSelector(
             themes: data.themes,
-            selectedThemeId: package.theme.id,
+            selectedThemeId: selectedThemeId,
             onChanged: _selectTheme,
           ),
+          if (switchingTheme) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const LinearProgressIndicator(minHeight: 3),
+          ],
           const SizedBox(height: AppSpacing.md),
           _PackageHero(package: package),
+          const SizedBox(height: AppSpacing.md),
+          _QuickSectionNav(
+            onBook: () => _jumpTo(_bookKey),
+            onActivities: () => _jumpTo(_activityKey),
+            onAssessment: () => _jumpTo(_assessmentKey),
+            onMaterials: () => _jumpTo(_materialsKey),
+          ),
           const SectionHeading(
             'Tema dosyası',
             subtitle: 'İhtiyacınız olan bölümü açın; diğer ayrıntılar kapalı kalır',
@@ -99,7 +127,7 @@ class _TeacherPackagePageState extends State<TeacherPackagePage> {
             icon: Icons.view_timeline_outlined,
             title: 'Öğretim blokları',
             summary: '${package.blocks.length} blok',
-            initiallyExpanded: true,
+            isEmpty: package.blocks.isEmpty,
             child: _BlocksContent(
               blocks: package.blocks,
               repository: widget.repository,
@@ -110,49 +138,71 @@ class _TeacherPackagePageState extends State<TeacherPackagePage> {
             icon: Icons.flag_outlined,
             title: 'Program çıktıları',
             summary: '${package.outcomes.length} çıktı',
+            isEmpty: package.outcomes.isEmpty,
             child: _OutcomesContent(outcomes: package.outcomes),
           ),
           const SizedBox(height: AppSpacing.md),
-          _PackageSection(
-            icon: Icons.menu_book_outlined,
-            title: 'Ders kitabı',
-            summary: '${package.textbookSections.length} bölüm',
-            child: _TextbookContent(sections: package.textbookSections),
+          KeyedSubtree(
+            key: _bookKey,
+            child: _PackageSection(
+              icon: Icons.menu_book_outlined,
+              title: 'Ders kitabı',
+              summary: '${package.textbookSections.length} bölüm',
+              initiallyExpanded: package.textbookSections.isNotEmpty,
+              isEmpty: package.textbookSections.isEmpty,
+              child: _TextbookContent(sections: package.textbookSections),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-          _PackageSection(
-            icon: Icons.task_alt_outlined,
-            title: 'Etkinlikler',
-            summary: '${package.activities.length} etkinlik',
-            child: _ActivitiesContent(activities: package.activities),
+          KeyedSubtree(
+            key: _activityKey,
+            child: _PackageSection(
+              icon: Icons.task_alt_outlined,
+              title: 'Etkinlikler',
+              summary: '${package.activities.length} etkinlik',
+              isEmpty: package.activities.isEmpty,
+              child: _ActivitiesContent(activities: package.activities),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           _PackageSection(
             icon: Icons.assignment_outlined,
             title: 'Formlar ve araçlar',
             summary: '${package.forms.length} form',
+            isEmpty: package.forms.isEmpty,
             child: _FormsContent(forms: package.forms),
           ),
           const SizedBox(height: AppSpacing.md),
-          _PackageSection(
-            icon: Icons.fact_check_outlined,
-            title: 'Değerlendirme',
-            summary:
-                '${package.assessmentArtifacts.length} araç · ${package.assessmentTaskBindings.length} görev',
-            child: _AssessmentContent(package: package),
+          KeyedSubtree(
+            key: _assessmentKey,
+            child: _PackageSection(
+              icon: Icons.fact_check_outlined,
+              title: 'Değerlendirme',
+              summary:
+                  '${package.assessmentArtifacts.length} araç · ${package.assessmentTaskBindings.length} görev',
+              isEmpty: package.assessmentArtifacts.isEmpty &&
+                  package.assessmentTaskBindings.isEmpty,
+              child: _AssessmentContent(package: package),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-          _PackageSection(
-            icon: Icons.library_add_check_outlined,
-            title: 'Materyal durumu',
-            summary: '${package.resourceDecisions.length} karar',
-            child: _MaterialsContent(decisions: package.resourceDecisions),
+          KeyedSubtree(
+            key: _materialsKey,
+            child: _PackageSection(
+              icon: Icons.library_add_check_outlined,
+              title: 'Materyal durumu',
+              summary: '${package.resourceDecisions.length} karar',
+              isEmpty: package.resourceDecisions.isEmpty,
+              child: _MaterialsContent(decisions: package.resourceDecisions),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           _PackageSection(
             icon: Icons.source_outlined,
-            title: 'Kaynaklar',
-            summary: '${package.sourceReferences.length} dayanak',
+            title: 'Kaynaklar ve dayanaklar',
+            summary: '${package.sourceReferences.length} dayanak · teknik referans',
+            isEmpty: package.sourceReferences.isEmpty,
+            subdued: true,
             child: _SourcesContent(sources: package.sourceReferences),
           ),
         ],
@@ -180,28 +230,32 @@ class _ThemeSelector extends StatelessWidget {
   final void Function(String themeId) onChanged;
 
   @override
-  Widget build(BuildContext context) => InfoCard(
-    title: 'Tema seçimi',
-    subtitle: 'Hazırlık dosyasını tema bazında görüntüleyin',
-    icon: Icons.layers_outlined,
-    child: DropdownButtonFormField<String>(
-      initialValue: selectedThemeId,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Tema'),
-      items: [
-        for (final theme in themes)
-          DropdownMenuItem<String>(
-            value: theme.id,
-            child: Text(
-              theme.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey(selectedThemeId),
+        initialValue: selectedThemeId,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'Tema',
+          prefixIcon: Icon(Icons.layers_outlined),
+        ),
+        items: [
+          for (final theme in themes)
+            DropdownMenuItem<String>(
+              value: theme.id,
+              child: Text(
+                theme.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-      ],
-      onChanged: (value) {
-        if (value != null) onChanged(value);
-      },
+        ],
+        onChanged: (value) {
+          if (value != null) onChanged(value);
+        },
+      ),
     ),
   );
 }
@@ -216,31 +270,32 @@ class _PackageHero extends StatelessWidget {
     final supportCount = package.resourceDecisions
         .where((decision) => decision.appCategory == 'ADDITIONAL_SUPPORT_REQUIRED')
         .length;
+    final scheme = Theme.of(context).colorScheme;
 
     return Card(
-      color: Theme.of(context).colorScheme.primaryContainer,
+      color: scheme.primaryContainer,
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               package.theme.title,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.w800,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: scheme.onPrimaryContainer,
+                fontWeight: FontWeight.w900,
               ),
             ),
             if (package.theme.pageRange != null) ...[
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Ders kitabı: s. ${package.theme.pageRange}',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: scheme.onPrimaryContainer,
                 ),
               ),
             ],
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
@@ -251,54 +306,82 @@ class _PackageHero extends StatelessWidget {
                   value: '${package.blocks.length}',
                 ),
                 MetricChip(
-                  icon: Icons.flag_outlined,
-                  label: 'çıktı',
-                  value: '${package.outcomes.length}',
+                  icon: Icons.menu_book_outlined,
+                  label: 'kitap bölümü',
+                  value: '${package.textbookSections.length}',
                 ),
                 MetricChip(
                   icon: Icons.task_alt_outlined,
                   label: 'etkinlik',
                   value: '${package.activities.length}',
                 ),
-                MetricChip(
-                  icon: Icons.assignment_outlined,
-                  label: 'form',
-                  value: '${package.forms.length}',
-                ),
-                MetricChip(
-                  icon: Icons.fact_check_outlined,
-                  label: 'değerlendirme',
-                  value: '${package.assessmentArtifacts.length}',
-                ),
               ],
             ),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  supportCount == 0 ? Icons.check_circle_outline : Icons.add_task,
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    supportCount == 0
-                        ? 'Ek destek gerektiren materyal alanı görünmüyor.'
-                        : '$supportCount alanda ek destek gerekiyor.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w600,
+            if (supportCount > 0) ...[
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Icon(Icons.add_task, color: scheme.onPrimaryContainer),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      '$supportCount alanda ek destek gerekiyor.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: scheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
     );
   }
+}
+
+class _QuickSectionNav extends StatelessWidget {
+  const _QuickSectionNav({
+    required this.onBook,
+    required this.onActivities,
+    required this.onAssessment,
+    required this.onMaterials,
+  });
+
+  final VoidCallback onBook;
+  final VoidCallback onActivities;
+  final VoidCallback onAssessment;
+  final VoidCallback onMaterials;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: AppSpacing.sm,
+    runSpacing: AppSpacing.sm,
+    children: [
+      ActionChip(
+        avatar: const Icon(Icons.menu_book_outlined, size: 18),
+        label: const Text('Kitap'),
+        onPressed: onBook,
+      ),
+      ActionChip(
+        avatar: const Icon(Icons.task_alt_outlined, size: 18),
+        label: const Text('Etkinlik'),
+        onPressed: onActivities,
+      ),
+      ActionChip(
+        avatar: const Icon(Icons.fact_check_outlined, size: 18),
+        label: const Text('Değerlendirme'),
+        onPressed: onAssessment,
+      ),
+      ActionChip(
+        avatar: const Icon(Icons.library_add_check_outlined, size: 18),
+        label: const Text('Materyal'),
+        onPressed: onMaterials,
+      ),
+    ],
+  );
 }
 
 class _PackageSection extends StatelessWidget {
@@ -308,6 +391,8 @@ class _PackageSection extends StatelessWidget {
     required this.summary,
     required this.child,
     this.initiallyExpanded = false,
+    this.isEmpty = false,
+    this.subdued = false,
   });
 
   final IconData icon;
@@ -315,25 +400,18 @@ class _PackageSection extends StatelessWidget {
   final String summary;
   final Widget child;
   final bool initiallyExpanded;
+  final bool isEmpty;
+  final bool subdued;
 
   @override
-  Widget build(BuildContext context) => Card(
-    clipBehavior: Clip.antiAlias,
-    child: ExpansionTile(
-      initiallyExpanded: initiallyExpanded,
-      leading: Container(
-        width: 38,
-        height: 38,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.secondaryContainer,
-          borderRadius: BorderRadius.circular(11),
-        ),
-        child: Icon(
-          icon,
-          size: 20,
-          color: Theme.of(context).colorScheme.onSecondaryContainer,
-        ),
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final tile = ExpansionTile(
+      enabled: !isEmpty,
+      initiallyExpanded: initiallyExpanded && !isEmpty,
+      leading: Icon(
+        icon,
+        color: subdued || isEmpty ? scheme.onSurfaceVariant : scheme.primary,
       ),
       title: Text(
         title,
@@ -341,7 +419,7 @@ class _PackageSection extends StatelessWidget {
           fontWeight: FontWeight.w700,
         ),
       ),
-      subtitle: Text(summary),
+      subtitle: Text(isEmpty ? '$summary · içerik yok' : summary),
       childrenPadding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
         0,
@@ -349,8 +427,20 @@ class _PackageSection extends StatelessWidget {
         AppSpacing.lg,
       ),
       children: [child],
-    ),
-  );
+    );
+
+    return Opacity(
+      opacity: isEmpty ? 0.55 : subdued ? 0.82 : 1,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLow,
+          border: Border.all(color: scheme.outlineVariant),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: tile,
+      ),
+    );
+  }
 }
 
 class _BlocksContent extends StatelessWidget {
@@ -586,9 +676,7 @@ class _AssessmentContent extends StatelessWidget {
         if (package.assessmentArtifacts.isNotEmpty &&
             package.assessmentTaskBindings.isNotEmpty)
           const Divider(),
-        for (var index = 0;
-            index < package.assessmentTaskBindings.length;
-            index++) ...[
+        for (var index = 0; index < package.assessmentTaskBindings.length; index++) ...[
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.checklist_outlined),
