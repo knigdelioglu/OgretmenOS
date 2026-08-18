@@ -4,6 +4,7 @@ import '../../domain/models/weekly_plan_models.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../block/block_detail_page.dart';
 import '../shared/feature_widgets.dart';
+import '../shared/week_navigator.dart';
 
 class WeeklyPlanPage extends StatefulWidget {
   const WeeklyPlanPage({
@@ -68,9 +69,18 @@ class _WeeklyPlanPageState extends State<WeeklyPlanPage> {
             description:
                 'Akademik takvim ve haftalık ${annualPlan.weeklyLessonHours} ders saati üzerinden TDE 9 bloklarını ve haftanın kazanımlarını görün.',
           ),
-          _WeekSelector(
-            annualPlan: annualPlan,
+          AppWeekNavigator(
+            options: [
+              for (final week in annualPlan.weeks)
+                WeekNavigatorOption(
+                  weekNumber: week.weekNumber,
+                  label:
+                      '${week.weekNumber}. Hafta · ${_dateRange(week.start, week.end)}${week.isEventWeek ? ' · Etkinlik Haftası' : ''}',
+                ),
+            ],
             selectedWeekNumber: selectedWeek.weekNumber,
+            currentWeekNumber: annualPlan.currentWeekNumber,
+            helperText: 'Haftalar arasında oklarla veya listeden geçiş yapın.',
             onChanged: (value) => setState(() => _selectedWeekNumber = value),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -105,45 +115,6 @@ class _WeeklyPlanPageState extends State<WeeklyPlanPage> {
         ],
       );
     },
-  );
-}
-
-class _WeekSelector extends StatelessWidget {
-  const _WeekSelector({
-    required this.annualPlan,
-    required this.selectedWeekNumber,
-    required this.onChanged,
-  });
-
-  final AnnualWeeklyPlan annualPlan;
-  final int selectedWeekNumber;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) => InfoCard(
-    title: 'Okul haftası',
-    subtitle: annualPlan.currentWeekNumber == null
-        ? 'İncelemek istediğiniz haftayı seçin'
-        : 'Takvime göre mevcut hafta: ${annualPlan.currentWeekNumber}. hafta',
-    icon: Icons.date_range_outlined,
-    child: DropdownButtonFormField<int>(
-      initialValue: selectedWeekNumber,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Hafta'),
-      items: [
-        for (final week in annualPlan.weeks)
-          DropdownMenuItem<int>(
-            value: week.weekNumber,
-            child: Text(
-              '${week.weekNumber}. Hafta · ${_dateRange(week.start, week.end)}${week.isEventWeek ? ' · Etkinlik Haftası' : ''}',
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-      ],
-      onChanged: (value) {
-        if (value != null) onChanged(value);
-      },
-    ),
   );
 }
 
