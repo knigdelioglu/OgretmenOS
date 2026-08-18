@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/theme/app_tokens.dart';
 import '../../domain/models/course_models.dart' as model;
 
 class AppSpacing {
@@ -11,7 +12,7 @@ class AppSpacing {
   static const double lg = 16;
   static const double xl = 24;
   static const double xxl = 32;
-  static const double section = 36;
+  static const double section = 32;
 }
 
 class AppPage extends StatelessWidget {
@@ -20,7 +21,7 @@ class AppPage extends StatelessWidget {
     required this.children,
     this.onRefresh,
     this.controller,
-    this.maxWidth = 960,
+    this.maxWidth = AppLayoutTokens.contentMaxWidth,
   });
 
   final List<Widget> children;
@@ -31,7 +32,10 @@ class AppPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final horizontalPadding = constraints.maxWidth >= 840 ? 32.0 : 16.0;
+      final horizontalPadding =
+          constraints.maxWidth >= AppLayoutTokens.wideContentBreakpoint
+              ? AppLayoutTokens.wideHorizontalPadding
+              : AppLayoutTokens.phoneHorizontalPadding;
       final content = ListView(
         controller: controller,
         physics: onRefresh == null
@@ -41,7 +45,7 @@ class AppPage extends StatelessWidget {
           horizontalPadding,
           AppSpacing.lg,
           horizontalPadding,
-          AppSpacing.xxl,
+          AppLayoutTokens.pageBottomComfort,
         ),
         children: children,
       );
@@ -96,22 +100,17 @@ class PageHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
               ],
-              Text(
-                title,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  height: 1.15,
-                ),
-              ),
+              Text(title, style: Theme.of(context).textTheme.headlineSmall),
               if (description != null) ...[
                 const SizedBox(height: AppSpacing.sm),
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 680),
+                  constraints: const BoxConstraints(
+                    maxWidth: AppLayoutTokens.textMeasureMaxWidth,
+                  ),
                   child: Text(
                     description!,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      height: 1.45,
                     ),
                   ),
                 ),
@@ -139,7 +138,7 @@ class FeatureErrorView extends StatelessWidget {
     child: Padding(
       padding: const EdgeInsets.all(AppSpacing.xl),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
+        constraints: const BoxConstraints(maxWidth: AppLayoutTokens.stateMaxWidth),
         child: StatusPanel(
           icon: Icons.error_outline,
           title: 'Bir şeyler ters gitti',
@@ -175,9 +174,8 @@ class UnresolvedText extends StatelessWidget {
       Expanded(
         child: Text(
           label,
-          style: TextStyle(
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
-            height: 1.4,
           ),
         ),
       ),
@@ -194,18 +192,22 @@ class LoadingView extends StatelessWidget {
   Widget build(BuildContext context) => Center(
     child: Padding(
       padding: const EdgeInsets.all(AppSpacing.xxl),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: AppLayoutTokens.stateMaxWidth),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );
@@ -238,7 +240,7 @@ class SectionHeading extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.secondaryContainer,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(AppRadiusTokens.compact),
             ),
             child: Icon(
               icon,
@@ -252,19 +254,13 @@ class SectionHeading extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              Text(title, style: Theme.of(context).textTheme.titleLarge),
               if (subtitle != null) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   subtitle!,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    height: 1.4,
                   ),
                 ),
               ],
@@ -313,7 +309,7 @@ class InfoCard extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(11),
+                    borderRadius: BorderRadius.circular(AppRadiusTokens.compact),
                   ),
                   child: Icon(
                     icon,
@@ -327,12 +323,7 @@ class InfoCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    Text(title, style: Theme.of(context).textTheme.titleMedium),
                     if (subtitle != null) ...[
                       const SizedBox(height: AppSpacing.xs),
                       Text(
@@ -392,7 +383,7 @@ class StatusPanel extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadiusTokens.card),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,7 +398,6 @@ class StatusPanel extends StatelessWidget {
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: foreground,
-                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -415,7 +405,6 @@ class StatusPanel extends StatelessWidget {
                   message,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: foreground,
-                    height: 1.4,
                   ),
                 ),
                 if (action != null) ...[
@@ -451,19 +440,14 @@ class MetricChip extends StatelessWidget {
     ),
     decoration: BoxDecoration(
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadiusTokens.compact),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 17),
         const SizedBox(width: AppSpacing.sm),
-        Text(
-          '$value $label',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        Text('$value $label', style: Theme.of(context).textTheme.labelLarge),
       ],
     ),
   );
@@ -540,18 +524,13 @@ class ResourceDecisionCard extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadiusTokens.compact),
                   ),
                   child: Icon(icon, color: color, size: 21),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
-                  child: Text(
-                    label,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  child: Text(label, style: Theme.of(context).textTheme.titleMedium),
                 ),
                 if (priority != null) Chip(label: Text(priority)),
               ],
