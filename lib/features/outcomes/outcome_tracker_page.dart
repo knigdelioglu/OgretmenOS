@@ -6,6 +6,7 @@ import '../../domain/models/weekly_plan_models.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../../domain/services/outcome_planning_service.dart';
 import '../shared/feature_widgets.dart';
+import '../shared/week_navigator.dart';
 import 'outcome_detail_page.dart';
 import 'outcome_presentation.dart';
 
@@ -137,16 +138,20 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
               description:
                   'Derse girerken bu haftanın kazanımlarına bakın, işlenme durumunu takip edin ve defter için doğrulanmış programa tek yerden ulaşın.',
             ),
-            _WeekNavigator(
-              plan: plan,
+            AppWeekNavigator(
+              options: [
+                for (final item in plan.weeks)
+                  WeekNavigatorOption(
+                    weekNumber: item.week.weekNumber,
+                    label:
+                        '${item.week.weekNumber}. Hafta · ${outcomeDateRange(item.week.start, item.week.end)}${item.week.isEventWeek ? ' · Etkinlik' : ''}',
+                  ),
+              ],
               selectedWeekNumber: summary.week.weekNumber,
+              currentWeekNumber: plan.currentWeekNumber,
+              helperText:
+                  'Haftayı değiştirmek için sağa veya sola kaydırabilirsiniz.',
               onChanged: (number) => _selectWeek(plan, number),
-              onPrevious: () => _moveWeek(plan, summary.week.weekNumber, -1),
-              onNext: () => _moveWeek(plan, summary.week.weekNumber, 1),
-              onCurrent: plan.currentWeekNumber != null &&
-                      plan.currentWeekNumber != summary.week.weekNumber
-                  ? () => _selectWeek(plan, plan.currentWeekNumber!)
-                  : null,
             ),
             const SizedBox(height: AppSpacing.md),
             _WeekHero(summary: summary),
@@ -330,6 +335,7 @@ class _OutcomeTrackerPageState extends State<OutcomeTrackerPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
+          scrollable: true,
           title: const Text('Sonraki haftaya taşı'),
           content: DropdownButtonFormField<int>(
             initialValue: selected,
@@ -391,6 +397,7 @@ class _TeacherNoteDialogState extends State<_TeacherNoteDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
+    scrollable: true,
     title: const Text('Öğretmen notu'),
     content: TextField(
       controller: _controller,
@@ -419,101 +426,6 @@ class _TeacherNoteDialogState extends State<_TeacherNoteDialog> {
       ),
     ],
   );
-}
-
-class _WeekNavigator extends StatelessWidget {
-  const _WeekNavigator({
-    required this.plan,
-    required this.selectedWeekNumber,
-    required this.onChanged,
-    required this.onPrevious,
-    required this.onNext,
-    this.onCurrent,
-  });
-
-  final AnnualOutcomePlan plan;
-  final int selectedWeekNumber;
-  final ValueChanged<int> onChanged;
-  final VoidCallback onPrevious;
-  final VoidCallback onNext;
-  final VoidCallback? onCurrent;
-
-  @override
-  Widget build(BuildContext context) {
-    final index = plan.weeks.indexWhere(
-      (item) => item.week.weekNumber == selectedWeekNumber,
-    );
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  tooltip: 'Önceki hafta',
-                  onPressed: index > 0 ? onPrevious : null,
-                  icon: const Icon(Icons.chevron_left),
-                ),
-                Expanded(
-                  child: DropdownButtonFormField<int>(
-                    key: ValueKey(selectedWeekNumber),
-                    initialValue: selectedWeekNumber,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Okul haftası',
-                      isDense: true,
-                    ),
-                    items: [
-                      for (final summary in plan.weeks)
-                        DropdownMenuItem<int>(
-                          value: summary.week.weekNumber,
-                          child: Text(
-                            '${summary.week.weekNumber}. Hafta · ${outcomeDateRange(summary.week.start, summary.week.end)}${summary.week.isEventWeek ? ' · Etkinlik' : ''}',
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) onChanged(value);
-                    },
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Sonraki hafta',
-                  onPressed: index >= 0 && index < plan.weeks.length - 1
-                      ? onNext
-                      : null,
-                  icon: const Icon(Icons.chevron_right),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Haftayı değiştirmek için sağa veya sola kaydırabilirsiniz.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                if (onCurrent != null) ...[
-                  const SizedBox(width: AppSpacing.sm),
-                  TextButton.icon(
-                    onPressed: onCurrent,
-                    icon: const Icon(Icons.today_outlined, size: 18),
-                    label: const Text('Bu haftaya dön'),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _WeekHero extends StatelessWidget {
