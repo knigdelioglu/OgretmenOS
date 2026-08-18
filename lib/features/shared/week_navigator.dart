@@ -104,7 +104,7 @@ class AppWeekNavigator extends StatelessWidget {
                     )
                   else
                     const Spacer(),
-                  if (canReturn) ...[
+                  if (canReturn && current != null) ...[
                     const SizedBox(width: AppSpacing.sm),
                     TextButton.icon(
                       onPressed: () => onChanged(current),
