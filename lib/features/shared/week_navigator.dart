@@ -142,7 +142,7 @@ class AppWeekNavigator extends StatelessWidget {
                             ),
                           ),
                         ),
-                      if (canReturn && current != null)
+                      if (canReturn)
                         TextButton.icon(
                           onPressed: () => onChanged(current),
                           icon: const Icon(Icons.today_outlined, size: 18),
