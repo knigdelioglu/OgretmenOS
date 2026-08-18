@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../app/theme/app_tokens.dart';
 import '../../domain/models/course_models.dart' as model;
 import '../../domain/models/outcome_tracking_models.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
@@ -8,6 +11,8 @@ import '../../domain/services/outcome_planning_service.dart';
 import '../block/block_detail_page.dart';
 import '../shared/feature_widgets.dart';
 import 'outcome_presentation.dart';
+
+enum _SavingAction { status, note, carry }
 
 class OutcomeDetailPage extends StatefulWidget {
   const OutcomeDetailPage({
@@ -32,7 +37,8 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
   late TrackedOutcome _item;
   late final TextEditingController _noteController;
   bool _changed = false;
-  bool _saving = false;
+  bool _noteDirty = false;
+  _SavingAction? _savingAction;
 
   @override
   void initState() {
@@ -95,7 +101,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(outcome.code),
+          title: const Text('Kazanım'),
           leading: IconButton(
             tooltip: 'Geri',
             onPressed: () => Navigator.pop(context, _changed),
@@ -103,7 +109,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
           ),
         ),
         body: AppPage(
-          maxWidth: 900,
+          maxWidth: AppLayoutTokens.detailMaxWidth,
           children: [
             PageHeader(
               eyebrow: 'Kazanım Ayrıntısı',
@@ -116,7 +122,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
                 icon: Icons.redo_outlined,
                 title: 'Geçen haftadan taşındı',
                 message:
-                    'Bu kazanımın planlanan haftası ${_item.plannedWeekNumber}. haftadır; şu anda ${_item.displayWeekNumber}. hafta görünümünde takip ediliyor.',
+                    'Planlanan konum ${_item.plannedWeekNumber}. haftadır; sınıf takibi ${_item.displayWeekNumber}. haftada devam ediyor.',
                 tone: StatusTone.attention,
               )
             else if (_item.carriedToWeekNumber != null)
@@ -124,55 +130,25 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
                 icon: Icons.redo_outlined,
                 title: 'Sonraki haftaya taşındı',
                 message:
-                    'Planlanan konum korunuyor; gerçekleşen takip ${_item.carriedToWeekNumber}. haftada devam ediyor.',
+                    'Planlanan hafta korunuyor; gerçekleşen takip ${_item.carriedToWeekNumber}. haftaya taşındı.',
                 tone: StatusTone.attention,
               ),
             const SectionHeading(
               'Takip durumu',
               subtitle:
-                  'Bu seçim yalnız yerel öğretmen takibidir; resmî programı değiştirmez.',
+                  'Bu alan yalnız öğretmenin sınıf yürütme takibidir; resmî programı değiştirmez.',
               icon: Icons.fact_check_outlined,
             ),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                _StatusButton(
-                  label: 'Planlı',
-                  icon: Icons.schedule_outlined,
-                  selected: _item.status == OutcomeTrackingStatus.planned,
-                  onPressed: () => _setStatus(OutcomeTrackingStatus.planned),
-                ),
-                _StatusButton(
-                  label: 'Devam ediyor',
-                  icon: Icons.play_circle_outline,
-                  selected: _item.status == OutcomeTrackingStatus.inProgress,
-                  onPressed: () => _setStatus(OutcomeTrackingStatus.inProgress),
-                ),
-                _StatusButton(
-                  label: 'Kısmen işlendi',
-                  icon: Icons.timelapse_outlined,
-                  selected:
-                      _item.status == OutcomeTrackingStatus.partiallyCompleted,
-                  onPressed: () =>
-                      _setStatus(OutcomeTrackingStatus.partiallyCompleted),
-                ),
-                _StatusButton(
-                  label: 'İşlendi',
-                  icon: Icons.check_circle_outline,
-                  selected: _item.status == OutcomeTrackingStatus.completed,
-                  onPressed: () => _setStatus(OutcomeTrackingStatus.completed),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _saving ? null : _carry,
-                  icon: const Icon(Icons.redo_outlined),
-                  label: const Text('Sonraki haftaya taşı'),
-                ),
-              ],
+            _TrackingControls(
+              item: _item,
+              savingAction: _savingAction,
+              onStatusChanged: _setStatus,
+              onComplete: () => _setStatus(OutcomeTrackingStatus.completed),
+              onCarry: _carry,
             ),
             const SectionHeading(
               'Öğretmen notu',
-              subtitle: 'Yalnız bu haftalık kazanım takibine bağlı yerel not',
+              subtitle: 'Bu haftalık kazanım takibine bağlı kısa yerel not',
               icon: Icons.sticky_note_2_outlined,
             ),
             InfoCard(
@@ -185,19 +161,34 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
                     controller: _noteController,
                     minLines: 2,
                     maxLines: 5,
+                    scrollPadding: EdgeInsets.only(
+                      bottom: MediaQuery.viewInsetsOf(context).bottom + 120,
+                    ),
                     textInputAction: TextInputAction.newline,
+                    onChanged: (_) {
+                      final dirty = _noteController.text != (_item.teacherNote ?? '');
+                      if (dirty != _noteDirty) setState(() => _noteDirty = dirty);
+                    },
                     decoration: const InputDecoration(
                       hintText: 'Örn. son etkinlik gelecek derste tamamlanacak',
-                      border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Align(
                     alignment: Alignment.centerRight,
                     child: FilledButton.tonalIcon(
-                      onPressed: _saving ? null : _saveNote,
-                      icon: const Icon(Icons.save_outlined),
-                      label: const Text('Notu kaydet'),
+                      onPressed: !_noteDirty || _savingAction == _SavingAction.note
+                          ? null
+                          : _saveNote,
+                      icon: _savingAction == _SavingAction.note
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save_outlined),
+                      label: Text(
+                        _noteDirty ? 'Notu kaydet' : 'Not güncel',
+                      ),
                     ),
                   ),
                 ],
@@ -205,8 +196,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
             ),
             const SectionHeading(
               'Deftere Bakış',
-              subtitle:
-                  'Kopyalanan metin yalnız doğrulanmış program ifadelerini kullanır.',
+              subtitle: 'Yalnız doğrulanmış program ifadelerini kopyalar.',
               icon: Icons.menu_book_outlined,
             ),
             InfoCard(
@@ -237,33 +227,29 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
                   const SizedBox(height: AppSpacing.md),
                   SelectableText(
                     '${outcome.code} — ${outcome.officialText}',
-                    style: const TextStyle(height: 1.5),
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5),
                   ),
                   if (outcome.processComponents?.isNotEmpty == true) ...[
                     const SizedBox(height: AppSpacing.md),
-                    Text(
-                      'Süreç bileşenleri',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    LabeledValue(
+                      label: 'Süreç bileşenleri',
+                      value: outcome.processComponents!,
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    SelectableText(outcome.processComponents!),
                   ],
                 ],
               ),
             ),
             const SectionHeading(
-              'Plan ve blok bağlamı',
+              'Blok bağlamı',
               subtitle:
-                  'Aşağıdaki kaynaklar kazanımın yer aldığı doğrulanmış bloklardan gelir.',
+                  'Aşağıdaki ilişkiler kazanımın yer aldığı doğrulanmış bloklardan gelir.',
               icon: Icons.account_tree_outlined,
             ),
             if (_item.contexts.isEmpty)
               const StatusPanel(
                 icon: Icons.info_outline,
                 title: 'Blok bağlamı bulunamadı',
-                message: 'Bu haftalık projection için doğrulanmış blok bağlamı yok.',
+                message: 'Bu haftalık görünüm için doğrulanmış blok bağlamı yok.',
               )
             else
               for (var index = 0; index < _item.contexts.length; index++) ...[
@@ -281,156 +267,67 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
                 if (index != _item.contexts.length - 1)
                   const SizedBox(height: AppSpacing.md),
               ],
-            if (textbook.isNotEmpty) ...[
-              const SectionHeading(
-                'Kitap',
-                subtitle:
-                    'Kazanımın bulunduğu blokta erişilebilen ders kitabı bölümleri',
-                icon: Icons.menu_book_outlined,
+            const SectionHeading(
+              'Ders yürütme kaynakları',
+              subtitle:
+                  'Kitap, etkinlik, değerlendirme ve materyal ayrıntılarını gerektiğinde açın.',
+              icon: Icons.folder_open_outlined,
+            ),
+            _DetailSection(
+              icon: Icons.menu_book_outlined,
+              title: 'Kitap',
+              countLabel: '${textbook.length} bölüm',
+              isEmpty: textbook.isEmpty,
+              child: _TextbookContent(items: textbook),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _DetailSection(
+              icon: Icons.task_alt_outlined,
+              title: 'Etkinlikler',
+              countLabel: '${activities.length} etkinlik',
+              isEmpty: activities.isEmpty,
+              child: _ActivitiesContent(items: activities),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _DetailSection(
+              icon: Icons.description_outlined,
+              title: 'Formlar',
+              countLabel: '${forms.length} form',
+              isEmpty: forms.isEmpty,
+              child: _FormsContent(items: forms),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _DetailSection(
+              icon: Icons.fact_check_outlined,
+              title: targetedBindings.isNotEmpty
+                  ? 'Doğrudan hedeflenen değerlendirme'
+                  : 'Değerlendirme — blok bağlamı',
+              countLabel: targetedBindings.isNotEmpty
+                  ? '${targetedBindings.length} doğrudan görev'
+                  : '${artifacts.length} blok aracı',
+              isEmpty: targetedBindings.isEmpty && artifacts.isEmpty,
+              child: _AssessmentContent(
+                targetedBindings: targetedBindings,
+                artifacts: artifacts,
               ),
-              for (var index = 0; index < textbook.length; index++) ...[
-                InfoCard(
-                  title: textbook[index].title,
-                  subtitle: textbook[index].genre,
-                  icon: Icons.book_outlined,
-                  child: Wrap(
-                    spacing: AppSpacing.lg,
-                    runSpacing: AppSpacing.sm,
-                    children: [
-                      if (textbook[index].printedPageRange != null)
-                        Text('Basılı: s. ${textbook[index].printedPageRange}'),
-                      if (textbook[index].pdfPageRange != null)
-                        Text('PDF: ${textbook[index].pdfPageRange}'),
-                    ],
-                  ),
-                ),
-                if (index != textbook.length - 1)
-                  const SizedBox(height: AppSpacing.md),
-              ],
-            ],
-            if (activities.isNotEmpty) ...[
-              const SectionHeading(
-                'Etkinlikler',
-                subtitle: 'Kazanımın bulunduğu blokta erişilebilen etkinlikler',
-                icon: Icons.task_alt_outlined,
-              ),
-              for (final activity in activities)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: InfoCard(
-                    title: activity.title,
-                    subtitle: activity.activityType,
-                    icon: Icons.edit_calendar_outlined,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (activity.studentAction != null)
-                          Text(
-                            activity.studentAction!,
-                            style: const TextStyle(height: 1.4),
-                          ),
-                        if (activity.printedPage != null) ...[
-                          const SizedBox(height: AppSpacing.sm),
-                          Text('Kitap: s. ${activity.printedPage}'),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-            if (forms.isNotEmpty) ...[
-              const SectionHeading(
-                'Formlar',
-                subtitle: 'Blok bağlamında erişilebilen değerlendirme/form öğeleri',
-                icon: Icons.description_outlined,
-              ),
-              for (final form in forms)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: InfoCard(
-                    title: form.title,
-                    subtitle: form.assessmentType ?? form.structuralType,
-                    icon: Icons.description_outlined,
-                    child: Text(
-                      form.printedPage == null
-                          ? 'Sayfa bilgisi doğrulanmış runtime verisinde belirtilmemiş.'
-                          : 'Basılı kitap: s. ${form.printedPage}',
-                    ),
-                  ),
-                ),
-            ],
-            if (targetedBindings.isNotEmpty) ...[
-              const SectionHeading(
-                'Doğrudan hedeflenen değerlendirme görevleri',
-                subtitle:
-                    'Runtime targeted_outcomes verisi bu kazanımı açıkça hedefliyor.',
-                icon: Icons.fact_check_outlined,
-              ),
-              for (final binding in targetedBindings)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: InfoCard(
-                    title: binding.taskTitle ?? 'Değerlendirme görevi',
-                    subtitle: 'Doğrudan kazanım hedeflemesi',
-                    icon: Icons.fact_check_outlined,
-                    child: Text(
-                      binding.evidence ??
-                          'Ek kanıt açıklaması runtime verisinde belirtilmemiş.',
-                    ),
-                  ),
-                ),
-            ] else if (artifacts.isNotEmpty) ...[
-              const SectionHeading(
-                'Değerlendirme araçları',
-                subtitle:
-                    'Bunlar blok bağlamında erişilebilir; doğrudan kazanım hedeflemesi olarak sunulmaz.',
-                icon: Icons.assignment_outlined,
-              ),
-              for (final artifact in artifacts)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: InfoCard(
-                    title: artifact.title,
-                    subtitle: artifact.assessmentFamily,
-                    icon: Icons.assignment_outlined,
-                    child: Text(
-                      artifact.generationStatus == null
-                          ? 'Blok değerlendirme bağlamı'
-                          : 'Durum: ${artifact.generationStatus}',
-                    ),
-                  ),
-                ),
-            ],
-            if (decisions.isNotEmpty) ...[
-              const SectionHeading(
-                'Materyal / kaynak kararları',
-                subtitle:
-                    'Kazanımın bulunduğu blokların doğrulanmış resource decision verisi',
-                icon: Icons.inventory_2_outlined,
-              ),
-              for (var index = 0; index < decisions.length; index++) ...[
-                ResourceDecisionCard(decision: decisions[index]),
-                if (index != decisions.length - 1)
-                  const SizedBox(height: AppSpacing.md),
-              ],
-            ],
-            if (sources.isNotEmpty) ...[
-              const SectionHeading(
-                'Kaynak referansları',
-                subtitle: 'Blok bağlamında runtime tarafından taşınan kaynak izleri',
-                icon: Icons.link_outlined,
-              ),
-              for (final source in sources)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: InfoCard(
-                    title: source.title,
-                    subtitle: source.sourceType,
-                    icon: Icons.link_outlined,
-                    child: SelectableText(source.locator ?? 'Konum bilgisi yok'),
-                  ),
-                ),
-            ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _DetailSection(
+              icon: Icons.inventory_2_outlined,
+              title: 'Materyal kararları — blok bağlamı',
+              countLabel: '${decisions.length} karar',
+              isEmpty: decisions.isEmpty,
+              child: _MaterialsContent(items: decisions),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _DetailSection(
+              icon: Icons.source_outlined,
+              title: 'Kaynaklar ve dayanaklar',
+              countLabel: '${sources.length} kaynak',
+              isEmpty: sources.isEmpty,
+              subdued: true,
+              child: _SourcesContent(items: sources),
+            ),
           ],
         ),
       ),
@@ -438,12 +335,21 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
   }
 
   Future<void> _setStatus(OutcomeTrackingStatus status) async {
-    await _mutate(() => widget.service.setStatus(_item, status));
+    if (status == _item.status) return;
+    await _mutate(
+      action: () => widget.service.setStatus(_item, status),
+      savingAction: _SavingAction.status,
+      successMessage: 'Takip durumu güncellendi.',
+      haptic: status == OutcomeTrackingStatus.completed,
+    );
   }
 
   Future<void> _saveNote() async {
+    if (!_noteDirty) return;
     await _mutate(
-      () => widget.service.saveTeacherNote(_item, _noteController.text),
+      action: () => widget.service.saveTeacherNote(_item, _noteController.text),
+      savingAction: _SavingAction.note,
+      successMessage: 'Öğretmen notu kaydedildi.',
     );
   }
 
@@ -456,11 +362,13 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
         )
         .toList(growable: false);
     if (targets.isEmpty) return;
+
     var selected = targets.first.week.weekNumber;
     final target = await showDialog<int>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
+          scrollable: true,
           title: const Text('Sonraki haftaya taşı'),
           content: DropdownButtonFormField<int>(
             initialValue: selected,
@@ -494,18 +402,27 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
       ),
     );
     if (target == null) return;
+
     await _mutate(
-      () => widget.service.carryToWeek(
+      action: () => widget.service.carryToWeek(
         item: _item,
         targetWeekNumber: target,
         plan: _plan,
       ),
+      savingAction: _SavingAction.carry,
+      successMessage: 'Kazanım $target. haftaya taşındı.',
+      haptic: true,
     );
   }
 
-  Future<void> _mutate(Future<void> Function() action) async {
-    if (_saving) return;
-    setState(() => _saving = true);
+  Future<void> _mutate({
+    required Future<void> Function() action,
+    required _SavingAction savingAction,
+    String? successMessage,
+    bool haptic = false,
+  }) async {
+    if (_savingAction != null) return;
+    setState(() => _savingAction = savingAction);
     try {
       await action();
       final refreshed = await widget.service.buildPlan();
@@ -527,15 +444,22 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
         _plan = refreshed;
         if (next != null) _item = next;
         _noteController.text = _item.teacherNote ?? '';
+        _noteDirty = false;
         _changed = true;
+        _savingAction = null;
       });
+      if (haptic) unawaited(HapticFeedback.mediumImpact());
+      if (successMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(successMessage)),
+        );
+      }
     } on Object catch (error) {
       if (!mounted) return;
+      setState(() => _savingAction = null);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Değişiklik kaydedilemedi: $error')),
       );
-    } finally {
-      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -562,31 +486,78 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
   }
 }
 
-class _StatusButton extends StatelessWidget {
-  const _StatusButton({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onPressed,
+class _TrackingControls extends StatelessWidget {
+  const _TrackingControls({
+    required this.item,
+    required this.savingAction,
+    required this.onStatusChanged,
+    required this.onComplete,
+    required this.onCarry,
   });
 
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onPressed;
+  final TrackedOutcome item;
+  final _SavingAction? savingAction;
+  final ValueChanged<OutcomeTrackingStatus> onStatusChanged;
+  final VoidCallback onComplete;
+  final VoidCallback onCarry;
 
   @override
-  Widget build(BuildContext context) => selected
-      ? FilledButton.icon(
-          onPressed: onPressed,
-          icon: Icon(icon),
-          label: Text(label),
-        )
-      : OutlinedButton.icon(
-          onPressed: onPressed,
-          icon: Icon(icon),
-          label: Text(label),
-        );
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DropdownButtonFormField<OutcomeTrackingStatus>(
+            key: ValueKey(item.status),
+            initialValue: item.status,
+            decoration: const InputDecoration(
+              labelText: 'Sınıftaki gerçekleşen durum',
+              prefixIcon: Icon(Icons.fact_check_outlined),
+            ),
+            items: OutcomeTrackingStatus.values
+                .where((status) => status != OutcomeTrackingStatus.carriedOver)
+                .map(
+                  (status) => DropdownMenuItem(
+                    value: status,
+                    child: Text(outcomeStatusLabel(status)),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: savingAction == _SavingAction.status
+                ? null
+                : (value) {
+                    if (value != null) onStatusChanged(value);
+                  },
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              if (item.presentationStatus != OutcomeTrackingStatus.completed)
+                FilledButton.icon(
+                  onPressed: savingAction == _SavingAction.status
+                      ? null
+                      : onComplete,
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: const Text('İşlendi'),
+                ),
+              OutlinedButton.icon(
+                onPressed: savingAction == _SavingAction.carry ? null : onCarry,
+                icon: const Icon(Icons.redo_outlined),
+                label: Text(
+                  savingAction == _SavingAction.carry
+                      ? 'Taşınıyor…'
+                      : 'Sonraki haftaya taşı',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _BlockContextCard extends StatelessWidget {
@@ -596,25 +567,314 @@ class _BlockContextCard extends StatelessWidget {
   final VoidCallback onOpen;
 
   @override
-  Widget build(BuildContext context) => InfoCard(
-    title: contextItem.block.title,
-    subtitle: contextItem.theme.title,
-    icon: Icons.view_agenda_outlined,
-    trailing: IconButton(
-      tooltip: 'Blok ayrıntısını aç',
-      onPressed: onOpen,
-      icon: const Icon(Icons.chevron_right),
+  Widget build(BuildContext context) => Card(
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onOpen,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.view_agenda_outlined),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    contextItem.block.title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    contextItem.theme.title,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  if (contextItem.block.skillDomain != null ||
+                      contextItem.block.learningArea != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      [
+                        contextItem.block.skillDomain,
+                        contextItem.block.learningArea,
+                      ].whereType<String>().join(' · '),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Icon(
+              Icons.chevron_right,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ),
+      ),
     ),
-    child: Wrap(
-      spacing: AppSpacing.sm,
-      runSpacing: AppSpacing.sm,
-      children: [
-        if (contextItem.block.skillDomain != null)
-          Chip(label: Text(contextItem.block.skillDomain!)),
-        if (contextItem.block.learningArea != null)
-          Chip(label: Text(contextItem.block.learningArea!)),
+  );
+}
+
+class _DetailSection extends StatelessWidget {
+  const _DetailSection({
+    required this.icon,
+    required this.title,
+    required this.countLabel,
+    required this.isEmpty,
+    required this.child,
+    this.subdued = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String countLabel;
+  final bool isEmpty;
+  final Widget child;
+  final bool subdued;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Opacity(
+      opacity: isEmpty ? 0.55 : subdued ? 0.82 : 1,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLow,
+          border: Border.all(color: scheme.outlineVariant),
+          borderRadius: BorderRadius.circular(AppRadiusTokens.card),
+        ),
+        child: ExpansionTile(
+          enabled: !isEmpty,
+          leading: Icon(icon),
+          title: Text(title),
+          subtitle: Text(isEmpty ? '$countLabel · içerik yok' : countLabel),
+          childrenPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.lg,
+          ),
+          children: [child],
+        ),
+      ),
+    );
+  }
+}
+
+class _TextbookContent extends StatelessWidget {
+  const _TextbookContent({required this.items});
+
+  final List<model.TextbookSection> items;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      for (var index = 0; index < items.length; index++) ...[
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.book_outlined),
+          title: Text(items[index].title),
+          subtitle: Text(
+            [
+              if (items[index].genre != null) items[index].genre!,
+              pageReference(
+                printed: items[index].printedPageRange,
+                pdf: items[index].pdfPageRange,
+              ),
+            ].where((value) => value.isNotEmpty).join(' · '),
+          ),
+        ),
+        if (index != items.length - 1) const Divider(),
       ],
-    ),
+    ],
+  );
+}
+
+class _ActivitiesContent extends StatelessWidget {
+  const _ActivitiesContent({required this.items});
+
+  final List<model.Activity> items;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      for (var index = 0; index < items.length; index++) ...[
+        ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: const EdgeInsets.only(bottom: AppSpacing.md),
+          title: Text(items[index].title),
+          subtitle: Text(
+            [
+              if (items[index].activityType != null) items[index].activityType!,
+              pageReference(
+                printed: items[index].printedPage,
+                pdf: items[index].pdfPage,
+              ),
+            ].where((value) => value.isNotEmpty).join(' · '),
+          ),
+          children: [
+            if (items[index].studentAction != null)
+              LabeledValue(
+                label: 'Öğrenci ne yapacak?',
+                value: items[index].studentAction!,
+                icon: Icons.person_outline,
+              ),
+            if (items[index].expectedEvidence != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              LabeledValue(
+                label: 'Beklenen ürün',
+                value: items[index].expectedEvidence!,
+                icon: Icons.check_circle_outline,
+              ),
+            ],
+          ],
+        ),
+        if (index != items.length - 1) const Divider(),
+      ],
+    ],
+  );
+}
+
+class _FormsContent extends StatelessWidget {
+  const _FormsContent({required this.items});
+
+  final List<model.Form> items;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      for (var index = 0; index < items.length; index++) ...[
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.description_outlined),
+          title: Text(items[index].title),
+          subtitle: Text(
+            [
+              if (items[index].assessmentType != null) items[index].assessmentType!,
+              if (items[index].structuralType != null) items[index].structuralType!,
+              if (items[index].printedPage != null)
+                'Basılı s. ${items[index].printedPage}',
+            ].join(' · '),
+          ),
+        ),
+        if (index != items.length - 1) const Divider(),
+      ],
+    ],
+  );
+}
+
+class _AssessmentContent extends StatelessWidget {
+  const _AssessmentContent({
+    required this.targetedBindings,
+    required this.artifacts,
+  });
+
+  final List<model.AssessmentTaskBinding> targetedBindings;
+  final List<model.AssessmentArtifact> artifacts;
+
+  @override
+  Widget build(BuildContext context) {
+    if (targetedBindings.isNotEmpty) {
+      return Column(
+        children: [
+          const StatusPanel(
+            icon: Icons.verified_outlined,
+            title: 'Doğrudan kazanım hedeflemesi',
+            message:
+                'Runtime targeted_outcomes verisi bu kazanımı açıkça hedefliyor.',
+            tone: StatusTone.positive,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          for (var index = 0; index < targetedBindings.length; index++) ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.fact_check_outlined),
+              title: Text(
+                targetedBindings[index].taskTitle ?? 'Değerlendirme görevi',
+              ),
+              subtitle: targetedBindings[index].evidence == null
+                  ? null
+                  : Text(targetedBindings[index].evidence!),
+            ),
+            if (index != targetedBindings.length - 1) const Divider(),
+          ],
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Bu araçlar yalnız blok bağlamında erişilebilir; doğrudan bu kazanıma atanmış gibi gösterilmez.',
+        ),
+        const SizedBox(height: AppSpacing.md),
+        for (var index = 0; index < artifacts.length; index++) ...[
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.assignment_outlined),
+            title: Text(artifacts[index].title),
+            subtitle: Text(
+              [
+                if (artifacts[index].assessmentFamily != null)
+                  artifacts[index].assessmentFamily!,
+                if (artifacts[index].generationStatus != null)
+                  'Durum: ${artifacts[index].generationStatus}',
+              ].join(' · '),
+            ),
+          ),
+          if (index != artifacts.length - 1) const Divider(),
+        ],
+      ],
+    );
+  }
+}
+
+class _MaterialsContent extends StatelessWidget {
+  const _MaterialsContent({required this.items});
+
+  final List<model.ResourceDecision> items;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      for (var index = 0; index < items.length; index++) ...[
+        ResourceDecisionCard(decision: items[index]),
+        if (index != items.length - 1) const SizedBox(height: AppSpacing.md),
+      ],
+    ],
+  );
+}
+
+class _SourcesContent extends StatelessWidget {
+  const _SourcesContent({required this.items});
+
+  final List<model.SourceReference> items;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      for (var index = 0; index < items.length; index++) ...[
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.article_outlined),
+          title: Text(items[index].title),
+          subtitle: Text(
+            [
+              if (items[index].sourceType != null) items[index].sourceType!,
+              if (items[index].locator != null) items[index].locator!,
+            ].join(' · '),
+          ),
+        ),
+        if (index != items.length - 1) const Divider(),
+      ],
+    ],
   );
 }
 
