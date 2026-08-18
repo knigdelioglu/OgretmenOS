@@ -5,6 +5,8 @@ class AppLayoutTokens {
   static const double wideHorizontalPadding = 32;
   static const double contentMaxWidth = 960;
   static const double detailMaxWidth = 900;
+  static const double stateMaxWidth = 520;
+  static const double textMeasureMaxWidth = 680;
   static const double wideContentBreakpoint = 840;
   static const double navigationRailBreakpoint = 720;
   static const double minimumTouchTarget = 48;
