@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "subject_id": "turk-dili-ve-edebiyati",
+  "course_id": "TDE_12",
+  "grade": 12,
+  "data_mode": "CURRICULUM_ONLY",
+  "textbook_status": "AWAITING_OFFICIAL_TEXTBOOK",
+  "tymm_source_repository": "knigdelioglu/tymm",
+  "tymm_source_commit": "a0389a83c62102fe9be082b887737638afe23b69",
+  "curriculum_path": "curriculum",
+  "runtime_path": "runtime"
+}
