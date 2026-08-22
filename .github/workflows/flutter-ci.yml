@@ -66,13 +66,21 @@ jobs:
         working-directory: tool/runtime_verifier
         run: dart pub get
 
-      - name: Verify TDE9 canonical runtime
+      - name: Verify TDE9 full runtime
         working-directory: tool/runtime_verifier
         run: dart run bin/verify_runtime.dart --course TDE_9
 
-      - name: Verify TDE10 canonical runtime
+      - name: Verify TDE10 full runtime
         working-directory: tool/runtime_verifier
         run: dart run bin/verify_runtime.dart --course TDE_10
+
+      - name: Verify TDE11 curriculum-only runtime
+        working-directory: tool/runtime_verifier
+        run: dart run bin/verify_runtime.dart --course TDE_11
+
+      - name: Verify TDE12 curriculum-only runtime
+        working-directory: tool/runtime_verifier
+        run: dart run bin/verify_runtime.dart --course TDE_12
 
   tests:
     name: Tests
@@ -92,7 +100,7 @@ jobs:
       - name: Install app dependencies
         run: flutter pub get
 
-      - name: Run tests against versioned runtimes
+      - name: Run tests against versioned TYMM packages
         run: flutter test --reporter expanded
 
   android-release:
@@ -133,5 +141,5 @@ jobs:
           keyPassword=ci-release-password
           EOF
 
-      - name: Build Android release APK with versioned runtimes
+      - name: Build Android release APK with four TYMM packages
         run: flutter build apk --release --no-pub
