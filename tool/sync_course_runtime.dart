@@ -8,12 +8,17 @@ import 'package:path/path.dart' as p;
 Future<void> main(List<String> args) async {
   try {
     final courseId = _valueFor(args, '--course') ?? 'TDE_9';
-    runtimeForCourse(courseId);
+    final descriptor = runtimeForCourse(courseId);
+    if (descriptor.isCurriculumOnly) {
+      throw StateError(
+        '$courseId curriculum-only pakettir; tool/build_curriculum_only_runtime.py kullanın.',
+      );
+    }
     final sourceRoot =
         _valueFor(args, '--source-root') ??
         '/Users/kadir/Desktop/tymm/courses/$courseId/runtime';
     final targetRoot =
-        _valueFor(args, '--target-root') ?? 'assets/courses/$courseId';
+        _valueFor(args, '--target-root') ?? descriptor.runtimeRoot;
 
     final sourceManifest = File(p.join(sourceRoot, 'runtime_manifest.json'));
     final sourceDatabase = File(p.join(sourceRoot, 'course_runtime.sqlite'));
@@ -67,6 +72,7 @@ Future<void> main(List<String> args) async {
 
     stdout.writeln('RUNTIME_SYNC: PASS');
     stdout.writeln('COURSE_ID: $courseId');
+    stdout.writeln('TARGET_ROOT: $targetRoot');
     stdout.writeln(
       'RUNTIME_PACKAGE_VERSION: ${manifestJson['runtime_package_version']}',
     );
