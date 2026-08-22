@@ -202,6 +202,7 @@ class _AppShellState extends State<_AppShell> {
     final repository = widget.dependencies.repository;
     final preferences = widget.dependencies.preferences;
     final weeklyPlanning = widget.dependencies.weeklyPlanning;
+    final activeCourse = runtimeForCourse(widget.activeCourseId);
     final pages = <Widget>[
       OutcomeTrackerPage(repository: repository, service: _outcomePlanning),
       WeeklyPlanPage(repository: repository, planningService: weeklyPlanning),
@@ -215,6 +216,31 @@ class _AppShellState extends State<_AppShell> {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
         final compactLabels = textScale >= 1.5;
         final content = IndexedStack(index: _selectedIndex, children: pages);
+        final courseAwareContent = Column(
+          children: [
+            if (activeCourse.isAwaitingTextbook)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                child: Row(
+                  children: [
+                    const Icon(Icons.menu_book_outlined, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '${activeCourse.grade}. sınıf öğretim programı hazır. Ders kitabı bekleniyor; kazanımlar ile yıllık/haftalık plan kullanılabilir.',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Expanded(child: content),
+          ],
+        );
 
         return Scaffold(
           appBar: AppBar(
@@ -236,7 +262,13 @@ class _AppShellState extends State<_AppShell> {
                             else
                               const SizedBox(width: 18),
                             const SizedBox(width: 8),
-                            Text('${course.grade}. Sınıf'),
+                            Expanded(
+                              child: Text(
+                                course.isAwaitingTextbook
+                                    ? '${course.grade}. Sınıf · kitap bekleniyor'
+                                    : '${course.grade}. Sınıf',
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -285,10 +317,10 @@ class _AppShellState extends State<_AppShell> {
                       width: 1,
                       color: Theme.of(context).colorScheme.outlineVariant,
                     ),
-                    Expanded(child: content),
+                    Expanded(child: courseAwareContent),
                   ],
                 )
-              : content,
+              : courseAwareContent,
           bottomNavigationBar: useRail
               ? null
               : NavigationBar(
