@@ -59,6 +59,24 @@ def stable_outcome_id(course_id: str, theme_id: str, code: str) -> str:
     return f"{course_id}_{theme_id}_{code.replace('.', '_')}"
 
 
+def resolve_skill_category(outcome: dict) -> str:
+    category = outcome.get("skill_category")
+    known = {skill[0] for skill in SKILLS}
+    if category in known:
+        return category
+    code = str(outcome.get("outcome_code") or "")
+    prefix = code.split(".", 1)[0]
+    inferred = {
+        "TDE1": "Dinleme/İzleme",
+        "TDE2": "Okuma",
+        "TDE3": "Konuşma",
+        "TDE4": "Yazma",
+    }.get(prefix)
+    if inferred is None:
+        raise RuntimeError(f"skill_category çözümlenemedi: code={code}, category={category}")
+    return inferred
+
+
 def build(package_root: Path, source_commit: str) -> None:
     curriculum_dir = package_root / "curriculum"
     runtime_dir = package_root / "runtime"
@@ -108,9 +126,7 @@ def build(package_root: Path, source_commit: str) -> None:
             outcomes = theme.get("learning_outcomes", [])
             by_skill = {skill[0]: [] for skill in SKILLS}
             for outcome in outcomes:
-                category = outcome.get("skill_category")
-                if category not in by_skill:
-                    raise RuntimeError(f"{course_id}/{theme_id}: bilinmeyen skill_category: {category}")
+                category = resolve_skill_category(outcome)
                 by_skill[category].append(outcome)
 
             for block_order, (source_skill, suffix, title_skill, area, hours) in enumerate(SKILLS, start=1):
