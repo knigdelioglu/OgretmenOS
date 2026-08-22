@@ -42,10 +42,10 @@ bool isRuntimeDatabaseSchemaCompatible(
       databaseMajor == manifestMajor;
 }
 """
-# Avoid relying on collection extensions for firstOrNull.
+# Avoid relying on collection extensions for firstOrNull and satisfy strict lints.
 policy_text = policy_text.replace(
     "  final databaseMajor = databaseSchemaVersion.split('.').firstOrNull;\n  final manifestMajor = manifestSchemaVersion.split('.').firstOrNull;\n  return databaseMajor != null &&\n      databaseMajor.isNotEmpty &&\n      databaseMajor == manifestMajor;\n",
-    "  if (databaseSchemaVersion.isEmpty || manifestSchemaVersion.isEmpty) return false;\n  final databaseMajor = databaseSchemaVersion.split('.').first;\n  final manifestMajor = manifestSchemaVersion.split('.').first;\n  return databaseMajor == manifestMajor;\n",
+    "  if (databaseSchemaVersion.isEmpty || manifestSchemaVersion.isEmpty) {\n    return false;\n  }\n  final databaseMajor = databaseSchemaVersion.split('.').first;\n  final manifestMajor = manifestSchemaVersion.split('.').first;\n  return databaseMajor == manifestMajor;\n",
 )
 policy.write_text(policy_text, encoding='utf-8')
 
