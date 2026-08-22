@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ogretmen_os/data/course/course_database_data_source.dart';
+import 'package:ogretmen_os/domain/runtime/course_runtime_registry.dart';
 import 'package:ogretmen_os/domain/runtime/runtime_manifest_policy.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -10,19 +11,18 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 void main() {
   sqfliteFfiInit();
 
-  late Database database;
+  Database? database;
   late CourseDatabaseDataSource dataSource;
   late Map<String, dynamic> manifest;
 
   setUpAll(() async {
-    final runtimeRoot = p.join(
-      Directory.current.path,
-      'assets',
-      'courses',
-      'TDE_10',
+    final descriptor = runtimeForCourse('TDE_10');
+    final manifestFile = File(
+      p.join(Directory.current.path, descriptor.manifestAsset),
     );
-    final manifestFile = File(p.join(runtimeRoot, 'runtime_manifest.json'));
-    final databaseFile = File(p.join(runtimeRoot, 'course_runtime.sqlite'));
+    final databaseFile = File(
+      p.join(Directory.current.path, descriptor.databaseAsset),
+    );
     expect(manifestFile.existsSync(), isTrue);
     expect(databaseFile.existsSync(), isTrue);
     manifest = Map<String, dynamic>.from(
@@ -33,10 +33,13 @@ void main() {
       databaseFile.path,
       options: OpenDatabaseOptions(readOnly: true),
     );
-    dataSource = CourseDatabaseDataSource(database);
+    dataSource = CourseDatabaseDataSource(database!);
   });
 
-  tearDownAll(() => database.close());
+  tearDownAll(() async {
+    final opened = database;
+    if (opened != null) await opened.close();
+  });
 
   test('TDE10 runtime temel ÖğretmenOS ilişki sözleşmesini karşılar', () async {
     final course = await dataSource.getCourse();
