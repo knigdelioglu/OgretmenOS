@@ -203,7 +203,6 @@ class _AppShellState extends State<_AppShell> {
       ),
       ResourceLibraryPage(
         repository: repository,
-        grade: activeCourse.grade,
         awaitingTextbook: activeCourse.isAwaitingTextbook,
       ),
     ];
