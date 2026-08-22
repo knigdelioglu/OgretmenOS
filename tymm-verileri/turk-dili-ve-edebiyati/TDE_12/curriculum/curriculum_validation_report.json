@@ -1,0 +1,34 @@
+{
+  "course_id": "TDE_12",
+  "lifecycle_status": "CURRICULUM_ONLY_AWAITING_TEXTBOOK",
+  "source": {
+    "source_parts": 4,
+    "source_theme_ids": [
+      "TEMA_01",
+      "TEMA_02",
+      "TEMA_03",
+      "TEMA_04"
+    ],
+    "bundle_sha256": "12a7f34a94ce3e4418bf51095a39c7bbc69a2951293490b8211e668efeff0305",
+    "status": "PASS"
+  },
+  "canonical": {
+    "themes": 4,
+    "outcomes": 64,
+    "assessment_requirements": 12,
+    "unique_canonical_keys": 64,
+    "source_locators_checked": 80,
+    "synthetic_subcodes": 0,
+    "status": "PASS"
+  },
+  "lifecycle_safety": {
+    "premature_files": 0,
+    "status": "PASS"
+  },
+  "textbook_status": "AWAITING_OFFICIAL_TEXTBOOK",
+  "coverage_status": "NOT_EVALUATED",
+  "gap_status": "NOT_EVALUATED",
+  "production_status": "NOT_EVALUATED",
+  "full_p0_status": "DEFERRED_UNTIL_OFFICIAL_TEXTBOOK_AVAILABLE",
+  "final": "PASS"
+}

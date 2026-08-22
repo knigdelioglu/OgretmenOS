@@ -69,12 +69,7 @@
       "instructional_week_count": 36,
       "event_week_count": 1,
       "school_based_placement": "END_OF_THEME",
-      "block_hour_allocation": [
-        12,
-        11,
-        10,
-        10
-      ],
+      "block_hour_allocation": [12, 11, 10, 10],
       "block_hour_allocation_status": "DERIVED_PLANNING_POLICY",
       "block_hour_allocation_note": "Resmî kaynak blok bazında ayrı saat vermediği için 43 yapılandırılmış saat sıralı dört bloğa planlama amacıyla 12+11+10+10 dağıtılır. Bu değerler resmî blok süresi değildir."
     },
@@ -87,14 +82,35 @@
       "instructional_week_count": 36,
       "event_week_count": 1,
       "school_based_placement": "END_OF_THEME",
-      "block_hour_allocation": [
-        12,
-        11,
-        10,
-        10
-      ],
+      "block_hour_allocation": [12, 11, 10, 10],
       "block_hour_allocation_status": "DERIVED_PLANNING_POLICY",
       "block_hour_allocation_note": "TDE_10 için resmî kaynak blok bazında ayrı saat vermediği için 43 yapılandırılmış saat sıralı dört bloğa planlama amacıyla 12+11+10+10 dağıtılır. Bu değerler resmî blok süresi değildir."
+    },
+    "TDE_11": {
+      "weekly_lesson_hours": 5,
+      "annual_hours": 180,
+      "theme_hours": 45,
+      "structured_hours_per_theme": 43,
+      "school_based_hours_per_theme": 2,
+      "instructional_week_count": 36,
+      "event_week_count": 1,
+      "school_based_placement": "END_OF_THEME",
+      "block_hour_allocation": [12, 11, 10, 10],
+      "block_hour_allocation_status": "DERIVED_PLANNING_POLICY",
+      "block_hour_allocation_note": "TDE_11 curriculum-only paketi için 43 resmî tema saati Dinleme/İzleme, Okuma, Konuşma ve Yazma planlama bloklarına 12+11+10+10 dağıtılır. Bu değerler resmî blok süresi değildir."
+    },
+    "TDE_12": {
+      "weekly_lesson_hours": 5,
+      "annual_hours": 180,
+      "theme_hours": 45,
+      "structured_hours_per_theme": 43,
+      "school_based_hours_per_theme": 2,
+      "instructional_week_count": 36,
+      "event_week_count": 1,
+      "school_based_placement": "END_OF_THEME",
+      "block_hour_allocation": [12, 11, 10, 10],
+      "block_hour_allocation_status": "DERIVED_PLANNING_POLICY",
+      "block_hour_allocation_note": "TDE_12 curriculum-only paketi için 43 resmî tema saati Dinleme/İzleme, Okuma, Konuşma ve Yazma planlama bloklarına 12+11+10+10 dağıtılır. Bu değerler resmî blok süresi değildir."
     }
   }
 }

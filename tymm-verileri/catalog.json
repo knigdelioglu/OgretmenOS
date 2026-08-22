@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "source_repository": "knigdelioglu/tymm",
+  "source_commit": "a0389a83c62102fe9be082b887737638afe23b69",
+  "subjects": [
+    {
+      "subject_id": "turk-dili-ve-edebiyati",
+      "label": "Türk Dili ve Edebiyatı",
+      "path": "turk-dili-ve-edebiyati/ders_manifest.json"
+    }
+  ]
+}

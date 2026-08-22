@@ -1,0 +1,1642 @@
+{
+  "schema_version": "1.2",
+  "course_id": "TDE_11",
+  "course_title": "Türk Dili ve Edebiyatı",
+  "grade": 11,
+  "program_name": "Türkiye Yüzyılı Maarif Modeli Türk Dili ve Edebiyatı Dersi Öğretim Programı",
+  "source_mode": "OFFICIAL_REMOTE_TYMM_THEME_BUNDLE_WITH_MAPPED_LOCAL_PDF_SNAPSHOTS",
+  "verification_status": "VERIFIED_OFFICIAL_REMOTE_AND_LOCAL",
+  "canonical_freeze_status": "FROZEN_PENDING_SOURCE_FINGERPRINT_CHANGE",
+  "lifecycle_status": "CURRICULUM_ONLY_AWAITING_TEXTBOOK",
+  "scope_summary": {
+    "total_themes": 4,
+    "theme_names": [
+      "1. TEMA: BİR DİYECEĞİM VAR!",
+      "2. TEMA: KÜLTÜR YOLCULUĞU",
+      "3. TEMA: YAŞAMIN İZİNDE",
+      "4. TEMA: HAYATIN AYNASI"
+    ],
+    "outcomes_per_theme": {
+      "TEMA_01": 16,
+      "TEMA_02": 16,
+      "TEMA_03": 16,
+      "TEMA_04": 16
+    },
+    "total_learning_outcomes": 64,
+    "official_instructional_hours_per_theme": 43,
+    "official_instructional_hours_total": 172,
+    "textbook_status": "AWAITING_OFFICIAL_TEXTBOOK",
+    "coverage_status": "NOT_EVALUATED",
+    "gap_status": "NOT_EVALUATED",
+    "production_status": "NOT_EVALUATED",
+    "school_based_planning_hours_per_theme": 2,
+    "theme_total_hours_with_school_based_planning": 45,
+    "annual_school_based_planning_hours": 8,
+    "annual_total_hours_with_school_based_planning": 180
+  },
+  "source_validation": {
+    "official_theme_bundle_expected_parts": 4,
+    "official_theme_bundle_verified_parts": 4,
+    "official_theme_identity_crosscheck": "PASS",
+    "parent_outcome_count": "PASS_64_OF_64",
+    "explicit_subcomponent_id_scan": "PASS_NONE_EXPLICITLY_ENUMERATED_ON_THEME_PAGES",
+    "process_component_policy": "Do not synthesize subordinate outcome IDs. Preserve parent outcomes and the published learning-teaching application paragraphs as normative process realization.",
+    "local_pdf_snapshots_present": 4,
+    "local_pdf_theme_mapping": "PASS_4_OF_4_CONTENT_VERIFIED_AND_RENAMED",
+    "canonical_policy": "Official TYMM web wording is authoritative. TDE_9/TDE_10 are schema/behavior references only.",
+    "local_pdf_fingerprint_status": "PASS_4_OF_4_SHA256_VERIFIED",
+    "curriculum_source_bundle_sha256": "a931973ce05bfe067cccf6188a4ddc73a2c3e93a843ff0c324325f4ebb55ba93",
+    "normative_text_evidence": "PASS_FULL_LOCAL_PDF_PAGE_TEXT_CAPTURED"
+  },
+  "themes": [
+    {
+      "theme_id": "TEMA_01",
+      "theme_no": 1,
+      "exact_theme_name": "1. TEMA: BİR DİYECEĞİM VAR!",
+      "source_id": "official_tymm_theme_01",
+      "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267",
+      "theme_introduction_summary": "Kendini ifade etme, görüş belirtme ve dilin günlük iletişimde işlevsel kullanımı üzerinde durulur. Okuma metinleri Karagöz ve mektup; ara metin dilekçe; dinleme/izleme iletişim konulu çok modlu metin; konuşma görevi iletişim engellerini konu alan drama; yazma görevi e-postadır.",
+      "allocated_lesson_hours": {
+        "instructional_total": 43,
+        "verbatim": "43",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#Ders-Saati",
+        "school_based_planning": "SOURCE_NOT_EXPLICIT_ON_THEME_PAGE",
+        "planning_layer": {
+          "school_based_planning_hours": 2,
+          "theme_total_hours": 45,
+          "authority": "USER_CONFIRMED_PLANNING_RULE",
+          "semantics": "Official TYMM instructional hours remain unchanged; school-based planning is a separate planning layer."
+        }
+      },
+      "alan_becerileri": {
+        "verbatim": "Metin Tahlili (Anlama): Okuma, Dinleme/İzleme; Edebiyat Atölyesi (Anlatma): Yazma, Konuşma",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#Alan-Becerileri"
+      },
+      "kavramsal_beceriler": {
+        "status": "SOURCE_NOT_EXPLICIT_AS_SEPARATE_THEME_FIELD",
+        "note": "KB-coded items published under Beceriler Arası İlişkiler are preserved there; no separate canonical field is inferred."
+      },
+      "egilimler": {
+        "codes": [
+          "E1.5",
+          "E2.2",
+          "E2.3",
+          "E3.2",
+          "E3.5",
+          "E3.6",
+          "E3.8",
+          "E3.10"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#Eğilimler"
+      },
+      "programlar_arasi_bilesenler": {
+        "sosyal_duygusal_ogrenme_becerileri": {
+          "codes": [
+            "SDB1.2",
+            "SDB2.1",
+            "SDB2.2",
+            "SDB2.3",
+            "SDB3.1",
+            "SDB3.2",
+            "SDB3.3"
+          ],
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#Sosyal-Duygusal-Öğrenme-Becerileri"
+        },
+        "degerler": {
+          "codes": [
+            "D4",
+            "D14",
+            "D16",
+            "D19"
+          ],
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#Değerler"
+        },
+        "okuryazarlik_becerileri": {
+          "codes": [
+            "OB1",
+            "OB5",
+            "OB9"
+          ],
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#Okuryazarlık-Becerileri"
+        }
+      },
+      "disiplinler_arasi_iliskiler": {
+        "items": [
+          "Tarih",
+          "Sosyoloji",
+          "Psikoloji"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#Disiplinler-Arası-İlişkiler"
+      },
+      "beceriler_arasi_iliskiler": {
+        "codes": [
+          "KB2.7",
+          "KB2.10",
+          "KB3.2",
+          "SBAB3",
+          "SBAB4",
+          "BTYAB1",
+          "SAB1",
+          "SAB3",
+          "SAB4"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#Beceriler-Arası-İlişkiler"
+      },
+      "process_component_policy": {
+        "status": "SOURCE_COMPLETE_NO_EXPLICIT_SUBCOMPONENT_IDS",
+        "canonical_policy": "DO_NOT_SYNTHESIZE_OR_COPY_FROM_OTHER_GRADES",
+        "official_process_realization": "Published learning-teaching application paragraphs under each parent outcome.",
+        "canonical_evidence_file": "curriculum_normative_text.json",
+        "evidence_status": "VERIFIED_LOCAL_PDF_TEXT_EXTRACTION"
+      },
+      "learning_outcomes": [
+        {
+          "outcome_code": "TDE1.1",
+          "outcome_verbatim": "“Bir Diyeceğim Var!” temasında ele alınan metinlerde dinlemeyi/izlemeyi yönetebilme",
+          "skill_category": "Dinleme/İzleme",
+          "theme_scope": "TEMA_01",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_01::TDE1.1",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#TDE1.1",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=2",
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "outcome_code": "TDE1.2",
+          "outcome_verbatim": "“Bir Diyeceğim Var!” temasında ele alınan metinlerde anlam oluşturabilme",
+          "skill_category": "Dinleme/İzleme",
+          "theme_scope": "TEMA_01",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_01::TDE1.2",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#TDE1.2",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=2",
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "outcome_code": "TDE1.3",
+          "outcome_verbatim": "“Bir Diyeceğim Var!” temasında ele alınan metinleri çözümleyebilme",
+          "skill_category": "Dinleme/İzleme",
+          "theme_scope": "TEMA_01",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_01::TDE1.3",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#TDE1.3",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=2",
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "outcome_code": "TDE1.4",
+          "outcome_verbatim": "“Bir Diyeceğim Var!” temasında ele alınan metinlerde dinleme/izleme sürecini değerlendirebilme",
+          "skill_category": "Dinleme/İzleme",
+          "theme_scope": "TEMA_01",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_01::TDE1.4",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#TDE1.4",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=2",
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "outcome_code": "TDE2.1",
+          "outcome_verbatim": "“Bir Diyeceğim Var!” temasında ele alınan metinlerde okumayı yönetebilme",
+          "skill_category": "Okuma",
+          "theme_scope": "TEMA_01",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_01::TDE2.1",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#TDE2.1",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=2",
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "outcome_code": "TDE2.2",
+          "outcome_verbatim": "“Bir Diyeceğim Var!” temasında ele alınan metinlerde anlam oluşturabilme",
+          "skill_category": "Okuma",
+          "theme_scope": "TEMA_01",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_01::TDE2.2",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#TDE2.2",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=2",
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "outcome_code": "TDE2.3",
+          "outcome_verbatim": "“Bir Diyeceğim Var!” temasında ele alınan metinleri çözümleyebilme",
+          "skill_category": "Okuma",
+          "theme_scope": "TEMA_01",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_01::TDE2.3",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#TDE2.3",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=2",
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "outcome_code": "TDE2.4",
+          "outcome_verbatim": "“Bir Diyeceğim Var!” temasında ele alınan metinlerden hareketle okuma sürecini değerlendirebilme",
+          "skill_category": "Okuma",
+          "theme_scope": "TEMA_01",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_01::TDE2.4",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#TDE2.4",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=2",
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "outcome_code": "TDE3.1",
+          "outcome_verbatim": "Günlük yaşamda karşılaşabileceği iletişim engellerini konu alan konuşmasını yönetebilme",
+          "skill_category": "Konuşma",
+          "theme_scope": "TEMA_01",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_01::TDE3.1",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#TDE3.1",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=2",
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "outcome_code": "TDE3.2",
+          "outcome_verbatim": "İletişim engellerinin nedenlerini, sonuçlarını ve çözümlerini yansıtacağı konuşması için içerik oluşturabilme",
+          "skill_category": "Konuşma",
+          "theme_scope": "TEMA_01",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_01::TDE3.2",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#TDE3.2",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=2",
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "outcome_code": "TDE3.3",
+          "outcome_verbatim": "Sözlü iletişim engellerine ilişkin farklı bakış açılarını deneyimlediği konuşmasında kural uygulayabilme",
+          "skill_category": "Konuşma",
+          "theme_scope": "TEMA_01",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_01::TDE3.3",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#TDE3.3",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=2",
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "outcome_code": "TDE3.4",
+          "outcome_verbatim": "Günlük hayatta karşılaşılan sözlü iletişim engellerine yönelik gerçekleştirdiği konuşmasında süreci değerlendirebilme",
+          "skill_category": "Konuşma",
+          "theme_scope": "TEMA_01",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_01::TDE3.4",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#TDE3.4",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=3",
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "outcome_code": "TDE4.1",
+          "outcome_verbatim": "Duygu, düşünce ve isteklerini etkili bir şekilde ileteceği yazısını yönetebilme",
+          "skill_category": "Yazma",
+          "theme_scope": "TEMA_01",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_01::TDE4.1",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#TDE4.1",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=3",
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "outcome_code": "TDE4.2",
+          "outcome_verbatim": "Günlük hayatta karşılaşılan durumlara ilişkin duygu ve düşüncelerini etkili kullanacağı yazısı için içerik oluşturabilme",
+          "skill_category": "Yazma",
+          "theme_scope": "TEMA_01",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_01::TDE4.2",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#TDE4.2",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=3",
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "outcome_code": "TDE4.3",
+          "outcome_verbatim": "Günlük hayatta karşılaşılan durumlara ilişkin duygu ve düşüncelerini etkili kullanacağı yazısı için kural uygulayabilme",
+          "skill_category": "Yazma",
+          "theme_scope": "TEMA_01",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_01::TDE4.3",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#TDE4.3",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=3",
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "outcome_code": "TDE4.4",
+          "outcome_verbatim": "Günlük hayatta duygu, düşünce ve isteklerini ifade ettiği yazısında yazma sürecini değerlendirebilme",
+          "skill_category": "Yazma",
+          "theme_scope": "TEMA_01",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_01::TDE4.4",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#TDE4.4",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=3",
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        }
+      ],
+      "content_frame": {
+        "summary_transcription": "Okuma: Karagöz ve mektup; ara metin dilekçe. Konuşma: sözlü iletişim engellerini konu alan canlandırma. Dinleme/izleme: günlük yaşamda iletişim ve e-posta ile ilgili çok modlu metin. Yazma: amaca ve alıcıya uygun e-posta.",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#İçerik-Çerçevesi"
+      },
+      "anahtar_kavramlar": {
+        "items": [
+          "dilekçe",
+          "elektronik içerik",
+          "e-posta",
+          "figür",
+          "geleneksel Türk tiyatrosu",
+          "gölge oyunu",
+          "Karagöz",
+          "mektup",
+          "mizah"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#Anahtar-Kavramlar"
+      },
+      "learning_evidence": {
+        "methods": [
+          "Kısa cevaplı sorular",
+          "Çalışma kâğıdı",
+          "Çıkış kartı",
+          "T diyagramı",
+          "Balık kılçığı",
+          "Karşılaştırma tablosu",
+          "Açık uçlu sorular"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#Öğrenme-Kanıtları"
+      },
+      "assessment_requirements": [
+        {
+          "assessment_id": "T1_ASSESS_01",
+          "type": "performance_task",
+          "requirement": "Sözlü iletişim engellerini konu alan canlandırma",
+          "evaluation_provision": "Dereceli puanlama anahtarı; içeriğe uygunluk, özgünlük, canlandırma becerisi, sözü ve beden dilini etkili kullanma.",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#Öğrenme-Kanıtları",
+          "local_evidence_pages": [
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=4",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=5",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=7",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=10"
+          ],
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "assessment_id": "T1_ASSESS_02",
+          "type": "performance_task",
+          "requirement": "E-posta yazma",
+          "evaluation_provision": "Dereceli puanlama anahtarı; Türkçenin doğru kullanımı, üslup, özgünlük, öznel/nesnel ifadeler, başlık-hitap, yazım ve noktalama; öz ve akran değerlendirme kullanılabilir.",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#Öğrenme-Kanıtları",
+          "local_evidence_pages": [
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=4",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=5",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=7",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=10"
+          ],
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        },
+        {
+          "assessment_id": "T1_ASSESS_03",
+          "type": "theme_end",
+          "requirement": "Tema sonu değerlendirme",
+          "evaluation_provision": "Çıkış kartı; tema sonunda 3-2-1 çıkış kartı uygulamasıyla öğrenme ve zorlukların belirlenmesi.",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#Tema-Sonu-Değerlendirme",
+          "local_evidence_pages": [
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=4",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=5",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=7",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF#page=10"
+          ],
+          "local_source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482"
+        }
+      ],
+      "normative_teaching_provisions": {
+        "basic_assumptions": "Karagöz hakkında genel bilgi; mektup türünün genel özellikleri; öğretici metinlerde anlatım biçimleri ve düşünceyi geliştirme yolları; yazılı/sözlü anlatım aşamaları; fiilimsiler.",
+        "pre_assessment": "Soru-cevap, tartışma ve fikir taramasıyla ön bilgileri belirleme.",
+        "bridge_building": "Geleneksel Türk tiyatrosu, öğretici metinler, tarih-sosyoloji-psikoloji ve önceki dil/iletişim öğrenmeleriyle köprü kurma.",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#Öğrenme-Öğretme-Yaşantıları"
+      },
+      "differentiation": {
+        "enrichment": "Karagöz bağlamına uygun diyalog oluşturma; mektup türünün kullanıldığı eserleri araştırıp tanıtma; gösterge bilimi sunusu; yazılı/sözlü iletişim farklılıklarını konu alan kısa oyun; emojilerin iletişime etkisini tartışma.",
+        "support": "Karagöz tiplerini güvenilir kaynaklardan araştırıp tanıtan yazı hazırlama; bir yakına mektup veya e-posta yazma.",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/267#Farklılaştırma"
+      },
+      "school_based_planning_provisions": {
+        "source_status": "SOURCE_NOT_EXPLICIT_ON_THEME_PAGE",
+        "planning_layer": {
+          "authority": "USER_CONFIRMED_PLANNING_RULE",
+          "hours": 2,
+          "outer_theme_total_hours": 45,
+          "curriculum_gap": false
+        }
+      },
+      "local_source_snapshot": {
+        "filename": "Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF",
+        "path": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF",
+        "sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482",
+        "git_blob_sha": "add78bf58b62337c3adbb0d9bb66c91561a44957",
+        "page_count": 11,
+        "verification_status": "VERIFIED_LOCAL_OFFICIAL_SNAPSHOT"
+      },
+      "normative_text_evidence": {
+        "status": "VERIFIED_LOCAL_PDF_TEXT_EXTRACTION",
+        "canonical_evidence_file": "curriculum_normative_text.json",
+        "evidence_theme_id": "TEMA_01",
+        "source_pdf": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 1. TEMA - BİR DİYECEĞİM VAR!.PDF",
+        "source_sha256": "66d997920f0589cd19f735f1fce820916eafcf26412ab19091811f7248a55482",
+        "page_count": 11,
+        "extraction_method": "pdftotext -layout (Poppler)",
+        "extraction_quality": "TEXT_LAYER_WITH_GLYPH_REPLACEMENTS",
+        "verbatim_evidence_scope": "FULL_PDF_PAGE_TEXT_PRESERVED"
+      }
+    },
+    {
+      "theme_id": "TEMA_02",
+      "theme_no": 2,
+      "exact_theme_name": "2. TEMA: KÜLTÜR YOLCULUĞU",
+      "source_id": "official_tymm_theme_02",
+      "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276",
+      "theme_introduction_summary": "Türk kültürünün farklı dönem ve coğrafyalardaki edebiyat ürünleri, dilin millî kültürü kurma ve taşıma işlevi ve millî kimliği yansıtan unsurlar ele alınır. Okuma: Türk dünyası hikâyesi ve Orhun Abideleri; ara metinler anı ve Dîvânu Lugâti’t-Türk. Dinleme/izleme: âşık atışmaları. Konuşma: Türk kültürünü görsellerle tanıtma. Yazma: çevrim içi müze gezisi izlenimleri.",
+      "allocated_lesson_hours": {
+        "instructional_total": 43,
+        "verbatim": "43",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#Ders-Saati",
+        "school_based_planning": "SOURCE_NOT_EXPLICIT_ON_THEME_PAGE",
+        "planning_layer": {
+          "school_based_planning_hours": 2,
+          "theme_total_hours": 45,
+          "authority": "USER_CONFIRMED_PLANNING_RULE",
+          "semantics": "Official TYMM instructional hours remain unchanged; school-based planning is a separate planning layer."
+        }
+      },
+      "alan_becerileri": {
+        "verbatim": "Metin Tahlili (Anlama): Okuma, Dinleme/İzleme; Edebiyat Atölyesi (Anlatma): Yazma, Konuşma",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#Alan-Becerileri"
+      },
+      "kavramsal_beceriler": {
+        "status": "SOURCE_NOT_EXPLICIT_AS_SEPARATE_THEME_FIELD",
+        "note": "KB-coded items published under Beceriler Arası İlişkiler are preserved there; no separate canonical field is inferred."
+      },
+      "egilimler": {
+        "codes": [
+          "E1.1",
+          "E1.2",
+          "E1.4",
+          "E1.5",
+          "E1.6",
+          "E2.2",
+          "E2.3",
+          "E3.2",
+          "E3.3",
+          "E3.6",
+          "E3.7"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#Eğilimler"
+      },
+      "programlar_arasi_bilesenler": {
+        "sosyal_duygusal_ogrenme_becerileri": {
+          "codes": [
+            "SDB1.2",
+            "SDB1.3",
+            "SDB2.1",
+            "SDB2.2",
+            "SDB2.3",
+            "SDB3.3"
+          ],
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#Sosyal-Duygusal-Öğrenme-Becerileri"
+        },
+        "degerler": {
+          "codes": [
+            "D1",
+            "D7",
+            "D11",
+            "D14",
+            "D19"
+          ],
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#Değerler"
+        },
+        "okuryazarlik_becerileri": {
+          "codes": [
+            "OB1",
+            "OB2",
+            "OB4",
+            "OB5",
+            "OB9"
+          ],
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#Okuryazarlık-Becerileri"
+        }
+      },
+      "disiplinler_arasi_iliskiler": {
+        "items": [
+          "Tarih",
+          "Coğrafya",
+          "Sosyoloji"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#Disiplinler-Arası-İlişkiler"
+      },
+      "beceriler_arasi_iliskiler": {
+        "codes": [
+          "KB2.12",
+          "KB3.1",
+          "BTYAB1",
+          "SAB1",
+          "SAB3",
+          "SAB4"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#Beceriler-Arası-İlişkiler"
+      },
+      "process_component_policy": {
+        "status": "SOURCE_COMPLETE_NO_EXPLICIT_SUBCOMPONENT_IDS",
+        "canonical_policy": "DO_NOT_SYNTHESIZE_OR_COPY_FROM_OTHER_GRADES",
+        "official_process_realization": "Published learning-teaching application paragraphs under each parent outcome.",
+        "canonical_evidence_file": "curriculum_normative_text.json",
+        "evidence_status": "VERIFIED_LOCAL_PDF_TEXT_EXTRACTION"
+      },
+      "learning_outcomes": [
+        {
+          "outcome_code": "TDE1.1",
+          "outcome_verbatim": "“Kültür Yolculuğu” temasında ele alınan metinlerde dinlemeyi/izlemeyi yönetebilme",
+          "skill_category": "Dinleme/İzleme",
+          "theme_scope": "TEMA_02",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_02::TDE1.1",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#TDE1.1",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=2",
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "outcome_code": "TDE1.2",
+          "outcome_verbatim": "“Kültür Yolculuğu” temasında ele alınan metinlerde anlam oluşturabilme",
+          "skill_category": "Dinleme/İzleme",
+          "theme_scope": "TEMA_02",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_02::TDE1.2",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#TDE1.2",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=2",
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "outcome_code": "TDE1.3",
+          "outcome_verbatim": "“Kültür Yolculuğu” temasında ele alınan metinleri çözümleyebilme",
+          "skill_category": "Dinleme/İzleme",
+          "theme_scope": "TEMA_02",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_02::TDE1.3",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#TDE1.3",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=2",
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "outcome_code": "TDE1.4",
+          "outcome_verbatim": "“Kültür Yolculuğu” temasında ele alınan metinlere yönelik dinleme/izleme sürecini değerlendirebilme",
+          "skill_category": "Dinleme/İzleme",
+          "theme_scope": "TEMA_02",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_02::TDE1.4",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#TDE1.4",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=2",
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "outcome_code": "TDE2.1",
+          "outcome_verbatim": "“Kültür Yolculuğu” temasında ele alınan metinlerde okumayı yönetebilme",
+          "skill_category": "Okuma",
+          "theme_scope": "TEMA_02",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_02::TDE2.1",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#TDE2.1",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=2",
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "outcome_code": "TDE2.2",
+          "outcome_verbatim": "“Kültür Yolculuğu” temasında ele alınan metinlerde anlam oluşturabilme",
+          "skill_category": "Okuma",
+          "theme_scope": "TEMA_02",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_02::TDE2.2",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#TDE2.2",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=2",
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "outcome_code": "TDE2.3",
+          "outcome_verbatim": "“Kültür Yolculuğu” temasında ele alınan metinleri çözümleyebilme",
+          "skill_category": "Okuma",
+          "theme_scope": "TEMA_02",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_02::TDE2.3",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#TDE2.3",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=2",
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "outcome_code": "TDE2.4",
+          "outcome_verbatim": "“Kültür Yolculuğu” temasında ele alınan metinlerde okuma sürecini değerlendirebilme",
+          "skill_category": "Okuma",
+          "theme_scope": "TEMA_02",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_02::TDE2.4",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#TDE2.4",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=2",
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "outcome_code": "TDE3.1",
+          "outcome_verbatim": "Türk dünyasının ortak kültürünü (dil, din, coğrafya, sanat) yansıtan konuşmasını yönetebilme",
+          "skill_category": "Konuşma",
+          "theme_scope": "TEMA_02",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_02::TDE3.1",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#TDE3.1",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=3",
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "outcome_code": "TDE3.2",
+          "outcome_verbatim": "Kültürel çeşitliliği konu edeceği konuşması için içerik oluşturabilme",
+          "skill_category": "Konuşma",
+          "theme_scope": "TEMA_02",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_02::TDE3.2",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#TDE3.2",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=3",
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "outcome_code": "TDE3.3",
+          "outcome_verbatim": "Kültürel çeşitliliği konu edeceği konuşması için kural uygulayabilme",
+          "skill_category": "Konuşma",
+          "theme_scope": "TEMA_02",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_02::TDE3.3",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#TDE3.3",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=3",
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "outcome_code": "TDE3.4",
+          "outcome_verbatim": "Türk dünyasının ortak kültürüne (dil, din, coğrafya, sanat) yönelik konuşmasıyla ilgili süreci değerlendirebilme",
+          "skill_category": "Konuşma",
+          "theme_scope": "TEMA_02",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_02::TDE3.4",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#TDE3.4",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=3",
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "outcome_code": "TDE4.1",
+          "outcome_verbatim": "Kültürel miraslara yönelik gözlemlerini ve incelemelerini yansıtacağı yazısını yönetebilme",
+          "skill_category": "Yazma",
+          "theme_scope": "TEMA_02",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_02::TDE4.1",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#TDE4.1",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=3",
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "outcome_code": "TDE4.2",
+          "outcome_verbatim": "Kültürel unsurlara ilişkin gözlemlerini benzerlik ve farklılıklarıyla ortaya koyacağı yazısı için içerik oluşturabilme",
+          "skill_category": "Yazma",
+          "theme_scope": "TEMA_02",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_02::TDE4.2",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#TDE4.2",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=3",
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "outcome_code": "TDE4.3",
+          "outcome_verbatim": "Kültürel unsurlara ilişkin gözlemlerini benzerlik ve farklılıklarıyla ortaya koyacağı yazısı için kural uygulayabilme",
+          "skill_category": "Yazma",
+          "theme_scope": "TEMA_02",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_02::TDE4.3",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#TDE4.3",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=3",
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "outcome_code": "TDE4.4",
+          "outcome_verbatim": "Kültürel miraslara yönelik gözlemlerini ve incelemelerini anlattığı yazısıyla ilgili yazma sürecini değerlendirebilme",
+          "skill_category": "Yazma",
+          "theme_scope": "TEMA_02",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_02::TDE4.4",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#TDE4.4",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=3",
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        }
+      ],
+      "content_frame": {
+        "summary_transcription": "Okuma: Türk dünyası hikâyesi, Orhun Abideleri; ara metin olarak anı ve Dîvânu Lugâti’t-Türk. Konuşma: Türk dünyasının ortak kültürünü uygun görsellerden hareketle tanıtma. Dinleme/izleme: âşık tarzı halk şiiri geleneği ve atışmalar. Yazma: çevrim içi müze gezisi izlenimlerini karşılaştırma ve sınıflandırmalarla yazma.",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#İçerik-Çerçevesi"
+      },
+      "anahtar_kavramlar": {
+        "items": [
+          "anlatıcı",
+          "anlatma",
+          "diyalog",
+          "edebî metin",
+          "geriye dönüş",
+          "kişi",
+          "mekân",
+          "metin",
+          "olay örgüsü",
+          "öğretici metin",
+          "özetleme",
+          "söz varlığı",
+          "zaman"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#Anahtar-Kavramlar"
+      },
+      "learning_evidence": {
+        "methods": [
+          "Açık uçlu sorular",
+          "Kısa cevaplı sorular",
+          "Kavram haritası",
+          "Hikâye haritası",
+          "T diyagramı",
+          "Çalışma kâğıdı",
+          "Çıkış kartları",
+          "Yansıtıcı yazı"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#Öğrenme-Kanıtları"
+      },
+      "assessment_requirements": [
+        {
+          "assessment_id": "T2_ASSESS_01",
+          "type": "performance_task",
+          "requirement": "Türk dünyasına ait görsellerden hareketle Türk kültürünün özelliklerini yansıtan konuşma",
+          "evaluation_provision": "Dereceli puanlama anahtarı; konuya hâkim olma, söz varlığını etkili kullanma, beden dili ve ses, zaman-mekân yönetimi, ilgi çekme; öz ve akran değerlendirme kullanılabilir.",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#Öğrenme-Kanıtları",
+          "local_evidence_pages": [
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=4",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=5",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=8",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=11"
+          ],
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "assessment_id": "T2_ASSESS_02",
+          "type": "performance_task",
+          "requirement": "Çevrim içi müze gezisi yapıp izlenimleri yazma",
+          "evaluation_provision": "Dereceli puanlama anahtarı; dil ve üslup, özgünlük, öznel/nesnel ifadeler, görsel kullanımı, yazım ve noktalama; öz ve akran değerlendirme kullanılabilir.",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#Öğrenme-Kanıtları",
+          "local_evidence_pages": [
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=4",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=5",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=8",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=11"
+          ],
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        },
+        {
+          "assessment_id": "T2_ASSESS_03",
+          "type": "theme_end",
+          "requirement": "Tema sonu değerlendirme",
+          "evaluation_provision": "Öğrenme günlüğü.",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#Tema-Sonu-Değerlendirme",
+          "local_evidence_pages": [
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=4",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=5",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=8",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF#page=11"
+          ],
+          "local_source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58"
+        }
+      ],
+      "normative_teaching_provisions": {
+        "basic_assumptions": "Hikâye türünün genel özellikleri ve yapı unsurları; hikâye tahlili aşamaları; fiilde kip ve çatı; Türk kültürünün temel özellikleri.",
+        "pre_assessment": "Giriş kartları, kavram haritası, uzun ve kısa cevaplı sorular.",
+        "bridge_building": "Önceki hikâye tahlili, Türk kültürü ve tarih-coğrafya-sosyoloji öğrenmeleriyle tema arasında köprü kurma.",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#Öğrenme-Öğretme-Yaşantıları"
+      },
+      "differentiation": {
+        "enrichment": "Hikâyenin olay örgüsünü değiştirerek yeni olaylar kurgulama; Türk dünyasının önde gelen şahsiyetlerinden birini tanıtan sunum; Orhun Abideleri sözcüklerinin güncel Türk dünyası kullanımlarını bilgi görseliyle gösterme; Kutadgu Bilig’deki ahlaki değerleri örnek beyitlerle paylaşma.",
+        "support": "Hikâyedeki bilinmeyen/ilgi çekici kelimelerden öğrenme duvarı oluşturma; Türk topluluklarının yaşadığı yerleri gösteren harita hazırlama.",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/276#Farklılaştırma"
+      },
+      "school_based_planning_provisions": {
+        "source_status": "SOURCE_NOT_EXPLICIT_ON_THEME_PAGE",
+        "planning_layer": {
+          "authority": "USER_CONFIRMED_PLANNING_RULE",
+          "hours": 2,
+          "outer_theme_total_hours": 45,
+          "curriculum_gap": false
+        }
+      },
+      "local_source_snapshot": {
+        "filename": "Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF",
+        "path": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF",
+        "sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58",
+        "git_blob_sha": "e2f2d5daac0ae7a0ac8ab9105fb9f1e64d7bcb22",
+        "page_count": 13,
+        "verification_status": "VERIFIED_LOCAL_OFFICIAL_SNAPSHOT"
+      },
+      "normative_text_evidence": {
+        "status": "VERIFIED_LOCAL_PDF_TEXT_EXTRACTION",
+        "canonical_evidence_file": "curriculum_normative_text.json",
+        "evidence_theme_id": "TEMA_02",
+        "source_pdf": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 2. TEMA - KÜLTÜR YOLCULUĞU.PDF",
+        "source_sha256": "2dd813e521d110d165fa93965189e6ed619ffb4da04b48d6616ab1b9f915cf58",
+        "page_count": 13,
+        "extraction_method": "pdftotext -layout (Poppler)",
+        "extraction_quality": "TEXT_LAYER_WITH_GLYPH_REPLACEMENTS",
+        "verbatim_evidence_scope": "FULL_PDF_PAGE_TEXT_PRESERVED"
+      }
+    },
+    {
+      "theme_id": "TEMA_03",
+      "theme_no": 3,
+      "exact_theme_name": "3. TEMA: YAŞAMIN İZİNDE",
+      "source_id": "official_tymm_theme_03",
+      "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322",
+      "theme_introduction_summary": "Edebî eser ile sanatçının yaşamı, dünya görüşü, sanat anlayışı ve deneyimleri arasındaki ilişki ele alınır. Okuma: roman ve biyografi; karşılaştırma metni tezkire. Dinleme/izleme: radyo tiyatrosu. Konuşma: romandan seçilen kişiyle hayalî mülakat. Yazma: radyo tiyatrosundan seçilen diyaloğu bağlama uygun başka bir türe dönüştürme.",
+      "allocated_lesson_hours": {
+        "instructional_total": 43,
+        "verbatim": "43",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#Ders-Saati",
+        "school_based_planning": "SOURCE_NOT_EXPLICIT_ON_THEME_PAGE",
+        "planning_layer": {
+          "school_based_planning_hours": 2,
+          "theme_total_hours": 45,
+          "authority": "USER_CONFIRMED_PLANNING_RULE",
+          "semantics": "Official TYMM instructional hours remain unchanged; school-based planning is a separate planning layer."
+        }
+      },
+      "alan_becerileri": {
+        "verbatim": "Metin Tahlili (Anlama): Okuma, Dinleme/İzleme; Edebiyat Atölyesi (Anlatma): Yazma, Konuşma",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#Alan-Becerileri"
+      },
+      "kavramsal_beceriler": {
+        "status": "SOURCE_NOT_EXPLICIT_AS_SEPARATE_THEME_FIELD",
+        "note": "KB-coded items published under Beceriler Arası İlişkiler are preserved there; no separate canonical field is inferred."
+      },
+      "egilimler": {
+        "codes": [
+          "E1.1",
+          "E1.4",
+          "E1.5",
+          "E2.1",
+          "E2.2",
+          "E2.3",
+          "E3.2",
+          "E3.3",
+          "E3.5",
+          "E3.6",
+          "E3.7"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#Eğilimler"
+      },
+      "programlar_arasi_bilesenler": {
+        "sosyal_duygusal_ogrenme_becerileri": {
+          "codes": [
+            "SDB1.2",
+            "SDB1.3",
+            "SDB2.1",
+            "SDB2.2",
+            "SDB2.3",
+            "SDB3.3"
+          ],
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#Sosyal-Duygusal-Öğrenme-Becerileri"
+        },
+        "degerler": {
+          "codes": [
+            "D4",
+            "D5",
+            "D7",
+            "D14",
+            "D19"
+          ],
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#Değerler"
+        },
+        "okuryazarlik_becerileri": {
+          "codes": [
+            "OB2",
+            "OB4",
+            "OB5"
+          ],
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#Okuryazarlık-Becerileri"
+        }
+      },
+      "disiplinler_arasi_iliskiler": {
+        "items": [
+          "Tarih",
+          "Psikoloji",
+          "Sosyoloji"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#Disiplinler-Arası-İlişkiler"
+      },
+      "beceriler_arasi_iliskiler": {
+        "codes": [
+          "KB2.7",
+          "KB2.10",
+          "KB3.3",
+          "SBAB16",
+          "BTYAB1",
+          "SAB1",
+          "SAB2",
+          "SAB3",
+          "SAB4"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#Beceriler-Arası-İlişkiler"
+      },
+      "process_component_policy": {
+        "status": "SOURCE_COMPLETE_NO_EXPLICIT_SUBCOMPONENT_IDS",
+        "canonical_policy": "DO_NOT_SYNTHESIZE_OR_COPY_FROM_OTHER_GRADES",
+        "official_process_realization": "Published learning-teaching application paragraphs under each parent outcome.",
+        "canonical_evidence_file": "curriculum_normative_text.json",
+        "evidence_status": "VERIFIED_LOCAL_PDF_TEXT_EXTRACTION"
+      },
+      "learning_outcomes": [
+        {
+          "outcome_code": "TDE1.1",
+          "outcome_verbatim": "“Yaşamın İzinde” temasında ele alınan metinlerde dinlemeyi/izlemeyi yönetebilme",
+          "skill_category": "Dinleme/İzleme",
+          "theme_scope": "TEMA_03",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_03::TDE1.1",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#TDE1.1",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=2",
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "outcome_code": "TDE1.2",
+          "outcome_verbatim": "“Yaşamın İzinde” temasında ele alınan metinlerde anlam oluşturabilme",
+          "skill_category": "Dinleme/İzleme",
+          "theme_scope": "TEMA_03",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_03::TDE1.2",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#TDE1.2",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=2",
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "outcome_code": "TDE1.3",
+          "outcome_verbatim": "“Yaşamın İzinde” temasında ele alınan metinleri çözümleyebilme",
+          "skill_category": "Dinleme/İzleme",
+          "theme_scope": "TEMA_03",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_03::TDE1.3",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#TDE1.3",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=2",
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "outcome_code": "TDE1.4",
+          "outcome_verbatim": "“Yaşamın İzinde” temasında ele alınan metinlere ilişkin dinleme/izleme sürecini değerlendirebilme",
+          "skill_category": "Dinleme/İzleme",
+          "theme_scope": "TEMA_03",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_03::TDE1.4",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#TDE1.4",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=2",
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "outcome_code": "TDE2.1",
+          "outcome_verbatim": "“Yaşamın İzinde” temasında ele alınan metinlerde okumayı yönetebilme",
+          "skill_category": "Okuma",
+          "theme_scope": "TEMA_03",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_03::TDE2.1",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#TDE2.1",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=2",
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "outcome_code": "TDE2.2",
+          "outcome_verbatim": "“Yaşamın İzinde” temasında ele alınan metinlerde anlam oluşturabilme",
+          "skill_category": "Okuma",
+          "theme_scope": "TEMA_03",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_03::TDE2.2",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#TDE2.2",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=2",
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "outcome_code": "TDE2.3",
+          "outcome_verbatim": "“Yaşamın İzinde” temasında ele alınan metinleri çözümleyebilme",
+          "skill_category": "Okuma",
+          "theme_scope": "TEMA_03",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_03::TDE2.3",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#TDE2.3",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=2",
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "outcome_code": "TDE2.4",
+          "outcome_verbatim": "“Yaşamın İzinde” temasında ele alınan metinlerden hareketle günlük yaşamın ve sanatçının hayatının edebiyata yansımasına yönelik süreci değerlendirebilme",
+          "skill_category": "Okuma",
+          "theme_scope": "TEMA_03",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_03::TDE2.4",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#TDE2.4",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=2",
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "outcome_code": "TDE3.1",
+          "outcome_verbatim": "Edebiyat ve sanatın yaşamdaki yansımalarını etkileşimli bir biçimde ele aldığı konuşmasını yönetebilme",
+          "skill_category": "Konuşma",
+          "theme_scope": "TEMA_03",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_03::TDE3.1",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#TDE3.1",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=3",
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "outcome_code": "TDE3.2",
+          "outcome_verbatim": "Sanatçının ve eserden seçtiği karakterin yaşamındaki izlenimlerini yaratıcılığı ile bütünleştirdiği bir konuşma içeriği oluşturabilme",
+          "skill_category": "Konuşma",
+          "theme_scope": "TEMA_03",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_03::TDE3.2",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#TDE3.2",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=3",
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "outcome_code": "TDE3.3",
+          "outcome_verbatim": "Sanatçının ve eserden seçtiği karakterin yaşamındaki izlenimlerini yaratıcılığı ile bütünleştirdiği konuşmasında kural uygulayabilme",
+          "skill_category": "Konuşma",
+          "theme_scope": "TEMA_03",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_03::TDE3.3",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#TDE3.3",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=3",
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "outcome_code": "TDE3.4",
+          "outcome_verbatim": "Yaşamdan izler taşıyan karakterlerle kurduğu etkileşimi yansıtan konuşmasına yönelik süreci değerlendirebilme",
+          "skill_category": "Konuşma",
+          "theme_scope": "TEMA_03",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_03::TDE3.4",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#TDE3.4",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=3",
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "outcome_code": "TDE4.1",
+          "outcome_verbatim": "Edebiyat ve sanatın yaşamdaki yansımalarını kendi kurgusuyla oluşturacağı yazısını yönetebilme",
+          "skill_category": "Yazma",
+          "theme_scope": "TEMA_03",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_03::TDE4.1",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#TDE4.1",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=3",
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "outcome_code": "TDE4.2",
+          "outcome_verbatim": "Kendi yaşamını, ilgi alanını veya beğenilerini bağlama uygun bir şekilde kurguladığı yazısı için içerik oluşturabilme",
+          "skill_category": "Yazma",
+          "theme_scope": "TEMA_03",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_03::TDE4.2",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#TDE4.2",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=3",
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "outcome_code": "TDE4.3",
+          "outcome_verbatim": "Kendi yaşamını, ilgi alanı veya beğenilerini bağlama uygun bir şekilde kurguladığı yazısı için kural uygulayabilme",
+          "skill_category": "Yazma",
+          "theme_scope": "TEMA_03",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_03::TDE4.3",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#TDE4.3",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=3",
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "outcome_code": "TDE4.4",
+          "outcome_verbatim": "Edebiyat ve sanatın yaşamdaki izlerine yönelik görüşlerini anlattığı yazısında yazma sürecini değerlendirebilme",
+          "skill_category": "Yazma",
+          "theme_scope": "TEMA_03",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_03::TDE4.4",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#TDE4.4",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=3",
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        }
+      ],
+      "content_frame": {
+        "summary_transcription": "Okuma: roman ve biyografi; biyografide ara/karşılaştırma metni tezkire. Konuşma: seçilen roman kişisiyle kurmaca mülakat. Dinleme/izleme: radyo tiyatrosu. Yazma: radyo tiyatrosundan bir diyaloğu bağlamı koruyarak başka bir türe dönüştürme.",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#İçerik-Çerçevesi"
+      },
+      "anahtar_kavramlar": {
+        "items": [
+          "divan edebiyatı geleneği",
+          "gerçek",
+          "kişi tanıtımı",
+          "kurmaca",
+          "nesnellik",
+          "öznellik",
+          "radyo tiyatrosu",
+          "roman",
+          "tezkire",
+          "üslup",
+          "yaşam öyküsü"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#Anahtar-Kavramlar"
+      },
+      "learning_evidence": {
+        "methods": [
+          "Kısa cevaplı sorular",
+          "Gözlem formu",
+          "Çıkış kartı",
+          "Öğrenme günlüğü",
+          "Çalışma kâğıdı",
+          "Zihin haritası",
+          "Kavram haritası",
+          "Balık kılçığı"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#Öğrenme-Kanıtları"
+      },
+      "assessment_requirements": [
+        {
+          "assessment_id": "T3_ASSESS_01",
+          "type": "performance_task",
+          "requirement": "Romandaki bir kişiyle hayalî mülakat",
+          "evaluation_provision": "Dereceli puanlama anahtarı; içeriğe uygunluk, özgünlük, açıklık, akıcılık, dilin etkili kullanımı; öz, öğretmen ve akran değerlendirmesi.",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#Öğrenme-Kanıtları",
+          "local_evidence_pages": [
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=5",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=6",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=8",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=12"
+          ],
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "assessment_id": "T3_ASSESS_02",
+          "type": "performance_task",
+          "requirement": "Dinlenen/izlenen metinden seçilen diyaloğu başka türe dönüştürme",
+          "evaluation_provision": "Dereceli puanlama anahtarı; dil ve üslup, özgünlük, konuya uygunluk, öznel/nesnel ifadeler, başlık, yazım ve noktalama.",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#Öğrenme-Kanıtları",
+          "local_evidence_pages": [
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=5",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=6",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=8",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=12"
+          ],
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        },
+        {
+          "assessment_id": "T3_ASSESS_03",
+          "type": "theme_end",
+          "requirement": "Tema sonu değerlendirme",
+          "evaluation_provision": "Yapılandırılmış çıkış kartları.",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#Tema-Sonu-Değerlendirme",
+          "local_evidence_pages": [
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=5",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=6",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=8",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF#page=12"
+          ],
+          "local_source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e"
+        }
+      ],
+      "normative_teaching_provisions": {
+        "basic_assumptions": "Roman türünün genel özellikleri ve yapı unsurları; roman tahlili; cümlenin ögeleri; öğretici metinlerin genel özellikleri ve çözümleme süreçleri; tiyatro hakkında genel bilgi.",
+        "pre_assessment": "Giriş kartları, kavram haritası, uzun ve kısa cevaplı sorular.",
+        "bridge_building": "Edebî/öğretici metin tahlili, göstermeye bağlı metinler, tarih-sosyoloji-psikoloji ve gerçeklik-kurmaca ilişkisi üzerinden önceki öğrenmelerle köprü kurma.",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#Öğrenme-Öğretme-Yaşantıları"
+      },
+      "differentiation": {
+        "enrichment": "Roman kişisini yeniden kurgulayıp dijital hikâyeye dönüştürme; romandaki mekânı diyaloglarla tanıtma; radyo tiyatrosundan sahne canlandırma; divan edebiyatı nazım şekilleri için kavram haritası; yazar-eser ilişkisi üzerine münazara.",
+        "support": "Roman kişisini tanıtmaya yardımcı sorular hazırlama; kişilerin ilk karşılaşmalarını konu alan diyaloglar yazma.",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/322#Farklılaştırma"
+      },
+      "school_based_planning_provisions": {
+        "source_status": "SOURCE_NOT_EXPLICIT_ON_THEME_PAGE",
+        "planning_layer": {
+          "authority": "USER_CONFIRMED_PLANNING_RULE",
+          "hours": 2,
+          "outer_theme_total_hours": 45,
+          "curriculum_gap": false
+        }
+      },
+      "local_source_snapshot": {
+        "filename": "Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF",
+        "path": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF",
+        "sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e",
+        "git_blob_sha": "e95f95ef011150b488b8b87fcb79d4de259820be",
+        "page_count": 14,
+        "verification_status": "VERIFIED_LOCAL_OFFICIAL_SNAPSHOT"
+      },
+      "normative_text_evidence": {
+        "status": "VERIFIED_LOCAL_PDF_TEXT_EXTRACTION",
+        "canonical_evidence_file": "curriculum_normative_text.json",
+        "evidence_theme_id": "TEMA_03",
+        "source_pdf": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 3. TEMA - YAŞAMIN İZİNDE.PDF",
+        "source_sha256": "d9d414bd2dc9fdc7852ee7c66a421a8a146c0560d56b4025690ce988458de04e",
+        "page_count": 14,
+        "extraction_method": "pdftotext -layout (Poppler)",
+        "extraction_quality": "TEXT_LAYER_WITH_GLYPH_REPLACEMENTS",
+        "verbatim_evidence_scope": "FULL_PDF_PAGE_TEXT_PRESERVED"
+      }
+    },
+    {
+      "theme_id": "TEMA_04",
+      "theme_no": 4,
+      "exact_theme_name": "4. TEMA: HAYATIN AYNASI",
+      "source_id": "official_tymm_theme_04",
+      "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332",
+      "theme_introduction_summary": "Edebî eserlerle günlük hayattaki olay ve durumlar arasında bağ kurulması ve hayat deneyimlerinin sözlü/yazılı ifade edilmesi hedeflenir. Okuma: tiyatro ve küçürek hikâye. Dinleme/izleme: öğretici özellikli belgesel. Konuşma: tiyatro metnini canlandırma. Yazma: belgesel için afiş hazırlama.",
+      "allocated_lesson_hours": {
+        "instructional_total": 43,
+        "verbatim": "43",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#Ders-Saati",
+        "school_based_planning": "SOURCE_NOT_EXPLICIT_ON_THEME_PAGE",
+        "planning_layer": {
+          "school_based_planning_hours": 2,
+          "theme_total_hours": 45,
+          "authority": "USER_CONFIRMED_PLANNING_RULE",
+          "semantics": "Official TYMM instructional hours remain unchanged; school-based planning is a separate planning layer."
+        }
+      },
+      "alan_becerileri": {
+        "verbatim": "Metin Tahlili (Anlama): Okuma, Dinleme/İzleme; Edebiyat Atölyesi (Anlatma): Yazma, Konuşma",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#Alan-Becerileri"
+      },
+      "kavramsal_beceriler": {
+        "status": "SOURCE_NOT_EXPLICIT_AS_SEPARATE_THEME_FIELD",
+        "note": "KB-coded items published under Beceriler Arası İlişkiler are preserved there; no separate canonical field is inferred."
+      },
+      "egilimler": {
+        "codes": [
+          "E1.2",
+          "E1.4",
+          "E1.6",
+          "E2.1",
+          "E2.2",
+          "E2.3",
+          "E3.2",
+          "E3.3",
+          "E3.6",
+          "E3.9",
+          "E3.10"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#Eğilimler"
+      },
+      "programlar_arasi_bilesenler": {
+        "sosyal_duygusal_ogrenme_becerileri": {
+          "codes": [
+            "SDB1.1",
+            "SDB1.2",
+            "SDB2.1",
+            "SDB2.2",
+            "SDB2.3",
+            "SDB3.2",
+            "SDB3.3"
+          ],
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#Sosyal-Duygusal-Öğrenme-Becerileri"
+        },
+        "degerler": {
+          "codes": [
+            "D1",
+            "D3",
+            "D6",
+            "D14",
+            "D19"
+          ],
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#Değerler"
+        },
+        "okuryazarlik_becerileri": {
+          "codes": [
+            "OB2",
+            "OB5",
+            "OB9"
+          ],
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#Okuryazarlık-Becerileri"
+        }
+      },
+      "disiplinler_arasi_iliskiler": {
+        "items": [
+          "Sosyoloji",
+          "Psikoloji",
+          "Tarih"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#Disiplinler-Arası-İlişkiler"
+      },
+      "beceriler_arasi_iliskiler": {
+        "codes": [
+          "KB2.7",
+          "KB3.3",
+          "SBAB16",
+          "BTYAB1",
+          "SAB1",
+          "SAB2",
+          "SAB3",
+          "SAB4"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#Beceriler-Arası-İlişkiler"
+      },
+      "process_component_policy": {
+        "status": "SOURCE_COMPLETE_NO_EXPLICIT_SUBCOMPONENT_IDS",
+        "canonical_policy": "DO_NOT_SYNTHESIZE_OR_COPY_FROM_OTHER_GRADES",
+        "official_process_realization": "Published learning-teaching application paragraphs under each parent outcome.",
+        "canonical_evidence_file": "curriculum_normative_text.json",
+        "evidence_status": "VERIFIED_LOCAL_PDF_TEXT_EXTRACTION"
+      },
+      "learning_outcomes": [
+        {
+          "outcome_code": "TDE1.1",
+          "outcome_verbatim": "“Hayatın Aynası” temasında ele alınan metinlerde dinlemeyi/izlemeyi yönetebilme",
+          "skill_category": "Dinleme/İzleme",
+          "theme_scope": "TEMA_04",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_04::TDE1.1",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#TDE1.1",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=2",
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "outcome_code": "TDE1.2",
+          "outcome_verbatim": "“Hayatın Aynası” temasında ele alınan metinlerde anlam oluşturabilme",
+          "skill_category": "Dinleme/İzleme",
+          "theme_scope": "TEMA_04",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_04::TDE1.2",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#TDE1.2",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=2",
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "outcome_code": "TDE1.3",
+          "outcome_verbatim": "“Hayatın Aynası” temasında ele alınan metinleri çözümleyebilme",
+          "skill_category": "Dinleme/İzleme",
+          "theme_scope": "TEMA_04",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_04::TDE1.3",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#TDE1.3",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=2",
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "outcome_code": "TDE1.4",
+          "outcome_verbatim": "“Hayatın Aynası” temasında ele alınan metinlerden hareketle günlük hayatta karşılaşabileceği olay ve durumlarla ilgili görüşlerini paylaştığı süreci değerlendirebilme",
+          "skill_category": "Dinleme/İzleme",
+          "theme_scope": "TEMA_04",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_04::TDE1.4",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#TDE1.4",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=2",
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "outcome_code": "TDE2.1",
+          "outcome_verbatim": "“Hayatın Aynası” temasında ele alınan metinlerde okumayı yönetebilme",
+          "skill_category": "Okuma",
+          "theme_scope": "TEMA_04",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_04::TDE2.1",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#TDE2.1",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=2",
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "outcome_code": "TDE2.2",
+          "outcome_verbatim": "“Hayatın Aynası” temasında ele alınan metinlerde anlam oluşturabilme",
+          "skill_category": "Okuma",
+          "theme_scope": "TEMA_04",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_04::TDE2.2",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#TDE2.2",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=2",
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "outcome_code": "TDE2.3",
+          "outcome_verbatim": "“Hayatın Aynası” temasında ele alınan metinleri çözümleyebilme",
+          "skill_category": "Okuma",
+          "theme_scope": "TEMA_04",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_04::TDE2.3",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#TDE2.3",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=2",
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "outcome_code": "TDE2.4",
+          "outcome_verbatim": "“Hayatın Aynası” temasında ele alınan metinlerde okuma sürecini değerlendirebilme",
+          "skill_category": "Okuma",
+          "theme_scope": "TEMA_04",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_04::TDE2.4",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#TDE2.4",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=2",
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "outcome_code": "TDE3.1",
+          "outcome_verbatim": "Sosyal hayata dair gözlemleri yansıtan metinlerden hareketle sergileyeceği konuşmayı yönetebilme",
+          "skill_category": "Konuşma",
+          "theme_scope": "TEMA_04",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_04::TDE3.1",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#TDE3.1",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=2",
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "outcome_code": "TDE3.2",
+          "outcome_verbatim": "Günlük hayatta karşılaşılabilecek olay ya da durumu etkileyici ve inandırıcı biçimde canlandırmak için konuşmasının içeriğini oluşturabilme",
+          "skill_category": "Konuşma",
+          "theme_scope": "TEMA_04",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_04::TDE3.2",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#TDE3.2",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=2",
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "outcome_code": "TDE3.3",
+          "outcome_verbatim": "Günlük hayatta karşılaşılabilecek olay ya da durumu etkileyici ve inandırıcı biçimde canlandırmak için konuşmasında kural uygulayabilme",
+          "skill_category": "Konuşma",
+          "theme_scope": "TEMA_04",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_04::TDE3.3",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#TDE3.3",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=2",
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "outcome_code": "TDE3.4",
+          "outcome_verbatim": "Hayata ayna tutan içeriği sahnelediği konuşması için konuşma sürecini değerlendirebilme",
+          "skill_category": "Konuşma",
+          "theme_scope": "TEMA_04",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_04::TDE3.4",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#TDE3.4",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=3",
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "outcome_code": "TDE4.1",
+          "outcome_verbatim": "Günlük hayatta karşılaşılabilecek olay ve durumları etkili bir şekilde aktaracağı yazısını yönetebilme",
+          "skill_category": "Yazma",
+          "theme_scope": "TEMA_04",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_04::TDE4.1",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#TDE4.1",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=3",
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "outcome_code": "TDE4.2",
+          "outcome_verbatim": "Farklı bakış açılarını, günlük deneyimleri ve sosyal yaşamı yansıttığı yazısı için içerik oluşturabilme",
+          "skill_category": "Yazma",
+          "theme_scope": "TEMA_04",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_04::TDE4.2",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#TDE4.2",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=3",
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "outcome_code": "TDE4.3",
+          "outcome_verbatim": "Farklı bakış açılarını, günlük deneyimleri ve sosyal yaşamı yansıttığı yazısı için kural uygulayabilme",
+          "skill_category": "Yazma",
+          "theme_scope": "TEMA_04",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_04::TDE4.3",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#TDE4.3",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=3",
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "outcome_code": "TDE4.4",
+          "outcome_verbatim": "Günlük hayatta karşılaşılabilecek olay ve durumları etkili bir şekilde aktardığı yazılı anlatımına yönelik yazma sürecini değerlendirebilme",
+          "skill_category": "Yazma",
+          "theme_scope": "TEMA_04",
+          "stable_entity_key": "TDE_11::curriculum_outcome::TEMA_04::TDE4.4",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#TDE4.4",
+          "verification_status": "VERIFIED_OFFICIAL_WEB_AND_LOCAL_PDF",
+          "local_source_locator": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=3",
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        }
+      ],
+      "content_frame": {
+        "summary_transcription": "Okuma: günlük yaşamla ilişkilendirilebilir bir tiyatro metni ve küçürek hikâye. Konuşma: tahlil edilen tiyatro eserinden bölüm canlandırma. Dinleme/izleme: temaya uygun öğretici nitelikli belgesel. Yazma: dinlenen/izlenen belgesel için özgün afiş.",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#İçerik-Çerçevesi"
+      },
+      "anahtar_kavramlar": {
+        "items": [
+          "dekor",
+          "diyalog",
+          "dramatik örgü",
+          "gösterme tekniği",
+          "kostüm",
+          "küçürek hikâye",
+          "modern Türk tiyatrosu",
+          "monolog",
+          "oyun",
+          "perde",
+          "sahne"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#Anahtar-Kavramlar"
+      },
+      "learning_evidence": {
+        "methods": [
+          "Okuma çemberi",
+          "Kısa cevaplı sorular",
+          "Kavram haritası",
+          "Karşılaştırma tablosu",
+          "T diyagramı",
+          "Kontrol listesi",
+          "Açık uçlu sorular",
+          "Çalışma kâğıdı",
+          "Balık kılçığı",
+          "Öğrenme günlüğü"
+        ],
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#Öğrenme-Kanıtları"
+      },
+      "assessment_requirements": [
+        {
+          "assessment_id": "T4_ASSESS_01",
+          "type": "performance_task",
+          "requirement": "Okunan ve çözümlenen tiyatro metnini canlandırma",
+          "evaluation_provision": "Dereceli puanlama anahtarı; içeriğe uygunluk, özgünlük, canlandırma becerisi, sözü ve beden dilini etkili kullanma, grupla uyum.",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#Öğrenme-Kanıtları",
+          "local_evidence_pages": [
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=4",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=5",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=8",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=10"
+          ],
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "assessment_id": "T4_ASSESS_02",
+          "type": "performance_task",
+          "requirement": "Dinleme/izleme metni için afiş hazırlama",
+          "evaluation_provision": "Dereceli puanlama anahtarı; konuya uygunluk, yaratıcılık, özgünlük, etkileyicilik, görsel ve işitsel ögelerin seçimi; öz, akran ve öğretmen değerlendirmesi.",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#Öğrenme-Kanıtları",
+          "local_evidence_pages": [
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=4",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=5",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=8",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=10"
+          ],
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        },
+        {
+          "assessment_id": "T4_ASSESS_03",
+          "type": "theme_end",
+          "requirement": "Tema sonu değerlendirme",
+          "evaluation_provision": "Öğrenme günlüğü.",
+          "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#Tema-Sonu-Değerlendirme",
+          "local_evidence_pages": [
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=4",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=5",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=8",
+            "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF#page=10"
+          ],
+          "local_source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5"
+        }
+      ],
+      "normative_teaching_provisions": {
+        "basic_assumptions": "Tiyatro temel bilgileri ve terimleri; hikâye ve çok modlu metin tahlili; yazılı/sözlü anlatım aşamaları; cümle türleri.",
+        "pre_assessment": "Giriş kartları, soru-cevap ve tartışma.",
+        "bridge_building": "Hikâye ve tiyatro tahlili, tarih-sosyoloji-psikoloji, dilin etkili kullanımı ve önceki sahneleme deneyimleriyle köprü kurma.",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#Öğrenme-Öğretme-Yaşantıları"
+      },
+      "differentiation": {
+        "enrichment": "Tiyatro konusunu farklı yönleriyle ele alan drama; tiyatro karakterlerini tanıtan bilgi görselleri; küçürek hikâyeyle ilgili resim; Türk edebiyatında modern tiyatronun gelişimi üzerine araştırma ve güvenli dijital paylaşım.",
+        "support": "Tiyatro kişisine yönelik takdim konuşması; oyun kişilerinin sözlerinden pano; küçürek hikâyeden hareketle farklı türde metin yazma.",
+        "source_locator": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/332#Farklılaştırma"
+      },
+      "school_based_planning_provisions": {
+        "source_status": "SOURCE_NOT_EXPLICIT_ON_THEME_PAGE",
+        "planning_layer": {
+          "authority": "USER_CONFIRMED_PLANNING_RULE",
+          "hours": 2,
+          "outer_theme_total_hours": 45,
+          "curriculum_gap": false
+        }
+      },
+      "local_source_snapshot": {
+        "filename": "Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF",
+        "path": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF",
+        "sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5",
+        "git_blob_sha": "e9f8beaa033bed3295f4ecab62fe316dc0ec42a5",
+        "page_count": 12,
+        "verification_status": "VERIFIED_LOCAL_OFFICIAL_SNAPSHOT"
+      },
+      "normative_text_evidence": {
+        "status": "VERIFIED_LOCAL_PDF_TEXT_EXTRACTION",
+        "canonical_evidence_file": "curriculum_normative_text.json",
+        "evidence_theme_id": "TEMA_04",
+        "source_pdf": "source_docs/Türk Dili Ve Edebiyatı Dersi 11.Sınıf 4. TEMA - HAYATIN AYNASI.PDF",
+        "source_sha256": "14a5e5e17919c801127e9c157ef7bc1c947a0d3bcad0d8654cfc3a514aa147f5",
+        "page_count": 12,
+        "extraction_method": "pdftotext -layout (Poppler)",
+        "extraction_quality": "TEXT_LAYER_WITH_GLYPH_REPLACEMENTS",
+        "verbatim_evidence_scope": "FULL_PDF_PAGE_TEXT_PRESERVED"
+      }
+    }
+  ]
+}

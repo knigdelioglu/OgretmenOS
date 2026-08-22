@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "subject_id": "turk-dili-ve-edebiyati",
+  "subject_label": "Türk Dili ve Edebiyatı",
+  "courses": [
+    {"course_id": "TDE_9", "grade": 9, "path": "TDE_9/package_manifest.json"},
+    {"course_id": "TDE_10", "grade": 10, "path": "TDE_10/package_manifest.json"},
+    {"course_id": "TDE_11", "grade": 11, "path": "TDE_11/package_manifest.json"},
+    {"course_id": "TDE_12", "grade": 12, "path": "TDE_12/package_manifest.json"}
+  ]
+}
