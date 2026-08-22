@@ -1,7 +1,7 @@
 name: Temporary Android Release Publisher
 
 on:
-  push:
+  pull_request:
     branches: [main]
 
 permissions:
@@ -9,15 +9,15 @@ permissions:
 
 jobs:
   publish:
-    if: github.event.head_commit.message == 'chore: publish current Android release'
+    if: github.head_ref == 'chore/publish-release-verified'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
-      - name: Checkout
+      - name: Checkout release source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          fetch-depth: 0
+          ref: 74e6f072f8a99e57d96925f9ae8271501b2658f3
 
       - name: Set up Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
@@ -89,15 +89,4 @@ jobs:
               --latest
           fi
 
-          gh release view "$TAG" --json tagName,url,assets --jq '{tag:.tagName,url:.url,assets:[.assets[].name]}'
-
-      - name: Record successful publication
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          printf 'v1.0.0\nOgretmenOS-v1.0.0-android.apk\n74e6f072f8a99e57d96925f9ae8271501b2658f3\n' > .release-published
-          git add .release-published
-          git commit -m 'chore: record Android release publication [skip ci]'
-          git push origin HEAD:main
+          gh release view "$TAG" --json tagName,url,assets --jq '{tag:.tagName,url:.url,assets:[.assets[].name],sizes:[.assets[].size]}'
