@@ -1,0 +1,63 @@
+name: Temporary Multicourse TDE10 Applicator
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'feat/multicourse-tde10-runtime'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: feat/multicourse-tde10-runtime
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Apply multicourse patch and import pinned TDE10 runtime
+        run: python .github/scripts/apply_multicourse_tde10_patch.py
+
+      - name: Install dependencies
+        run: |
+          flutter pub get
+          (cd tool/runtime_verifier && dart pub get)
+
+      - name: Format and analyze
+        run: |
+          dart format lib test tool/sync_course_runtime.dart tool/runtime_verifier/bin/verify_runtime.dart
+          flutter analyze
+          (cd tool/runtime_verifier && dart analyze)
+
+      - name: Verify both course runtimes
+        run: |
+          (cd tool/runtime_verifier && dart run bin/verify_runtime.dart --course TDE_9)
+          (cd tool/runtime_verifier && dart run bin/verify_runtime.dart --course TDE_10)
+
+      - name: Run Flutter tests
+        run: flutter test --reporter expanded
+
+      - name: Remove temporary applicator and publish feature changes
+        run: |
+          rm -f .github/scripts/apply_multicourse_tde10_patch.py
+          rm -f .github/workflows/tmp-apply-multicourse-tde10.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No changes to publish.'
+          else
+            git commit -m 'feat: add multicourse TDE10 runtime support'
+            git push origin HEAD:feat/multicourse-tde10-runtime
+          fi
