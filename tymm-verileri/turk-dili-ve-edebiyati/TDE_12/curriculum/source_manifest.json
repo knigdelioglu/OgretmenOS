@@ -1,0 +1,196 @@
+{
+  "schema_version": "1.2",
+  "course_id": "TDE_12",
+  "grade": 12,
+  "course_title": "Türk Dili ve Edebiyatı",
+  "last_validated": "2026-08-21",
+  "overall_status": "CURRICULUM_ONLY_AWAITING_TEXTBOOK",
+  "source_mode": "OFFICIAL_REMOTE_TYMM_THEME_BUNDLE_WITH_MAPPED_LOCAL_PDF_SNAPSHOTS",
+  "scope": {
+    "analysis_target": "12. Sınıf Türk Dili ve Edebiyatı Öğretim Programı",
+    "included_grades": [
+      12
+    ],
+    "total_themes_expected": 4,
+    "curriculum_source_complete": true,
+    "curriculum_mapped": true,
+    "textbook_source_registered": false,
+    "alignment_performed": false,
+    "gap_analysis_performed": false,
+    "materials_generated": false,
+    "coverage_status": "NOT_EVALUATED",
+    "gap_status": "NOT_EVALUATED",
+    "production_status": "NOT_EVALUATED"
+  },
+  "annual_time_model": {
+    "theme_count": 4,
+    "theme_total_hours": 45,
+    "instructional_hours_per_theme": 43,
+    "school_based_planning_hours_per_theme": 2,
+    "annual_instructional_hours": 172,
+    "annual_school_based_planning_hours": 8,
+    "annual_total_hours": 180,
+    "school_based_planning_authority": "USER_CONFIRMED_PLANNING_RULE",
+    "semantics": "Her tema 45 saatlik dış planlama bloğudur: resmî TYMM tema sayfasındaki 43 saat öğretim + temayla ilişkili 2 saat okul temelli planlama. Okul temelli planlama ayrı pedagojik katmandır ve curriculum gap sayılmaz."
+  },
+  "curriculum_source_bundle": {
+    "source_group_id": "curriculum_tde12_official_tymm_theme_bundle",
+    "source_type": "official_curriculum",
+    "authority_rank": 1,
+    "expected_part_count": 4,
+    "verified_part_count": 4,
+    "completeness_status": "COMPLETE_VERIFIED_OFFICIAL_REMOTE_AND_LOCAL_SNAPSHOTS",
+    "version_year_status": "SOURCE_NOT_EXPLICIT_ON_THEME_PAGES",
+    "verification_rule": "Resmî 12. sınıf TYMM programı dört tema yayımlar; her tema sayfası 43 resmî öğretim saati ve 16 parent outcome içerir. Yerel PDF kimliği PDF içindeki resmî TYMM unite bağlantısıyla doğrulanır. 45 saatlik dış blok 43+2 planlama modelidir.",
+    "parts": [
+      {
+        "source_id": "official_tymm_theme_01",
+        "theme_id": "TEMA_01",
+        "expected_theme_title": "BENİM YOLCULUĞUM",
+        "url": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/335",
+        "local_filename": "Türk Dili Ve Edebiyatı Dersi 12.Sınıf 1. TEMA - BENİM YOLCULUĞUM.PDF",
+        "local_path": "source_docs/Türk Dili Ve Edebiyatı Dersi 12.Sınıf 1. TEMA - BENİM YOLCULUĞUM.PDF",
+        "size_bytes": 608402,
+        "git_blob_sha": "e4ffcea6e9ca3f18c7c0991bcadcabf4e789a69e",
+        "identity_evidence": "EMBEDDED_OFFICIAL_TYMM_UNIT_LINK_335",
+        "verification_status": "VERIFIED_OFFICIAL_REMOTE_AND_LOCAL_CONTENT",
+        "sha256": "6b034cfc5e082053726c2765227ee0323e3c36399dbbc9948e0ec0125a699e9b",
+        "source_fingerprint_type": "SHA256",
+        "source_fingerprint_status": "VERIFIED_LOCAL_BINARY",
+        "page_count_pdf": 14
+      },
+      {
+        "source_id": "official_tymm_theme_02",
+        "theme_id": "TEMA_02",
+        "expected_theme_title": "TOPLUMUN AHENGİ",
+        "url": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/340",
+        "local_filename": "Türk Dili Ve Edebiyatı Dersi 12.Sınıf 2. TEMA - TOPLUMUN AHENGİ.PDF",
+        "local_path": "source_docs/Türk Dili Ve Edebiyatı Dersi 12.Sınıf 2. TEMA - TOPLUMUN AHENGİ.PDF",
+        "size_bytes": 524273,
+        "git_blob_sha": "490242eed8f2bca2da9838b5de61bb767dc1084f",
+        "identity_evidence": "EMBEDDED_OFFICIAL_TYMM_UNIT_LINK_340",
+        "verification_status": "VERIFIED_OFFICIAL_REMOTE_AND_LOCAL_CONTENT",
+        "sha256": "c9662b7ac7b2cdf7e75e75035eb4c1fefe5614c6410b8a51637be2f16043b470",
+        "source_fingerprint_type": "SHA256",
+        "source_fingerprint_status": "VERIFIED_LOCAL_BINARY",
+        "page_count_pdf": 13
+      },
+      {
+        "source_id": "official_tymm_theme_03",
+        "theme_id": "TEMA_03",
+        "expected_theme_title": "HAYATIN DENGESİ",
+        "url": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/348",
+        "local_filename": "Türk Dili Ve Edebiyatı Dersi 12.Sınıf 3. TEMA - HAYATIN DENGESİ.PDF",
+        "local_path": "source_docs/Türk Dili Ve Edebiyatı Dersi 12.Sınıf 3. TEMA - HAYATIN DENGESİ.PDF",
+        "size_bytes": 502607,
+        "git_blob_sha": "cd92f5a05ad847af9db7855f4deff619b52d114b",
+        "identity_evidence": "EMBEDDED_OFFICIAL_TYMM_UNIT_LINK_348",
+        "verification_status": "VERIFIED_OFFICIAL_REMOTE_AND_LOCAL_CONTENT",
+        "sha256": "91f9d81b65ec3c1af82050d830d83f22077ae19f7e71bd12877150bcc693672c",
+        "source_fingerprint_type": "SHA256",
+        "source_fingerprint_status": "VERIFIED_LOCAL_BINARY",
+        "page_count_pdf": 13
+      },
+      {
+        "source_id": "official_tymm_theme_04",
+        "theme_id": "TEMA_04",
+        "expected_theme_title": "HAYALİMDEKİ YARIN",
+        "url": "https://tymm.meb.gov.tr/turk-dili-ve-edebiyati-dersi/unite/351",
+        "local_filename": "Türk Dili Ve Edebiyatı Dersi 12.Sınıf 4. TEMA - HAYALİMDEKİ YARIN.PDF",
+        "local_path": "source_docs/Türk Dili Ve Edebiyatı Dersi 12.Sınıf 4. TEMA - HAYALİMDEKİ YARIN.PDF",
+        "size_bytes": 487304,
+        "git_blob_sha": "74e949ac14126c48c689a4b6850d8ac8ff495224",
+        "identity_evidence": "EMBEDDED_OFFICIAL_TYMM_UNIT_LINK_351",
+        "verification_status": "VERIFIED_OFFICIAL_REMOTE_AND_LOCAL_CONTENT",
+        "sha256": "ccdf80112cf485e12f5418d115d33fce013fe88ff7ea0ad7f3f978d5c5b8365d",
+        "source_fingerprint_type": "SHA256",
+        "source_fingerprint_status": "VERIFIED_LOCAL_BINARY",
+        "page_count_pdf": 13
+      }
+    ],
+    "bundle_fingerprint_type": "SHA256_OF_SORTED_THEME_SHA256_ROWS",
+    "bundle_fingerprint_status": "VERIFIED"
+  },
+  "local_uploaded_snapshots": {
+    "folder": "source_docs/",
+    "status": "MAPPED_NAMED_OFFICIAL_THEME_SNAPSHOTS",
+    "theme_mapping_status": "PASS_4_OF_4_CONTENT_VERIFIED_AND_RENAMED",
+    "policy": "Tema kimliği dosya boyutundan veya yükleme sırasından çıkarılmadı; her PDF içindeki resmî TYMM unite/<id> bağlantısı kullanılarak içerik düzeyinde doğrulandı.",
+    "files": [
+      {
+        "theme_id": "TEMA_01",
+        "filename": "Türk Dili Ve Edebiyatı Dersi 12.Sınıf 1. TEMA - BENİM YOLCULUĞUM.PDF",
+        "size_bytes": 608402,
+        "git_blob_sha": "e4ffcea6e9ca3f18c7c0991bcadcabf4e789a69e",
+        "official_unit_id": 335,
+        "sha256": "6b034cfc5e082053726c2765227ee0323e3c36399dbbc9948e0ec0125a699e9b",
+        "source_fingerprint_type": "SHA256",
+        "page_count_pdf": 14
+      },
+      {
+        "theme_id": "TEMA_02",
+        "filename": "Türk Dili Ve Edebiyatı Dersi 12.Sınıf 2. TEMA - TOPLUMUN AHENGİ.PDF",
+        "size_bytes": 524273,
+        "git_blob_sha": "490242eed8f2bca2da9838b5de61bb767dc1084f",
+        "official_unit_id": 340,
+        "sha256": "c9662b7ac7b2cdf7e75e75035eb4c1fefe5614c6410b8a51637be2f16043b470",
+        "source_fingerprint_type": "SHA256",
+        "page_count_pdf": 13
+      },
+      {
+        "theme_id": "TEMA_03",
+        "filename": "Türk Dili Ve Edebiyatı Dersi 12.Sınıf 3. TEMA - HAYATIN DENGESİ.PDF",
+        "size_bytes": 502607,
+        "git_blob_sha": "cd92f5a05ad847af9db7855f4deff619b52d114b",
+        "official_unit_id": 348,
+        "sha256": "91f9d81b65ec3c1af82050d830d83f22077ae19f7e71bd12877150bcc693672c",
+        "source_fingerprint_type": "SHA256",
+        "page_count_pdf": 13
+      },
+      {
+        "theme_id": "TEMA_04",
+        "filename": "Türk Dili Ve Edebiyatı Dersi 12.Sınıf 4. TEMA - HAYALİMDEKİ YARIN.PDF",
+        "size_bytes": 487304,
+        "git_blob_sha": "74e949ac14126c48c689a4b6850d8ac8ff495224",
+        "official_unit_id": 351,
+        "sha256": "ccdf80112cf485e12f5418d115d33fce013fe88ff7ea0ad7f3f978d5c5b8365d",
+        "source_fingerprint_type": "SHA256",
+        "page_count_pdf": 13
+      }
+    ],
+    "fingerprint_status": "PASS_ALL_SHA256_VERIFIED"
+  },
+  "source_resolution_rules": {
+    "curriculum": "Official TYMM 12th-grade theme pages are normative and authoritative.",
+    "local_snapshots": "Exact theme identity is verified from embedded official TYMM unit links and mapped to named repository snapshots.",
+    "time_model": "Official curriculum wording remains 43 instructional hours per theme; the established planning model adds 2 school-based planning hours as a separate layer, yielding 45 hours per theme.",
+    "authority_conflict": "Official TYMM wording wins over derivative or other-grade content.",
+    "fail_closed": true,
+    "no_silent_source_replacement": true,
+    "fingerprint_rule": "Local official PDF snapshots use SHA-256; Git blob SHA is retained only as repository transport identity."
+  },
+  "textbook": {
+    "status": "NOT_AVAILABLE_AWAITING_OFFICIAL_TEXTBOOK",
+    "coverage_status": "NOT_EVALUATED",
+    "gap_status": "NOT_EVALUATED",
+    "production_status": "NOT_EVALUATED"
+  },
+  "deferred_stages": [
+    "TEXTBOOK_MAP",
+    "TEXTBOOK_FORMS_INDEX",
+    "TEXTBOOK_COVERAGE",
+    "ALIGNMENT",
+    "GAP_ANALYSIS",
+    "RESOURCE_PLAN",
+    "PRODUCTION_ARTIFACT_REGISTRY",
+    "FULL_P0_TEXTBOOK_RUNTIME",
+    "PRODUCTION_GATE"
+  ],
+  "curriculum_source_bundle_sha256": "12a7f34a94ce3e4418bf51095a39c7bbc69a2951293490b8211e668efeff0305",
+  "remote_section_evidence": {
+    "status": "VERIFIED_4_OF_4_OFFICIAL_THEME_PAGES",
+    "evidence_file": "curriculum_remote_sections.json",
+    "purpose": "Clean official-web verbatim for program elements and outcome text; local PDF SHA-256 snapshots remain primary source fingerprints.",
+    "theme_count": 4
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "runtime_package_version": "1.1.0",
+  "schema_version": "1.1.0",
+  "course_id": "TDE_12",
+  "grade": 12,
+  "build_timestamp": "2026-08-22T06:19:23Z",
+  "compiler_version": "ogretmenos-curriculum-only-1.0.0",
+  "data_mode": "CURRICULUM_ONLY",
+  "textbook_status": "AWAITING_OFFICIAL_TEXTBOOK",
+  "tymm_source_commit": "a0389a83c62102fe9be082b887737638afe23b69",
+  "canonical_source_files": [
+    "curriculum/curriculum_map.json",
+    "curriculum/curriculum_validation_report.json",
+    "curriculum/source_manifest.json"
+  ],
+  "canonical_source_hashes": {
+    "curriculum/curriculum_map.json": "bb9a16762d512af07f66bafe361ce41193f5dc12316df7bf9b6d69150f0b3899",
+    "curriculum/curriculum_validation_report.json": "7c8292cb04e3ba6cbe6b20c5b45c252222bf079b0a469468cc0daf3401d04058",
+    "curriculum/source_manifest.json": "9a1a7e3f5284ae6fd0e412663ec16a673f6a0f642ae5d7c033b322f79195ceed"
+  },
+  "canonical_content_fingerprint": "bb9a16762d512af07f66bafe361ce41193f5dc12316df7bf9b6d69150f0b3899",
+  "row_counts": {
+    "courses": 1,
+    "themes": 4,
+    "blocks": 16,
+    "block_activities": 0,
+    "outcomes": 64,
+    "block_outcomes": 64,
+    "textbook_sections": 0,
+    "activities": 0,
+    "activity_outcomes": 0,
+    "forms": 0,
+    "activity_forms": 0,
+    "resource_decisions": 0,
+    "assessment_artifacts": 0,
+    "assessment_gap_mappings": 0,
+    "assessment_task_bindings": 0,
+    "timeline_themes": 4,
+    "timeline_blocks": 16,
+    "source_references": 4,
+    "entity_source_references": 4
+  },
+  "timeline_resolution": "THEME_AND_SKILL_BLOCK_ORDER_RESOLVED",
+  "timeline_unresolved_fields": {
+    "weekly_lesson_hours": null,
+    "calendar_binding": "OGRETMENOS_ACADEMIC_CALENDAR",
+    "block_hours": "DERIVED_PLANNING_POLICY"
+  },
+  "source_manifest_fingerprint": "9a1a7e3f5284ae6fd0e412663ec16a673f6a0f642ae5d7c033b322f79195ceed",
+  "runtime_database_path": "runtime/course_runtime.sqlite",
+  "validation_status": "PASS",
+  "runtime_status": "RUNTIME_FRESH",
+  "capabilities": {
+    "curriculum": true,
+    "themes": true,
+    "outcomes": true,
+    "weekly_planning": true,
+    "annual_planning": true,
+    "source_references": true,
+    "textbook_sections": false,
+    "activities": false,
+    "forms": false,
+    "resource_decisions": false,
+    "assessment_artifacts": false
+  },
+  "assessment_payload_capabilities": {
+    "rubric_level_model": false,
+    "rubric_criteria": false,
+    "task_specific_criteria": false,
+    "source_equivalence_status": false,
+    "binding_key_semantics": false
+  }
+}
