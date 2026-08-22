@@ -8,12 +8,10 @@ class ResourceLibraryPage extends StatefulWidget {
   const ResourceLibraryPage({
     super.key,
     required this.repository,
-    required this.grade,
     required this.awaitingTextbook,
   });
 
   final CourseKnowledgeRepository repository;
-  final int grade;
   final bool awaitingTextbook;
 
   @override
@@ -50,7 +48,11 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
     });
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() {
+    setState(() {
+      _future = _load();
+    });
+  }
 
   @override
   Widget build(BuildContext context) => FutureBuilder<_ResourceData>(
@@ -74,19 +76,14 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
       if (widget.awaitingTextbook) {
         return AppPage(
           children: [
-            PageHeader(
-              eyebrow: '${widget.grade}. sınıf',
-              title: 'Kaynaklar',
-              description:
-                  'Öğretim programı hazır. Ders kitabı yayımlandığında kitap, etkinlik ve değerlendirme araçları burada açılacak.',
-            ),
             const StatusPanel(
               icon: Icons.menu_book_outlined,
               title: 'Ders kitabı bekleniyor',
               message:
-                  'Bu durum bir eksik veri hatası değil. Haftalık plan, yıllık plan ve kazanımlar kullanılabilir durumda.',
+                  'Öğretim programı hazır. Kitap yayımlandığında kitap, etkinlik, form ve değerlendirme araçları burada açılacak.',
             ),
             if (package.sourceReferences.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.lg),
               const SectionHeading(
                 'Program dayanakları',
                 icon: Icons.verified_outlined,
@@ -106,12 +103,6 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
 
       return AppPage(
         children: [
-          PageHeader(
-            eyebrow: '${widget.grade}. sınıf',
-            title: 'Kaynaklar',
-            description:
-                'Kitap, etkinlik, form ve değerlendirme araçlarını tema bazında açın.',
-          ),
           DropdownButtonFormField<String>(
             initialValue: package.theme.id,
             isExpanded: true,
