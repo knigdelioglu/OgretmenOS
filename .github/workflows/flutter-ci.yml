@@ -143,3 +143,16 @@ jobs:
 
       - name: Build Android release APK with four TYMM packages
         run: flutter build apk --release --no-pub
+
+      - name: Verify runtime assets inside APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          LIST="$RUNNER_TEMP/apk-files.txt"
+          unzip -l "$APK" > "$LIST"
+          for course in TDE_9 TDE_10 TDE_11 TDE_12; do
+            base="assets/flutter_assets/tymm-verileri/turk-dili-ve-edebiyati/$course/runtime"
+            grep -F "$base/runtime_manifest.json" "$LIST"
+            grep -F "$base/course_runtime.sqlite" "$LIST"
+          done
