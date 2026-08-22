@@ -6,27 +6,40 @@ import 'package:sqlite3/sqlite3.dart';
 
 Future<void> main(List<String> args) async {
   final courseId = _valueFor(args, '--course') ?? 'TDE_9';
+  final subjectId = _valueFor(args, '--subject') ?? 'turk-dili-ve-edebiyati';
   final projectRoot = File.fromUri(Platform.script).parent.parent.parent.parent;
-  final runtimeDirectory = p.join(
+  final packageDirectory = p.join(
     projectRoot.path,
-    'assets',
-    'courses',
+    'tymm-verileri',
+    subjectId,
     courseId,
   );
+  final packageManifestFile = File(
+    p.join(packageDirectory, 'package_manifest.json'),
+  );
+  final runtimeDirectory = p.join(packageDirectory, 'runtime');
   final manifestFile = File(p.join(runtimeDirectory, 'runtime_manifest.json'));
   final databaseFile = File(p.join(runtimeDirectory, 'course_runtime.sqlite'));
   final validationReportFile = File(
     p.join(runtimeDirectory, 'runtime_validation_report.md'),
   );
+
+  _check(packageManifestFile.existsSync(), 'package manifest bulunamadı');
   _check(manifestFile.existsSync(), 'runtime manifest bulunamadı');
   _check(databaseFile.existsSync(), 'runtime SQLite bulunamadı');
 
-  final manifest = jsonDecode(await manifestFile.readAsString());
-  _check(manifest is Map<String, dynamic>, 'runtime manifest JSON geçersiz');
-  final manifestMap = manifest as Map<String, dynamic>;
+  final packageManifest = _decodeMap(await packageManifestFile.readAsString());
+  final dataMode = packageManifest['data_mode']?.toString() ?? '';
+  _check(
+    dataMode == 'FULL_RUNTIME' || dataMode == 'CURRICULUM_ONLY',
+    'bilinmeyen data_mode: $dataMode',
+  );
+  _check(packageManifest['course_id'] == courseId, 'package course_id uyuşmuyor');
+
+  final manifestMap = _decodeMap(await manifestFile.readAsString());
   _check(manifestMap['course_id'] == courseId, 'course_id $courseId değil');
   _check(
-    (manifestMap['schema_version'] as String).startsWith('1.'),
+    (manifestMap['schema_version']?.toString() ?? '').startsWith('1.'),
     'schema sürümü 1.x değil',
   );
   _check(
@@ -62,11 +75,7 @@ Future<void> main(List<String> args) async {
       FROM courses
       LIMIT 1
     ''').single;
-    _checkValue(
-      course['course_id'],
-      manifestMap['course_id'],
-      'course kimliği',
-    );
+    _checkValue(course['course_id'], courseId, 'course kimliği');
     _checkSchemaCompatibility(
       course['schema_version'],
       manifestMap['schema_version'],
@@ -85,197 +94,188 @@ Future<void> main(List<String> args) async {
     }
 
     final sequence = database.select('''
-      SELECT tb.block_id, tb.theme_id, tb.block_order,
-             t.theme_order, b.title
+      SELECT tb.block_id, tb.theme_id, tb.block_order, t.theme_order
       FROM timeline_blocks tb
       INNER JOIN themes t ON t.theme_id = tb.theme_id
       INNER JOIN blocks b ON b.block_id = tb.block_id
       ORDER BY t.theme_order, tb.block_order
     ''');
-    final expectedTimeline = (counts['timeline_blocks'] as num).toInt();
-    _checkValue(sequence.length, expectedTimeline, 'timeline sırası');
-
-    final seenBlockIds = <Object?>{};
-    String? currentThemeId;
-    var expectedBlockOrder = 0;
-    for (final row in sequence) {
-      final themeId = row['theme_id'] as String;
-      if (themeId != currentThemeId) {
-        currentThemeId = themeId;
-        expectedBlockOrder = 1;
-      } else {
-        expectedBlockOrder++;
-      }
-      _checkValue(
-        row['block_order'],
-        expectedBlockOrder,
-        '$themeId blok sırası',
-      );
-      _check(
-        seenBlockIds.add(row['block_id']),
-        'timeline blokları tekrar ediyor',
-      );
-    }
-
-    final verificationCandidates = database.select('''
-      SELECT b.theme_id, b.block_id
-      FROM blocks b
-      WHERE EXISTS (
-        SELECT 1 FROM block_outcomes bo WHERE bo.block_id = b.block_id
-      )
-        AND EXISTS (
-          SELECT 1
-          FROM block_activities ba
-          INNER JOIN activity_forms af ON af.activity_id = ba.activity_id
-          WHERE ba.block_id = b.block_id
-        )
-        AND EXISTS (
-          SELECT 1
-          FROM textbook_sections ts
-          WHERE ts.theme_id = b.theme_id
-            AND ts.section_id IN (
-              SELECT a.section_id
-              FROM activities a
-              INNER JOIN block_activities ba ON ba.activity_id = a.activity_id
-              WHERE ba.block_id = b.block_id
-                AND a.section_id IS NOT NULL
-            )
-        )
-        AND EXISTS (
-          SELECT 1 FROM resource_decisions rd WHERE rd.theme_id = b.theme_id
-        )
-        AND EXISTS (
-          SELECT 1
-          FROM assessment_task_bindings atb
-          WHERE atb.theme_id = b.theme_id
-        )
-        AND EXISTS (
-          SELECT 1
-          FROM entity_source_references esr
-          WHERE esr.entity_type = 'theme' AND esr.entity_id = b.theme_id
-        )
-      ORDER BY b.theme_id, b.block_order
-      LIMIT 1
-    ''');
-    _check(
-      verificationCandidates.isNotEmpty,
-      'runtime ilişki doğrulaması için uygun theme/block bulunamadı',
-    );
-
-    final verificationThemeId =
-        verificationCandidates.first['theme_id'] as String;
-    final blockId = verificationCandidates.first['block_id'] as String;
-
-    final activityIds = database.select(
-      '''
-      SELECT a.activity_id, a.section_id
-      FROM activities a
-      INNER JOIN block_activities ba ON ba.activity_id = a.activity_id
-      WHERE ba.block_id = ?
-      ORDER BY a.activity_id
-    ''',
-      [blockId],
-    );
-    _check(
-      database.select(
-        'SELECT outcome_id FROM block_outcomes WHERE block_id = ?',
-        [blockId],
-      ).isNotEmpty,
-      'blok outcome ilişkisi yok',
-    );
-    _check(activityIds.isNotEmpty, 'blok etkinlik ilişkisi yok');
-    _check(
-      database
-          .select(
-            '''
-        SELECT section_id
-        FROM textbook_sections
-        WHERE theme_id = ?
-          AND section_id IN (
-            SELECT section_id
-            FROM activities
-            WHERE activity_id IN (
-              SELECT activity_id FROM block_activities WHERE block_id = ?
-            )
-          )
-      ''',
-            [verificationThemeId, blockId],
-          )
-          .isNotEmpty,
-      'blok kitap bölümü yok',
-    );
-    _check(
-      database
-          .select(
-            '''
-        SELECT DISTINCT f.form_id
-        FROM forms f
-        INNER JOIN activity_forms af ON af.form_id = f.form_id
-        WHERE af.activity_id IN (
-          SELECT activity_id FROM block_activities WHERE block_id = ?
-        )
-      ''',
-            [blockId],
-          )
-          .isNotEmpty,
-      'blok form ilişkisi yok',
-    );
-    _check(
-      database.select(
-        'SELECT resource_plan_id FROM resource_decisions WHERE theme_id = ?',
-        [verificationThemeId],
-      ).isNotEmpty,
-      'theme kaynak kararı yok',
-    );
-    _check(
-      database.select(
-        'SELECT artifact_id FROM assessment_task_bindings WHERE theme_id = ?',
-        [verificationThemeId],
-      ).isNotEmpty,
-      'theme ölçme bağlama yok',
-    );
-    _check(
-      database
-          .select(
-            '''
-        SELECT sr.source_id
-        FROM source_references sr
-        INNER JOIN entity_source_references esr ON esr.source_id = sr.source_id
-        WHERE esr.entity_type = 'theme' AND esr.entity_id = ?
-      ''',
-            [verificationThemeId],
-          )
-          .isNotEmpty,
-      'theme kaynak referansı yok',
-    );
-
-    final themeBlockCount = _countWhere(database, 'blocks', 'theme_id = ?', [
-      verificationThemeId,
-    ]);
-    final timelineBlockCount = _countWhere(
-      database,
-      'timeline_blocks',
-      'theme_id = ?',
-      [verificationThemeId],
-    );
-    _check(themeBlockCount > 0, 'theme paket blokları yok');
     _checkValue(
-      themeBlockCount,
-      timelineBlockCount,
-      'theme block/timeline blok sayısı',
+      sequence.length,
+      (counts['timeline_blocks'] as num).toInt(),
+      'timeline sırası',
     );
-    _check(
-      _countWhere(database, 'activities', 'theme_id = ?', [
-            verificationThemeId,
-          ]) >
-          0,
-      'öğretmen paketi etkinliksiz',
-    );
+    _verifySequence(sequence);
+
+    if (dataMode == 'CURRICULUM_ONLY') {
+      _verifyCurriculumOnly(database, counts, packageManifest, manifestMap);
+    } else {
+      _verifyFullRuntime(database);
+    }
   } finally {
     database.close();
   }
 
   stdout.writeln('RUNTIME_VERIFIER: PASS');
+  stdout.writeln('COURSE_ID: $courseId');
+  stdout.writeln('DATA_MODE: $dataMode');
+}
+
+void _verifyCurriculumOnly(
+  Database database,
+  Map counts,
+  Map<String, dynamic> packageManifest,
+  Map<String, dynamic> manifest,
+) {
+  _check(
+    packageManifest['textbook_status'] == 'AWAITING_OFFICIAL_TEXTBOOK',
+    'curriculum-only pakette textbook_status yanlış',
+  );
+  _check(
+    manifest['data_mode'] == 'CURRICULUM_ONLY',
+    'runtime manifest curriculum-only değil',
+  );
+  _checkValue(_count(database, 'themes'), 4, 'curriculum-only tema sayısı');
+  _checkValue(_count(database, 'blocks'), 16, 'curriculum-only blok sayısı');
+  _checkValue(_count(database, 'outcomes'), 64, 'curriculum-only kazanım sayısı');
+  _checkValue(
+    _count(database, 'block_outcomes'),
+    64,
+    'curriculum-only blok-kazanım bağı',
+  );
+  _checkValue(
+    _count(database, 'timeline_themes'),
+    4,
+    'curriculum-only tema timeline',
+  );
+  _checkValue(
+    _count(database, 'timeline_blocks'),
+    16,
+    'curriculum-only blok timeline',
+  );
+  _check(
+    _count(database, 'entity_source_references') >= 4,
+    'curriculum-only tema kaynak bağları eksik',
+  );
+  for (final table in [
+    'textbook_sections',
+    'activities',
+    'block_activities',
+    'forms',
+    'activity_forms',
+    'resource_decisions',
+    'assessment_artifacts',
+    'assessment_gap_mappings',
+    'assessment_task_bindings',
+  ]) {
+    _checkValue(_count(database, table), 0, '$table curriculum-only pakette boş olmalı');
+  }
+
+  final blocksWithoutOutcome = database.select('''
+    SELECT b.block_id
+    FROM blocks b
+    LEFT JOIN block_outcomes bo ON bo.block_id = b.block_id
+    GROUP BY b.block_id
+    HAVING COUNT(bo.outcome_id) = 0
+  ''');
+  _check(blocksWithoutOutcome.isEmpty, 'kazanımsız curriculum-only blok var');
+
+  final skillDomains = database
+      .select('SELECT DISTINCT skill_domain FROM blocks ORDER BY skill_domain')
+      .map((row) => row['skill_domain'])
+      .toSet();
+  _check(
+    skillDomains.containsAll({'Dinleme/İzleme', 'Okuma', 'Konuşma', 'Yazma'}),
+    'dört beceri alanı planlama bloklarında yok',
+  );
+
+  final declaredCounts = <String, int>{
+    for (final entry in counts.entries)
+      entry.key.toString(): (entry.value as num).toInt(),
+  };
+  _checkValue(declaredCounts['themes'], 4, 'manifest tema sayısı');
+  _checkValue(declaredCounts['outcomes'], 64, 'manifest kazanım sayısı');
+}
+
+void _verifyFullRuntime(Database database) {
+  final verificationCandidates = database.select('''
+    SELECT b.theme_id, b.block_id
+    FROM blocks b
+    WHERE EXISTS (
+      SELECT 1 FROM block_outcomes bo WHERE bo.block_id = b.block_id
+    )
+      AND EXISTS (
+        SELECT 1
+        FROM block_activities ba
+        INNER JOIN activity_forms af ON af.activity_id = ba.activity_id
+        WHERE ba.block_id = b.block_id
+      )
+      AND EXISTS (
+        SELECT 1 FROM textbook_sections ts
+        WHERE ts.theme_id = b.theme_id
+      )
+      AND EXISTS (
+        SELECT 1 FROM resource_decisions rd WHERE rd.theme_id = b.theme_id
+      )
+      AND EXISTS (
+        SELECT 1 FROM assessment_task_bindings atb WHERE atb.theme_id = b.theme_id
+      )
+      AND EXISTS (
+        SELECT 1 FROM entity_source_references esr
+        WHERE esr.entity_type = 'theme' AND esr.entity_id = b.theme_id
+      )
+    ORDER BY b.theme_id, b.block_order
+    LIMIT 1
+  ''');
+  _check(
+    verificationCandidates.isNotEmpty,
+    'full runtime ilişki doğrulaması için uygun theme/block bulunamadı',
+  );
+  final themeId = verificationCandidates.first['theme_id'] as String;
+  final blockId = verificationCandidates.first['block_id'] as String;
+  _check(
+    _countWhere(database, 'block_outcomes', 'block_id = ?', [blockId]) > 0,
+    'blok outcome ilişkisi yok',
+  );
+  _check(
+    _countWhere(database, 'block_activities', 'block_id = ?', [blockId]) > 0,
+    'blok etkinlik ilişkisi yok',
+  );
+  _check(
+    _countWhere(database, 'textbook_sections', 'theme_id = ?', [themeId]) > 0,
+    'theme kitap bölümü yok',
+  );
+  _check(
+    _countWhere(database, 'resource_decisions', 'theme_id = ?', [themeId]) > 0,
+    'theme kaynak kararı yok',
+  );
+  _check(
+    _countWhere(database, 'assessment_task_bindings', 'theme_id = ?', [themeId]) > 0,
+    'theme ölçme bağlama yok',
+  );
+}
+
+void _verifySequence(ResultSet sequence) {
+  final seenBlockIds = <Object?>{};
+  String? currentThemeId;
+  var expectedBlockOrder = 0;
+  for (final row in sequence) {
+    final themeId = row['theme_id'] as String;
+    if (themeId != currentThemeId) {
+      currentThemeId = themeId;
+      expectedBlockOrder = 1;
+    } else {
+      expectedBlockOrder++;
+    }
+    _checkValue(row['block_order'], expectedBlockOrder, '$themeId blok sırası');
+    _check(seenBlockIds.add(row['block_id']), 'timeline blokları tekrar ediyor');
+  }
+}
+
+Map<String, dynamic> _decodeMap(String text) {
+  final decoded = jsonDecode(text);
+  if (decoded is! Map) throw StateError('JSON nesnesi bekleniyordu');
+  return Map<String, dynamic>.from(decoded);
 }
 
 void _checkFreshnessEvidence(
@@ -287,7 +287,6 @@ void _checkFreshnessEvidence(
     if (manifestStatus == 'RUNTIME_FRESH') return;
     throw StateError('runtime_status fresh değil: $manifestStatus');
   }
-
   if (validationReport != null) {
     for (final line in validationReport.split('\n')) {
       if (!line.toLowerCase().contains('source fingerprint status')) continue;
@@ -297,7 +296,6 @@ void _checkFreshnessEvidence(
       }
     }
   }
-
   throw StateError('runtime freshness kanıtı bulunamadı');
 }
 
@@ -335,10 +333,7 @@ String? _valueFor(List<String> args, String name) {
   return args[index + 1];
 }
 
-void _checkSchemaCompatibility(
-  Object? databaseVersion,
-  Object? manifestVersion,
-) {
+void _checkSchemaCompatibility(Object? databaseVersion, Object? manifestVersion) {
   final database = databaseVersion?.toString() ?? '';
   final manifest = manifestVersion?.toString() ?? '';
   if (database.isEmpty ||
