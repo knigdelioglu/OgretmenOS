@@ -1,7 +1,7 @@
 name: Temporary Android v1.0.1 Publisher
 
 on:
-  push:
+  pull_request:
     branches: [main]
 
 permissions:
@@ -9,7 +9,6 @@ permissions:
 
 jobs:
   publish:
-    if: github.event.head_commit.message == 'chore: publish Android v1.0.1'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -63,7 +62,7 @@ jobs:
             grep -F "$base/course_runtime.sqlite" "$LIST"
           done
 
-      - name: Publish GitHub Release v1.0.1
+      - name: Publish or update GitHub Release v1.0.1
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_SHA: 4ad5fd2ba84c945bfc711b4d31a2695b7b3a7355
@@ -103,14 +102,3 @@ jobs:
           fi
 
           gh release view "$TAG" --json tagName,url,assets --jq '{tag:.tagName,url:.url,assets:[.assets[].name],sizes:[.assets[].size]}'
-
-      - name: Record successful publication
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          CONTENT=$(printf 'v1.0.1\nOgretmenOS-v1.0.1-android.apk\n4ad5fd2ba84c945bfc711b4d31a2695b7b3a7355\n' | base64 -w0)
-          gh api --method PUT repos/${{ github.repository }}/contents/.release-v101-published \
-            -f message='chore: record v1.0.1 publication [skip ci]' \
-            -f content="$CONTENT"
