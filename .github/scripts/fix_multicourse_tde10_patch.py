@@ -26,6 +26,74 @@ patch(
     "import '../../domain/models/course_models.dart' hide Theme;\n",
 )
 
+# Runtime package 1.1 is an additive extension of the 1.x DB base schema.
+policy = ROOT / 'lib/domain/runtime/runtime_manifest_policy.dart'
+policy_text = policy.read_text(encoding='utf-8')
+policy_text += """
+
+bool isRuntimeDatabaseSchemaCompatible(
+  String databaseSchemaVersion,
+  String manifestSchemaVersion,
+) {
+  final databaseMajor = databaseSchemaVersion.split('.').firstOrNull;
+  final manifestMajor = manifestSchemaVersion.split('.').firstOrNull;
+  return databaseMajor != null &&
+      databaseMajor.isNotEmpty &&
+      databaseMajor == manifestMajor;
+}
+"""
+# Avoid relying on collection extensions for firstOrNull.
+policy_text = policy_text.replace(
+    "  final databaseMajor = databaseSchemaVersion.split('.').firstOrNull;\n  final manifestMajor = manifestSchemaVersion.split('.').firstOrNull;\n  return databaseMajor != null &&\n      databaseMajor.isNotEmpty &&\n      databaseMajor == manifestMajor;\n",
+    "  if (databaseSchemaVersion.isEmpty || manifestSchemaVersion.isEmpty) return false;\n  final databaseMajor = databaseSchemaVersion.split('.').first;\n  final manifestMajor = manifestSchemaVersion.split('.').first;\n  return databaseMajor == manifestMajor;\n",
+)
+policy.write_text(policy_text, encoding='utf-8')
+
+patch(
+    'lib/data/course/course_database_installer.dart',
+    """      if (course.courseId != installed.manifest.courseId ||
+          course.schemaVersion != installed.manifest.schemaVersion ||
+          course.sourceManifestFingerprint != installed.manifest.canonicalContentFingerprint) {
+""",
+    """      if (course.courseId != installed.manifest.courseId ||
+          !isRuntimeDatabaseSchemaCompatible(
+            course.schemaVersion,
+            installed.manifest.schemaVersion,
+          ) ||
+          course.sourceManifestFingerprint != installed.manifest.canonicalContentFingerprint) {
+""",
+)
+
+patch(
+    'tool/runtime_verifier/bin/verify_runtime.dart',
+    """    _checkValue(
+      course['schema_version'],
+      manifestMap['schema_version'],
+      'schema sürümü',
+    );
+""",
+    """    _checkSchemaCompatibility(
+      course['schema_version'],
+      manifestMap['schema_version'],
+    );
+""",
+)
+verifier = ROOT / 'tool/runtime_verifier/bin/verify_runtime.dart'
+verifier_text = verifier.read_text(encoding='utf-8')
+verifier_text += """
+
+void _checkSchemaCompatibility(Object? databaseVersion, Object? manifestVersion) {
+  final database = databaseVersion?.toString() ?? '';
+  final manifest = manifestVersion?.toString() ?? '';
+  if (database.isEmpty || manifest.isEmpty || database.split('.').first != manifest.split('.').first) {
+    throw StateError(
+      'schema major uyumsuz (manifest: $manifest, database: $database)',
+    );
+  }
+}
+"""
+verifier.write_text(verifier_text, encoding='utf-8')
+
 # Keep the sync tool clean under strict flutter_lints.
 sync = ROOT / 'tool/sync_course_runtime.dart'
 text = sync.read_text(encoding='utf-8')
