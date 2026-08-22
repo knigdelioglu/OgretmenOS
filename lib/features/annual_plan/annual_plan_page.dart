@@ -5,7 +5,6 @@ import '../../domain/models/course_models.dart' as model;
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../block/block_detail_page.dart';
 import '../shared/feature_widgets.dart';
-import '../shared/teacher_presentation.dart';
 
 class AnnualPlanPage extends StatefulWidget {
   const AnnualPlanPage({
@@ -32,32 +31,25 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
 
   Future<_PlanData> _load() async {
     final sequence = await widget.repository.getAnnualSequence();
-    final manifest = await widget.repository.getManifest();
     final manual = await widget.preferences.getManualPositionOverride();
-    final manualIsValid =
-        manual != null && sequence.any((entry) => entry.block.id == manual);
     return _PlanData(
       sequence: sequence,
-      manifest: manifest,
-      manualPosition: manual,
-      manualIsValid: manualIsValid,
+      selectedBlockId: sequence.any((entry) => entry.block.id == manual)
+          ? manual
+          : null,
     );
   }
 
-  void _refresh() {
-    setState(() {
-      _future = _load();
-    });
-  }
+  void _reload() => setState(() => _future = _load());
 
   Future<void> _setPosition(String blockId) async {
     await widget.preferences.setManualPositionOverride(blockId);
-    if (mounted) _refresh();
+    if (mounted) _reload();
   }
 
   Future<void> _clearPosition() async {
     await widget.preferences.clearManualPositionOverride();
-    if (mounted) _refresh();
+    if (mounted) _reload();
   }
 
   @override
@@ -67,53 +59,51 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
       if (snapshot.connectionState != ConnectionState.done) {
         return const LoadingView(label: 'Yıllık plan hazırlanıyor…');
       }
-      if (snapshot.hasError || !snapshot.hasData) {
+      if (!snapshot.hasData) {
         return FeatureErrorView(
           message: 'Yıllık plan verileri yüklenemedi.',
-          onRetry: _refresh,
+          onRetry: _reload,
         );
       }
 
       final data = snapshot.data!;
-      model.TimelineEntry? selectedEntry;
-      if (data.manualIsValid) {
-        for (final entry in data.sequence) {
-          if (entry.block.id == data.manualPosition) {
-            selectedEntry = entry;
-            break;
-          }
-        }
+      if (data.sequence.isEmpty) {
+        return const Center(child: Text('Gösterilebilir yıllık plan bulunmuyor.'));
       }
+
+      final grouped = <String, List<model.TimelineEntry>>{};
+      for (final entry in data.sequence) {
+        grouped.putIfAbsent(entry.theme.id, () => []).add(entry);
+      }
+      final annualHours = grouped.values
+          .map((entries) => entries.first.officialTotalHours ?? 0)
+          .fold<int>(0, (a, b) => a + b);
+      final selectedEntry = data.selectedBlockId == null
+          ? null
+          : data.sequence.firstWhere(
+              (entry) => entry.block.id == data.selectedBlockId,
+            );
 
       return AppPage(
         children: [
-          const PageHeader(
-            eyebrow: 'ÖĞRETİM ROTASI',
-            title: 'Yıllık Plan',
-            description:
-                'Dersin programdaki öğretim sırasını izleyin ve sınıfta kaldığınız konumu işaretleyin.',
-          ),
-          _PlanOverview(
-            data: data,
+          _AnnualSummary(
+            themeCount: grouped.length,
+            blockCount: data.sequence.length,
+            annualHours: annualHours,
             selectedEntry: selectedEntry,
             onClear: _clearPosition,
           ),
-          if (data.sequence.isEmpty) ...[
-            const SizedBox(height: AppSpacing.xl),
-            const StatusPanel(
-              icon: Icons.view_timeline_outlined,
-              title: 'Plan sırası bulunmuyor',
-              message: 'Bu ders için gösterilebilir öğretim sırası bulunmuyor.',
-            ),
-          ] else ...[
-            SectionHeading(
-              'Planlanan öğretim sırası',
-              subtitle: '${data.sequence.length} blok · tema sırasına göre',
-              icon: Icons.route_outlined,
-            ),
-            _PlanTimeline(
-              sequence: data.sequence,
-              selectedBlockId: data.manualIsValid ? data.manualPosition : null,
+          const SizedBox(height: AppSpacing.lg),
+          for (var i = 0; i < grouped.values.length; i++) ...[
+            _ThemePlanCard(
+              entries: grouped.values.elementAt(i),
+              totalBlocks: data.sequence.length,
+              selectedBlockId: data.selectedBlockId,
+              initiallyExpanded: data.selectedBlockId == null
+                  ? i == 0
+                  : grouped.values
+                      .elementAt(i)
+                      .any((entry) => entry.block.id == data.selectedBlockId),
               onSelect: _setPosition,
               onOpen: (blockId) => Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -124,6 +114,8 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
                 ),
               ),
             ),
+            if (i != grouped.values.length - 1)
+              const SizedBox(height: AppSpacing.sm),
           ],
         ],
       );
@@ -132,369 +124,164 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
 }
 
 class _PlanData {
-  const _PlanData({
-    required this.sequence,
-    required this.manifest,
-    required this.manualPosition,
-    required this.manualIsValid,
-  });
+  const _PlanData({required this.sequence, required this.selectedBlockId});
 
   final List<model.TimelineEntry> sequence;
-  final model.RuntimeManifest manifest;
-  final String? manualPosition;
-  final bool manualIsValid;
+  final String? selectedBlockId;
 }
 
-class _PlanOverview extends StatelessWidget {
-  const _PlanOverview({
-    required this.data,
+class _AnnualSummary extends StatelessWidget {
+  const _AnnualSummary({
+    required this.themeCount,
+    required this.blockCount,
+    required this.annualHours,
     required this.selectedEntry,
     required this.onClear,
   });
 
-  final _PlanData data;
+  final int themeCount;
+  final int blockCount;
+  final int annualHours;
   final model.TimelineEntry? selectedEntry;
   final VoidCallback onClear;
 
   @override
-  Widget build(BuildContext context) {
-    final themeCount = data.sequence.map((entry) => entry.theme.id).toSet().length;
-
-    return Column(
-      children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: [
-                    MetricChip(
-                      icon: Icons.layers_outlined,
-                      label: 'tema',
-                      value: '$themeCount',
-                    ),
-                    MetricChip(
-                      icon: Icons.view_timeline_outlined,
-                      label: 'blok',
-                      value: '${data.sequence.length}',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.schedule_outlined),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        '${teacherTimelineResolutionLabel(data.manifest.timelineResolution)}. Akademik takvim eşlemesi olmadığı için uygulama tarih üzerinden otomatik ders konumu seçmez.',
-                        style: const TextStyle(height: 1.45),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        if (selectedEntry == null)
-          const StatusPanel(
-            icon: Icons.bookmark_add_outlined,
-            title: 'Henüz bir plan konumu seçilmedi',
-            message:
-                'Aşağıdaki bloklardan birinde “Burada kaldım” seçeneğini kullanarak sınıfınızın plan konumunu işaretleyin.',
-          )
-        else
-          _SelectedPlanCard(
-            entry: selectedEntry!,
-            total: data.sequence.length,
-            onClear: onClear,
-          ),
-      ],
-    );
-  }
-}
-
-class _SelectedPlanCard extends StatelessWidget {
-  const _SelectedPlanCard({
-    required this.entry,
-    required this.total,
-    required this.onClear,
-  });
-
-  final model.TimelineEntry entry;
-  final int total;
-  final VoidCallback onClear;
-
-  @override
   Widget build(BuildContext context) => Card(
-    color: Theme.of(context).colorScheme.secondaryContainer,
     child: Padding(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.bookmark_added,
-            color: Theme.of(context).colorScheme.onSecondaryContainer,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Burada kaldım',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSecondaryContainer,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  entry.block.title,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$themeCount tema · $annualHours saat · $blockCount blok',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSecondaryContainer,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '${entry.theme.title} · Plan sırası: ${entry.sequencePosition} / $total',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSecondaryContainer,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
+              ),
+              if (selectedEntry != null)
                 TextButton.icon(
                   onPressed: onClear,
                   icon: const Icon(Icons.restart_alt),
-                  label: const Text('Plan sırasına dön'),
+                  label: const Text('Konumu temizle'),
                 ),
-              ],
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Bloklara ayrı resmî süre verilmediğinde bu görünüm öğretim sırasını gösterir; süre uyarısı her blokta tekrar edilmez.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
+          if (selectedEntry != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.bookmark_added),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Burada kaldım: ${selectedEntry!.theme.title} · ${selectedEntry!.block.title}',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     ),
   );
 }
 
-class _PlanTimeline extends StatelessWidget {
-  const _PlanTimeline({
-    required this.sequence,
+class _ThemePlanCard extends StatelessWidget {
+  const _ThemePlanCard({
+    required this.entries,
+    required this.totalBlocks,
     required this.selectedBlockId,
+    required this.initiallyExpanded,
     required this.onSelect,
     required this.onOpen,
   });
 
-  final List<model.TimelineEntry> sequence;
+  final List<model.TimelineEntry> entries;
+  final int totalBlocks;
   final String? selectedBlockId;
+  final bool initiallyExpanded;
   final Future<void> Function(String blockId) onSelect;
-  final void Function(String blockId) onOpen;
+  final ValueChanged<String> onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final grouped = <String, List<model.TimelineEntry>>{};
-    for (final entry in sequence) {
-      grouped.putIfAbsent(entry.theme.id, () => []).add(entry);
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final entries in grouped.values) ...[
-          _ThemeTimelineHeader(entry: entries.first),
-          for (var index = 0; index < entries.length; index++)
-            _TimelineEntryCard(
-              entry: entries[index],
-              total: sequence.length,
-              isSelected: entries[index].block.id == selectedBlockId,
-              isLastInTheme: index == entries.length - 1,
-              onSelect: () => onSelect(entries[index].block.id),
-              onOpen: () => onOpen(entries[index].block.id),
+    final first = entries.first;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        initiallyExpanded: initiallyExpanded,
+        leading: CircleAvatar(child: Text('${first.theme.order}')),
+        title: Text(
+          first.theme.title,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        subtitle: Text(
+          [
+            if (first.officialTotalHours != null)
+              '${first.officialTotalHours} saat',
+            '${entries.length} blok',
+          ].join(' · '),
+        ),
+        children: [
+          for (var i = 0; i < entries.length; i++) ...[
+            ListTile(
+              contentPadding: const EdgeInsets.only(left: 20, right: 8),
+              leading: SizedBox(
+                width: 32,
+                child: Text(
+                  '${entries[i].sequencePosition}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: entries[i].block.id == selectedBlockId
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              title: Text(entries[i].block.title),
+              subtitle: Text(
+                '${entries[i].sequencePosition} / $totalBlocks',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              trailing: IconButton(
+                tooltip: entries[i].block.id == selectedBlockId
+                    ? 'Seçili konum'
+                    : 'Burada kaldım',
+                onPressed: () => onSelect(entries[i].block.id),
+                icon: Icon(
+                  entries[i].block.id == selectedBlockId
+                      ? Icons.bookmark_added
+                      : Icons.bookmark_add_outlined,
+                ),
+              ),
+              onTap: () => onOpen(entries[i].block.id),
             ),
-          const SizedBox(height: AppSpacing.xl),
+            if (i != entries.length - 1)
+              const Divider(height: 1, indent: 68),
+          ],
         ],
-      ],
+      ),
     );
   }
-}
-
-class _ThemeTimelineHeader extends StatelessWidget {
-  const _ThemeTimelineHeader({required this.entry});
-
-  final model.TimelineEntry entry;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: AppSpacing.md),
-    child: Row(
-      children: [
-        Container(
-          width: 38,
-          height: 38,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            '${entry.theme.order}',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                entry.theme.title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              if (entry.officialTotalHours != null)
-                Text(
-                  '${entry.officialTotalHours} saatlik tema planı',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _TimelineEntryCard extends StatelessWidget {
-  const _TimelineEntryCard({
-    required this.entry,
-    required this.total,
-    required this.isSelected,
-    required this.isLastInTheme,
-    required this.onSelect,
-    required this.onOpen,
-  });
-
-  final model.TimelineEntry entry;
-  final int total;
-  final bool isSelected;
-  final bool isLastInTheme;
-  final VoidCallback onSelect;
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) => IntrinsicHeight(
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          width: 42,
-          child: Column(
-            children: [
-              Container(
-                width: 30,
-                height: 30,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.surfaceContainerHighest,
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  '${entry.sequencePosition}',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: isSelected
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : Theme.of(context).colorScheme.onSurface,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              if (!isLastInTheme)
-                Expanded(
-                  child: Container(
-                    width: 2,
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: Card(
-              color: isSelected
-                  ? Theme.of(context).colorScheme.secondaryContainer
-                  : null,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(20),
-                onTap: onOpen,
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              entry.block.title,
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              'Plan sırası: ${entry.sequencePosition} / $total',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              teacherBlockTimeLabel(entry.block.timeStatus),
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      IconButton(
-                        tooltip: isSelected ? 'Seçili plan konumu' : 'Burada kaldım',
-                        onPressed: onSelect,
-                        icon: Icon(
-                          isSelected
-                              ? Icons.bookmark_added
-                              : Icons.bookmark_add_outlined,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
 }
