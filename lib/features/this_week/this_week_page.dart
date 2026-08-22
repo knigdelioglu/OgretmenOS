@@ -33,7 +33,11 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
     _future = widget.service.buildPlan();
   }
 
-  void _reload() => setState(() => _future = widget.service.buildPlan());
+  void _reload() {
+    setState(() {
+      _future = widget.service.buildPlan();
+    });
+  }
 
   Future<void> _complete(TrackedOutcome item) async {
     await widget.service.setStatus(item, OutcomeTrackingStatus.completed);
@@ -154,24 +158,26 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
               children: [
                 Expanded(
                   child: Text(
-                    'Kazanımlar',
+                    'Bu haftanın kazanımları',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
+                const SizedBox(width: AppSpacing.md),
                 Text('$completed / $total işlendi'),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
-            Row(
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
               children: [
                 OutlinedButton.icon(
                   onPressed: total == 0 ? null : () => _copyDiary(summary),
                   icon: const Icon(Icons.copy_outlined),
                   label: const Text('Deftere kopyala'),
                 ),
-                const SizedBox(width: AppSpacing.sm),
                 FilledButton.tonalIcon(
                   onPressed: total == 0 || completed == total
                       ? null
