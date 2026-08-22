@@ -5,9 +5,8 @@ import '../domain/repositories/outcome_tracking_repository.dart';
 import '../domain/runtime/course_runtime_registry.dart';
 import '../domain/services/outcome_planning_service.dart';
 import '../features/annual_plan/annual_plan_page.dart';
-import '../features/outcomes/outcome_tracker_page.dart';
-import '../features/teacher_package/teacher_package_page.dart';
-import '../features/weekly_plan/weekly_plan_page.dart';
+import '../features/resources/resource_library_page.dart';
+import '../features/this_week/this_week_page.dart';
 import 'app_dependencies.dart';
 import 'theme/app_theme.dart';
 
@@ -178,12 +177,7 @@ class _AppShellState extends State<_AppShell> {
   int _selectedIndex = 0;
   late final OutcomePlanningService _outcomePlanning;
 
-  static const _titles = [
-    'Kazanımlar',
-    'Haftalık Plan',
-    'Yıllık Plan',
-    'Öğretmen Paketi',
-  ];
+  static const _titles = ['Bu Hafta', 'Yıllık Plan', 'Kaynaklar'];
 
   @override
   void initState() {
@@ -200,14 +194,17 @@ class _AppShellState extends State<_AppShell> {
   @override
   Widget build(BuildContext context) {
     final repository = widget.dependencies.repository;
-    final preferences = widget.dependencies.preferences;
-    final weeklyPlanning = widget.dependencies.weeklyPlanning;
     final activeCourse = runtimeForCourse(widget.activeCourseId);
     final pages = <Widget>[
-      OutcomeTrackerPage(repository: repository, service: _outcomePlanning),
-      WeeklyPlanPage(repository: repository, planningService: weeklyPlanning),
-      AnnualPlanPage(repository: repository, preferences: preferences),
-      TeacherPackagePage(repository: repository),
+      ThisWeekPage(repository: repository, service: _outcomePlanning),
+      AnnualPlanPage(
+        repository: repository,
+        preferences: widget.dependencies.preferences,
+      ),
+      ResourceLibraryPage(
+        repository: repository,
+        awaitingTextbook: activeCourse.isAwaitingTextbook,
+      ),
     ];
 
     return LayoutBuilder(
@@ -216,35 +213,25 @@ class _AppShellState extends State<_AppShell> {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
         final compactLabels = textScale >= 1.5;
         final content = IndexedStack(index: _selectedIndex, children: pages);
-        final courseAwareContent = Column(
-          children: [
-            if (activeCourse.isAwaitingTextbook)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                child: Row(
-                  children: [
-                    const Icon(Icons.menu_book_outlined, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        '${activeCourse.grade}. sınıf öğretim programı hazır. Ders kitabı bekleniyor; kazanımlar ile yıllık/haftalık plan kullanılabilir.',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            Expanded(child: content),
-          ],
-        );
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(_titles[_selectedIndex]),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_titles[_selectedIndex]),
+                Text(
+                  activeCourse.isAwaitingTextbook
+                      ? '${activeCourse.grade}. Sınıf · Kitap bekleniyor'
+                      : '${activeCourse.grade}. Sınıf',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
             actions: [
               if (widget.onCourseChanged != null)
                 PopupMenuButton<String>(
@@ -288,27 +275,22 @@ class _AppShellState extends State<_AppShell> {
                         labelType: compactLabels
                             ? NavigationRailLabelType.selected
                             : NavigationRailLabelType.all,
-                        groupAlignment: -0.75,
+                        groupAlignment: -0.78,
                         destinations: const [
                           NavigationRailDestination(
-                            icon: Icon(Icons.fact_check_outlined),
-                            selectedIcon: Icon(Icons.fact_check),
-                            label: Text('Kazanımlar'),
-                          ),
-                          NavigationRailDestination(
-                            icon: Icon(Icons.calendar_view_week_outlined),
-                            selectedIcon: Icon(Icons.calendar_view_week),
-                            label: Text('Haftalık'),
+                            icon: Icon(Icons.today_outlined),
+                            selectedIcon: Icon(Icons.today),
+                            label: Text('Bu Hafta'),
                           ),
                           NavigationRailDestination(
                             icon: Icon(Icons.view_timeline_outlined),
                             selectedIcon: Icon(Icons.view_timeline),
-                            label: Text('Yıllık Plan'),
+                            label: Text('Yıllık'),
                           ),
                           NavigationRailDestination(
-                            icon: Icon(Icons.inventory_2_outlined),
-                            selectedIcon: Icon(Icons.inventory_2),
-                            label: Text('Paket'),
+                            icon: Icon(Icons.library_books_outlined),
+                            selectedIcon: Icon(Icons.library_books),
+                            label: Text('Kaynaklar'),
                           ),
                         ],
                       ),
@@ -317,10 +299,10 @@ class _AppShellState extends State<_AppShell> {
                       width: 1,
                       color: Theme.of(context).colorScheme.outlineVariant,
                     ),
-                    Expanded(child: courseAwareContent),
+                    Expanded(child: content),
                   ],
                 )
-              : courseAwareContent,
+              : content,
           bottomNavigationBar: useRail
               ? null
               : NavigationBar(
@@ -331,24 +313,19 @@ class _AppShellState extends State<_AppShell> {
                   onDestinationSelected: _selectDestination,
                   destinations: const [
                     NavigationDestination(
-                      icon: Icon(Icons.fact_check_outlined),
-                      selectedIcon: Icon(Icons.fact_check),
-                      label: 'Kazanımlar',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.calendar_view_week_outlined),
-                      selectedIcon: Icon(Icons.calendar_view_week),
-                      label: 'Haftalık',
+                      icon: Icon(Icons.today_outlined),
+                      selectedIcon: Icon(Icons.today),
+                      label: 'Bu Hafta',
                     ),
                     NavigationDestination(
                       icon: Icon(Icons.view_timeline_outlined),
                       selectedIcon: Icon(Icons.view_timeline),
-                      label: 'Yıllık Plan',
+                      label: 'Yıllık',
                     ),
                     NavigationDestination(
-                      icon: Icon(Icons.inventory_2_outlined),
-                      selectedIcon: Icon(Icons.inventory_2),
-                      label: 'Paket',
+                      icon: Icon(Icons.library_books_outlined),
+                      selectedIcon: Icon(Icons.library_books),
+                      label: 'Kaynaklar',
                     ),
                   ],
                 ),

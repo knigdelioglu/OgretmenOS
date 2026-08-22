@@ -7,7 +7,7 @@ import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
 
 void main() {
-  testWidgets('kazanım planı hatası kullanıcıya error state olarak gösterilir', (
+  testWidgets('haftalık çalışma hatası kullanıcıya error state olarak gösterilir', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -21,7 +21,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Kazanım takip görünümü yüklenemedi.'), findsOneWidget);
+    expect(find.text('Haftalık çalışma görünümü yüklenemedi.'), findsOneWidget);
     expect(find.text('Tekrar dene'), findsOneWidget);
   });
 

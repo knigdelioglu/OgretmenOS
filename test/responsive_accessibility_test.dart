@@ -16,7 +16,7 @@ void main() {
 
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byType(NavigationRail), findsNothing);
-    expect(find.text('Kazanım Takibi'), findsOneWidget);
+    expect(find.text('Bu Hafta'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
@@ -42,7 +42,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('large system text keeps outcome-first surface usable', (
+  testWidgets('large system text keeps teacher workspace usable', (
     tester,
   ) async {
     await _configureView(
@@ -52,21 +52,16 @@ void main() {
     );
     await _pumpApp(tester);
 
-    expect(find.text('Kazanım Takibi'), findsOneWidget);
+    expect(find.text('Bu Hafta'), findsWidgets);
     expect(tester.takeException(), isNull);
 
     await _tapBottomDestination(tester, Icons.view_timeline_outlined);
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('Planlanan öğretim sırası'),
-      300,
-      scrollable: find.byType(Scrollable).last,
-    );
-    expect(find.text('Planlanan öğretim sırası'), findsOneWidget);
+    expect(find.textContaining('1 tema · 45 saat · 1 blok'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('dark mode renders the outcome tracker shell', (tester) async {
+  testWidgets('dark mode renders the weekly workspace shell', (tester) async {
     await _configureView(
       tester,
       const Size(412, 915),
@@ -76,7 +71,7 @@ void main() {
 
     final context = tester.element(find.byType(Scaffold).first);
     expect(Theme.of(context).brightness, Brightness.dark);
-    expect(find.text('Kazanım Takibi'), findsOneWidget);
+    expect(find.text('Bu Hafta'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 

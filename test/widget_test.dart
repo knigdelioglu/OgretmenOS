@@ -8,259 +8,92 @@ import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
 import 'package:ogretmen_os/domain/repositories/outcome_tracking_repository.dart';
 import 'package:ogretmen_os/domain/services/outcome_planning_service.dart';
-import 'package:ogretmen_os/features/shared/feature_widgets.dart';
 
 void main() {
-  testWidgets('uygulama kazanım takibi ekranında açılır ve durum güncellenir', (
+  testWidgets('ana deneyim Bu Hafta ekranında açılır ve kazanım işlenir', (
     tester,
   ) async {
-    _usePhoneViewport(tester);
-    await _pumpApp(tester, preferences: _FakePreferences());
-
-    expect(find.text('Kazanım Takibi'), findsOneWidget);
-    expect(find.text('Deftere Bakış'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.text('TEST.1'),
-      250,
-      scrollable: _currentPageScrollable(),
-    );
-    expect(find.text('TEST.1'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Planlı'),
-      250,
-      scrollable: _currentPageScrollable(),
-    );
-    expect(find.text('Planlı'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.textContaining('Test kazanımı'),
-      250,
-      scrollable: _currentPageScrollable(),
-    );
-    expect(find.textContaining('Test kazanımı'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.widgetWithText(FilledButton, 'İşlendi'),
-      250,
-      scrollable: _currentPageScrollable(),
-    );
-    final completedButton = find.widgetWithText(FilledButton, 'İşlendi');
-    await tester.ensureVisible(completedButton);
-    await tester.pumpAndSettle();
-    await tester.tap(completedButton);
-    await tester.pumpAndSettle();
-
-    expect(find.text('İşlendi'), findsOneWidget);
-  });
-
-  testWidgets('kazanım ana ekranı blok saatini ve uzun metin açılımını gösterir', (
-    tester,
-  ) async {
-    _usePhoneViewport(tester);
-    await _pumpApp(tester, preferences: _FakePreferences());
-
-    await tester.scrollUntilVisible(
-      find.text('Bu hafta ilgili blok: 5 saat'),
-      300,
-      scrollable: _currentPageScrollable(),
-    );
-    expect(find.text('Bu hafta ilgili blok: 5 saat'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.widgetWithText(TextButton, 'Devamını göster'),
-      250,
-      scrollable: _currentPageScrollable(),
-    );
-    final expandButton = find.widgetWithText(TextButton, 'Devamını göster');
-    await tester.ensureVisible(expandButton);
-    await tester.pumpAndSettle();
-    await tester.tap(expandButton);
-    await tester.pumpAndSettle();
-    expect(find.widgetWithText(TextButton, 'Kısalt'), findsOneWidget);
-  });
-
-  testWidgets('kazanım kartından öğretmen notu eklenebilir', (tester) async {
-    _usePhoneViewport(tester);
-    final preferences = _FakePreferences();
+    _phone(tester);
     final tracking = MemoryOutcomeTrackingRepository();
-    final outcomePlanning = OutcomePlanningService(
-      repository: _FakeRepository(),
-      weeklyPlanning: _FakeWeeklyPlanning(),
-      trackingRepository: tracking,
-    );
-    await _pumpApp(
-      tester,
-      preferences: preferences,
-      outcomePlanning: outcomePlanning,
-    );
+    await _pump(tester, tracking: tracking);
 
-    await tester.scrollUntilVisible(
-      find.widgetWithText(TextButton, 'Not'),
-      300,
-      scrollable: _currentPageScrollable(),
-    );
-    final noteButton = find.widgetWithText(TextButton, 'Not');
-    await tester.ensureVisible(noteButton);
-    await tester.pumpAndSettle();
-    await tester.tap(noteButton);
-    await tester.pumpAndSettle();
+    expect(find.text('Bu Hafta'), findsWidgets);
+    expect(find.text('1. Hafta'), findsOneWidget);
+    expect(find.text('TEST.1'), findsOneWidget);
+    expect(find.text('Paket'), findsNothing);
+    expect(find.text('Haftalık Plan'), findsNothing);
 
-    expect(find.text('Öğretmen notu'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), 'Örnek ders notu');
-    await tester.tap(find.widgetWithText(FilledButton, 'Kaydet'));
+    await tester.tap(find.widgetWithText(FilledButton, 'İşlendi'));
     await tester.pumpAndSettle();
 
     final records = await tracking.getForAcademicYear('2026-2027');
     expect(records, hasLength(1));
-    expect(records.single.teacherNote, 'Örnek ders notu');
-
-    await _pumpApp(
-      tester,
-      preferences: preferences,
-      outcomePlanning: outcomePlanning,
-    );
-    await tester.scrollUntilVisible(
-      find.text('Not var'),
-      300,
-      scrollable: _currentPageScrollable(),
-    );
-    expect(find.text('Not var'), findsOneWidget);
-    expect(find.widgetWithText(TextButton, 'Notu düzenle'), findsOneWidget);
+    expect(records.single.status.storageValue, 'completed');
+    expect(find.text('1 / 1 işlendi'), findsOneWidget);
   });
 
-  testWidgets('hafta swipe ile değişir ve bu haftaya dön kısayolu çalışır', (
-    tester,
-  ) async {
-    _usePhoneViewport(tester);
-    await _pumpApp(tester, preferences: _FakePreferences());
+  testWidgets('yıllık plan tema bazında kompakt gösterilir', (tester) async {
+    _phone(tester);
+    await _pump(tester);
 
-    expect(find.text('14 Eylül - 18 Eylül 2026'), findsOneWidget);
-    await tester.fling(
-      find.text('Kazanım Takibi'),
-      const Offset(-420, 0),
-      1200,
-    );
+    await _tapNavigation(tester, Icons.view_timeline_outlined);
     await tester.pumpAndSettle();
 
-    expect(find.text('21 Eylül - 25 Eylül 2026'), findsOneWidget);
-    expect(find.text('Bu haftaya dön'), findsOneWidget);
-
-    await tester.tap(find.text('Bu haftaya dön'));
-    await tester.pumpAndSettle();
-    expect(find.text('14 Eylül - 18 Eylül 2026'), findsOneWidget);
-  });
-
-  testWidgets('kazanım kartı mevcut blok ayrıntı bağlamına açılır', (tester) async {
-    _usePhoneViewport(tester);
-    await _pumpApp(tester, preferences: _FakePreferences());
-
-    await tester.scrollUntilVisible(
-      find.textContaining('Test kazanımı'),
-      250,
-      scrollable: _currentPageScrollable(),
-    );
-    final outcomeText = find.textContaining('Test kazanımı');
-    await tester.ensureVisible(outcomeText);
-    await tester.pumpAndSettle();
-    await tester.tap(outcomeText);
-    await tester.pumpAndSettle();
-
-    expect(find.text('KAZANIM AYRINTISI'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Test Blok'),
-      300,
-      scrollable: _currentPageScrollable(),
-    );
+    expect(find.textContaining('1 tema · 45 saat · 1 blok'), findsOneWidget);
+    expect(find.text('TEST TEMA'), findsOneWidget);
     expect(find.text('Test Blok'), findsOneWidget);
+    expect(find.textContaining('Bu blok için ayrı süre bilgisi'), findsNothing);
   });
 
-  testWidgets('haftalık plan ekranı takvim haftasını ve kazanımı gösterir', (
-    tester,
-  ) async {
-    _usePhoneViewport(tester);
-    await _pumpApp(tester, preferences: _FakePreferences());
+  testWidgets('ana navigasyon yalnız üç öğretmen işini gösterir', (tester) async {
+    tester.view.physicalSize = const Size(1000, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await _pump(tester);
 
-    await _tapBottomDestination(tester, Icons.calendar_view_week_outlined);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Haftalık Plan'), findsWidgets);
-    expect(find.textContaining('14 Eylül - 18 Eylül 2026'), findsWidgets);
-    await tester.scrollUntilVisible(
-      find.text('TEST.1'),
-      300,
-      scrollable: _currentPageScrollable(),
-    );
-    expect(find.text('TEST.1'), findsOneWidget);
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.text('Bu Hafta'), findsWidgets);
+    expect(find.text('Yıllık'), findsOneWidget);
+    expect(find.text('Kaynaklar'), findsOneWidget);
+    expect(find.text('Kazanımlar'), findsNothing);
+    expect(find.text('Haftalık'), findsNothing);
+    expect(find.text('Paket'), findsNothing);
   });
 
-  testWidgets('yıllık planda manuel plan konumu seçilebilir', (tester) async {
-    _usePhoneViewport(tester);
-    final preferences = _FakePreferences();
-    await _pumpApp(tester, preferences: preferences);
+  testWidgets('kaynaklar ekranı program verisini tekrar etmez', (tester) async {
+    _phone(tester);
+    await _pump(tester);
 
-    await _tapBottomDestination(tester, Icons.view_timeline_outlined);
+    await _tapNavigation(tester, Icons.library_books_outlined);
     await tester.pumpAndSettle();
 
-    final sequenceLabel = find.textContaining('Plan sırası: 1 / 1');
-    await tester.scrollUntilVisible(
-      sequenceLabel,
-      300,
-      scrollable: _currentPageScrollable(),
-    );
-    expect(find.text('Planlanan öğretim sırası'), findsOneWidget);
-    expect(sequenceLabel, findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.byTooltip('Burada kaldım'),
-      200,
-      scrollable: _currentPageScrollable(),
-    );
-    await tester.tap(find.byTooltip('Burada kaldım'));
-    await tester.pumpAndSettle();
-    expect(find.text('Burada kaldım'), findsOneWidget);
-    expect(await preferences.getManualPositionOverride(), 'TEST_BLOCK');
-  });
-
-  testWidgets('öğretmen paketi ana navigasyondan erişilir', (tester) async {
-    _usePhoneViewport(tester);
-    await _pumpApp(tester, preferences: _FakePreferences());
-
-    await _tapBottomDestination(tester, Icons.inventory_2_outlined);
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('Tema dosyası'),
-      300,
-      scrollable: _currentPageScrollable(),
-    );
-    expect(find.text('Tema dosyası'), findsOneWidget);
+    expect(find.text('Kaynaklar'), findsWidgets);
+    expect(find.text('Tema'), findsOneWidget);
+    expect(find.text('Öğretim blokları'), findsNothing);
+    expect(find.text('Program çıktıları'), findsNothing);
+    expect(find.text('0 etkinlik'), findsNothing);
+    expect(find.text('0 form'), findsNothing);
   });
 }
 
-Finder _currentPageScrollable() => find
-    .descendant(
-      of: find.byType(AppPage),
-      matching: find.byType(Scrollable),
-    )
-    .first;
-
-void _usePhoneViewport(WidgetTester tester) {
-  tester.view.physicalSize = const Size(412, 915);
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-}
-
-Future<void> _pumpApp(
+Future<void> _pump(
   WidgetTester tester, {
-  required _FakePreferences preferences,
-  OutcomePlanningService? outcomePlanning,
+  MemoryOutcomeTrackingRepository? tracking,
 }) async {
+  final repository = _FakeRepository();
+  final weekly = _FakeWeeklyPlanning();
+  final outcomePlanning = OutcomePlanningService(
+    repository: repository,
+    weeklyPlanning: weekly,
+    trackingRepository: tracking ?? MemoryOutcomeTrackingRepository(),
+  );
   await tester.pumpWidget(
     TeacherOsApp(
-      key: UniqueKey(),
       dependencies: AppDependencies(
-        repository: _FakeRepository(),
-        preferences: preferences,
-        weeklyPlanning: _FakeWeeklyPlanning(),
+        repository: repository,
+        preferences: _FakePreferences(),
+        weeklyPlanning: weekly,
         outcomePlanning: outcomePlanning,
       ),
     ),
@@ -268,121 +101,77 @@ Future<void> _pumpApp(
   await tester.pumpAndSettle();
 }
 
-Future<void> _tapBottomDestination(
-  WidgetTester tester,
-  IconData icon,
-) async {
-  final navigationBar = find.byType(NavigationBar);
-  expect(navigationBar, findsOneWidget);
-  final target = find.descendant(of: navigationBar, matching: find.byIcon(icon));
+void _phone(WidgetTester tester) {
+  tester.view.physicalSize = const Size(412, 915);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
+
+Future<void> _tapNavigation(WidgetTester tester, IconData icon) async {
+  final bar = find.byType(NavigationBar);
+  expect(bar, findsOneWidget);
+  final target = find.descendant(of: bar, matching: find.byIcon(icon));
   expect(target, findsOneWidget);
   await tester.tap(target);
 }
 
+class _FakePreferences implements UserPreferencesRepository {
+  String? value;
+
+  @override
+  Future<void> clearManualPositionOverride() async => value = null;
+
+  @override
+  Future<String?> getManualPositionOverride() async => value;
+
+  @override
+  Future<void> setManualPositionOverride(String blockId) async => value = blockId;
+}
+
 class _FakeRepository implements CourseKnowledgeRepository {
-  static const _course = model.Course(
+  static const course = model.Course(
     courseId: 'TDE_9',
     grade: 9,
-    title: 'Test Course',
+    title: 'Türk Dili ve Edebiyatı',
     schemaVersion: '1.0.0',
     sourceManifestFingerprint: 'test',
   );
-  static const _theme = model.Theme(
+  static const theme = model.Theme(
     id: 'TEST_THEME',
     order: 1,
-    title: 'Test Tema',
+    title: 'TEST TEMA',
     pageRange: null,
-    plannedHours: null,
+    plannedHours: 45,
     anlamaHours: null,
     anlatmaHours: null,
     sourceLocator: null,
   );
-  static const _block = model.Block(
+  static const block = model.Block(
     id: 'TEST_BLOCK',
     themeId: 'TEST_THEME',
     order: 1,
     title: 'Test Blok',
-    skillDomain: null,
+    skillDomain: 'Okuma',
     learningArea: null,
     plannedHours: null,
     timeStatus: 'ORDER_ONLY',
     sourceLocators: [],
   );
-  static const _outcome = model.Outcome(
+  static const outcome = model.Outcome(
     id: 'TEST_OUTCOME',
     themeId: 'TEST_THEME',
     code: 'TEST.1',
-    officialText:
-        'Test kazanımı; öğrencinin metni bağlam, yapı, anlam ilişkileri ve dil özellikleri bakımından incelemesini, elde ettiği bulguları gerekçelendirmesini ve farklı metinlerle ilişkilendirerek açıklamasını kapsayan uzun bir resmî kazanım metnidir.',
+    officialText: 'Test kazanımı',
     processComponents: null,
     sourceLocator: null,
     verificationStatus: 'PASS',
   );
 
-  @override
-  Future<model.Course> getCourse() async => _course;
-
-  @override
-  Future<model.RuntimeManifest> getManifest() async => const model.RuntimeManifest(
-    runtimePackageVersion: '1.0.0',
-    schemaVersion: '1.0.0',
-    courseId: 'TDE_9',
-    validationStatus: 'PASS',
-    canonicalContentFingerprint: 'test',
-    rowCounts: {},
-    timelineResolution: 'THEME_TIME_RESOLVED',
-    timelineUnresolvedFields: {},
-  );
-
-  @override
-  Future<List<model.Theme>> getThemes() async => const [_theme];
-
-  @override
-  Future<model.Theme> getTheme(String themeId) async => _theme;
-
-  @override
-  Future<List<model.Block>> getBlocks(String themeId) async => const [_block];
-
-  @override
-  Future<model.BlockDetail> getBlock(String blockId) async => _detail;
-
-  @override
-  Future<List<model.TimelineEntry>> getAnnualSequence() async => const [
-    model.TimelineEntry(
-      sequencePosition: 1,
-      theme: _theme,
-      block: _block,
-      officialTotalHours: null,
-      coreInstructionHours: null,
-      schoolBasedHours: null,
-      schoolBasedHoursStatus: null,
-    ),
-  ];
-
-  @override
-  Future<List<model.ResourceDecision>> getResourceDecisions(String themeId) async =>
-      const [];
-
-  @override
-  Future<model.TeacherPackage> getTeacherPackage(String themeId) async =>
-      const model.TeacherPackage(
-        theme: _theme,
-        blocks: [_block],
-        outcomes: [_outcome],
-        textbookSections: [],
-        activities: [],
-        forms: [],
-        assessmentArtifacts: [],
-        assessmentGaps: [],
-        assessmentTaskBindings: [],
-        resourceDecisions: [],
-        sourceReferences: [],
-      );
-
-  static const _detail = model.BlockDetail(
-    theme: _theme,
-    block: _block,
-    outcomes: [_outcome],
+  static const detail = model.BlockDetail(
+    theme: theme,
+    block: block,
+    outcomes: [outcome],
     textbookSections: [],
     activities: [],
     forms: [],
@@ -394,6 +183,66 @@ class _FakeRepository implements CourseKnowledgeRepository {
     previousBlock: null,
     nextBlock: null,
   );
+
+  @override
+  Future<model.Course> getCourse() async => course;
+
+  @override
+  Future<model.RuntimeManifest> getManifest() async => const model.RuntimeManifest(
+    runtimePackageVersion: '1.0.0',
+    schemaVersion: '1.0.0',
+    courseId: 'TDE_9',
+    validationStatus: 'PASS',
+    canonicalContentFingerprint: 'test',
+    rowCounts: {},
+    timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
+    timelineUnresolvedFields: {},
+  );
+
+  @override
+  Future<List<model.Theme>> getThemes() async => const [theme];
+
+  @override
+  Future<model.Theme> getTheme(String themeId) async => theme;
+
+  @override
+  Future<List<model.Block>> getBlocks(String themeId) async => const [block];
+
+  @override
+  Future<model.BlockDetail> getBlock(String blockId) async => detail;
+
+  @override
+  Future<List<model.TimelineEntry>> getAnnualSequence() async => const [
+    model.TimelineEntry(
+      sequencePosition: 1,
+      theme: theme,
+      block: block,
+      officialTotalHours: 45,
+      coreInstructionHours: 43,
+      schoolBasedHours: 2,
+      schoolBasedHoursStatus: 'CONFIRMED',
+    ),
+  ];
+
+  @override
+  Future<List<model.ResourceDecision>> getResourceDecisions(String themeId) async =>
+      const [];
+
+  @override
+  Future<model.TeacherPackage> getTeacherPackage(String themeId) async =>
+      const model.TeacherPackage(
+        theme: theme,
+        blocks: [block],
+        outcomes: [outcome],
+        textbookSections: [],
+        activities: [],
+        forms: [],
+        assessmentArtifacts: [],
+        assessmentGaps: [],
+        assessmentTaskBindings: [],
+        resourceDecisions: [],
+        sourceReferences: [],
+      );
 }
 
 class _FakeWeeklyPlanning implements WeeklyPlanningService {
@@ -415,44 +264,13 @@ class _FakeWeeklyPlanning implements WeeklyPlanningService {
         segments: const [
           WeeklyPlanSegment(
             type: WeeklyPlanSegmentType.block,
-            theme: _FakeRepository._theme,
-            block: _FakeRepository._block,
+            theme: _FakeRepository.theme,
             hours: 5,
+            block: _FakeRepository.block,
           ),
         ],
-        outcomes: const [_FakeRepository._outcome],
-      ),
-      AcademicWeekPlan(
-        weekNumber: 2,
-        start: DateTime(2026, 9, 21),
-        end: DateTime(2026, 9, 25),
-        type: AcademicWeekType.instruction,
-        label: '2. Hafta',
-        plannedLessonHours: 5,
-        segments: const [
-          WeeklyPlanSegment(
-            type: WeeklyPlanSegmentType.block,
-            theme: _FakeRepository._theme,
-            block: _FakeRepository._block,
-            hours: 5,
-          ),
-        ],
-        outcomes: const [_FakeRepository._outcome],
+        outcomes: const [_FakeRepository.outcome],
       ),
     ],
   );
-}
-
-class _FakePreferences implements UserPreferencesRepository {
-  String? _value;
-
-  @override
-  Future<void> clearManualPositionOverride() async => _value = null;
-
-  @override
-  Future<String?> getManualPositionOverride() async => _value;
-
-  @override
-  Future<void> setManualPositionOverride(String blockId) async =>
-      _value = blockId;
 }
