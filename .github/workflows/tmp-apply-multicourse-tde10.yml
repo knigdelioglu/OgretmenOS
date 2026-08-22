@@ -27,16 +27,33 @@ jobs:
           cache: true
 
       - name: Apply multicourse patch and import pinned TDE10 runtime
-        run: python .github/scripts/apply_multicourse_tde10_patch.py
+        run: |
+          python .github/scripts/apply_multicourse_tde10_patch.py
+          python .github/scripts/fix_multicourse_tde10_patch.py
 
       - name: Install dependencies
         run: |
           flutter pub get
           (cd tool/runtime_verifier && dart pub get)
 
-      - name: Format and analyze
+      - name: Format changed Dart sources
         run: |
-          dart format lib test tool/sync_course_runtime.dart tool/runtime_verifier/bin/verify_runtime.dart
+          dart format \
+            lib/app/app.dart \
+            lib/app/app_dependencies.dart \
+            lib/data/course/course_database_data_source.dart \
+            lib/data/course/course_database_installer.dart \
+            lib/domain/models/course_models.dart \
+            lib/domain/runtime/course_runtime_registry.dart \
+            lib/domain/runtime/runtime_manifest_policy.dart \
+            lib/features/block/block_detail_page.dart \
+            lib/features/block/rubric_score_card.dart \
+            test/tde10_runtime_integration_test.dart \
+            tool/sync_course_runtime.dart \
+            tool/runtime_verifier/bin/verify_runtime.dart
+
+      - name: Analyze
+        run: |
           flutter analyze
           (cd tool/runtime_verifier && dart analyze)
 
@@ -51,7 +68,9 @@ jobs:
       - name: Remove temporary applicator and publish feature changes
         run: |
           rm -f .github/scripts/apply_multicourse_tde10_patch.py
+          rm -f .github/scripts/fix_multicourse_tde10_patch.py
           rm -f .github/workflows/tmp-apply-multicourse-tde10.yml
+          git checkout -- analysis_options.yaml pubspec.lock 2>/dev/null || true
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
