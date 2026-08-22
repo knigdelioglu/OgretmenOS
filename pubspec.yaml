@@ -1,5 +1,5 @@
 name: ogretmen_os
-description: "Offline-first TYMM Teacher OS runtime for multiple TDE grades."
+description: "Offline-first TYMM Teacher OS runtime for multiple courses and grades."
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -24,6 +24,8 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/courses/TDE_9/
-    - assets/courses/TDE_10/
+    - tymm-verileri/turk-dili-ve-edebiyati/TDE_9/
+    - tymm-verileri/turk-dili-ve-edebiyati/TDE_10/
+    - tymm-verileri/turk-dili-ve-edebiyati/TDE_11/
+    - tymm-verileri/turk-dili-ve-edebiyati/TDE_12/
     - assets/calendars/
