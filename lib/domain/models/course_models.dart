@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../runtime/course_runtime_registry.dart';
+
 typedef Row = Map<String, Object?>;
 
 String? nullableString(Object? value) {
@@ -32,6 +34,33 @@ List<String> jsonStringList(String? value) {
   return const [];
 }
 
+Map<String, dynamic> jsonStringMap(String? value) {
+  if (value == null || value.trim().isEmpty) return const {};
+  try {
+    final decoded = jsonDecode(value);
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+  } on FormatException {
+    return const {};
+  }
+  return const {};
+}
+
+List<Map<String, dynamic>> jsonObjectList(String? value) {
+  if (value == null || value.trim().isEmpty) return const [];
+  try {
+    final decoded = jsonDecode(value);
+    if (decoded is List) {
+      return decoded
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList(growable: false);
+    }
+  } on FormatException {
+    return const [];
+  }
+  return const [];
+}
+
 class RuntimeManifest {
   const RuntimeManifest({
     required this.runtimePackageVersion,
@@ -42,6 +71,7 @@ class RuntimeManifest {
     required this.rowCounts,
     required this.timelineResolution,
     required this.timelineUnresolvedFields,
+    this.assessmentPayloadCapabilities = const {},
   });
 
   factory RuntimeManifest.fromJson(Map<String, dynamic> json) {
@@ -60,6 +90,13 @@ class RuntimeManifest {
         unresolved[entry.key.toString()] = entry.value;
       }
     }
+    final rawCapabilities = json['assessment_payload_capabilities'];
+    final capabilities = <String, bool>{};
+    if (rawCapabilities is Map) {
+      for (final entry in rawCapabilities.entries) {
+        capabilities[entry.key.toString()] = entry.value == true;
+      }
+    }
     return RuntimeManifest(
       runtimePackageVersion: json['runtime_package_version']?.toString() ?? '',
       schemaVersion: json['schema_version']?.toString() ?? '',
@@ -70,6 +107,7 @@ class RuntimeManifest {
       rowCounts: rowCounts,
       timelineResolution: json['timeline_resolution']?.toString() ?? '',
       timelineUnresolvedFields: unresolved,
+      assessmentPayloadCapabilities: capabilities,
     );
   }
 
@@ -81,11 +119,15 @@ class RuntimeManifest {
   final Map<String, int> rowCounts;
   final String timelineResolution;
   final Map<String, Object?> timelineUnresolvedFields;
+  final Map<String, bool> assessmentPayloadCapabilities;
 
   bool get isCompatible =>
-      courseId == 'TDE_9' &&
+      isSupportedRuntimeCourse(courseId) &&
       schemaVersion.startsWith('1.') &&
       validationStatus == 'PASS';
+
+  bool hasAssessmentCapability(String capability) =>
+      assessmentPayloadCapabilities[capability] == true;
 
   String? get weeklyLessonHours =>
       timelineUnresolvedFields['weekly_lesson_hours']?.toString();
@@ -369,6 +411,57 @@ class ResourceDecision {
   final bool teacherReviewRequired;
 }
 
+class RubricLevel {
+  const RubricLevel({
+    required this.score,
+    required this.label,
+    required this.descriptor,
+  });
+
+  factory RubricLevel.fromJson(Map<String, dynamic> json) => RubricLevel(
+    score: nullableInt(json['score']) ?? 0,
+    label: json['label']?.toString() ?? '',
+    descriptor: nullableString(json['descriptor']),
+  );
+
+  final int score;
+  final String label;
+  final String? descriptor;
+}
+
+class RubricCriterion {
+  const RubricCriterion({
+    required this.id,
+    required this.name,
+    required this.conditional,
+    required this.descriptors,
+  });
+
+  factory RubricCriterion.fromJson(Map<String, dynamic> json) {
+    final rawDescriptors = json['descriptors'];
+    final descriptors = <int, String>{};
+    if (rawDescriptors is Map) {
+      for (final entry in rawDescriptors.entries) {
+        final score = int.tryParse(entry.key.toString());
+        if (score != null && entry.value != null) {
+          descriptors[score] = entry.value.toString();
+        }
+      }
+    }
+    return RubricCriterion(
+      id: json['criterion_id']?.toString() ?? '',
+      name: json['criterion_name']?.toString() ?? '',
+      conditional: json['conditional'] == true,
+      descriptors: descriptors,
+    );
+  }
+
+  final String id;
+  final String name;
+  final bool conditional;
+  final Map<int, String> descriptors;
+}
+
 class AssessmentArtifact {
   const AssessmentArtifact({
     required this.id,
@@ -382,23 +475,43 @@ class AssessmentArtifact {
     required this.teacherReviewRequired,
     required this.coveredThemes,
     required this.coveredGapInstances,
+    required this.levels,
+    required this.criteria,
+    required this.provenance,
   });
 
-  factory AssessmentArtifact.fromRow(Row row) => AssessmentArtifact(
-    id: row['artifact_id']! as String,
-    title: row['title']! as String,
-    skillDomain: nullableString(row['skill_domain']),
-    scope: nullableString(row['scope']),
-    assessmentFamily: nullableString(row['assessment_family']),
-    reusePolicy: nullableString(row['reuse_policy']),
-    generationPriority: nullableString(row['generation_priority']),
-    generationStatus: nullableString(row['generation_status']),
-    teacherReviewRequired: nullableBool(row['teacher_review_required']),
-    coveredThemes: jsonStringList(nullableString(row['covered_themes_json'])),
-    coveredGapInstances: jsonStringList(
-      nullableString(row['covered_gap_instances_json']),
-    ),
-  );
+  factory AssessmentArtifact.fromRow(Row row) {
+    final levelModel = jsonStringMap(nullableString(row['level_model_json']));
+    final rawLevels = levelModel['levels'];
+    return AssessmentArtifact(
+      id: row['artifact_id']! as String,
+      title: row['title']! as String,
+      skillDomain: nullableString(row['skill_domain']),
+      scope: nullableString(row['scope']),
+      assessmentFamily: nullableString(row['assessment_family']),
+      reusePolicy: nullableString(row['reuse_policy']),
+      generationPriority: nullableString(row['generation_priority']),
+      generationStatus: nullableString(row['generation_status']),
+      teacherReviewRequired: nullableBool(row['teacher_review_required']),
+      coveredThemes: jsonStringList(nullableString(row['covered_themes_json'])),
+      coveredGapInstances: jsonStringList(
+        nullableString(row['covered_gap_instances_json']),
+      ),
+      levels: rawLevels is List
+          ? rawLevels
+                .whereType<Map>()
+                .map(
+                  (item) =>
+                      RubricLevel.fromJson(Map<String, dynamic>.from(item)),
+                )
+                .toList(growable: false)
+          : const [],
+      criteria: jsonObjectList(
+        nullableString(row['criteria_json']),
+      ).map(RubricCriterion.fromJson).toList(growable: false),
+      provenance: jsonStringMap(nullableString(row['provenance_json'])),
+    );
+  }
 
   final String id;
   final String title;
@@ -411,6 +524,9 @@ class AssessmentArtifact {
   final bool teacherReviewRequired;
   final List<String> coveredThemes;
   final List<String> coveredGapInstances;
+  final List<RubricLevel> levels;
+  final List<RubricCriterion> criteria;
+  final Map<String, dynamic> provenance;
 }
 
 class AssessmentGapMapping {
@@ -455,6 +571,9 @@ class AssessmentTaskBinding {
     required this.evidence,
     required this.textbookLocator,
     required this.curriculumLocator,
+    required this.taskSpecificCriteria,
+    required this.sourceEquivalenceStatus,
+    required this.bindingKeySemantics,
   });
 
   factory AssessmentTaskBinding.fromRow(Row row) => AssessmentTaskBinding(
@@ -470,6 +589,11 @@ class AssessmentTaskBinding {
     evidence: nullableString(row['evidence']),
     textbookLocator: nullableString(row['textbook_locator']),
     curriculumLocator: nullableString(row['curriculum_locator']),
+    taskSpecificCriteria: jsonStringList(
+      nullableString(row['task_specific_criteria_json']),
+    ),
+    sourceEquivalenceStatus: nullableString(row['source_equivalence_status']),
+    bindingKeySemantics: nullableString(row['binding_key_semantics']),
   );
 
   final String artifactId;
@@ -482,6 +606,9 @@ class AssessmentTaskBinding {
   final String? evidence;
   final String? textbookLocator;
   final String? curriculumLocator;
+  final List<String> taskSpecificCriteria;
+  final String? sourceEquivalenceStatus;
+  final String? bindingKeySemantics;
 }
 
 class SourceReference {

@@ -175,11 +175,18 @@ class CourseDatabaseDataSource {
   Future<List<AssessmentArtifact>> getAssessmentArtifacts(
     String themeId,
   ) async {
+    final hasPayload = await _hasColumn(
+      'assessment_artifacts',
+      'criteria_json',
+    );
+    final payloadColumns = hasPayload
+        ? 'level_model_json, criteria_json, provenance_json'
+        : "'{}' AS level_model_json, '[]' AS criteria_json, '{}' AS provenance_json";
     final rows = await _database.rawQuery('''
       SELECT artifact_id, title, skill_domain, scope, assessment_family,
              reuse_policy, generation_priority, generation_status,
              teacher_review_required, covered_themes_json,
-             covered_gap_instances_json
+             covered_gap_instances_json, $payloadColumns
       FROM assessment_artifacts
       ORDER BY artifact_id
     ''');
@@ -211,10 +218,17 @@ class CourseDatabaseDataSource {
         ? 'WHERE theme_id = ?'
         : 'WHERE theme_id = ? AND block_id = ?';
     final arguments = blockId == null ? [themeId] : [themeId, blockId];
+    final hasPayload = await _hasColumn(
+      'assessment_task_bindings',
+      'task_specific_criteria_json',
+    );
+    final payloadColumns = hasPayload
+        ? 'task_specific_criteria_json, source_equivalence_status, binding_key_semantics'
+        : "'[]' AS task_specific_criteria_json, NULL AS source_equivalence_status, NULL AS binding_key_semantics";
     final rows = await _database.rawQuery('''
       SELECT artifact_id, gap_instance_id, theme_id, block_id, activity_id,
              targeted_outcomes_json, task_title, evidence, textbook_locator,
-             curriculum_locator
+             curriculum_locator, $payloadColumns
       FROM assessment_task_bindings
       $where
       ORDER BY artifact_id, gap_instance_id
@@ -361,6 +375,11 @@ class CourseDatabaseDataSource {
       resourceDecisions: await getResourceDecisions(themeId),
       sourceReferences: await getSourceReferencesForTheme(themeId),
     );
+  }
+
+  Future<bool> _hasColumn(String table, String column) async {
+    final rows = await _database.rawQuery('PRAGMA table_info($table)');
+    return rows.any((row) => row['name']?.toString() == column);
   }
 
   Row _first(List<Row> rows, String entity) {

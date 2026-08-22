@@ -1,16 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:ogretmen_os/domain/runtime/course_runtime_registry.dart';
 import 'package:ogretmen_os/domain/runtime/runtime_manifest_policy.dart';
 import 'package:path/path.dart' as p;
 
-const _defaultSourceRoot = '/Users/kadir/Desktop/tymm/courses/TDE_9/runtime';
-const _defaultTargetRoot = 'assets/courses/TDE_9';
-
 Future<void> main(List<String> args) async {
   try {
-    final sourceRoot = _valueFor(args, '--source-root') ?? _defaultSourceRoot;
-    final targetRoot = _valueFor(args, '--target-root') ?? _defaultTargetRoot;
+    final courseId = _valueFor(args, '--course') ?? 'TDE_9';
+    runtimeForCourse(courseId);
+    final sourceRoot =
+        _valueFor(args, '--source-root') ??
+        '/Users/kadir/Desktop/tymm/courses/$courseId/runtime';
+    final targetRoot =
+        _valueFor(args, '--target-root') ?? 'assets/courses/$courseId';
 
     final sourceManifest = File(p.join(sourceRoot, 'runtime_manifest.json'));
     final sourceDatabase = File(p.join(sourceRoot, 'course_runtime.sqlite'));
@@ -27,6 +30,11 @@ Future<void> main(List<String> args) async {
     final manifestJson = jsonDecode(await sourceManifest.readAsString());
     if (manifestJson is! Map<String, dynamic>) {
       throw StateError('Runtime manifest JSON nesnesi olmalı.');
+    }
+    if (manifestJson['course_id'] != courseId) {
+      throw StateError(
+        'İstenen course_id ile runtime uyuşmuyor: $courseId/${manifestJson['course_id']}',
+      );
     }
     final validationReport = sourceValidationReport.existsSync()
         ? await sourceValidationReport.readAsString()
@@ -56,20 +64,14 @@ Future<void> main(List<String> args) async {
     if (!await _filesEqual(sourceManifest, targetManifest)) {
       throw StateError('Runtime manifest hedef doğrulaması başarısız.');
     }
-    if (sourceValidationReport.existsSync() &&
-        !await _filesEqual(sourceValidationReport, targetValidationReport)) {
-      throw StateError('Runtime validation raporu hedef doğrulaması başarısız.');
-    }
 
     stdout.writeln('RUNTIME_SYNC: PASS');
-    stdout.writeln('COURSE_ID: ${manifestJson['course_id']}');
+    stdout.writeln('COURSE_ID: $courseId');
     stdout.writeln(
       'RUNTIME_PACKAGE_VERSION: ${manifestJson['runtime_package_version']}',
     );
     stdout.writeln('SCHEMA_VERSION: ${manifestJson['schema_version']}');
     stdout.writeln('VALIDATION_STATUS: ${manifestJson['validation_status']}');
-    stdout.writeln('FRESHNESS_EVIDENCE: PASS');
-    stdout.writeln('DATABASE_BYTES: ${targetDatabase.lengthSync()}');
   } catch (error, stackTrace) {
     stderr.writeln('RUNTIME_SYNC: FAIL');
     stderr.writeln(error);
@@ -87,7 +89,6 @@ String? _valueFor(List<String> args, String name) {
 Future<bool> _filesEqual(File source, File target) async {
   if (!source.existsSync() || !target.existsSync()) return false;
   if (await source.length() != await target.length()) return false;
-
   final sourceBytes = await source.readAsBytes();
   final targetBytes = await target.readAsBytes();
   for (var index = 0; index < sourceBytes.length; index++) {

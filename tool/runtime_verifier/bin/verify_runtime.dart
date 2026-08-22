@@ -4,13 +4,14 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
+  final courseId = _valueFor(args, '--course') ?? 'TDE_9';
   final projectRoot = File.fromUri(Platform.script).parent.parent.parent.parent;
   final runtimeDirectory = p.join(
     projectRoot.path,
     'assets',
     'courses',
-    'TDE_9',
+    courseId,
   );
   final manifestFile = File(p.join(runtimeDirectory, 'runtime_manifest.json'));
   final databaseFile = File(p.join(runtimeDirectory, 'course_runtime.sqlite'));
@@ -23,7 +24,7 @@ Future<void> main() async {
   final manifest = jsonDecode(await manifestFile.readAsString());
   _check(manifest is Map<String, dynamic>, 'runtime manifest JSON geçersiz');
   final manifestMap = manifest as Map<String, dynamic>;
-  _check(manifestMap['course_id'] == 'TDE_9', 'course_id TDE_9 değil');
+  _check(manifestMap['course_id'] == courseId, 'course_id $courseId değil');
   _check(
     (manifestMap['schema_version'] as String).startsWith('1.'),
     'schema sürümü 1.x değil',
@@ -61,11 +62,14 @@ Future<void> main() async {
       FROM courses
       LIMIT 1
     ''').single;
-    _checkValue(course['course_id'], manifestMap['course_id'], 'course kimliği');
     _checkValue(
+      course['course_id'],
+      manifestMap['course_id'],
+      'course kimliği',
+    );
+    _checkSchemaCompatibility(
       course['schema_version'],
       manifestMap['schema_version'],
-      'schema sürümü',
     );
     _checkValue(
       course['source_manifest_fingerprint'],
@@ -231,24 +235,23 @@ Future<void> main() async {
       'theme ölçme bağlama yok',
     );
     _check(
-      database.select(
-        '''
+      database
+          .select(
+            '''
         SELECT sr.source_id
         FROM source_references sr
         INNER JOIN entity_source_references esr ON esr.source_id = sr.source_id
         WHERE esr.entity_type = 'theme' AND esr.entity_id = ?
       ''',
-        [verificationThemeId],
-      ).isNotEmpty,
+            [verificationThemeId],
+          )
+          .isNotEmpty,
       'theme kaynak referansı yok',
     );
 
-    final themeBlockCount = _countWhere(
-      database,
-      'blocks',
-      'theme_id = ?',
-      [verificationThemeId],
-    );
+    final themeBlockCount = _countWhere(database, 'blocks', 'theme_id = ?', [
+      verificationThemeId,
+    ]);
     final timelineBlockCount = _countWhere(
       database,
       'timeline_blocks',
@@ -262,7 +265,9 @@ Future<void> main() async {
       'theme block/timeline blok sayısı',
     );
     _check(
-      _countWhere(database, 'activities', 'theme_id = ?', [verificationThemeId]) >
+      _countWhere(database, 'activities', 'theme_id = ?', [
+            verificationThemeId,
+          ]) >
           0,
       'öğretmen paketi etkinliksiz',
     );
@@ -287,8 +292,7 @@ void _checkFreshnessEvidence(
     for (final line in validationReport.split('\n')) {
       if (!line.toLowerCase().contains('source fingerprint status')) continue;
       final normalized = line.toUpperCase();
-      if (normalized.contains('PASS') &&
-          normalized.contains('RUNTIME_FRESH')) {
+      if (normalized.contains('PASS') && normalized.contains('RUNTIME_FRESH')) {
         return;
       }
     }
@@ -322,5 +326,26 @@ void _check(bool condition, String message) {
 void _checkValue(Object? actual, Object? expected, String message) {
   if (actual != expected) {
     throw StateError('$message (beklenen: $expected, gerçek: $actual)');
+  }
+}
+
+String? _valueFor(List<String> args, String name) {
+  final index = args.indexOf(name);
+  if (index == -1 || index + 1 >= args.length) return null;
+  return args[index + 1];
+}
+
+void _checkSchemaCompatibility(
+  Object? databaseVersion,
+  Object? manifestVersion,
+) {
+  final database = databaseVersion?.toString() ?? '';
+  final manifest = manifestVersion?.toString() ?? '';
+  if (database.isEmpty ||
+      manifest.isEmpty ||
+      database.split('.').first != manifest.split('.').first) {
+    throw StateError(
+      'schema major uyumsuz (manifest: $manifest, database: $database)',
+    );
   }
 }

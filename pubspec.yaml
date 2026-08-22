@@ -1,5 +1,5 @@
 name: ogretmen_os
-description: "Offline-first TYMM Teacher OS runtime for TDE_9."
+description: "Offline-first TYMM Teacher OS runtime for multiple TDE grades."
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -24,6 +24,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/courses/TDE_9/course_runtime.sqlite
-    - assets/courses/TDE_9/runtime_manifest.json
+    - assets/courses/TDE_9/
+    - assets/courses/TDE_10/
     - assets/calendars/

@@ -1,4 +1,5 @@
-const supportedRuntimeCourseId = 'TDE_9';
+import 'course_runtime_registry.dart';
+
 const supportedRuntimeSchemaMajor = '1.';
 const requiredRuntimeFreshStatus = 'RUNTIME_FRESH';
 const requiredRuntimeDatabasePath = 'runtime/course_runtime.sqlite';
@@ -10,8 +11,9 @@ const requiredRuntimeDatabasePath = 'runtime/course_runtime.sqlite';
 /// runtime validation report. The packaged manifest remains byte-identical to
 /// the canonical TYMM runtime manifest.
 void validateRuntimeManifest(Map<String, dynamic> manifest) {
-  if (manifest['course_id'] != supportedRuntimeCourseId) {
-    throw StateError('Beklenmeyen course_id: ${manifest['course_id']}');
+  final courseId = manifest['course_id']?.toString() ?? '';
+  if (!isSupportedRuntimeCourse(courseId)) {
+    throw StateError('Desteklenmeyen course_id: $courseId');
   }
 
   final schemaVersion = manifest['schema_version']?.toString() ?? '';
@@ -78,4 +80,16 @@ void validateRuntimeFreshnessEvidence(
   }
 
   throw StateError('Runtime package freshness kanıtı yok veya geçersiz.');
+}
+
+bool isRuntimeDatabaseSchemaCompatible(
+  String databaseSchemaVersion,
+  String manifestSchemaVersion,
+) {
+  if (databaseSchemaVersion.isEmpty || manifestSchemaVersion.isEmpty) {
+    return false;
+  }
+  final databaseMajor = databaseSchemaVersion.split('.').first;
+  final manifestMajor = manifestSchemaVersion.split('.').first;
+  return databaseMajor == manifestMajor;
 }

@@ -25,8 +25,13 @@ class AppDependencies {
   final Future<void> Function()? dispose;
 }
 
-Future<AppDependencies> loadProductionDependencies() async {
-  final database = await CourseDatabase.open();
+Future<AppDependencies> loadProductionDependencies() =>
+    loadProductionDependenciesForCourse('TDE_9');
+
+Future<AppDependencies> loadProductionDependenciesForCourse(
+  String courseId,
+) async {
+  final database = await CourseDatabase.open(courseId: courseId);
   OutcomeTrackingDatabase? trackingDatabase;
   try {
     final preferences = await SharedPreferences.getInstance();

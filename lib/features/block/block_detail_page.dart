@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../domain/models/course_models.dart' as model;
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../shared/feature_widgets.dart';
+import 'rubric_score_card.dart';
 import '../shared/teacher_presentation.dart';
 
 class BlockDetailPage extends StatefulWidget {
@@ -92,7 +93,8 @@ class _BlockDetailContent extends StatelessWidget {
       _FormsSection(forms: detail.forms),
       const SectionHeading(
         'Nasıl değerlendireceğim?',
-        subtitle: 'Bu blokla ilişkilendirilmiş değerlendirme araçları ve görevler',
+        subtitle:
+            'Bu blokla ilişkilendirilmiş değerlendirme araçları ve görevler',
         icon: Icons.fact_check_outlined,
       ),
       _AssessmentSection(detail: detail),
@@ -159,17 +161,22 @@ class _BlockSummary extends StatelessWidget {
                       Text(
                         'Tema içindeki ${detail.block.order}. blok',
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer,
                         ),
                       ),
                       if (skill != null) ...[
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           skill,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onPrimaryContainer,
+                                fontWeight: FontWeight.w700,
+                              ),
                         ),
                       ],
                     ],
@@ -277,7 +284,8 @@ class _TextbookSection extends StatelessWidget {
       return const StatusPanel(
         icon: Icons.menu_book_outlined,
         title: 'Kitap bölümü bulunmuyor',
-        message: 'Bu bloktaki etkinliklerle eşleştirilmiş kitap bölümü bulunmuyor.',
+        message:
+            'Bu bloktaki etkinliklerle eşleştirilmiş kitap bölümü bulunmuyor.',
       );
     }
 
@@ -405,12 +413,7 @@ class _FormItem extends StatelessWidget {
       title: Text(form.title),
       subtitle: evaluator == null && pages.isEmpty
           ? null
-          : Text(
-              [
-                ?evaluator,
-                if (pages.isNotEmpty) pages,
-              ].join(' · '),
-            ),
+          : Text([?evaluator, if (pages.isNotEmpty) pages].join(' · ')),
     );
   }
 }
@@ -441,18 +444,23 @@ class _AssessmentSection extends StatelessWidget {
             icon: Icons.fact_check_outlined,
             child: Column(
               children: [
-                for (var index = 0;
-                    index < detail.assessmentArtifacts.length;
-                    index++) ...[
+                for (
+                  var index = 0;
+                  index < detail.assessmentArtifacts.length;
+                  index++
+                ) ...[
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.checklist_outlined),
                     title: Text(detail.assessmentArtifacts[index].title),
                     subtitle: Text(
                       [
-                        if (detail.assessmentArtifacts[index].skillDomain != null)
+                        if (detail.assessmentArtifacts[index].skillDomain !=
+                            null)
                           detail.assessmentArtifacts[index].skillDomain!,
-                        if (detail.assessmentArtifacts[index].teacherReviewRequired)
+                        if (detail
+                            .assessmentArtifacts[index]
+                            .teacherReviewRequired)
                           'Kullanmadan önce öğretmen incelemesi gerekli',
                       ].join(' · '),
                     ),
@@ -473,11 +481,14 @@ class _AssessmentSection extends StatelessWidget {
             icon: Icons.checklist_outlined,
             child: Column(
               children: [
-                for (var index = 0;
-                    index < detail.assessmentTaskBindings.length;
-                    index++) ...[
+                for (
+                  var index = 0;
+                  index < detail.assessmentTaskBindings.length;
+                  index++
+                ) ...[
                   _AssessmentTaskItem(
                     binding: detail.assessmentTaskBindings[index],
+                    artifacts: detail.assessmentArtifacts,
                   ),
                   if (index != detail.assessmentTaskBindings.length - 1)
                     const Divider(),
@@ -493,23 +504,31 @@ class _AssessmentSection extends StatelessWidget {
             icon: Icons.info_outline,
             child: Column(
               children: [
-                for (var index = 0; index < detail.assessmentGaps.length; index++) ...[
+                for (
+                  var index = 0;
+                  index < detail.assessmentGaps.length;
+                  index++
+                ) ...[
                   ExpansionTile(
                     tilePadding: EdgeInsets.zero,
-                    childrenPadding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                    childrenPadding: const EdgeInsets.only(
+                      bottom: AppSpacing.lg,
+                    ),
                     title: Text(
                       detail.assessmentGaps[index].officialRequirement ??
                           'Değerlendirme ihtiyacı',
                     ),
                     children: [
-                      if (detail.assessmentGaps[index].exactRemainingGap != null)
+                      if (detail.assessmentGaps[index].exactRemainingGap !=
+                          null)
                         Text(
                           detail.assessmentGaps[index].exactRemainingGap!,
                           style: const TextStyle(height: 1.45),
                         ),
                     ],
                   ),
-                  if (index != detail.assessmentGaps.length - 1) const Divider(),
+                  if (index != detail.assessmentGaps.length - 1)
+                    const Divider(),
                 ],
               ],
             ),
@@ -521,13 +540,21 @@ class _AssessmentSection extends StatelessWidget {
 }
 
 class _AssessmentTaskItem extends StatelessWidget {
-  const _AssessmentTaskItem({required this.binding});
+  const _AssessmentTaskItem({required this.binding, required this.artifacts});
 
   final model.AssessmentTaskBinding binding;
+  final List<model.AssessmentArtifact> artifacts;
 
   @override
   Widget build(BuildContext context) {
     final bookLocation = teacherLocatorLabel(binding.textbookLocator);
+    model.AssessmentArtifact? artifact;
+    for (final candidate in artifacts) {
+      if (candidate.id == binding.artifactId) {
+        artifact = candidate;
+        break;
+      }
+    }
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
       childrenPadding: const EdgeInsets.only(bottom: AppSpacing.lg),
@@ -548,6 +575,8 @@ class _AssessmentTaskItem extends StatelessWidget {
             icon: Icons.menu_book_outlined,
           ),
         ],
+        if (binding.taskSpecificCriteria.isNotEmpty)
+          RubricScoreCard(binding: binding, artifact: artifact),
       ],
     );
   }
@@ -569,7 +598,9 @@ class _MaterialSection extends StatelessWidget {
     }
 
     final additional = decisions
-        .where((decision) => decision.appCategory == 'ADDITIONAL_SUPPORT_REQUIRED')
+        .where(
+          (decision) => decision.appCategory == 'ADDITIONAL_SUPPORT_REQUIRED',
+        )
         .length;
 
     return Column(
@@ -587,7 +618,8 @@ class _MaterialSection extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         for (var index = 0; index < decisions.length; index++) ...[
           TeacherResourceDecisionCard(decision: decisions[index]),
-          if (index != decisions.length - 1) const SizedBox(height: AppSpacing.md),
+          if (index != decisions.length - 1)
+            const SizedBox(height: AppSpacing.md),
         ],
       ],
     );
@@ -658,7 +690,9 @@ class _SequenceNavigation extends StatelessWidget {
             : () => _open(context, detail.previousBlock!.id),
         icon: const Icon(Icons.arrow_back),
         label: Text(
-          detail.previousBlock == null ? 'Önceki blok' : detail.previousBlock!.title,
+          detail.previousBlock == null
+              ? 'Önceki blok'
+              : detail.previousBlock!.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -699,7 +733,8 @@ class _SequenceNavigation extends StatelessWidget {
   void _open(BuildContext context, String blockId) {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => BlockDetailPage(repository: repository, blockId: blockId),
+        builder: (_) =>
+            BlockDetailPage(repository: repository, blockId: blockId),
       ),
     );
   }
