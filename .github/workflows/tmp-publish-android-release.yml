@@ -1,0 +1,96 @@
+name: Temporary Android Release Publisher
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: github.event.head_commit.message == 'chore: publish current Android release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Create ephemeral release key
+        shell: bash
+        run: |
+          keytool -genkeypair \
+            -keystore "$RUNNER_TEMP/ogretmenos-release.jks" \
+            -storepass release-password \
+            -keypass release-password \
+            -alias ogretmenos-release \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 1 \
+            -dname "CN=OgretmenOS Release, OU=Release, O=OgretmenOS, L=CI, ST=CI, C=TR"
+          cat > android/key.properties <<EOF
+          storeFile=$RUNNER_TEMP/ogretmenos-release.jks
+          storePassword=release-password
+          keyAlias=ogretmenos-release
+          keyPassword=release-password
+          EOF
+
+      - name: Build current Android APK
+        run: flutter build apk --release --no-pub
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: 74e6f072f8a99e57d96925f9ae8271501b2658f3
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(awk '/^version:/ {print $2}' pubspec.yaml | cut -d+ -f1)
+          BUILD=$(awk '/^version:/ {print $2}' pubspec.yaml | cut -d+ -f2)
+          BASE_TAG="v${VERSION}"
+          TAG="$BASE_TAG"
+          if gh release view "$BASE_TAG" >/dev/null 2>&1; then
+            TAG="${BASE_TAG}-build.${BUILD}"
+          fi
+
+          APK="OgretmenOS-${TAG}-android.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$APK"
+          SHA256=$(sha256sum "$APK" | awk '{print $1}')
+
+          cat > release-notes.md <<EOF
+          # ÖğretmenOS ${TAG}
+
+          Güncel Android paketi.
+
+          - Türk Dili ve Edebiyatı 9. sınıf: tam runtime
+          - Türk Dili ve Edebiyatı 10. sınıf: tam runtime
+          - Türk Dili ve Edebiyatı 11. sınıf: öğretim programı hazır, ders kitabı bekleniyor
+          - Türk Dili ve Edebiyatı 12. sınıf: öğretim programı hazır, ders kitabı bekleniyor
+          - 9-12 için haftalık/yıllık plan desteği
+          - Kaynak commit: ${TARGET_SHA}
+          - APK SHA-256: ${SHA256}
+
+          Not: Bu APK mevcut CI düzenindeki geçici Android imzalama anahtarıyla imzalanmıştır.
+          EOF
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber
+          else
+            gh release create "$TAG" "$APK" \
+              --target "$TARGET_SHA" \
+              --title "ÖğretmenOS ${TAG}" \
+              --notes-file release-notes.md \
+              --latest
+          fi
+
+          gh release view "$TAG" --json tagName,url,assets --jq '{tag:.tagName,url:.url,assets:[.assets[].name]}'
