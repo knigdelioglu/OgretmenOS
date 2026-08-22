@@ -180,3 +180,5 @@ jobs:
               --title "ÖğretmenOS $TAG" \
               --generate-notes
           fi
+
+          gh release view "$TAG" --json assets --jq '.assets[].name' | grep -Fx "$ASSET"
