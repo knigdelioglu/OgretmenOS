@@ -7,6 +7,7 @@ import 'package:sqflite/sqflite.dart';
 
 import 'course_database_data_source.dart';
 import '../../domain/models/course_models.dart';
+import '../../domain/runtime/course_runtime_registry.dart';
 import '../../domain/runtime/runtime_manifest_policy.dart';
 
 class InstalledRuntime {
@@ -17,14 +18,15 @@ class InstalledRuntime {
 }
 
 class CourseDatabaseInstaller {
-  const CourseDatabaseInstaller();
+  const CourseDatabaseInstaller({this.courseId = 'TDE_9'});
 
-  static const manifestAsset = 'assets/courses/TDE_9/runtime_manifest.json';
-  static const databaseAsset = 'assets/courses/TDE_9/course_runtime.sqlite';
+  final String courseId;
+
+  CourseRuntimeDescriptor get descriptor => runtimeForCourse(courseId);
 
   Future<InstalledRuntime> install() async {
     final manifest = await _readBundledManifest();
-    if (!manifest.isCompatible) {
+    if (!manifest.isCompatible || manifest.courseId != courseId) {
       throw StateError(
         'Desteklenmeyen veya doğrulanmamış runtime paketi: '
         '${manifest.courseId}/${manifest.schemaVersion}/${manifest.validationStatus}',
@@ -50,10 +52,10 @@ class CourseDatabaseInstaller {
     );
     if (shouldInstall) {
       final databaseBytes = (await rootBundle.load(
-        databaseAsset,
+        descriptor.databaseAsset,
       )).buffer.asUint8List();
       final manifestBytes = (await rootBundle.load(
-        manifestAsset,
+        descriptor.manifestAsset,
       )).buffer.asUint8List();
       await _replaceFile(databaseFile, databaseBytes);
       await _replaceFile(manifestFile, manifestBytes);
@@ -69,7 +71,9 @@ class CourseDatabaseInstaller {
   }
 
   Future<RuntimeManifest> _readBundledManifest() async {
-    final manifestString = await rootBundle.loadString(manifestAsset);
+    final manifestString = await rootBundle.loadString(
+      descriptor.manifestAsset,
+    );
     final decoded = jsonDecode(manifestString);
     if (decoded is! Map<String, dynamic>) {
       throw StateError('Bundled runtime manifest geçersiz.');
@@ -115,9 +119,12 @@ class CourseDatabase {
     : dataSource = CourseDatabaseDataSource(database);
 
   static Future<CourseDatabase> open({
-    CourseDatabaseInstaller installer = const CourseDatabaseInstaller(),
+    String courseId = 'TDE_9',
+    CourseDatabaseInstaller? installer,
   }) async {
-    final installed = await installer.install();
+    final selectedInstaller =
+        installer ?? CourseDatabaseInstaller(courseId: courseId);
+    final installed = await selectedInstaller.install();
     final database = await openDatabase(
       installed.databasePath,
       readOnly: true,
@@ -127,7 +134,10 @@ class CourseDatabase {
       final dataSource = CourseDatabaseDataSource(database);
       final course = await dataSource.getCourse();
       if (course.courseId != installed.manifest.courseId ||
-          course.schemaVersion != installed.manifest.schemaVersion ||
+          !isRuntimeDatabaseSchemaCompatible(
+            course.schemaVersion,
+            installed.manifest.schemaVersion,
+          ) ||
           course.sourceManifestFingerprint !=
               installed.manifest.canonicalContentFingerprint) {
         await database.close();

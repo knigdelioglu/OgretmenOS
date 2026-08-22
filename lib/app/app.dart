@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../domain/repositories/outcome_tracking_repository.dart';
+import '../domain/runtime/course_runtime_registry.dart';
 import '../domain/services/outcome_planning_service.dart';
 import '../features/annual_plan/annual_plan_page.dart';
 import '../features/outcomes/outcome_tracker_page.dart';
@@ -14,31 +15,47 @@ class TeacherOsApp extends StatefulWidget {
   const TeacherOsApp({
     super.key,
     this.dependencies,
-    this.loader = loadProductionDependencies,
+    this.courseLoader = loadProductionDependenciesForCourse,
+    this.initialCourseId = 'TDE_9',
   });
 
   final AppDependencies? dependencies;
-  final Future<AppDependencies> Function()? loader;
+  final Future<AppDependencies> Function(String courseId)? courseLoader;
+  final String initialCourseId;
 
   @override
   State<TeacherOsApp> createState() => _TeacherOsAppState();
 }
 
 class _TeacherOsAppState extends State<TeacherOsApp> {
-  late final Future<AppDependencies> _dependenciesFuture;
+  late Future<AppDependencies> _dependenciesFuture;
+  late String _activeCourseId;
+  AppDependencies? _resolvedDependencies;
 
   @override
   void initState() {
     super.initState();
+    _activeCourseId = widget.initialCourseId;
     _dependenciesFuture = widget.dependencies != null
         ? Future.value(widget.dependencies)
-        : widget.loader!();
+        : widget.courseLoader!(_activeCourseId);
+  }
+
+  Future<void> _switchCourse(String courseId) async {
+    if (courseId == _activeCourseId || widget.dependencies != null) return;
+    final previous = _resolvedDependencies;
+    _resolvedDependencies = null;
+    setState(() {
+      _activeCourseId = courseId;
+      _dependenciesFuture = widget.courseLoader!(courseId);
+    });
+    await previous?.dispose?.call();
   }
 
   @override
   void dispose() {
     if (widget.dependencies == null) {
-      _dependenciesFuture.then((dependencies) => dependencies.dispose?.call());
+      _resolvedDependencies?.dispose?.call();
     }
     super.dispose();
   }
@@ -59,7 +76,12 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
         if (snapshot.hasError || !snapshot.hasData) {
           return _StartupErrorPage(error: snapshot.error);
         }
-        return _AppShell(dependencies: snapshot.data!);
+        _resolvedDependencies = snapshot.data!;
+        return _AppShell(
+          dependencies: snapshot.data!,
+          activeCourseId: _activeCourseId,
+          onCourseChanged: widget.dependencies == null ? _switchCourse : null,
+        );
       },
     ),
   );
@@ -136,9 +158,15 @@ class _StartupErrorPage extends StatelessWidget {
 }
 
 class _AppShell extends StatefulWidget {
-  const _AppShell({required this.dependencies});
+  const _AppShell({
+    required this.dependencies,
+    required this.activeCourseId,
+    required this.onCourseChanged,
+  });
 
   final AppDependencies dependencies;
+  final String activeCourseId;
+  final ValueChanged<String>? onCourseChanged;
 
   @override
   State<_AppShell> createState() => _AppShellState();
@@ -158,7 +186,8 @@ class _AppShellState extends State<_AppShell> {
   @override
   void initState() {
     super.initState();
-    _outcomePlanning = widget.dependencies.outcomePlanning ??
+    _outcomePlanning =
+        widget.dependencies.outcomePlanning ??
         OutcomePlanningService(
           repository: widget.dependencies.repository,
           weeklyPlanning: widget.dependencies.weeklyPlanning,
@@ -173,10 +202,7 @@ class _AppShellState extends State<_AppShell> {
     final weeklyPlanning = widget.dependencies.weeklyPlanning;
     final pages = <Widget>[
       OutcomeTrackerPage(repository: repository, service: _outcomePlanning),
-      WeeklyPlanPage(
-        repository: repository,
-        planningService: weeklyPlanning,
-      ),
+      WeeklyPlanPage(repository: repository, planningService: weeklyPlanning),
       AnnualPlanPage(repository: repository, preferences: preferences),
       TeacherPackagePage(repository: repository),
     ];
@@ -189,7 +215,34 @@ class _AppShellState extends State<_AppShell> {
         final content = IndexedStack(index: _selectedIndex, children: pages);
 
         return Scaffold(
-          appBar: AppBar(title: Text(_titles[_selectedIndex])),
+          appBar: AppBar(
+            title: Text(_titles[_selectedIndex]),
+            actions: [
+              if (widget.onCourseChanged != null)
+                PopupMenuButton<String>(
+                  tooltip: 'Sınıf seç',
+                  initialValue: widget.activeCourseId,
+                  onSelected: widget.onCourseChanged,
+                  itemBuilder: (context) => [
+                    for (final course in supportedCourseRuntimes)
+                      PopupMenuItem<String>(
+                        value: course.courseId,
+                        child: Row(
+                          children: [
+                            if (course.courseId == widget.activeCourseId)
+                              const Icon(Icons.check, size: 18)
+                            else
+                              const SizedBox(width: 18),
+                            const SizedBox(width: 8),
+                            Text('${course.grade}. Sınıf'),
+                          ],
+                        ),
+                      ),
+                  ],
+                  icon: const Icon(Icons.school_outlined),
+                ),
+            ],
+          ),
           body: useRail
               ? Row(
                   children: [
