@@ -78,6 +78,7 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
         }
         _resolvedDependencies = snapshot.data!;
         return _AppShell(
+          key: ValueKey(_activeCourseId),
           dependencies: snapshot.data!,
           activeCourseId: _activeCourseId,
           onCourseChanged: widget.dependencies == null ? _switchCourse : null,
@@ -159,6 +160,7 @@ class _StartupErrorPage extends StatelessWidget {
 
 class _AppShell extends StatefulWidget {
   const _AppShell({
+    super.key,
     required this.dependencies,
     required this.activeCourseId,
     required this.onCourseChanged,
