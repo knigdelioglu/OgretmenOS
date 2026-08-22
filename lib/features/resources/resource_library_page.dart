@@ -299,7 +299,7 @@ class _Assessments extends StatelessWidget {
       for (final artifact in package.assessmentArtifacts)
         ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.rubric_outlined),
+          leading: const Icon(Icons.fact_check_outlined),
           title: Text(artifact.title),
           subtitle: artifact.skillDomain?.isNotEmpty == true
               ? Text(artifact.skillDomain!)
