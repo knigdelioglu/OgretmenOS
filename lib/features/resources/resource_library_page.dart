@@ -156,7 +156,8 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
               initiallyExpanded: primary == _ResourceKind.book,
               child: _Textbook(sections: package.textbookSections),
             ),
-          if (hasBook && (hasActivities || hasForms || hasAssessment || hasSources))
+          if (hasBook &&
+              (hasActivities || hasForms || hasAssessment || hasSources))
             const SizedBox(height: AppSpacing.sm),
           if (hasActivities)
             _ResourceSection(
@@ -331,10 +332,15 @@ class _ThemeResourceFocus extends StatelessWidget {
             ),
             if (counts.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.lg),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: counts,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var index = 0; index < counts.length; index++) ...[
+                    counts[index],
+                    if (index != counts.length - 1)
+                      const SizedBox(height: AppSpacing.sm),
+                  ],
+                ],
               ),
             ],
           ],
@@ -372,14 +378,22 @@ class _ResourceCount extends StatelessWidget {
     ),
     decoration: BoxDecoration(
       color: Theme.of(context).colorScheme.surface,
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(14),
     ),
     child: Row(
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18),
-        const SizedBox(width: AppSpacing.xs),
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(icon, size: 18),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
       ],
     ),
   );
