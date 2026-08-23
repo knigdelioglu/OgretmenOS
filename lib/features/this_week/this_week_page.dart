@@ -353,15 +353,16 @@ class _FocusCard extends StatelessWidget {
             ],
             if (!week.isEventWeek && total > 0) ...[
               const SizedBox(height: AppSpacing.lg),
-              Row(
+              Wrap(
+                spacing: AppSpacing.md,
+                runSpacing: AppSpacing.xs,
+                alignment: WrapAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: Text(
-                      'Haftalık ilerleme',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: scheme.onPrimaryContainer,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  Text(
+                    'Haftalık ilerleme',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: scheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   Text(
