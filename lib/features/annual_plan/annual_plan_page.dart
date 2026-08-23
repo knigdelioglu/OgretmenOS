@@ -34,6 +34,12 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
     _future = _load();
   }
 
+  @override
+  void didUpdateWidget(covariant AnnualPlanPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _future = _load();
+  }
+
   Future<_PlanData> _load() async {
     final sequence = await widget.repository.getAnnualSequence();
     final manual = await widget.preferences.getManualPositionOverride();
