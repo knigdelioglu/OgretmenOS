@@ -38,6 +38,23 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
     });
   }
 
+  Future<void> _chooseWeek(
+    AnnualOutcomePlan plan,
+    int selectedWeekNumber,
+  ) async {
+    final weekNumber = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => _WeekPickerSheet(
+        plan: plan,
+        selectedWeekNumber: selectedWeekNumber,
+      ),
+    );
+    if (weekNumber == null || !mounted) return;
+    setState(() => _selectedWeekNumber = weekNumber);
+  }
+
   Future<void> _setStatus(
     TrackedOutcome item,
     OutcomeTrackingStatus status, {
@@ -205,10 +222,12 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
         return const Center(child: Text('Gösterilebilir okul haftası bulunmuyor.'));
       }
 
-      final selectedNumber = _selectedWeekNumber ??
-          plan.currentWeekNumber ??
-          plan.weeks.first.week.weekNumber;
+      final defaultWeekNumber =
+          plan.currentWeekNumber ?? plan.weeks.first.week.weekNumber;
+      final selectedNumber = _selectedWeekNumber ?? defaultWeekNumber;
       final summary = plan.week(selectedNumber) ?? plan.weeks.first;
+      final isCurrentWeek = plan.currentWeekNumber != null &&
+          summary.week.weekNumber == plan.currentWeekNumber;
       final actionable = summary.outcomes.where(_isActionable).toList(growable: false);
       final focus = _focusOutcome(actionable);
       final openOthers = actionable
@@ -230,17 +249,19 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
           await _future;
         },
         children: [
-          _WeekToolbar(
-            plan: plan,
-            selectedWeekNumber: summary.week.weekNumber,
-            onChanged: (week) => setState(() => _selectedWeekNumber = week),
-          ),
-          const SizedBox(height: AppSpacing.md),
           _FocusCard(
             summary: summary,
             academicYear: plan.academicYear,
             focus: focus,
+            isCurrentWeek: isCurrentWeek,
+            onChooseWeek: () => _chooseWeek(plan, summary.week.weekNumber),
+            onReturnToCurrent: !isCurrentWeek && plan.currentWeekNumber != null
+                ? () => setState(
+                    () => _selectedWeekNumber = plan.currentWeekNumber,
+                  )
+                : null,
             onContinue: focus == null ? null : () => _openOutcome(plan, focus),
+            continueLabel: isCurrentWeek ? 'Derse devam et' : 'Kazanımı aç',
           ),
           if (summary.week.isEventWeek) ...[
             const SizedBox(height: AppSpacing.lg),
@@ -258,9 +279,11 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
               message: 'Bu hafta yalnız okul temelli planlama içeriyor olabilir.',
             ),
           ] else ...[
-            const SectionHeading(
-              'Sıradaki',
-              subtitle: 'Şu anda odaklanılacak tek kazanım',
+            SectionHeading(
+              isCurrentWeek ? 'Sıradaki' : 'Bu haftanın odağı',
+              subtitle: isCurrentWeek
+                  ? 'Şu anda odaklanılacak tek kazanım'
+                  : 'Seçili haftanın ilk açık kazanımı',
               icon: Icons.arrow_forward_rounded,
             ),
             if (focus != null)
@@ -333,65 +356,87 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
   );
 }
 
-class _WeekToolbar extends StatelessWidget {
-  const _WeekToolbar({
+class _WeekPickerSheet extends StatelessWidget {
+  const _WeekPickerSheet({
     required this.plan,
     required this.selectedWeekNumber,
-    required this.onChanged,
   });
 
   final AnnualOutcomePlan plan;
   final int selectedWeekNumber;
-  final ValueChanged<int> onChanged;
 
   @override
-  Widget build(BuildContext context) {
-    final index = plan.weeks.indexWhere(
-      (item) => item.week.weekNumber == selectedWeekNumber,
-    );
-    return Row(
+  Widget build(BuildContext context) => FractionallySizedBox(
+    heightFactor: 0.8,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        IconButton(
-          tooltip: 'Önceki hafta',
-          onPressed: index > 0
-              ? () => onChanged(plan.weeks[index - 1].week.weekNumber)
-              : null,
-          icon: const Icon(Icons.chevron_left),
-        ),
-        Expanded(
-          child: DropdownButtonFormField<int>(
-            key: ValueKey(selectedWeekNumber),
-            initialValue: selectedWeekNumber,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Okul haftası',
-              isDense: true,
-            ),
-            items: [
-              for (final item in plan.weeks)
-                DropdownMenuItem(
-                  value: item.week.weekNumber,
-                  child: Text(
-                    '${item.week.weekNumber}. Hafta · ${_dateRange(item.week.start, item.week.end)}',
-                    overflow: TextOverflow.ellipsis,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.lg,
+            AppSpacing.sm,
+            AppSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Haftaya git',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
+              ),
+              IconButton(
+                tooltip: 'Kapat',
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+              ),
             ],
-            onChanged: (value) {
-              if (value != null) onChanged(value);
+          ),
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.sm,
+              0,
+              AppSpacing.sm,
+              AppSpacing.lg,
+            ),
+            itemCount: plan.weeks.length,
+            separatorBuilder: (_, _) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final summary = plan.weeks[index];
+              final week = summary.week;
+              final isSelected = week.weekNumber == selectedWeekNumber;
+              final isCurrent = week.weekNumber == plan.currentWeekNumber;
+              return ListTile(
+                selected: isSelected,
+                leading: Icon(
+                  isCurrent ? Icons.today : Icons.calendar_today_outlined,
+                ),
+                title: Text(
+                  week.isEventWeek ? week.label : '${week.weekNumber}. Hafta',
+                  style: TextStyle(
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  [
+                    _dateRange(week.start, week.end),
+                    if (isCurrent) 'Bu hafta',
+                  ].join(' · '),
+                ),
+                trailing: isSelected ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.pop(context, week.weekNumber),
+              );
             },
           ),
         ),
-        IconButton(
-          tooltip: 'Sonraki hafta',
-          onPressed: index >= 0 && index < plan.weeks.length - 1
-              ? () => onChanged(plan.weeks[index + 1].week.weekNumber)
-              : null,
-          icon: const Icon(Icons.chevron_right),
-        ),
       ],
-    );
-  }
+    ),
+  );
 }
 
 class _FocusCard extends StatelessWidget {
@@ -399,13 +444,21 @@ class _FocusCard extends StatelessWidget {
     required this.summary,
     required this.academicYear,
     required this.focus,
+    required this.isCurrentWeek,
+    required this.onChooseWeek,
+    required this.onReturnToCurrent,
     required this.onContinue,
+    required this.continueLabel,
   });
 
   final WeeklyOutcomeSummary summary;
   final String academicYear;
   final TrackedOutcome? focus;
+  final bool isCurrentWeek;
+  final VoidCallback onChooseWeek;
+  final VoidCallback? onReturnToCurrent;
   final VoidCallback? onContinue;
+  final String continueLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -425,13 +478,29 @@ class _FocusCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'ŞİMDİ',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: scheme.onPrimaryContainer,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8,
-              ),
+            Wrap(
+              spacing: AppSpacing.md,
+              runSpacing: AppSpacing.xs,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  isCurrentWeek ? 'ŞİMDİ' : 'İNCELEDİĞİN HAFTA',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: scheme.onPrimaryContainer,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: onChooseWeek,
+                  icon: const Icon(Icons.calendar_month_outlined),
+                  label: const Text('Hafta değiştir'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: scheme.onPrimaryContainer,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
@@ -448,6 +517,18 @@ class _FocusCard extends StatelessWidget {
                 color: scheme.onPrimaryContainer,
               ),
             ),
+            if (onReturnToCurrent != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              OutlinedButton.icon(
+                onPressed: onReturnToCurrent,
+                icon: const Icon(Icons.today),
+                label: const Text('Bu haftaya dön'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: scheme.onPrimaryContainer,
+                  side: BorderSide(color: scheme.onPrimaryContainer),
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.lg),
             Text(
               blockTitle,
@@ -502,7 +583,7 @@ class _FocusCard extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: onContinue,
                   icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('Derse devam et'),
+                  label: Text(continueLabel),
                 ),
               ),
             ],
