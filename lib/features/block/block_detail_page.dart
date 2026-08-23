@@ -398,33 +398,6 @@ class _BlockSummary extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.lg),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                MetricChip(
-                  icon: Icons.flag_outlined,
-                  label: 'çıktı',
-                  value: '${detail.outcomes.length}',
-                ),
-                MetricChip(
-                  icon: Icons.task_alt_outlined,
-                  label: 'etkinlik',
-                  value: '${detail.activities.length}',
-                ),
-                MetricChip(
-                  icon: Icons.assignment_outlined,
-                  label: 'form',
-                  value: '${detail.forms.length}',
-                ),
-                MetricChip(
-                  icon: Icons.fact_check_outlined,
-                  label: 'değerlendirme',
-                  value: '${detail.assessmentArtifacts.length}',
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.lg),
             Text(
               teacherBlockTimeLabel(detail.block.timeStatus),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
