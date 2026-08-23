@@ -39,7 +39,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Gösterilebilir okul haftası bulunmuyor.'), findsOneWidget);
+    expect(find.text('Okul haftası bulunmuyor'), findsOneWidget);
+    expect(
+      find.text('Bu ders için gösterilebilir bir okul haftası henüz yok.'),
+      findsOneWidget,
+    );
   });
 }
 
