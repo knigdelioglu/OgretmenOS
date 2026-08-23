@@ -11,14 +11,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: ResourceLibraryPage(
-          repository: _ResourceRepository(),
-          awaitingTextbook: false,
-        ),
-      ),
-    );
+    await tester.pumpWidget(_app(awaitingTextbook: false));
     await tester.pumpAndSettle();
 
     expect(find.text('BU TEMADA HAZIR'), findsOneWidget);
@@ -42,14 +35,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: ResourceLibraryPage(
-          repository: _ResourceRepository(),
-          awaitingTextbook: true,
-        ),
-      ),
-    );
+    await tester.pumpWidget(_app(awaitingTextbook: true));
     await tester.pumpAndSettle();
 
     expect(find.text('Ders kitabı bekleniyor'), findsOneWidget);
@@ -62,6 +48,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('TEMA 2 için öğretim programı hazır'), findsOneWidget);
+    expect(find.text('TEMA 2'), findsWidgets);
     expect(find.text('Kaynak 2'), findsOneWidget);
     expect(find.text('Kaynak 1'), findsNothing);
     expect(tester.takeException(), isNull);
@@ -75,14 +62,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: ResourceLibraryPage(
-          repository: _ResourceRepository(),
-          awaitingTextbook: false,
-        ),
-      ),
-    );
+    await tester.pumpWidget(_app(awaitingTextbook: false));
     await tester.pumpAndSettle();
 
     expect(find.text('BU TEMADA HAZIR'), findsOneWidget);
@@ -90,6 +70,15 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 }
+
+Widget _app({required bool awaitingTextbook}) => MaterialApp(
+  home: Scaffold(
+    body: ResourceLibraryPage(
+      repository: _ResourceRepository(),
+      awaitingTextbook: awaitingTextbook,
+    ),
+  ),
+);
 
 class _ResourceRepository implements CourseKnowledgeRepository {
   static const course = model.Course(
