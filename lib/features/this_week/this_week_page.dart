@@ -38,22 +38,47 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
     });
   }
 
-  Future<void> _complete(TrackedOutcome item) async {
-    await widget.service.setStatus(item, OutcomeTrackingStatus.completed);
-    if (!mounted) return;
-    HapticFeedback.mediumImpact();
-    _reload();
+  Future<void> _setStatus(
+    TrackedOutcome item,
+    OutcomeTrackingStatus status, {
+    bool completionHaptic = false,
+  }) async {
+    try {
+      await widget.service.setStatus(item, status);
+      if (!mounted) return;
+      if (completionHaptic) HapticFeedback.mediumImpact();
+      _reload();
+    } on Object catch (error) {
+      _showError(error);
+    }
+  }
+
+  Future<void> _runPrimaryAction(TrackedOutcome item) async {
+    if (item.presentationStatus == OutcomeTrackingStatus.planned) {
+      await _setStatus(item, OutcomeTrackingStatus.inProgress);
+      return;
+    }
+    await _setStatus(
+      item,
+      OutcomeTrackingStatus.completed,
+      completionHaptic: true,
+    );
   }
 
   Future<void> _completeAll(WeeklyOutcomeSummary summary) async {
-    for (final item in summary.outcomes) {
-      if (item.presentationStatus != OutcomeTrackingStatus.completed) {
-        await widget.service.setStatus(item, OutcomeTrackingStatus.completed);
+    try {
+      for (final item in summary.outcomes) {
+        if (_isCarriedOut(item)) continue;
+        if (item.presentationStatus != OutcomeTrackingStatus.completed) {
+          await widget.service.setStatus(item, OutcomeTrackingStatus.completed);
+        }
       }
+      if (!mounted) return;
+      HapticFeedback.mediumImpact();
+      _reload();
+    } on Object catch (error) {
+      _showError(error);
     }
-    if (!mounted) return;
-    HapticFeedback.mediumImpact();
-    _reload();
   }
 
   Future<void> _openOutcome(AnnualOutcomePlan plan, TrackedOutcome item) async {
@@ -68,6 +93,67 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
       ),
     );
     if (changed == true && mounted) _reload();
+  }
+
+  Future<void> _editQuickNote(TrackedOutcome item) async {
+    final note = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => _QuickNoteSheet(initialText: item.teacherNote ?? ''),
+    );
+    if (note == null) return;
+
+    try {
+      await widget.service.saveTeacherNote(item, note);
+      if (mounted) _reload();
+    } on Object catch (error) {
+      _showError(error);
+    }
+  }
+
+  Future<void> _carryToNextWeek(
+    AnnualOutcomePlan plan,
+    TrackedOutcome item,
+  ) async {
+    final target = _nextInstructionWeekNumber(plan, item);
+    if (target == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Taşınabilecek sonraki öğretim haftası yok.')),
+      );
+      return;
+    }
+
+    try {
+      await widget.service.carryToWeek(
+        item: item,
+        targetWeekNumber: target,
+        plan: plan,
+      );
+      if (mounted) _reload();
+    } on Object catch (error) {
+      _showError(error);
+    }
+  }
+
+  Future<void> _handleOutcomeAction(
+    AnnualOutcomePlan plan,
+    TrackedOutcome item,
+    _OutcomeAction action,
+  ) async {
+    switch (action) {
+      case _OutcomeAction.inProgress:
+        await _setStatus(item, OutcomeTrackingStatus.inProgress);
+      case _OutcomeAction.partiallyCompleted:
+        await _setStatus(item, OutcomeTrackingStatus.partiallyCompleted);
+      case _OutcomeAction.planned:
+        await _setStatus(item, OutcomeTrackingStatus.planned);
+      case _OutcomeAction.carryNext:
+        await _carryToNextWeek(plan, item);
+      case _OutcomeAction.quickNote:
+        await _editQuickNote(item);
+    }
   }
 
   Future<void> _copyDiary(WeeklyOutcomeSummary summary) async {
@@ -93,6 +179,13 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
     );
   }
 
+  void _showError(Object error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('İşlem kaydedilemedi: $error')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => FutureBuilder<AnnualOutcomePlan>(
     future: _future,
@@ -111,24 +204,25 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
       if (plan.weeks.isEmpty) {
         return const Center(child: Text('Gösterilebilir okul haftası bulunmuyor.'));
       }
+
       final selectedNumber = _selectedWeekNumber ??
           plan.currentWeekNumber ??
           plan.weeks.first.week.weekNumber;
       final summary = plan.week(selectedNumber) ?? plan.weeks.first;
-      final focus = _focusOutcome(summary.outcomes);
-      final openOthers = summary.outcomes
-          .where(
-            (item) =>
-                item.presentationStatus != OutcomeTrackingStatus.completed &&
-                !identical(item, focus),
-          )
+      final actionable = summary.outcomes.where(_isActionable).toList(growable: false);
+      final focus = _focusOutcome(actionable);
+      final openOthers = actionable
+          .where((item) => !identical(item, focus))
           .toList(growable: false);
+      final carriedOut = summary.outcomes.where(_isCarriedOut).toList(growable: false);
       final completed = summary.outcomes
-          .where(
-            (item) =>
-                item.presentationStatus == OutcomeTrackingStatus.completed,
-          )
+          .where((item) => item.presentationStatus == OutcomeTrackingStatus.completed)
           .toList(growable: false);
+      final hasCompletable = summary.outcomes.any(
+        (item) =>
+            !_isCarriedOut(item) &&
+            item.presentationStatus != OutcomeTrackingStatus.completed,
+      );
 
       return AppPage(
         onRefresh: () async {
@@ -172,14 +266,16 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
             if (focus != null)
               _FocusOutcomeCard(
                 item: focus,
+                canCarryNext: _canCarryToNextWeek(plan, focus),
                 onOpen: () => _openOutcome(plan, focus),
-                onComplete: () => _complete(focus),
+                onPrimary: () => _runPrimaryAction(focus),
+                onAction: (action) => _handleOutcomeAction(plan, focus, action),
               )
             else
               const StatusPanel(
                 icon: Icons.check_circle_outline,
-                title: 'Hafta tamamlandı',
-                message: 'Bu haftanın tüm kazanımları işlendi.',
+                title: 'Bu haftada açık kazanım kalmadı',
+                message: 'İşlenen veya sonraki haftaya taşınan kazanımlar geri planda tutuluyor.',
                 tone: StatusTone.positive,
               ),
             if (openOthers.isNotEmpty) ...[
@@ -190,7 +286,24 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
                 icon: Icons.list_alt_outlined,
                 items: openOthers,
                 onOpen: (item) => _openOutcome(plan, item),
-                onComplete: _complete,
+                onPrimary: _runPrimaryAction,
+                canCarryNext: (item) => _canCarryToNextWeek(plan, item),
+                onAction: (item, action) =>
+                    _handleOutcomeAction(plan, item, action),
+              ),
+            ],
+            if (carriedOut.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.md),
+              _OutcomeGroup(
+                title: 'Sonraki haftaya taşınanlar',
+                subtitle: '${carriedOut.length} kazanım',
+                icon: Icons.redo_outlined,
+                items: carriedOut,
+                onOpen: (item) => _openOutcome(plan, item),
+                onPrimary: null,
+                canCarryNext: (_) => false,
+                onAction: (item, action) =>
+                    _handleOutcomeAction(plan, item, action),
               ),
             ],
             if (completed.isNotEmpty) ...[
@@ -201,16 +314,17 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
                 icon: Icons.check_circle_outline,
                 items: completed,
                 onOpen: (item) => _openOutcome(plan, item),
-                onComplete: _complete,
+                onPrimary: null,
+                canCarryNext: (_) => false,
+                onAction: (item, action) =>
+                    _handleOutcomeAction(plan, item, action),
               ),
             ],
             const SizedBox(height: AppSpacing.md),
             _WeeklyTools(
               summary: summary,
               onCopyDiary: () => _copyDiary(summary),
-              onCompleteAll: summary.completedCount == summary.outcomes.length
-                  ? null
-                  : () => _completeAll(summary),
+              onCompleteAll: hasCompletable ? () => _completeAll(summary) : null,
             ),
           ],
         ],
@@ -402,13 +516,17 @@ class _FocusCard extends StatelessWidget {
 class _FocusOutcomeCard extends StatelessWidget {
   const _FocusOutcomeCard({
     required this.item,
+    required this.canCarryNext,
     required this.onOpen,
-    required this.onComplete,
+    required this.onPrimary,
+    required this.onAction,
   });
 
   final TrackedOutcome item;
+  final bool canCarryNext;
   final VoidCallback onOpen;
-  final VoidCallback onComplete;
+  final VoidCallback onPrimary;
+  final ValueChanged<_OutcomeAction> onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -423,12 +541,20 @@ class _FocusOutcomeCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                item.outcome.code,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: scheme.onSecondaryContainer,
-                  fontWeight: FontWeight.w800,
-                ),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    item.outcome.code,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: scheme.onSecondaryContainer,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  _StatusBadge(item: item),
+                ],
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
@@ -464,16 +590,22 @@ class _FocusOutcomeCard extends StatelessWidget {
               Wrap(
                 spacing: AppSpacing.sm,
                 runSpacing: AppSpacing.sm,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  FilledButton.tonalIcon(
-                    onPressed: onComplete,
-                    icon: const Icon(Icons.check),
-                    label: const Text('İşlendi'),
+                  FilledButton.icon(
+                    onPressed: onPrimary,
+                    icon: Icon(_primaryActionIcon(item)),
+                    label: Text(_primaryActionLabel(item)),
                   ),
                   TextButton.icon(
                     onPressed: onOpen,
                     icon: const Icon(Icons.open_in_new),
                     label: const Text('Ayrıntıyı aç'),
+                  ),
+                  _OutcomeActionMenu(
+                    item: item,
+                    canCarryNext: canCarryNext,
+                    onSelected: onAction,
                   ),
                 ],
               ),
@@ -492,7 +624,9 @@ class _OutcomeGroup extends StatelessWidget {
     required this.icon,
     required this.items,
     required this.onOpen,
-    required this.onComplete,
+    required this.onPrimary,
+    required this.canCarryNext,
+    required this.onAction,
   });
 
   final String title;
@@ -500,7 +634,9 @@ class _OutcomeGroup extends StatelessWidget {
   final IconData icon;
   final List<TrackedOutcome> items;
   final ValueChanged<TrackedOutcome> onOpen;
-  final Future<void> Function(TrackedOutcome) onComplete;
+  final Future<void> Function(TrackedOutcome)? onPrimary;
+  final bool Function(TrackedOutcome) canCarryNext;
+  final void Function(TrackedOutcome, _OutcomeAction) onAction;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -520,7 +656,9 @@ class _OutcomeGroup extends StatelessWidget {
           _OutcomeRow(
             item: items[index],
             onOpen: () => onOpen(items[index]),
-            onComplete: () => onComplete(items[index]),
+            onPrimary: onPrimary == null ? null : () => onPrimary!(items[index]),
+            canCarryNext: canCarryNext(items[index]),
+            onAction: (action) => onAction(items[index], action),
           ),
           if (index != items.length - 1)
             const SizedBox(height: AppSpacing.xs),
@@ -586,70 +724,297 @@ class _OutcomeRow extends StatelessWidget {
   const _OutcomeRow({
     required this.item,
     required this.onOpen,
-    required this.onComplete,
+    required this.onPrimary,
+    required this.canCarryNext,
+    required this.onAction,
   });
 
   final TrackedOutcome item;
   final VoidCallback onOpen;
-  final VoidCallback onComplete;
+  final VoidCallback? onPrimary;
+  final bool canCarryNext;
+  final ValueChanged<_OutcomeAction> onAction;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.transparent,
+    child: InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onOpen,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(
+                _statusIcon(item),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.outcome.code,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(item.outcome.officialText),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    _statusLabel(item),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (item.teacherNote?.isNotEmpty == true) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      item.teacherNote!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (onPrimary != null)
+                  IconButton.filledTonal(
+                    tooltip: _primaryActionLabel(item),
+                    onPressed: onPrimary,
+                    icon: Icon(_primaryActionIcon(item)),
+                  ),
+                _OutcomeActionMenu(
+                  item: item,
+                  canCarryNext: canCarryNext,
+                  onSelected: onAction,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _OutcomeActionMenu extends StatelessWidget {
+  const _OutcomeActionMenu({
+    required this.item,
+    required this.canCarryNext,
+    required this.onSelected,
+  });
+
+  final TrackedOutcome item;
+  final bool canCarryNext;
+  final ValueChanged<_OutcomeAction> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    final completed = item.presentationStatus == OutcomeTrackingStatus.completed;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onOpen,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                completed ? Icons.check_circle : Icons.radio_button_unchecked,
-                color: completed
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.outcome.code,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(item.outcome.officialText),
-                    if (item.teacherNote?.isNotEmpty == true) ...[
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        item.teacherNote!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              if (!completed)
-                IconButton.filledTonal(
-                  tooltip: 'İşlendi',
-                  onPressed: onComplete,
-                  icon: const Icon(Icons.check),
-                ),
-            ],
+    final status = item.presentationStatus;
+    final carriedOut = _isCarriedOut(item);
+    return PopupMenuButton<_OutcomeAction>(
+      tooltip: 'Kazanım işlemleri',
+      icon: const Icon(Icons.more_vert),
+      onSelected: onSelected,
+      itemBuilder: (context) => [
+        if (!carriedOut &&
+            status != OutcomeTrackingStatus.completed &&
+            status != OutcomeTrackingStatus.partiallyCompleted)
+          const PopupMenuItem(
+            value: _OutcomeAction.partiallyCompleted,
+            child: _ActionMenuItem(
+              icon: Icons.timelapse_outlined,
+              label: 'Kısmen işlendi',
+            ),
           ),
+        if (!carriedOut && status == OutcomeTrackingStatus.partiallyCompleted)
+          const PopupMenuItem(
+            value: _OutcomeAction.inProgress,
+            child: _ActionMenuItem(
+              icon: Icons.play_circle_outline,
+              label: 'Devam ediyor',
+            ),
+          ),
+        if (status != OutcomeTrackingStatus.planned)
+          const PopupMenuItem(
+            value: _OutcomeAction.planned,
+            child: _ActionMenuItem(
+              icon: Icons.restart_alt,
+              label: 'Planlıya döndür',
+            ),
+          ),
+        if (canCarryNext)
+          const PopupMenuItem(
+            value: _OutcomeAction.carryNext,
+            child: _ActionMenuItem(
+              icon: Icons.redo_outlined,
+              label: 'Gelecek haftaya taşı',
+            ),
+          ),
+        const PopupMenuItem(
+          value: _OutcomeAction.quickNote,
+          child: _ActionMenuItem(
+            icon: Icons.sticky_note_2_outlined,
+            label: 'Hızlı not',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActionMenuItem extends StatelessWidget {
+  const _ActionMenuItem({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, size: 20),
+      const SizedBox(width: AppSpacing.md),
+      Expanded(
+        child: Text(
+          label,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    ],
+  );
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.item});
+
+  final TrackedOutcome item;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        _statusLabel(item),
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: scheme.onSurfaceVariant,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
   }
+}
+
+class _QuickNoteSheet extends StatefulWidget {
+  const _QuickNoteSheet({required this.initialText});
+
+  final String initialText;
+
+  @override
+  State<_QuickNoteSheet> createState() => _QuickNoteSheetState();
+}
+
+class _QuickNoteSheetState extends State<_QuickNoteSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialText);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.fromLTRB(
+      AppSpacing.lg,
+      AppSpacing.lg,
+      AppSpacing.lg,
+      MediaQuery.viewInsetsOf(context).bottom + AppSpacing.lg,
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Hızlı not',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Kapat',
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.close),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        TextField(
+          controller: _controller,
+          autofocus: true,
+          minLines: 2,
+          maxLines: 5,
+          textInputAction: TextInputAction.newline,
+          decoration: const InputDecoration(
+            hintText: 'Örn. son etkinlik gelecek derste tamamlanacak',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'Boş kaydedersen mevcut not silinir.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        FilledButton.icon(
+          onPressed: () => Navigator.pop(context, _controller.text),
+          icon: const Icon(Icons.check),
+          label: const Text('Kaydet'),
+        ),
+      ],
+    ),
+  );
+}
+
+enum _OutcomeAction {
+  inProgress,
+  partiallyCompleted,
+  planned,
+  carryNext,
+  quickNote,
 }
 
 TrackedOutcome? _focusOutcome(List<TrackedOutcome> outcomes) {
@@ -664,6 +1029,57 @@ TrackedOutcome? _focusOutcome(List<TrackedOutcome> outcomes) {
     }
   }
   return null;
+}
+
+bool _isCarriedOut(TrackedOutcome item) =>
+    !item.isCarriedIn && item.carriedToWeekNumber != null;
+
+bool _isActionable(TrackedOutcome item) =>
+    item.presentationStatus != OutcomeTrackingStatus.completed &&
+    !_isCarriedOut(item);
+
+bool _canCarryToNextWeek(AnnualOutcomePlan plan, TrackedOutcome item) =>
+    !_isCarriedOut(item) && _nextInstructionWeekNumber(plan, item) != null;
+
+int? _nextInstructionWeekNumber(AnnualOutcomePlan plan, TrackedOutcome item) {
+  for (final summary in plan.weeks) {
+    if (summary.week.weekNumber > item.displayWeekNumber &&
+        !summary.week.isEventWeek) {
+      return summary.week.weekNumber;
+    }
+  }
+  return null;
+}
+
+String _primaryActionLabel(TrackedOutcome item) =>
+    item.presentationStatus == OutcomeTrackingStatus.planned ? 'Başla' : 'İşlendi';
+
+IconData _primaryActionIcon(TrackedOutcome item) =>
+    item.presentationStatus == OutcomeTrackingStatus.planned
+        ? Icons.play_arrow_rounded
+        : Icons.check;
+
+String _statusLabel(TrackedOutcome item) {
+  if (item.isCarriedIn) return 'Geçen haftadan';
+  if (_isCarriedOut(item)) return 'Sonraki haftaya taşındı';
+  return switch (item.presentationStatus) {
+    OutcomeTrackingStatus.planned => 'Planlı',
+    OutcomeTrackingStatus.inProgress => 'Devam ediyor',
+    OutcomeTrackingStatus.completed => 'İşlendi',
+    OutcomeTrackingStatus.partiallyCompleted => 'Kısmen işlendi',
+    OutcomeTrackingStatus.carriedOver => 'Taşındı',
+  };
+}
+
+IconData _statusIcon(TrackedOutcome item) {
+  if (item.isCarriedIn || _isCarriedOut(item)) return Icons.redo_outlined;
+  return switch (item.presentationStatus) {
+    OutcomeTrackingStatus.planned => Icons.radio_button_unchecked,
+    OutcomeTrackingStatus.inProgress => Icons.play_circle_outline,
+    OutcomeTrackingStatus.completed => Icons.check_circle,
+    OutcomeTrackingStatus.partiallyCompleted => Icons.timelapse_outlined,
+    OutcomeTrackingStatus.carriedOver => Icons.redo_outlined,
+  };
 }
 
 WeeklyPlanSegment? _primarySegment(AcademicWeekPlan week) {
