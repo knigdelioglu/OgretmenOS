@@ -7,6 +7,7 @@ import '../domain/runtime/course_runtime_registry.dart';
 import '../domain/services/outcome_planning_service.dart';
 import '../features/annual_plan/annual_plan_page.dart';
 import '../features/resources/resource_library_page.dart';
+import '../features/shared/interaction_polish.dart';
 import '../features/this_week/continuity_this_week_page.dart';
 import 'app_dependencies.dart';
 import 'theme/app_theme.dart';
@@ -44,6 +45,7 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
 
   Future<void> _switchCourse(String courseId) async {
     if (courseId == _activeCourseId || widget.dependencies != null) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     final previous = _resolvedDependencies;
     _resolvedDependencies = null;
     setState(() {
@@ -53,8 +55,18 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
     await previous?.dispose?.call();
   }
 
+  void _retryLoad() {
+    if (widget.dependencies != null) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    _resolvedDependencies = null;
+    setState(() {
+      _dependenciesFuture = widget.courseLoader!(_activeCourseId);
+    });
+  }
+
   void _selectDestination(int index) {
     if (index == _selectedDestinationIndex) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _selectedDestinationIndex = index);
   }
 
@@ -73,6 +85,9 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
     theme: AppTheme.light(),
     darkTheme: AppTheme.dark(),
     themeMode: ThemeMode.system,
+    builder: (context, child) => AppFocusDismissRegion(
+      child: child ?? const SizedBox.shrink(),
+    ),
     home: FutureBuilder<AppDependencies>(
       future: _dependenciesFuture,
       builder: (context, snapshot) {
@@ -80,7 +95,10 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
           return const _StartupPage();
         }
         if (snapshot.hasError || !snapshot.hasData) {
-          return _StartupErrorPage(error: snapshot.error);
+          return _StartupErrorPage(
+            error: snapshot.error,
+            onRetry: widget.dependencies == null ? _retryLoad : null,
+          );
         }
         _resolvedDependencies = snapshot.data!;
         return _AppShell(
@@ -117,9 +135,10 @@ class _StartupPage extends StatelessWidget {
 }
 
 class _StartupErrorPage extends StatelessWidget {
-  const _StartupErrorPage({this.error});
+  const _StartupErrorPage({this.error, this.onRetry});
 
   final Object? error;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -150,6 +169,14 @@ class _StartupErrorPage extends StatelessWidget {
                   'Uygulama ders içeriği ve yerel takip alanı yüklenmeden devam edemiyor.',
                   textAlign: TextAlign.center,
                 ),
+                if (onRetry != null) ...[
+                  const SizedBox(height: 20),
+                  FilledButton.tonalIcon(
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Tekrar dene'),
+                  ),
+                ],
                 if (kDebugMode && error != null) ...[
                   const SizedBox(height: 16),
                   SelectableText(
