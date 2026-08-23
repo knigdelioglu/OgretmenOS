@@ -10,16 +10,19 @@ import 'package:ogretmen_os/domain/repositories/outcome_tracking_repository.dart
 import 'package:ogretmen_os/domain/services/outcome_planning_service.dart';
 
 void main() {
-  testWidgets('ana deneyim Bu Hafta ekranında açılır ve kazanım işlenir', (
-    tester,
-  ) async {
+  testWidgets('ana deneyim tek sıradaki kazanıma odaklanır', (tester) async {
     _phone(tester);
     final tracking = MemoryOutcomeTrackingRepository();
     await _pump(tester, tracking: tracking);
 
     expect(find.text('Bu Hafta'), findsWidgets);
+    expect(find.text('ŞİMDİ'), findsOneWidget);
+    expect(find.text('Sıradaki'), findsOneWidget);
+    expect(find.text('Derse devam et'), findsOneWidget);
     expect(find.text('1. Hafta'), findsOneWidget);
     expect(find.text('TEST.1'), findsOneWidget);
+    expect(find.text('TEST.2'), findsNothing);
+    expect(find.text('TEST.3'), findsNothing);
     expect(find.text('Paket'), findsNothing);
     expect(find.text('Haftalık Plan'), findsNothing);
 
@@ -29,7 +32,60 @@ void main() {
     final records = await tracking.getForAcademicYear('2026-2027');
     expect(records, hasLength(1));
     expect(records.single.status.storageValue, 'completed');
-    expect(find.text('1 / 1 işlendi'), findsOneWidget);
+    expect(find.text('1 / 3 işlendi'), findsOneWidget);
+  });
+
+  testWidgets('diğer açık kazanımlar varsayılan olarak kapalıdır', (
+    tester,
+  ) async {
+    _phone(tester);
+    await _pump(tester);
+
+    expect(find.text('TEST.1'), findsOneWidget);
+    expect(find.text('TEST.2'), findsNothing);
+    expect(find.text('TEST.3'), findsNothing);
+
+    final group = find.text('Bu haftanın diğerleri');
+    await tester.scrollUntilVisible(
+      group,
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(group, findsOneWidget);
+    expect(find.text('2 kazanım'), findsOneWidget);
+
+    await tester.tap(group);
+    await tester.pumpAndSettle();
+
+    expect(find.text('TEST.2'), findsOneWidget);
+    expect(find.text('TEST.3'), findsOneWidget);
+  });
+
+  testWidgets('tamamlanan kazanımlar varsayılan olarak geri planda kalır', (
+    tester,
+  ) async {
+    _phone(tester);
+    final tracking = MemoryOutcomeTrackingRepository();
+    await _pump(tester, tracking: tracking);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'İşlendi'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('TEST.1'), findsNothing);
+
+    final completedGroup = find.text('Tamamlananlar');
+    await tester.scrollUntilVisible(
+      completedGroup,
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(completedGroup, findsOneWidget);
+    expect(find.text('1 kazanım'), findsNWidgets(2));
+
+    await tester.tap(completedGroup);
+    await tester.pumpAndSettle();
+
+    expect(find.text('TEST.1'), findsOneWidget);
   });
 
   testWidgets('yıllık plan tema bazında kompakt gösterilir', (tester) async {
@@ -162,7 +218,25 @@ class _FakeRepository implements CourseKnowledgeRepository {
     id: 'TEST_OUTCOME',
     themeId: 'TEST_THEME',
     code: 'TEST.1',
-    officialText: 'Test kazanımı',
+    officialText: 'İlk test kazanımı',
+    processComponents: null,
+    sourceLocator: null,
+    verificationStatus: 'PASS',
+  );
+  static const outcome2 = model.Outcome(
+    id: 'TEST_OUTCOME_2',
+    themeId: 'TEST_THEME',
+    code: 'TEST.2',
+    officialText: 'İkinci test kazanımı',
+    processComponents: null,
+    sourceLocator: null,
+    verificationStatus: 'PASS',
+  );
+  static const outcome3 = model.Outcome(
+    id: 'TEST_OUTCOME_3',
+    themeId: 'TEST_THEME',
+    code: 'TEST.3',
+    officialText: 'Üçüncü test kazanımı',
     processComponents: null,
     sourceLocator: null,
     verificationStatus: 'PASS',
@@ -171,7 +245,7 @@ class _FakeRepository implements CourseKnowledgeRepository {
   static const detail = model.BlockDetail(
     theme: theme,
     block: block,
-    outcomes: [outcome],
+    outcomes: [outcome, outcome2, outcome3],
     textbookSections: [],
     activities: [],
     forms: [],
@@ -233,7 +307,7 @@ class _FakeRepository implements CourseKnowledgeRepository {
       const model.TeacherPackage(
         theme: theme,
         blocks: [block],
-        outcomes: [outcome],
+        outcomes: [outcome, outcome2, outcome3],
         textbookSections: [],
         activities: [],
         forms: [],
@@ -269,7 +343,11 @@ class _FakeWeeklyPlanning implements WeeklyPlanningService {
             block: _FakeRepository.block,
           ),
         ],
-        outcomes: const [_FakeRepository.outcome],
+        outcomes: const [
+          _FakeRepository.outcome,
+          _FakeRepository.outcome2,
+          _FakeRepository.outcome3,
+        ],
       ),
     ],
   );
