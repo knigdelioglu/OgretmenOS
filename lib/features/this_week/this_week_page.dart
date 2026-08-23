@@ -7,6 +7,7 @@ import '../../domain/repositories/course_knowledge_repository.dart';
 import '../../domain/services/outcome_planning_service.dart';
 import '../outcomes/outcome_detail_page.dart';
 import '../shared/feature_widgets.dart';
+import '../shared/interaction_polish.dart';
 
 class ThisWeekPage extends StatefulWidget {
   const ThisWeekPage({
@@ -65,8 +66,8 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
       if (!mounted) return;
       if (completionHaptic) HapticFeedback.mediumImpact();
       _reload();
-    } on Object catch (error) {
-      _showError(error);
+    } on Object {
+      _showError();
     }
   }
 
@@ -93,8 +94,8 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
       if (!mounted) return;
       HapticFeedback.mediumImpact();
       _reload();
-    } on Object catch (error) {
-      _showError(error);
+    } on Object {
+      _showError();
     }
   }
 
@@ -123,9 +124,11 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
 
     try {
       await widget.service.saveTeacherNote(item, note);
-      if (mounted) _reload();
-    } on Object catch (error) {
-      _showError(error);
+      if (!mounted) return;
+      showTeacherFeedback(context, 'Not kaydedildi.');
+      _reload();
+    } on Object {
+      _showError();
     }
   }
 
@@ -136,9 +139,7 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
     final target = _nextInstructionWeekNumber(plan, item);
     if (target == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Taşınabilecek sonraki öğretim haftası yok.')),
-      );
+      showTeacherFeedback(context, 'Taşınabilecek sonraki öğretim haftası yok.');
       return;
     }
 
@@ -148,9 +149,12 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
         targetWeekNumber: target,
         plan: plan,
       );
-      if (mounted) _reload();
-    } on Object catch (error) {
-      _showError(error);
+      if (!mounted) return;
+      HapticFeedback.mediumImpact();
+      showTeacherFeedback(context, '$target. haftaya taşındı.');
+      _reload();
+    } on Object {
+      _showError();
     }
   }
 
@@ -191,15 +195,15 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
     ].join('\n');
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Defter özeti kopyalandı.')),
-    );
+    showTeacherFeedback(context, 'Defter özeti kopyalandı.');
   }
 
-  void _showError(Object error) {
+  void _showError() {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('İşlem kaydedilemedi: $error')),
+    showTeacherFeedback(
+      context,
+      'İşlem kaydedilemedi. Tekrar deneyin.',
+      duration: const Duration(seconds: 4),
     );
   }
 
@@ -219,7 +223,11 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
 
       final plan = snapshot.data!;
       if (plan.weeks.isEmpty) {
-        return const Center(child: Text('Gösterilebilir okul haftası bulunmuyor.'));
+        return const FeatureEmptyView(
+          icon: Icons.calendar_month_outlined,
+          title: 'Okul haftası bulunmuyor',
+          message: 'Bu ders için gösterilebilir bir okul haftası henüz yok.',
+        );
       }
 
       final defaultWeekNumber =
