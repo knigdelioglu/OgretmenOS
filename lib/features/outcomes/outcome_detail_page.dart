@@ -8,6 +8,7 @@ import '../../domain/repositories/course_knowledge_repository.dart';
 import '../../domain/services/outcome_planning_service.dart';
 import '../block/block_detail_page.dart';
 import '../shared/feature_widgets.dart';
+import '../shared/interaction_polish.dart';
 import 'outcome_presentation.dart';
 
 class OutcomeDetailPage extends StatefulWidget {
@@ -34,6 +35,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
   late final TextEditingController _noteController;
   bool _changed = false;
   bool _saving = false;
+  bool _noteDirty = false;
 
   @override
   void initState() {
@@ -41,10 +43,18 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
     _plan = widget.initialPlan;
     _item = widget.initialItem;
     _noteController = TextEditingController(text: _item.teacherNote ?? '');
+    _noteController.addListener(_handleNoteChanged);
+  }
+
+  void _handleNoteChanged() {
+    final dirty = _noteController.text != (_item.teacherNote ?? '');
+    if (dirty == _noteDirty || !mounted) return;
+    setState(() => _noteDirty = dirty);
   }
 
   @override
   void dispose() {
+    _noteController.removeListener(_handleNoteChanged);
     _noteController.dispose();
     super.dispose();
   }
@@ -167,7 +177,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
             Align(
               alignment: Alignment.centerRight,
               child: FilledButton.tonalIcon(
-                onPressed: _saving ? null : _saveNote,
+                onPressed: _saving || !_noteDirty ? null : _saveNote,
                 icon: const Icon(Icons.save_outlined),
                 label: const Text('Notu kaydet'),
               ),
@@ -444,16 +454,23 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
   }
 
   Future<void> _setStatus(OutcomeTrackingStatus status) async {
-    await _mutate(() => widget.service.setStatus(_item, status));
+    final saved = await _mutate(() => widget.service.setStatus(_item, status));
+    if (saved && status == OutcomeTrackingStatus.completed) {
+      HapticFeedback.mediumImpact();
+    }
   }
 
   Future<void> _saveNote() async {
+    if (!_noteDirty) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     await _mutate(
       () => widget.service.saveTeacherNote(_item, _noteController.text),
+      successMessage: 'Not kaydedildi.',
     );
   }
 
   Future<void> _carry() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final targets = _plan.weeks
         .where(
           (summary) =>
@@ -461,7 +478,10 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
               summary.week.weekNumber > _item.plannedWeekNumber,
         )
         .toList(growable: false);
-    if (targets.isEmpty) return;
+    if (targets.isEmpty) {
+      showTeacherFeedback(context, 'Taşınabilecek sonraki öğretim haftası yok.');
+      return;
+    }
     var selected = targets.first.week.weekNumber;
     final target = await showDialog<int>(
       context: context,
@@ -499,18 +519,23 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
         ),
       ),
     );
-    if (target == null) return;
-    await _mutate(
+    if (target == null || !mounted) return;
+    final saved = await _mutate(
       () => widget.service.carryToWeek(
         item: _item,
         targetWeekNumber: target,
         plan: _plan,
       ),
+      successMessage: '$target. haftaya taşındı.',
     );
+    if (saved) HapticFeedback.mediumImpact();
   }
 
-  Future<void> _mutate(Future<void> Function() action) async {
-    if (_saving) return;
+  Future<bool> _mutate(
+    Future<void> Function() action, {
+    String? successMessage,
+  }) async {
+    if (_saving) return false;
     setState(() => _saving = true);
     try {
       await action();
@@ -528,18 +553,26 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
         }
         next ??= summary.findByKey(_item.trackingKey);
       }
-      if (!mounted) return;
+      if (!mounted) return false;
       setState(() {
         _plan = refreshed;
         if (next != null) _item = next;
-        _noteController.text = _item.teacherNote ?? '';
+        _noteDirty = false;
         _changed = true;
       });
-    } on Object catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Değişiklik kaydedilemedi: $error')),
+      _noteController.text = _item.teacherNote ?? '';
+      if (successMessage != null && mounted) {
+        showTeacherFeedback(context, successMessage);
+      }
+      return true;
+    } on Object {
+      if (!mounted) return false;
+      showTeacherFeedback(
+        context,
+        'Değişiklik kaydedilemedi. Tekrar deneyin.',
+        duration: const Duration(seconds: 4),
       );
+      return false;
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -562,9 +595,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
     buffer.write('${_item.outcome.code} — ${_item.outcome.officialText}');
     await Clipboard.setData(ClipboardData(text: buffer.toString()));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Kazanım özeti panoya kopyalandı.')),
-    );
+    showTeacherFeedback(context, 'Kazanım özeti kopyalandı.');
   }
 }
 
