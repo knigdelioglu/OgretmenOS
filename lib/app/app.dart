@@ -31,6 +31,7 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
   late Future<AppDependencies> _dependenciesFuture;
   late String _activeCourseId;
   AppDependencies? _resolvedDependencies;
+  int _selectedDestinationIndex = 0;
 
   @override
   void initState() {
@@ -50,6 +51,11 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
       _dependenciesFuture = widget.courseLoader!(courseId);
     });
     await previous?.dispose?.call();
+  }
+
+  void _selectDestination(int index) {
+    if (index == _selectedDestinationIndex) return;
+    setState(() => _selectedDestinationIndex = index);
   }
 
   @override
@@ -81,6 +87,8 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
           key: ValueKey(_activeCourseId),
           dependencies: snapshot.data!,
           activeCourseId: _activeCourseId,
+          selectedIndex: _selectedDestinationIndex,
+          onDestinationChanged: _selectDestination,
           onCourseChanged: widget.dependencies == null ? _switchCourse : null,
         );
       },
@@ -163,11 +171,15 @@ class _AppShell extends StatefulWidget {
     super.key,
     required this.dependencies,
     required this.activeCourseId,
+    required this.selectedIndex,
+    required this.onDestinationChanged,
     required this.onCourseChanged,
   });
 
   final AppDependencies dependencies;
   final String activeCourseId;
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationChanged;
   final ValueChanged<String>? onCourseChanged;
 
   @override
@@ -175,7 +187,6 @@ class _AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<_AppShell> {
-  int _selectedIndex = 0;
   late final OutcomePlanningService _outcomePlanning;
   late final ContinuityRepository _continuity;
 
@@ -223,7 +234,10 @@ class _AppShellState extends State<_AppShell> {
         final useRail = constraints.maxWidth >= 720;
         final textScale = MediaQuery.textScalerOf(context).scale(1);
         final compactLabels = textScale >= 1.5;
-        final content = IndexedStack(index: _selectedIndex, children: pages);
+        final content = IndexedStack(
+          index: widget.selectedIndex,
+          children: pages,
+        );
 
         return Scaffold(
           appBar: AppBar(
@@ -231,11 +245,17 @@ class _AppShellState extends State<_AppShell> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(_titles[_selectedIndex]),
+                Text(
+                  _titles[widget.selectedIndex],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 Text(
                   activeCourse.isAwaitingTextbook
-                      ? '${activeCourse.grade}. Sınıf · Kitap bekleniyor'
-                      : '${activeCourse.grade}. Sınıf',
+                      ? '${activeCourse.subjectLabel} · Kitap bekleniyor'
+                      : activeCourse.subjectLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
@@ -271,7 +291,24 @@ class _AppShellState extends State<_AppShell> {
                         ),
                       ),
                   ],
-                  icon: const Icon(Icons.school_outlined),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.school_outlined, size: 20),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${activeCourse.grade}. Sınıf',
+                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(Icons.arrow_drop_down),
+                      ],
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -281,8 +318,8 @@ class _AppShellState extends State<_AppShell> {
                     SafeArea(
                       right: false,
                       child: NavigationRail(
-                        selectedIndex: _selectedIndex,
-                        onDestinationSelected: _selectDestination,
+                        selectedIndex: widget.selectedIndex,
+                        onDestinationSelected: widget.onDestinationChanged,
                         labelType: compactLabels
                             ? NavigationRailLabelType.selected
                             : NavigationRailLabelType.all,
@@ -317,11 +354,11 @@ class _AppShellState extends State<_AppShell> {
           bottomNavigationBar: useRail
               ? null
               : NavigationBar(
-                  selectedIndex: _selectedIndex,
+                  selectedIndex: widget.selectedIndex,
                   labelBehavior: compactLabels
                       ? NavigationDestinationLabelBehavior.onlyShowSelected
                       : NavigationDestinationLabelBehavior.alwaysShow,
-                  onDestinationSelected: _selectDestination,
+                  onDestinationSelected: widget.onDestinationChanged,
                   destinations: const [
                     NavigationDestination(
                       icon: Icon(Icons.today_outlined),
@@ -343,10 +380,5 @@ class _AppShellState extends State<_AppShell> {
         );
       },
     );
-  }
-
-  void _selectDestination(int index) {
-    if (index == _selectedIndex) return;
-    setState(() => _selectedIndex = index);
   }
 }
