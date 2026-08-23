@@ -21,6 +21,10 @@ void main() {
     expect(find.text('ŞİMDİ'), findsOneWidget);
     expect(find.text('Sıradaki'), findsOneWidget);
     expect(find.text('Derse devam et'), findsOneWidget);
+    expect(find.text('Hafta değiştir'), findsOneWidget);
+    expect(find.text('Okul haftası'), findsNothing);
+    expect(find.byTooltip('Önceki hafta'), findsNothing);
+    expect(find.byTooltip('Sonraki hafta'), findsNothing);
     expect(find.text('1. Hafta'), findsOneWidget);
     expect(find.text('TEST.1'), findsOneWidget);
     expect(find.text('TEST.2'), findsNothing);
@@ -45,6 +49,41 @@ void main() {
     expect(records.single.status.storageValue, 'completed');
     expect(find.text('1 / 3 işlendi'), findsOneWidget);
     expect(find.text('TEST.2'), findsOneWidget);
+  });
+
+  testWidgets('başka hafta isteğe bağlı açılır ve bu haftaya dönüş nettir', (
+    tester,
+  ) async {
+    _phone(tester);
+    await _pump(tester);
+
+    expect(find.text('ŞİMDİ'), findsOneWidget);
+    expect(find.text('İNCELEDİĞİN HAFTA'), findsNothing);
+    expect(find.text('Bu haftaya dön'), findsNothing);
+
+    await tester.tap(find.text('Hafta değiştir'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Haftaya git'), findsOneWidget);
+    expect(find.text('2. Hafta'), findsOneWidget);
+    expect(find.textContaining('Bu hafta'), findsWidgets);
+
+    await tester.tap(find.text('2. Hafta'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('İNCELEDİĞİN HAFTA'), findsOneWidget);
+    expect(find.text('ŞİMDİ'), findsNothing);
+    expect(find.text('2. Hafta'), findsOneWidget);
+    expect(find.text('Bu haftaya dön'), findsOneWidget);
+    expect(find.text('Derse devam et'), findsNothing);
+
+    await tester.tap(find.text('Bu haftaya dön'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ŞİMDİ'), findsOneWidget);
+    expect(find.text('1. Hafta'), findsOneWidget);
+    expect(find.text('Bu haftaya dön'), findsNothing);
+    expect(find.text('Derse devam et'), findsOneWidget);
   });
 
   testWidgets('diğer açık kazanımlar varsayılan olarak kapalıdır', (
