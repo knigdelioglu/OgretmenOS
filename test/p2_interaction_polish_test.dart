@@ -4,7 +4,6 @@ import 'package:ogretmen_os/app/app.dart';
 import 'package:ogretmen_os/app/app_dependencies.dart';
 import 'package:ogretmen_os/data/preferences/user_preferences_repository.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart' as model;
-import 'package:ogretmen_os/domain/models/outcome_tracking_models.dart';
 import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
 import 'package:ogretmen_os/domain/repositories/outcome_tracking_repository.dart';
