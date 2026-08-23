@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/preferences/continuity_repository.dart';
 import '../../data/preferences/user_preferences_repository.dart';
 import '../../domain/models/course_models.dart' as model;
 import '../../domain/repositories/course_knowledge_repository.dart';
@@ -11,10 +12,14 @@ class AnnualPlanPage extends StatefulWidget {
     super.key,
     required this.repository,
     required this.preferences,
+    required this.continuity,
+    required this.courseId,
   });
 
   final CourseKnowledgeRepository repository;
   final UserPreferencesRepository preferences;
+  final ContinuityRepository continuity;
+  final String courseId;
 
   @override
   State<AnnualPlanPage> createState() => _AnnualPlanPageState();
@@ -29,14 +34,28 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
     _future = _load();
   }
 
+  @override
+  void didUpdateWidget(covariant AnnualPlanPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _future = _load();
+  }
+
   Future<_PlanData> _load() async {
     final sequence = await widget.repository.getAnnualSequence();
     final manual = await widget.preferences.getManualPositionOverride();
+    final lastFocus = await widget.continuity.getLastFocus(widget.courseId);
+    final manualBlockId = sequence.any((entry) => entry.block.id == manual)
+        ? manual
+        : null;
+    final automaticBlockId = sequence.any(
+      (entry) => entry.block.id == lastFocus?.blockId,
+    )
+        ? lastFocus?.blockId
+        : null;
     return _PlanData(
       sequence: sequence,
-      selectedBlockId: sequence.any((entry) => entry.block.id == manual)
-          ? manual
-          : null,
+      manualBlockId: manualBlockId,
+      automaticBlockId: automaticBlockId,
     );
   }
 
@@ -78,11 +97,12 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
       final annualHours = grouped.values
           .map((entries) => entries.first.officialTotalHours ?? 0)
           .fold<int>(0, (a, b) => a + b);
-      final selectedEntry = data.selectedBlockId == null
+      final activeBlockId = data.manualBlockId ?? data.automaticBlockId;
+      final activeEntry = activeBlockId == null
           ? null
-          : data.sequence.firstWhere(
-              (entry) => entry.block.id == data.selectedBlockId,
-            );
+          : data.sequence.firstWhere((entry) => entry.block.id == activeBlockId);
+      final isManualPosition =
+          activeEntry != null && data.manualBlockId == activeEntry.block.id;
 
       return AppPage(
         children: [
@@ -90,7 +110,8 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
             themeCount: grouped.length,
             blockCount: data.sequence.length,
             annualHours: annualHours,
-            selectedEntry: selectedEntry,
+            activeEntry: activeEntry,
+            isManualPosition: isManualPosition,
             onClear: _clearPosition,
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -98,12 +119,13 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
             _ThemePlanCard(
               entries: grouped.values.elementAt(i),
               totalBlocks: data.sequence.length,
-              selectedBlockId: data.selectedBlockId,
-              initiallyExpanded: data.selectedBlockId == null
+              activeBlockId: activeBlockId,
+              manualBlockId: data.manualBlockId,
+              initiallyExpanded: activeBlockId == null
                   ? i == 0
                   : grouped.values
                       .elementAt(i)
-                      .any((entry) => entry.block.id == data.selectedBlockId),
+                      .any((entry) => entry.block.id == activeBlockId),
               onSelect: _setPosition,
               onOpen: (blockId) => Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -124,10 +146,15 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
 }
 
 class _PlanData {
-  const _PlanData({required this.sequence, required this.selectedBlockId});
+  const _PlanData({
+    required this.sequence,
+    required this.manualBlockId,
+    required this.automaticBlockId,
+  });
 
   final List<model.TimelineEntry> sequence;
-  final String? selectedBlockId;
+  final String? manualBlockId;
+  final String? automaticBlockId;
 }
 
 class _AnnualSummary extends StatelessWidget {
@@ -135,14 +162,16 @@ class _AnnualSummary extends StatelessWidget {
     required this.themeCount,
     required this.blockCount,
     required this.annualHours,
-    required this.selectedEntry,
+    required this.activeEntry,
+    required this.isManualPosition,
     required this.onClear,
   });
 
   final int themeCount;
   final int blockCount;
   final int annualHours;
-  final model.TimelineEntry? selectedEntry;
+  final model.TimelineEntry? activeEntry;
+  final bool isManualPosition;
   final VoidCallback onClear;
 
   @override
@@ -162,11 +191,11 @@ class _AnnualSummary extends StatelessWidget {
                   ),
                 ),
               ),
-              if (selectedEntry != null)
-                TextButton.icon(
+              if (isManualPosition)
+                IconButton(
+                  tooltip: 'İşaretli konumu temizle',
                   onPressed: onClear,
                   icon: const Icon(Icons.restart_alt),
-                  label: const Text('Konumu temizle'),
                 ),
             ],
           ),
@@ -177,8 +206,8 @@ class _AnnualSummary extends StatelessWidget {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
-          if (selectedEntry != null) ...[
-            const SizedBox(height: AppSpacing.md),
+          if (activeEntry != null) ...[
+            const SizedBox(height: AppSpacing.lg),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(AppSpacing.md),
@@ -186,14 +215,41 @@ class _AnnualSummary extends StatelessWidget {
                 color: Theme.of(context).colorScheme.secondaryContainer,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.bookmark_added),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      'Burada kaldım: ${selectedEntry!.theme.title} · ${selectedEntry!.block.title}',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                  Text(
+                    'ŞU AN BURADASIN',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.7,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    '${activeEntry!.theme.title} · ${activeEntry!.block.title}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    isManualPosition
+                        ? 'İşaretlediğin konum'
+                        : 'Son ders odağı',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  LinearProgressIndicator(
+                    value: activeEntry!.sequencePosition / blockCount,
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    '${activeEntry!.sequencePosition} / $blockCount blok',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
@@ -210,7 +266,8 @@ class _ThemePlanCard extends StatelessWidget {
   const _ThemePlanCard({
     required this.entries,
     required this.totalBlocks,
-    required this.selectedBlockId,
+    required this.activeBlockId,
+    required this.manualBlockId,
     required this.initiallyExpanded,
     required this.onSelect,
     required this.onOpen,
@@ -218,7 +275,8 @@ class _ThemePlanCard extends StatelessWidget {
 
   final List<model.TimelineEntry> entries;
   final int totalBlocks;
-  final String? selectedBlockId;
+  final String? activeBlockId;
+  final String? manualBlockId;
   final bool initiallyExpanded;
   final Future<void> Function(String blockId) onSelect;
   final ValueChanged<String> onOpen;
@@ -253,7 +311,7 @@ class _ThemePlanCard extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
-                    color: entries[i].block.id == selectedBlockId
+                    color: entries[i].block.id == activeBlockId
                         ? Theme.of(context).colorScheme.primary
                         : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -265,12 +323,12 @@ class _ThemePlanCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               trailing: IconButton(
-                tooltip: entries[i].block.id == selectedBlockId
-                    ? 'Seçili konum'
+                tooltip: entries[i].block.id == manualBlockId
+                    ? 'İşaretli konum'
                     : 'Burada kaldım',
                 onPressed: () => onSelect(entries[i].block.id),
                 icon: Icon(
-                  entries[i].block.id == selectedBlockId
+                  entries[i].block.id == manualBlockId
                       ? Icons.bookmark_added
                       : Icons.bookmark_add_outlined,
                 ),

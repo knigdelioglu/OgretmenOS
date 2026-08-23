@@ -1,12 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../data/preferences/continuity_repository.dart';
 import '../domain/repositories/outcome_tracking_repository.dart';
 import '../domain/runtime/course_runtime_registry.dart';
 import '../domain/services/outcome_planning_service.dart';
 import '../features/annual_plan/annual_plan_page.dart';
 import '../features/resources/resource_library_page.dart';
-import '../features/this_week/this_week_page.dart';
+import '../features/this_week/continuity_this_week_page.dart';
 import 'app_dependencies.dart';
 import 'theme/app_theme.dart';
 
@@ -176,12 +177,15 @@ class _AppShell extends StatefulWidget {
 class _AppShellState extends State<_AppShell> {
   int _selectedIndex = 0;
   late final OutcomePlanningService _outcomePlanning;
+  late final ContinuityRepository _continuity;
 
   static const _titles = ['Bu Hafta', 'Yıllık Plan', 'Kaynaklar'];
 
   @override
   void initState() {
     super.initState();
+    _continuity =
+        widget.dependencies.continuity ?? MemoryContinuityRepository();
     _outcomePlanning =
         widget.dependencies.outcomePlanning ??
         OutcomePlanningService(
@@ -196,10 +200,17 @@ class _AppShellState extends State<_AppShell> {
     final repository = widget.dependencies.repository;
     final activeCourse = runtimeForCourse(widget.activeCourseId);
     final pages = <Widget>[
-      ThisWeekPage(repository: repository, service: _outcomePlanning),
+      ContinuityThisWeekPage(
+        repository: repository,
+        service: _outcomePlanning,
+        continuity: _continuity,
+        courseId: widget.activeCourseId,
+      ),
       AnnualPlanPage(
         repository: repository,
         preferences: widget.dependencies.preferences,
+        continuity: _continuity,
+        courseId: widget.activeCourseId,
       ),
       ResourceLibraryPage(
         repository: repository,
