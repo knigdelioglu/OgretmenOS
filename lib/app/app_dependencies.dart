@@ -3,8 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/calendar/asset_weekly_planning_service.dart';
 import '../data/course/course_database_installer.dart';
 import '../data/course/course_knowledge_repository_impl.dart';
+import '../data/preferences/continuity_repository.dart';
 import '../data/preferences/user_preferences_repository.dart';
 import '../data/tracking/outcome_tracking_database.dart';
+import '../domain/models/outcome_tracking_models.dart';
 import '../domain/models/weekly_plan_models.dart';
 import '../domain/repositories/course_knowledge_repository.dart';
 import '../domain/services/outcome_planning_service.dart';
@@ -15,6 +17,7 @@ class AppDependencies {
     required this.preferences,
     required this.weeklyPlanning,
     this.outcomePlanning,
+    this.continuity,
     this.dispose,
   });
 
@@ -22,6 +25,7 @@ class AppDependencies {
   final UserPreferencesRepository preferences;
   final WeeklyPlanningService weeklyPlanning;
   final OutcomePlanningService? outcomePlanning;
+  final ContinuityRepository? continuity;
   final Future<void> Function()? dispose;
 }
 
@@ -44,10 +48,37 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
     final trackingRepository = SqfliteOutcomeTrackingRepository(
       trackingDatabase.database,
     );
+    final continuity = SharedPreferencesContinuityRepository(preferences);
     final outcomePlanning = OutcomePlanningService(
       repository: repository,
       weeklyPlanning: weeklyPlanning,
       trackingRepository: trackingRepository,
+      onInteraction: (
+        item,
+        resultingStatus,
+        displayWeekNumber,
+      ) async {
+        if (resultingStatus == OutcomeTrackingStatus.completed) {
+          final current = await continuity.getLastFocus(courseId);
+          if (current?.trackingKey == item.trackingKey) {
+            await continuity.clearLastFocus(courseId);
+          }
+          return;
+        }
+        await continuity.setLastFocus(
+          LastFocusState(
+            courseId: courseId,
+            academicYear: item.academicYear,
+            weekNumber: displayWeekNumber,
+            trackingKey: item.trackingKey,
+            outcomeCode: item.outcome.code,
+            themeTitle: item.primaryTheme?.title,
+            blockId: item.primaryBlock?.id,
+            blockTitle: item.primaryBlock?.title,
+            updatedAt: DateTime.now(),
+          ),
+        );
+      },
     );
 
     return AppDependencies(
@@ -55,6 +86,7 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
       preferences: SharedPreferencesUserPreferences(preferences),
       weeklyPlanning: weeklyPlanning,
       outcomePlanning: outcomePlanning,
+      continuity: continuity,
       dispose: () async {
         await trackingDatabase?.close();
         await database.close();
