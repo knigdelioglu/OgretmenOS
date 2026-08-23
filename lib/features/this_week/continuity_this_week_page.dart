@@ -196,7 +196,7 @@ class _ResumeCard extends StatelessWidget {
               if (block != null || theme != null) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  [if (theme != null) theme, if (block != null) block].join(' · '),
+                  [?theme, ?block].join(' · '),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: scheme.onTertiaryContainer,
                   ),
