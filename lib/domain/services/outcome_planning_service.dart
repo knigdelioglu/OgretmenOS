@@ -4,16 +4,24 @@ import '../models/weekly_plan_models.dart';
 import '../repositories/course_knowledge_repository.dart';
 import '../repositories/outcome_tracking_repository.dart';
 
+typedef OutcomeInteractionObserver = Future<void> Function(
+  TrackedOutcome item,
+  OutcomeTrackingStatus resultingStatus,
+  int displayWeekNumber,
+);
+
 class OutcomePlanningService {
   const OutcomePlanningService({
     required this.repository,
     required this.weeklyPlanning,
     required this.trackingRepository,
+    this.onInteraction,
   });
 
   final CourseKnowledgeRepository repository;
   final WeeklyPlanningService weeklyPlanning;
   final OutcomeTrackingRepository trackingRepository;
+  final OutcomeInteractionObserver? onInteraction;
 
   Future<AnnualOutcomePlan> buildPlan({DateTime? today}) async {
     final weeklyPlan = await weeklyPlanning.buildPlan(today: today);
@@ -141,6 +149,7 @@ class OutcomePlanningService {
         updatedAt: now,
       ),
     );
+    await _notifyInteraction(item, status, item.displayWeekNumber);
   }
 
   Future<void> saveTeacherNote(TrackedOutcome item, String? note) async {
@@ -158,6 +167,7 @@ class OutcomePlanningService {
         updatedAt: now,
       ),
     );
+    await _notifyInteraction(item, item.status, item.displayWeekNumber);
   }
 
   Future<void> saveActualHours(TrackedOutcome item, int? hours) async {
@@ -178,6 +188,7 @@ class OutcomePlanningService {
         updatedAt: now,
       ),
     );
+    await _notifyInteraction(item, item.status, item.displayWeekNumber);
   }
 
   Future<void> carryToWeek({
@@ -213,6 +224,11 @@ class OutcomePlanningService {
         updatedAt: now,
       ),
     );
+    await _notifyInteraction(
+      item,
+      OutcomeTrackingStatus.carriedOver,
+      targetWeekNumber,
+    );
   }
 
   Future<void> resetTracking(TrackedOutcome item) => trackingRepository.delete(
@@ -220,6 +236,21 @@ class OutcomePlanningService {
     outcomeId: item.outcome.id,
     plannedWeekNumber: item.plannedWeekNumber,
   );
+
+  Future<void> _notifyInteraction(
+    TrackedOutcome item,
+    OutcomeTrackingStatus status,
+    int displayWeekNumber,
+  ) async {
+    final observer = onInteraction;
+    if (observer == null) return;
+    try {
+      await observer(item, status, displayWeekNumber);
+    } on Object {
+      // Continuity is convenience state; a preference write must never block
+      // authoritative teacher tracking persistence.
+    }
+  }
 
   String _recordKey(LearningOutcomeTrackingRecord record) => _key(
     record.academicYear,
