@@ -23,15 +23,20 @@ void main() {
 
     expect(find.text('Ders Bloğu'), findsOneWidget);
     expect(find.text('Derste lazım'), findsOneWidget);
-    expect(find.text('Plan sırası'), findsOneWidget);
-    expect(find.text('Daha fazla bilgi'), findsOneWidget);
     expect(find.text('TEST.1'), findsOneWidget);
     expect(find.text('TEST SÜREÇ BİLEŞENİ'), findsNothing);
     expect(find.text('Program çıktıları'), findsNothing);
 
     final more = find.text('Daha fazla bilgi');
-    await tester.ensureVisible(more);
+    await tester.scrollUntilVisible(
+      more,
+      250,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.pumpAndSettle();
+    expect(more, findsOneWidget);
+    expect(find.text('Plan sırası'), findsOneWidget);
+
     await tester.tap(more);
     await tester.pumpAndSettle();
 
@@ -69,9 +74,26 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
 
-    expect(find.text('Derste lazım'), findsOneWidget);
-    expect(find.text('Daha fazla bilgi'), findsOneWidget);
+    final lessonReady = find.text('Derste lazım');
+    await tester.scrollUntilVisible(
+      lessonReady,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    expect(lessonReady, findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    final more = find.text('Daha fazla bilgi');
+    await tester.scrollUntilVisible(
+      more,
+      250,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    expect(more, findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
