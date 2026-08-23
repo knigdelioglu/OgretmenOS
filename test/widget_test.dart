@@ -178,6 +178,49 @@ void main() {
     expect(carriedGroup, findsOneWidget);
   });
 
+  testWidgets('kazanım ayrıntısı derste lazım bilgisini öne çıkarır', (
+    tester,
+  ) async {
+    _phone(tester);
+    await _pump(tester);
+
+    await tester.tap(find.text('Derse devam et'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Derste lazım'), findsOneWidget);
+    expect(find.text('Daha fazla bilgi'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Başla'), findsOneWidget);
+    expect(find.text('Deftere kopyala'), findsOneWidget);
+    expect(find.text('TEST SÜREÇ BİLEŞENİ'), findsNothing);
+    expect(find.text('Notu kaydet'), findsNothing);
+    expect(find.byTooltip('Blok ayrıntısını aç'), findsNothing);
+
+    final more = find.text('Daha fazla bilgi');
+    await tester.scrollUntilVisible(
+      more,
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(more);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Öğretmen notu'), findsOneWidget);
+    expect(find.text('Süreç bileşenleri'), findsOneWidget);
+    expect(find.text('Plan ve blok bağlamı'), findsOneWidget);
+    expect(find.text('TEST SÜREÇ BİLEŞENİ'), findsNothing);
+
+    final process = find.text('Süreç bileşenleri');
+    await tester.scrollUntilVisible(
+      process,
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(process);
+    await tester.pumpAndSettle();
+
+    expect(find.text('TEST SÜREÇ BİLEŞENİ'), findsOneWidget);
+  });
+
   testWidgets('yıllık plan tema bazında kompakt gösterilir', (tester) async {
     _phone(tester);
     await _pump(tester);
@@ -309,7 +352,7 @@ class _FakeRepository implements CourseKnowledgeRepository {
     themeId: 'TEST_THEME',
     code: 'TEST.1',
     officialText: 'İlk test kazanımı',
-    processComponents: null,
+    processComponents: 'TEST SÜREÇ BİLEŞENİ',
     sourceLocator: null,
     verificationStatus: 'PASS',
   );
