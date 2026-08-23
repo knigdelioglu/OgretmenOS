@@ -10,7 +10,9 @@ import 'package:ogretmen_os/domain/repositories/outcome_tracking_repository.dart
 import 'package:ogretmen_os/domain/services/outcome_planning_service.dart';
 
 void main() {
-  testWidgets('ana deneyim tek sıradaki kazanıma odaklanır', (tester) async {
+  testWidgets('ana deneyim Başla ve İşlendi akışını tek odakta yürütür', (
+    tester,
+  ) async {
     _phone(tester);
     final tracking = MemoryOutcomeTrackingRepository();
     await _pump(tester, tracking: tracking);
@@ -23,16 +25,26 @@ void main() {
     expect(find.text('TEST.1'), findsOneWidget);
     expect(find.text('TEST.2'), findsNothing);
     expect(find.text('TEST.3'), findsNothing);
+    expect(find.text('Başla'), findsOneWidget);
     expect(find.text('Paket'), findsNothing);
     expect(find.text('Haftalık Plan'), findsNothing);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Başla'));
+    await tester.pumpAndSettle();
+
+    var records = await tracking.getForAcademicYear('2026-2027');
+    expect(records, hasLength(1));
+    expect(records.single.status.storageValue, 'in_progress');
+    expect(find.text('Devam ediyor'), findsOneWidget);
+    expect(find.text('İşlendi'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(FilledButton, 'İşlendi'));
     await tester.pumpAndSettle();
 
-    final records = await tracking.getForAcademicYear('2026-2027');
-    expect(records, hasLength(1));
+    records = await tracking.getForAcademicYear('2026-2027');
     expect(records.single.status.storageValue, 'completed');
     expect(find.text('1 / 3 işlendi'), findsOneWidget);
+    expect(find.text('TEST.2'), findsOneWidget);
   });
 
   testWidgets('diğer açık kazanımlar varsayılan olarak kapalıdır', (
@@ -68,6 +80,8 @@ void main() {
     final tracking = MemoryOutcomeTrackingRepository();
     await _pump(tester, tracking: tracking);
 
+    await tester.tap(find.widgetWithText(FilledButton, 'Başla'));
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'İşlendi'));
     await tester.pumpAndSettle();
 
@@ -80,12 +94,88 @@ void main() {
       scrollable: find.byType(Scrollable).last,
     );
     expect(completedGroup, findsOneWidget);
-    expect(find.text('1 kazanım'), findsNWidgets(2));
 
     await tester.tap(completedGroup);
     await tester.pumpAndSettle();
 
     expect(find.text('TEST.1'), findsOneWidget);
+  });
+
+  testWidgets('hızlı not ana ekrandan kaydedilir ve odakta görünür', (
+    tester,
+  ) async {
+    _phone(tester);
+    final tracking = MemoryOutcomeTrackingRepository();
+    await _pump(tester, tracking: tracking);
+
+    await tester.tap(find.byTooltip('Kazanım işlemleri'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hızlı not'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hızlı not'), findsOneWidget);
+    await tester.enterText(
+      find.byType(TextField).last,
+      'Son etkinlik gelecek derste tamamlanacak.',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Kaydet'));
+    await tester.pumpAndSettle();
+
+    final records = await tracking.getForAcademicYear('2026-2027');
+    expect(records, hasLength(1));
+    expect(
+      records.single.teacherNote,
+      'Son etkinlik gelecek derste tamamlanacak.',
+    );
+    expect(
+      find.text('Son etkinlik gelecek derste tamamlanacak.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('kısmen işlendi ikincil menüden seçilebilir', (tester) async {
+    _phone(tester);
+    final tracking = MemoryOutcomeTrackingRepository();
+    await _pump(tester, tracking: tracking);
+
+    await tester.tap(find.byTooltip('Kazanım işlemleri'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kısmen işlendi'));
+    await tester.pumpAndSettle();
+
+    final records = await tracking.getForAcademicYear('2026-2027');
+    expect(records, hasLength(1));
+    expect(records.single.status.storageValue, 'partially_completed');
+    expect(find.text('Kısmen işlendi'), findsOneWidget);
+    expect(find.text('İşlendi'), findsOneWidget);
+  });
+
+  testWidgets('gelecek haftaya taşı kaynak haftanın odağını serbest bırakır', (
+    tester,
+  ) async {
+    _phone(tester);
+    final tracking = MemoryOutcomeTrackingRepository();
+    await _pump(tester, tracking: tracking);
+
+    await tester.tap(find.byTooltip('Kazanım işlemleri'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Gelecek haftaya taşı'));
+    await tester.pumpAndSettle();
+
+    final records = await tracking.getForAcademicYear('2026-2027');
+    expect(records, hasLength(1));
+    expect(records.single.status.storageValue, 'carried_over');
+    expect(records.single.carriedToWeekNumber, 2);
+    expect(find.text('TEST.1'), findsNothing);
+    expect(find.text('TEST.2'), findsOneWidget);
+
+    final carriedGroup = find.text('Sonraki haftaya taşınanlar');
+    await tester.scrollUntilVisible(
+      carriedGroup,
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(carriedGroup, findsOneWidget);
   });
 
   testWidgets('yıllık plan tema bazında kompakt gösterilir', (tester) async {
@@ -348,6 +438,23 @@ class _FakeWeeklyPlanning implements WeeklyPlanningService {
           _FakeRepository.outcome2,
           _FakeRepository.outcome3,
         ],
+      ),
+      AcademicWeekPlan(
+        weekNumber: 2,
+        start: DateTime(2026, 9, 21),
+        end: DateTime(2026, 9, 25),
+        type: AcademicWeekType.instruction,
+        label: '2. Hafta',
+        plannedLessonHours: 5,
+        segments: const [
+          WeeklyPlanSegment(
+            type: WeeklyPlanSegmentType.block,
+            theme: _FakeRepository.theme,
+            hours: 5,
+            block: _FakeRepository.block,
+          ),
+        ],
+        outcomes: const [],
       ),
     ],
   );
