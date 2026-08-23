@@ -23,16 +23,8 @@ void main() {
     expect(find.text('TEST.1'), findsOneWidget);
     expect(find.text('TEST.2'), findsNothing);
     expect(find.text('TEST.3'), findsNothing);
-    expect(find.text('Bu haftanın diğerleri'), findsOneWidget);
-    expect(find.text('2 kazanım'), findsOneWidget);
     expect(find.text('Paket'), findsNothing);
     expect(find.text('Haftalık Plan'), findsNothing);
-
-    await tester.tap(find.text('Bu haftanın diğerleri'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('TEST.2'), findsOneWidget);
-    expect(find.text('TEST.3'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(FilledButton, 'İşlendi'));
     await tester.pumpAndSettle();
@@ -41,9 +33,32 @@ void main() {
     expect(records, hasLength(1));
     expect(records.single.status.storageValue, 'completed');
     expect(find.text('1 / 3 işlendi'), findsOneWidget);
+  });
+
+  testWidgets('diğer açık kazanımlar varsayılan olarak kapalıdır', (
+    tester,
+  ) async {
+    _phone(tester);
+    await _pump(tester);
+
+    expect(find.text('TEST.1'), findsOneWidget);
+    expect(find.text('TEST.2'), findsNothing);
+    expect(find.text('TEST.3'), findsNothing);
+
+    final group = find.text('Bu haftanın diğerleri');
+    await tester.scrollUntilVisible(
+      group,
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(group, findsOneWidget);
+    expect(find.text('2 kazanım'), findsOneWidget);
+
+    await tester.tap(group);
+    await tester.pumpAndSettle();
+
     expect(find.text('TEST.2'), findsOneWidget);
-    expect(find.text('Tamamlananlar'), findsOneWidget);
-    expect(find.text('1 kazanım'), findsOneWidget);
+    expect(find.text('TEST.3'), findsOneWidget);
   });
 
   testWidgets('tamamlanan kazanımlar varsayılan olarak geri planda kalır', (
@@ -57,10 +72,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('TEST.1'), findsNothing);
-    expect(find.text('TEST.2'), findsOneWidget);
-    expect(find.text('Tamamlananlar'), findsOneWidget);
 
-    await tester.tap(find.text('Tamamlananlar'));
+    final completedGroup = find.text('Tamamlananlar');
+    await tester.scrollUntilVisible(
+      completedGroup,
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(completedGroup, findsOneWidget);
+    expect(find.text('1 kazanım'), findsOneWidget);
+
+    await tester.tap(completedGroup);
     await tester.pumpAndSettle();
 
     expect(find.text('TEST.1'), findsOneWidget);
