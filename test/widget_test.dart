@@ -80,7 +80,7 @@ void main() {
       scrollable: find.byType(Scrollable).last,
     );
     expect(completedGroup, findsOneWidget);
-    expect(find.text('1 kazanım'), findsOneWidget);
+    expect(find.text('1 kazanım'), findsNWidgets(2));
 
     await tester.tap(completedGroup);
     await tester.pumpAndSettle();
