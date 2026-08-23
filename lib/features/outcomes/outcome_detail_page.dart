@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../domain/models/course_models.dart' as model;
 import '../../domain/models/outcome_tracking_models.dart';
+import '../../domain/models/weekly_plan_models.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../../domain/services/outcome_planning_service.dart';
 import '../block/block_detail_page.dart';
@@ -91,19 +92,14 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
     VoidCallback? primaryAction;
     String? primaryActionLabel;
     IconData? primaryActionIcon;
-    switch (_item.presentationStatus) {
-      case OutcomeTrackingStatus.completed:
-        break;
-      case OutcomeTrackingStatus.planned:
-        primaryAction = () => _setStatus(OutcomeTrackingStatus.inProgress);
-        primaryActionLabel = 'Başla';
-        primaryActionIcon = Icons.play_arrow_rounded;
-      case OutcomeTrackingStatus.inProgress:
-      case OutcomeTrackingStatus.partiallyCompleted:
-      case OutcomeTrackingStatus.carriedOver:
-        primaryAction = () => _setStatus(OutcomeTrackingStatus.completed);
-        primaryActionLabel = 'İşlendi';
-        primaryActionIcon = Icons.check_rounded;
+    if (_item.presentationStatus == OutcomeTrackingStatus.planned) {
+      primaryAction = () => _setStatus(OutcomeTrackingStatus.inProgress);
+      primaryActionLabel = 'Başla';
+      primaryActionIcon = Icons.play_arrow_rounded;
+    } else if (_item.presentationStatus != OutcomeTrackingStatus.completed) {
+      primaryAction = () => _setStatus(OutcomeTrackingStatus.completed);
+      primaryActionLabel = 'İşlendi';
+      primaryActionIcon = Icons.check_rounded;
     }
 
     final moreSections = <Widget>[
@@ -665,6 +661,7 @@ class _LessonReadyCard extends StatelessWidget {
                   ),
                 ],
               ),
+            if (completed) const SizedBox(height: AppSpacing.md),
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
