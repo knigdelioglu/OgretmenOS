@@ -66,7 +66,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('BU TEMADA HAZIR'), findsOneWidget);
-    expect(find.text('Kitap Bölümü 1'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    final textbook = find.text('Kitap Bölümü 1');
+    await tester.scrollUntilVisible(
+      textbook,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+
+    expect(textbook, findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
