@@ -67,39 +67,40 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    final scrollable = find.byType(Scrollable).last;
     final more = find.text('Daha fazla bilgi');
-    await tester.ensureVisible(more);
+    await tester.scrollUntilVisible(more, 200, scrollable: scrollable);
+    await tester.pumpAndSettle();
     await tester.tap(more);
     await tester.pumpAndSettle();
 
     final noteSection = find.text('Öğretmen notu');
-    await tester.ensureVisible(noteSection);
+    await tester.scrollUntilVisible(noteSection, 200, scrollable: scrollable);
+    await tester.pumpAndSettle();
     await tester.tap(noteSection);
     await tester.pumpAndSettle();
 
-    var save = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Notu kaydet'),
-    );
+    final saveFinder = find.widgetWithText(FilledButton, 'Notu kaydet');
+    await tester.scrollUntilVisible(saveFinder, 160, scrollable: scrollable);
+    await tester.pumpAndSettle();
+
+    var save = tester.widget<FilledButton>(saveFinder);
     expect(save.onPressed, isNull);
 
     await tester.enterText(find.byType(TextField), 'Yarın buradan devam.');
     await tester.pump();
 
-    save = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Notu kaydet'),
-    );
+    save = tester.widget<FilledButton>(saveFinder);
     expect(save.onPressed, isNotNull);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Notu kaydet'));
+    await tester.tap(saveFinder);
     await tester.pumpAndSettle();
 
     expect(find.text('Not kaydedildi.'), findsOneWidget);
     final records = await tracking.getForAcademicYear('2026-2027');
     expect(records.single.teacherNote, 'Yarın buradan devam.');
 
-    save = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Notu kaydet'),
-    );
+    save = tester.widget<FilledButton>(saveFinder);
     expect(save.onPressed, isNull);
     expect(tester.takeException(), isNull);
   });
