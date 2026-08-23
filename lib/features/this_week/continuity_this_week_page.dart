@@ -36,6 +36,12 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
     _future = _load();
   }
 
+  @override
+  void didUpdateWidget(covariant ContinuityThisWeekPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _future = _load();
+  }
+
   Future<_ContinuityData> _load() async {
     final results = await Future.wait<Object?>([
       widget.service.buildPlan(),
