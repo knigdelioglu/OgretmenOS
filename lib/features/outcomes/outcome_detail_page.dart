@@ -88,6 +88,303 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
     );
     final sourceWeek = _plan.week(_item.plannedWeekNumber)?.week;
 
+    VoidCallback? primaryAction;
+    String? primaryActionLabel;
+    IconData? primaryActionIcon;
+    switch (_item.presentationStatus) {
+      case OutcomeTrackingStatus.completed:
+        break;
+      case OutcomeTrackingStatus.planned:
+        primaryAction = () => _setStatus(OutcomeTrackingStatus.inProgress);
+        primaryActionLabel = 'Başla';
+        primaryActionIcon = Icons.play_arrow_rounded;
+      case OutcomeTrackingStatus.inProgress:
+      case OutcomeTrackingStatus.partiallyCompleted:
+      case OutcomeTrackingStatus.carriedOver:
+        primaryAction = () => _setStatus(OutcomeTrackingStatus.completed);
+        primaryActionLabel = 'İşlendi';
+        primaryActionIcon = Icons.check_rounded;
+    }
+
+    final moreSections = <Widget>[
+      _DisclosureSection(
+        title: 'Takip seçenekleri',
+        subtitle: 'İkincil durumlar ve başka haftaya taşıma',
+        icon: Icons.fact_check_outlined,
+        child: Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            _StatusButton(
+              label: 'Planlı',
+              icon: Icons.schedule_outlined,
+              selected: _item.status == OutcomeTrackingStatus.planned,
+              onPressed: () => _setStatus(OutcomeTrackingStatus.planned),
+            ),
+            _StatusButton(
+              label: 'Devam ediyor',
+              icon: Icons.play_circle_outline,
+              selected: _item.status == OutcomeTrackingStatus.inProgress,
+              onPressed: () => _setStatus(OutcomeTrackingStatus.inProgress),
+            ),
+            _StatusButton(
+              label: 'Kısmen işlendi',
+              icon: Icons.timelapse_outlined,
+              selected: _item.status == OutcomeTrackingStatus.partiallyCompleted,
+              onPressed: () =>
+                  _setStatus(OutcomeTrackingStatus.partiallyCompleted),
+            ),
+            _StatusButton(
+              label: 'İşlendi',
+              icon: Icons.check_circle_outline,
+              selected: _item.status == OutcomeTrackingStatus.completed,
+              onPressed: () => _setStatus(OutcomeTrackingStatus.completed),
+            ),
+            OutlinedButton.icon(
+              onPressed: _saving ? null : _carry,
+              icon: const Icon(Icons.redo_outlined),
+              label: const Text('Başka haftaya taşı'),
+            ),
+          ],
+        ),
+      ),
+      _DisclosureSection(
+        title: 'Öğretmen notu',
+        subtitle: _item.teacherNote?.isNotEmpty == true
+            ? 'Bu kazanıma bağlı bir not var'
+            : 'Kısa yerel not ekle',
+        icon: Icons.sticky_note_2_outlined,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _noteController,
+              minLines: 2,
+              maxLines: 5,
+              textInputAction: TextInputAction.newline,
+              decoration: const InputDecoration(
+                hintText: 'Örn. son etkinlik gelecek derste tamamlanacak',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.tonalIcon(
+                onPressed: _saving ? null : _saveNote,
+                icon: const Icon(Icons.save_outlined),
+                label: const Text('Notu kaydet'),
+              ),
+            ),
+          ],
+        ),
+      ),
+      if (outcome.processComponents?.isNotEmpty == true)
+        _DisclosureSection(
+          title: 'Süreç bileşenleri',
+          subtitle: 'Resmî programdaki ayrıntılı süreç ifadesi',
+          icon: Icons.account_tree_outlined,
+          child: SelectableText(
+            outcome.processComponents!,
+            style: const TextStyle(height: 1.5),
+          ),
+        ),
+      _DisclosureSection(
+        title: 'Plan ve blok bağlamı',
+        subtitle: _item.contexts.isEmpty
+            ? 'Doğrulanmış blok bağlamı yok'
+            : '${_item.contexts.length} doğrulanmış blok bağlamı',
+        icon: Icons.view_agenda_outlined,
+        child: _item.contexts.isEmpty
+            ? const StatusPanel(
+                icon: Icons.info_outline,
+                title: 'Blok bağlamı bulunamadı',
+                message:
+                    'Bu haftalık projection için doğrulanmış blok bağlamı yok.',
+              )
+            : Column(
+                children: [
+                  for (var index = 0;
+                      index < _item.contexts.length;
+                      index++) ...[
+                    _BlockContextCard(
+                      contextItem: _item.contexts[index],
+                      onOpen: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => BlockDetailPage(
+                            repository: widget.repository,
+                            blockId: _item.contexts[index].block.id,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (index != _item.contexts.length - 1)
+                      const SizedBox(height: AppSpacing.md),
+                  ],
+                ],
+              ),
+      ),
+      if (textbook.isNotEmpty || activities.isNotEmpty)
+        _DisclosureSection(
+          title: 'Kitap ve etkinlik ayrıntıları',
+          subtitle:
+              '${textbook.length} kitap bölümü · ${activities.length} etkinlik',
+          icon: Icons.menu_book_outlined,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var index = 0; index < textbook.length; index++) ...[
+                InfoCard(
+                  title: textbook[index].title,
+                  subtitle: textbook[index].genre,
+                  icon: Icons.book_outlined,
+                  child: Wrap(
+                    spacing: AppSpacing.lg,
+                    runSpacing: AppSpacing.sm,
+                    children: [
+                      if (textbook[index].printedPageRange != null)
+                        Text('Basılı: s. ${textbook[index].printedPageRange}'),
+                      if (textbook[index].pdfPageRange != null)
+                        Text('PDF: ${textbook[index].pdfPageRange}'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+              for (var index = 0; index < activities.length; index++) ...[
+                InfoCard(
+                  title: activities[index].title,
+                  subtitle: activities[index].activityType,
+                  icon: Icons.task_alt_outlined,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (activities[index].studentAction != null)
+                        Text(
+                          activities[index].studentAction!,
+                          style: const TextStyle(height: 1.4),
+                        ),
+                      if (activities[index].printedPage != null) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        Text('Kitap: s. ${activities[index].printedPage}'),
+                      ],
+                    ],
+                  ),
+                ),
+                if (index != activities.length - 1)
+                  const SizedBox(height: AppSpacing.md),
+              ],
+            ],
+          ),
+        ),
+      if (forms.isNotEmpty)
+        _DisclosureSection(
+          title: 'Formlar',
+          subtitle: '${forms.length} değerlendirme/form öğesi',
+          icon: Icons.description_outlined,
+          child: Column(
+            children: [
+              for (var index = 0; index < forms.length; index++) ...[
+                InfoCard(
+                  title: forms[index].title,
+                  subtitle:
+                      forms[index].assessmentType ?? forms[index].structuralType,
+                  icon: Icons.description_outlined,
+                  child: Text(
+                    forms[index].printedPage == null
+                        ? 'Sayfa bilgisi doğrulanmış runtime verisinde belirtilmemiş.'
+                        : 'Basılı kitap: s. ${forms[index].printedPage}',
+                  ),
+                ),
+                if (index != forms.length - 1)
+                  const SizedBox(height: AppSpacing.md),
+              ],
+            ],
+          ),
+        ),
+      if (targetedBindings.isNotEmpty || artifacts.isNotEmpty)
+        _DisclosureSection(
+          title: 'Değerlendirme',
+          subtitle: targetedBindings.isNotEmpty
+              ? '${targetedBindings.length} doğrudan hedeflenen görev'
+              : '${artifacts.length} blok değerlendirme aracı',
+          icon: Icons.assignment_outlined,
+          child: Column(
+            children: [
+              if (targetedBindings.isNotEmpty)
+                for (var index = 0;
+                    index < targetedBindings.length;
+                    index++) ...[
+                  InfoCard(
+                    title: targetedBindings[index].taskTitle ??
+                        'Değerlendirme görevi',
+                    subtitle: 'Doğrudan kazanım hedeflemesi',
+                    icon: Icons.fact_check_outlined,
+                    child: Text(
+                      targetedBindings[index].evidence ??
+                          'Ek kanıt açıklaması runtime verisinde belirtilmemiş.',
+                    ),
+                  ),
+                  if (index != targetedBindings.length - 1)
+                    const SizedBox(height: AppSpacing.md),
+                ]
+              else
+                for (var index = 0; index < artifacts.length; index++) ...[
+                  InfoCard(
+                    title: artifacts[index].title,
+                    subtitle: artifacts[index].assessmentFamily,
+                    icon: Icons.assignment_outlined,
+                    child: Text(
+                      artifacts[index].generationStatus == null
+                          ? 'Blok değerlendirme bağlamı'
+                          : 'Durum: ${artifacts[index].generationStatus}',
+                    ),
+                  ),
+                  if (index != artifacts.length - 1)
+                    const SizedBox(height: AppSpacing.md),
+                ],
+            ],
+          ),
+        ),
+      if (decisions.isNotEmpty)
+        _DisclosureSection(
+          title: 'Materyal / kaynak kararları',
+          subtitle: '${decisions.length} doğrulanmış kaynak kararı',
+          icon: Icons.inventory_2_outlined,
+          child: Column(
+            children: [
+              for (var index = 0; index < decisions.length; index++) ...[
+                ResourceDecisionCard(decision: decisions[index]),
+                if (index != decisions.length - 1)
+                  const SizedBox(height: AppSpacing.md),
+              ],
+            ],
+          ),
+        ),
+      if (sources.isNotEmpty)
+        _DisclosureSection(
+          title: 'Kaynak referansları',
+          subtitle: '${sources.length} runtime kaynak izi',
+          icon: Icons.link_outlined,
+          child: Column(
+            children: [
+              for (var index = 0; index < sources.length; index++) ...[
+                InfoCard(
+                  title: sources[index].title,
+                  subtitle: sources[index].sourceType,
+                  icon: Icons.link_outlined,
+                  child: SelectableText(
+                    sources[index].locator ?? 'Konum bilgisi yok',
+                  ),
+                ),
+                if (index != sources.length - 1)
+                  const SizedBox(height: AppSpacing.md),
+              ],
+            ],
+          ),
+        ),
+    ];
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -106,7 +403,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
           maxWidth: 900,
           children: [
             PageHeader(
-              eyebrow: 'Kazanım Ayrıntısı',
+              eyebrow: 'Kazanım',
               title: outcome.code,
               description: outcome.officialText,
               trailing: OutcomeStatusChip(status: _item.presentationStatus),
@@ -128,309 +425,22 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
                 tone: StatusTone.attention,
               ),
             const SectionHeading(
-              'Takip durumu',
-              subtitle:
-                  'Bu seçim yalnız yerel öğretmen takibidir; resmî programı değiştirmez.',
-              icon: Icons.fact_check_outlined,
+              'Derste lazım',
+              subtitle: 'Derse girerken ihtiyaç duyulan kısa görünüm',
+              icon: Icons.bolt_outlined,
             ),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                _StatusButton(
-                  label: 'Planlı',
-                  icon: Icons.schedule_outlined,
-                  selected: _item.status == OutcomeTrackingStatus.planned,
-                  onPressed: () => _setStatus(OutcomeTrackingStatus.planned),
-                ),
-                _StatusButton(
-                  label: 'Devam ediyor',
-                  icon: Icons.play_circle_outline,
-                  selected: _item.status == OutcomeTrackingStatus.inProgress,
-                  onPressed: () => _setStatus(OutcomeTrackingStatus.inProgress),
-                ),
-                _StatusButton(
-                  label: 'Kısmen işlendi',
-                  icon: Icons.timelapse_outlined,
-                  selected:
-                      _item.status == OutcomeTrackingStatus.partiallyCompleted,
-                  onPressed: () =>
-                      _setStatus(OutcomeTrackingStatus.partiallyCompleted),
-                ),
-                _StatusButton(
-                  label: 'İşlendi',
-                  icon: Icons.check_circle_outline,
-                  selected: _item.status == OutcomeTrackingStatus.completed,
-                  onPressed: () => _setStatus(OutcomeTrackingStatus.completed),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _saving ? null : _carry,
-                  icon: const Icon(Icons.redo_outlined),
-                  label: const Text('Sonraki haftaya taşı'),
-                ),
-              ],
+            _LessonReadyCard(
+              item: _item,
+              sourceWeek: sourceWeek,
+              textbook: textbook,
+              activities: activities,
+              primaryAction: _saving ? null : primaryAction,
+              primaryActionLabel: primaryActionLabel,
+              primaryActionIcon: primaryActionIcon,
+              onCopyDiary: _copyDiaryText,
             ),
-            const SectionHeading(
-              'Öğretmen notu',
-              subtitle: 'Yalnız bu haftalık kazanım takibine bağlı yerel not',
-              icon: Icons.sticky_note_2_outlined,
-            ),
-            InfoCard(
-              title: 'Kısa not',
-              icon: Icons.edit_note_outlined,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  TextField(
-                    controller: _noteController,
-                    minLines: 2,
-                    maxLines: 5,
-                    textInputAction: TextInputAction.newline,
-                    decoration: const InputDecoration(
-                      hintText: 'Örn. son etkinlik gelecek derste tamamlanacak',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: FilledButton.tonalIcon(
-                      onPressed: _saving ? null : _saveNote,
-                      icon: const Icon(Icons.save_outlined),
-                      label: const Text('Notu kaydet'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SectionHeading(
-              'Deftere Bakış',
-              subtitle:
-                  'Kopyalanan metin yalnız doğrulanmış program ifadelerini kullanır.',
-              icon: Icons.menu_book_outlined,
-            ),
-            InfoCard(
-              title: 'Kazanım ve plan bağlamı',
-              icon: Icons.content_paste_outlined,
-              trailing: IconButton(
-                tooltip: 'Panoya kopyala',
-                onPressed: _copyDiaryText,
-                icon: const Icon(Icons.copy_outlined),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (sourceWeek != null)
-                    LabeledValue(
-                      label: 'Planlanan hafta',
-                      value:
-                          '${sourceWeek.weekNumber}. Hafta · ${outcomeDateRange(sourceWeek.start, sourceWeek.end)}',
-                    ),
-                  if (_item.primaryTheme != null) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    LabeledValue(label: 'Tema', value: _item.primaryTheme!.title),
-                  ],
-                  if (_item.primaryBlock != null) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    LabeledValue(label: 'Blok', value: _item.primaryBlock!.title),
-                  ],
-                  const SizedBox(height: AppSpacing.md),
-                  SelectableText(
-                    '${outcome.code} — ${outcome.officialText}',
-                    style: const TextStyle(height: 1.5),
-                  ),
-                  if (outcome.processComponents?.isNotEmpty == true) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      'Süreç bileşenleri',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    SelectableText(outcome.processComponents!),
-                  ],
-                ],
-              ),
-            ),
-            const SectionHeading(
-              'Plan ve blok bağlamı',
-              subtitle:
-                  'Aşağıdaki kaynaklar kazanımın yer aldığı doğrulanmış bloklardan gelir.',
-              icon: Icons.account_tree_outlined,
-            ),
-            if (_item.contexts.isEmpty)
-              const StatusPanel(
-                icon: Icons.info_outline,
-                title: 'Blok bağlamı bulunamadı',
-                message: 'Bu haftalık projection için doğrulanmış blok bağlamı yok.',
-              )
-            else
-              for (var index = 0; index < _item.contexts.length; index++) ...[
-                _BlockContextCard(
-                  contextItem: _item.contexts[index],
-                  onOpen: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => BlockDetailPage(
-                        repository: widget.repository,
-                        blockId: _item.contexts[index].block.id,
-                      ),
-                    ),
-                  ),
-                ),
-                if (index != _item.contexts.length - 1)
-                  const SizedBox(height: AppSpacing.md),
-              ],
-            if (textbook.isNotEmpty) ...[
-              const SectionHeading(
-                'Kitap',
-                subtitle:
-                    'Kazanımın bulunduğu blokta erişilebilen ders kitabı bölümleri',
-                icon: Icons.menu_book_outlined,
-              ),
-              for (var index = 0; index < textbook.length; index++) ...[
-                InfoCard(
-                  title: textbook[index].title,
-                  subtitle: textbook[index].genre,
-                  icon: Icons.book_outlined,
-                  child: Wrap(
-                    spacing: AppSpacing.lg,
-                    runSpacing: AppSpacing.sm,
-                    children: [
-                      if (textbook[index].printedPageRange != null)
-                        Text('Basılı: s. ${textbook[index].printedPageRange}'),
-                      if (textbook[index].pdfPageRange != null)
-                        Text('PDF: ${textbook[index].pdfPageRange}'),
-                    ],
-                  ),
-                ),
-                if (index != textbook.length - 1)
-                  const SizedBox(height: AppSpacing.md),
-              ],
-            ],
-            if (activities.isNotEmpty) ...[
-              const SectionHeading(
-                'Etkinlikler',
-                subtitle: 'Kazanımın bulunduğu blokta erişilebilen etkinlikler',
-                icon: Icons.task_alt_outlined,
-              ),
-              for (final activity in activities)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: InfoCard(
-                    title: activity.title,
-                    subtitle: activity.activityType,
-                    icon: Icons.edit_calendar_outlined,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (activity.studentAction != null)
-                          Text(
-                            activity.studentAction!,
-                            style: const TextStyle(height: 1.4),
-                          ),
-                        if (activity.printedPage != null) ...[
-                          const SizedBox(height: AppSpacing.sm),
-                          Text('Kitap: s. ${activity.printedPage}'),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-            if (forms.isNotEmpty) ...[
-              const SectionHeading(
-                'Formlar',
-                subtitle: 'Blok bağlamında erişilebilen değerlendirme/form öğeleri',
-                icon: Icons.description_outlined,
-              ),
-              for (final form in forms)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: InfoCard(
-                    title: form.title,
-                    subtitle: form.assessmentType ?? form.structuralType,
-                    icon: Icons.description_outlined,
-                    child: Text(
-                      form.printedPage == null
-                          ? 'Sayfa bilgisi doğrulanmış runtime verisinde belirtilmemiş.'
-                          : 'Basılı kitap: s. ${form.printedPage}',
-                    ),
-                  ),
-                ),
-            ],
-            if (targetedBindings.isNotEmpty) ...[
-              const SectionHeading(
-                'Doğrudan hedeflenen değerlendirme görevleri',
-                subtitle:
-                    'Runtime targeted_outcomes verisi bu kazanımı açıkça hedefliyor.',
-                icon: Icons.fact_check_outlined,
-              ),
-              for (final binding in targetedBindings)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: InfoCard(
-                    title: binding.taskTitle ?? 'Değerlendirme görevi',
-                    subtitle: 'Doğrudan kazanım hedeflemesi',
-                    icon: Icons.fact_check_outlined,
-                    child: Text(
-                      binding.evidence ??
-                          'Ek kanıt açıklaması runtime verisinde belirtilmemiş.',
-                    ),
-                  ),
-                ),
-            ] else if (artifacts.isNotEmpty) ...[
-              const SectionHeading(
-                'Değerlendirme araçları',
-                subtitle:
-                    'Bunlar blok bağlamında erişilebilir; doğrudan kazanım hedeflemesi olarak sunulmaz.',
-                icon: Icons.assignment_outlined,
-              ),
-              for (final artifact in artifacts)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: InfoCard(
-                    title: artifact.title,
-                    subtitle: artifact.assessmentFamily,
-                    icon: Icons.assignment_outlined,
-                    child: Text(
-                      artifact.generationStatus == null
-                          ? 'Blok değerlendirme bağlamı'
-                          : 'Durum: ${artifact.generationStatus}',
-                    ),
-                  ),
-                ),
-            ],
-            if (decisions.isNotEmpty) ...[
-              const SectionHeading(
-                'Materyal / kaynak kararları',
-                subtitle:
-                    'Kazanımın bulunduğu blokların doğrulanmış resource decision verisi',
-                icon: Icons.inventory_2_outlined,
-              ),
-              for (var index = 0; index < decisions.length; index++) ...[
-                ResourceDecisionCard(decision: decisions[index]),
-                if (index != decisions.length - 1)
-                  const SizedBox(height: AppSpacing.md),
-              ],
-            ],
-            if (sources.isNotEmpty) ...[
-              const SectionHeading(
-                'Kaynak referansları',
-                subtitle: 'Blok bağlamında runtime tarafından taşınan kaynak izleri',
-                icon: Icons.link_outlined,
-              ),
-              for (final source in sources)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: InfoCard(
-                    title: source.title,
-                    subtitle: source.sourceType,
-                    icon: Icons.link_outlined,
-                    child: SelectableText(source.locator ?? 'Konum bilgisi yok'),
-                  ),
-                ),
-            ],
+            const SizedBox(height: AppSpacing.md),
+            _MoreInformationPanel(sections: moreSections),
           ],
         ),
       ),
@@ -562,6 +572,221 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
   }
 }
 
+class _LessonReadyCard extends StatelessWidget {
+  const _LessonReadyCard({
+    required this.item,
+    required this.sourceWeek,
+    required this.textbook,
+    required this.activities,
+    required this.primaryAction,
+    required this.primaryActionLabel,
+    required this.primaryActionIcon,
+    required this.onCopyDiary,
+  });
+
+  final TrackedOutcome item;
+  final AcademicWeekPlan? sourceWeek;
+  final List<model.TextbookSection> textbook;
+  final List<model.Activity> activities;
+  final VoidCallback? primaryAction;
+  final String? primaryActionLabel;
+  final IconData? primaryActionIcon;
+  final VoidCallback onCopyDiary;
+
+  @override
+  Widget build(BuildContext context) {
+    final firstBook = textbook.isEmpty ? null : textbook.first;
+    final firstActivity = activities.isEmpty ? null : activities.first;
+    final completed =
+        item.presentationStatus == OutcomeTrackingStatus.completed;
+
+    return Card(
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (sourceWeek != null)
+              _LessonCue(
+                icon: Icons.calendar_today_outlined,
+                label: 'Planlanan hafta',
+                value:
+                    '${sourceWeek!.weekNumber}. Hafta · ${outcomeDateRange(sourceWeek!.start, sourceWeek!.end)}',
+              ),
+            if (item.primaryTheme != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              _LessonCue(
+                icon: Icons.auto_stories_outlined,
+                label: 'Tema',
+                value: item.primaryTheme!.title,
+              ),
+            ],
+            if (item.primaryBlock != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              _LessonCue(
+                icon: Icons.view_agenda_outlined,
+                label: 'Blok',
+                value: item.primaryBlock!.title,
+              ),
+            ],
+            if (firstBook != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              _LessonCue(
+                icon: Icons.book_outlined,
+                label: 'Kitap',
+                value: _bookCue(firstBook, textbook.length),
+              ),
+            ],
+            if (firstActivity != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              _LessonCue(
+                icon: Icons.task_alt_outlined,
+                label: 'Etkinlik',
+                value: _activityCue(firstActivity, activities.length),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.lg),
+            if (completed)
+              Row(
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Bu kazanım işlendi.',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                if (primaryActionLabel != null && primaryActionIcon != null)
+                  FilledButton.icon(
+                    onPressed: primaryAction,
+                    icon: Icon(primaryActionIcon),
+                    label: Text(primaryActionLabel!),
+                  ),
+                OutlinedButton.icon(
+                  onPressed: onCopyDiary,
+                  icon: const Icon(Icons.copy_outlined),
+                  label: const Text('Deftere kopyala'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LessonCue extends StatelessWidget {
+  const _LessonCue({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icon, size: 20),
+      const SizedBox(width: AppSpacing.sm),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(value, style: const TextStyle(height: 1.35)),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+class _MoreInformationPanel extends StatelessWidget {
+  const _MoreInformationPanel({required this.sections});
+
+  final List<Widget> sections;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    clipBehavior: Clip.antiAlias,
+    child: ExpansionTile(
+      leading: const Icon(Icons.unfold_more_outlined),
+      title: const Text(
+        'Daha fazla bilgi',
+        style: TextStyle(fontWeight: FontWeight.w800),
+      ),
+      subtitle: const Text(
+        'Takip, notlar, plan bağlamı, değerlendirme ve kaynaklar',
+      ),
+      childrenPadding: const EdgeInsets.fromLTRB(
+        AppSpacing.sm,
+        0,
+        AppSpacing.sm,
+        AppSpacing.sm,
+      ),
+      children: [
+        for (var index = 0; index < sections.length; index++) ...[
+          sections[index],
+          if (index != sections.length - 1) const Divider(height: 1),
+        ],
+      ],
+    ),
+  );
+}
+
+class _DisclosureSection extends StatelessWidget {
+  const _DisclosureSection({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.child,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ExpansionTile(
+    leading: Icon(icon),
+    title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+    subtitle: Text(subtitle),
+    childrenPadding: const EdgeInsets.fromLTRB(
+      AppSpacing.lg,
+      0,
+      AppSpacing.lg,
+      AppSpacing.lg,
+    ),
+    children: [Align(alignment: Alignment.centerLeft, child: child)],
+  );
+}
+
 class _StatusButton extends StatelessWidget {
   const _StatusButton({
     required this.label,
@@ -577,7 +802,7 @@ class _StatusButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => selected
-      ? FilledButton.icon(
+      ? FilledButton.tonalIcon(
           onPressed: onPressed,
           icon: Icon(icon),
           label: Text(label),
@@ -616,6 +841,24 @@ class _BlockContextCard extends StatelessWidget {
       ],
     ),
   );
+}
+
+String _bookCue(model.TextbookSection section, int count) {
+  final parts = <String>[section.title];
+  if (section.printedPageRange != null) {
+    parts.add('s. ${section.printedPageRange}');
+  } else if (section.pdfPageRange != null) {
+    parts.add('PDF ${section.pdfPageRange}');
+  }
+  if (count > 1) parts.add('+${count - 1} bölüm');
+  return parts.join(' · ');
+}
+
+String _activityCue(model.Activity activity, int count) {
+  final parts = <String>[activity.title];
+  if (activity.printedPage != null) parts.add('s. ${activity.printedPage}');
+  if (count > 1) parts.add('+${count - 1} etkinlik');
+  return parts.join(' · ');
 }
 
 List<T> _uniqueBy<T>(Iterable<T> items, String Function(T item) idOf) {
