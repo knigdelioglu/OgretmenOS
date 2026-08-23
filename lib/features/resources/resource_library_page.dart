@@ -58,7 +58,8 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
   Widget build(BuildContext context) => FutureBuilder<_ResourceData>(
     future: _future,
     builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done) {
+      final loading = snapshot.connectionState != ConnectionState.done;
+      if (loading && !snapshot.hasData) {
         return const LoadingView(label: 'Kaynaklar hazırlanıyor…');
       }
       if (!snapshot.hasData) {
@@ -76,19 +77,38 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
       if (widget.awaitingTextbook) {
         return AppPage(
           children: [
-            const StatusPanel(
+            _ThemeSelector(
+              themes: data.themes,
+              selectedThemeId: package.theme.id,
+              enabled: !loading,
+              onChanged: _selectTheme,
+            ),
+            if (loading) ...[
+              const SizedBox(height: AppSpacing.sm),
+              const LinearProgressIndicator(),
+            ],
+            const SizedBox(height: AppSpacing.lg),
+            StatusPanel(
               icon: Icons.menu_book_outlined,
               title: 'Ders kitabı bekleniyor',
               message:
-                  'Öğretim programı hazır. Kitap yayımlandığında kitap, etkinlik, form ve değerlendirme araçları burada açılacak.',
+                  '${package.theme.title} için öğretim programı hazır. Kitap yayımlandığında kitap, etkinlik, form ve değerlendirme araçları burada açılacak.',
             ),
             if (package.sourceReferences.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.lg),
               const SectionHeading(
-                'Program dayanakları',
+                'Şimdilik kullanabileceğin kaynak',
+                subtitle: 'Seçili temanın program dayanakları',
                 icon: Icons.verified_outlined,
               ),
-              _Sources(sources: package.sourceReferences),
+              _ResourceSection(
+                key: ValueKey('${package.theme.id}:sources'),
+                icon: Icons.source_outlined,
+                title: 'Program dayanakları',
+                countLabel: '${package.sourceReferences.length} kaynak',
+                initiallyExpanded: true,
+                child: _Sources(sources: package.sourceReferences),
+              ),
             ],
           ],
         );
@@ -100,75 +120,107 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
       final hasAssessment = package.assessmentArtifacts.isNotEmpty ||
           package.assessmentTaskBindings.isNotEmpty;
       final hasSources = package.sourceReferences.isNotEmpty;
+      final primary = _primaryResource(
+        hasBook: hasBook,
+        hasActivities: hasActivities,
+        hasForms: hasForms,
+        hasAssessment: hasAssessment,
+        hasSources: hasSources,
+      );
 
       return AppPage(
         children: [
-          DropdownButtonFormField<String>(
-            initialValue: package.theme.id,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Tema',
-              prefixIcon: Icon(Icons.layers_outlined),
-            ),
-            items: [
-              for (final theme in data.themes)
-                DropdownMenuItem(
-                  value: theme.id,
-                  child: Text(theme.title, overflow: TextOverflow.ellipsis),
-                ),
-            ],
-            onChanged: (value) {
-              if (value != null) _selectTheme(value);
-            },
+          _ThemeSelector(
+            themes: data.themes,
+            selectedThemeId: package.theme.id,
+            enabled: !loading,
+            onChanged: _selectTheme,
           ),
+          if (loading) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const LinearProgressIndicator(),
+          ],
           const SizedBox(height: AppSpacing.lg),
+          _ThemeResourceFocus(package: package, primary: primary),
+          const SectionHeading(
+            'Kaynaklar',
+            subtitle: 'İlk yararlı bölüm açık; diğerlerini gerektiğinde aç',
+            icon: Icons.folder_open_outlined,
+          ),
           if (hasBook)
             _ResourceSection(
+              key: ValueKey('${package.theme.id}:book'),
               icon: Icons.menu_book_outlined,
               title: 'Ders kitabı',
               countLabel: '${package.textbookSections.length} bölüm',
+              initiallyExpanded: primary == _ResourceKind.book,
               child: _Textbook(sections: package.textbookSections),
             ),
           if (hasBook && (hasActivities || hasForms || hasAssessment || hasSources))
             const SizedBox(height: AppSpacing.sm),
           if (hasActivities)
             _ResourceSection(
+              key: ValueKey('${package.theme.id}:activities'),
               icon: Icons.task_alt_outlined,
               title: 'Etkinlikler',
               countLabel: '${package.activities.length} etkinlik',
+              initiallyExpanded: primary == _ResourceKind.activities,
               child: _Activities(activities: package.activities),
             ),
           if (hasActivities && (hasForms || hasAssessment || hasSources))
             const SizedBox(height: AppSpacing.sm),
           if (hasForms)
             _ResourceSection(
+              key: ValueKey('${package.theme.id}:forms'),
               icon: Icons.assignment_outlined,
               title: 'Formlar',
               countLabel: '${package.forms.length} form',
+              initiallyExpanded: primary == _ResourceKind.forms,
               child: _Forms(forms: package.forms),
             ),
           if (hasForms && (hasAssessment || hasSources))
             const SizedBox(height: AppSpacing.sm),
           if (hasAssessment)
             _ResourceSection(
+              key: ValueKey('${package.theme.id}:assessment'),
               icon: Icons.fact_check_outlined,
               title: 'Değerlendirme',
               countLabel:
                   '${package.assessmentArtifacts.length + package.assessmentTaskBindings.length} araç/görev',
+              initiallyExpanded: primary == _ResourceKind.assessment,
               child: _Assessments(package: package),
             ),
           if (hasAssessment && hasSources) const SizedBox(height: AppSpacing.sm),
           if (hasSources)
             _ResourceSection(
+              key: ValueKey('${package.theme.id}:sources'),
               icon: Icons.source_outlined,
               title: 'Kaynak dayanakları',
               countLabel: '${package.sourceReferences.length} kaynak',
+              initiallyExpanded: primary == _ResourceKind.sources,
               child: _Sources(sources: package.sourceReferences),
             ),
         ],
       );
     },
   );
+}
+
+enum _ResourceKind { book, activities, forms, assessment, sources }
+
+_ResourceKind? _primaryResource({
+  required bool hasBook,
+  required bool hasActivities,
+  required bool hasForms,
+  required bool hasAssessment,
+  required bool hasSources,
+}) {
+  if (hasBook) return _ResourceKind.book;
+  if (hasActivities) return _ResourceKind.activities;
+  if (hasForms) return _ResourceKind.forms;
+  if (hasAssessment) return _ResourceKind.assessment;
+  if (hasSources) return _ResourceKind.sources;
+  return null;
 }
 
 class _ResourceData {
@@ -178,23 +230,182 @@ class _ResourceData {
   final model.TeacherPackage? package;
 }
 
+class _ThemeSelector extends StatelessWidget {
+  const _ThemeSelector({
+    required this.themes,
+    required this.selectedThemeId,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final List<model.Theme> themes;
+  final String selectedThemeId;
+  final bool enabled;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) => DropdownButtonFormField<String>(
+    initialValue: selectedThemeId,
+    isExpanded: true,
+    decoration: const InputDecoration(
+      labelText: 'Tema',
+      prefixIcon: Icon(Icons.layers_outlined),
+    ),
+    items: [
+      for (final theme in themes)
+        DropdownMenuItem(
+          value: theme.id,
+          child: Text(theme.title, overflow: TextOverflow.ellipsis),
+        ),
+    ],
+    onChanged: !enabled
+        ? null
+        : (value) {
+            if (value != null && value != selectedThemeId) onChanged(value);
+          },
+  );
+}
+
+class _ThemeResourceFocus extends StatelessWidget {
+  const _ThemeResourceFocus({required this.package, required this.primary});
+
+  final model.TeacherPackage package;
+  final _ResourceKind? primary;
+
+  @override
+  Widget build(BuildContext context) {
+    final assessmentCount =
+        package.assessmentArtifacts.length + package.assessmentTaskBindings.length;
+    final counts = <Widget>[
+      if (package.textbookSections.isNotEmpty)
+        _ResourceCount(
+          icon: Icons.menu_book_outlined,
+          label: '${package.textbookSections.length} bölüm',
+        ),
+      if (package.activities.isNotEmpty)
+        _ResourceCount(
+          icon: Icons.task_alt_outlined,
+          label: '${package.activities.length} etkinlik',
+        ),
+      if (package.forms.isNotEmpty)
+        _ResourceCount(
+          icon: Icons.assignment_outlined,
+          label: '${package.forms.length} form',
+        ),
+      if (assessmentCount > 0)
+        _ResourceCount(
+          icon: Icons.fact_check_outlined,
+          label: '$assessmentCount değerlendirme',
+        ),
+    ];
+
+    return Card(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'BU TEMADA HAZIR',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              package.theme.title,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              _focusMessage(primary),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                height: 1.4,
+              ),
+            ),
+            if (counts.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.lg),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: counts,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _focusMessage(_ResourceKind? kind) => switch (kind) {
+    _ResourceKind.book =>
+      'Önce ders kitabına bak. Kitap bölümü aşağıda açık; diğer kaynakları yalnız gerektiğinde aç.',
+    _ResourceKind.activities =>
+      'Kitap bölümü yok. İlk kullanılabilir kaynak olan etkinlikler aşağıda açık.',
+    _ResourceKind.forms =>
+      'Kitap ve etkinlik yok. İlk kullanılabilir kaynak olan formlar aşağıda açık.',
+    _ResourceKind.assessment =>
+      'İlk kullanılabilir kaynak değerlendirme araçları; ilgili bölüm aşağıda açık.',
+    _ResourceKind.sources =>
+      'Sınıf içi ek kaynak görünmüyor. Doğrulanmış kaynak dayanakları aşağıda açık.',
+    null => 'Bu tema için gösterilebilir ek kaynak bulunmuyor.',
+  };
+}
+
+class _ResourceCount extends StatelessWidget {
+  const _ResourceCount({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.md,
+      vertical: AppSpacing.sm,
+    ),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 18),
+        const SizedBox(width: AppSpacing.xs),
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+      ],
+    ),
+  );
+}
+
 class _ResourceSection extends StatelessWidget {
   const _ResourceSection({
+    super.key,
     required this.icon,
     required this.title,
     required this.countLabel,
     required this.child,
+    this.initiallyExpanded = false,
   });
 
   final IconData icon;
   final String title;
   final String countLabel;
   final Widget child;
+  final bool initiallyExpanded;
 
   @override
   Widget build(BuildContext context) => Card(
     clipBehavior: Clip.antiAlias,
     child: ExpansionTile(
+      initiallyExpanded: initiallyExpanded,
       leading: Icon(icon),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
       subtitle: Text(countLabel),
