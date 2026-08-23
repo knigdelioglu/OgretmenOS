@@ -196,11 +196,8 @@ void main() {
     expect(find.byTooltip('Blok ayrıntısını aç'), findsNothing);
 
     final more = find.text('Daha fazla bilgi');
-    await tester.scrollUntilVisible(
-      more,
-      300,
-      scrollable: find.byType(Scrollable).last,
-    );
+    await tester.ensureVisible(more);
+    await tester.pumpAndSettle();
     await tester.tap(more);
     await tester.pumpAndSettle();
 
@@ -210,11 +207,8 @@ void main() {
     expect(find.text('TEST SÜREÇ BİLEŞENİ'), findsNothing);
 
     final process = find.text('Süreç bileşenleri');
-    await tester.scrollUntilVisible(
-      process,
-      300,
-      scrollable: find.byType(Scrollable).last,
-    );
+    await tester.ensureVisible(process);
+    await tester.pumpAndSettle();
     await tester.tap(process);
     await tester.pumpAndSettle();
 
