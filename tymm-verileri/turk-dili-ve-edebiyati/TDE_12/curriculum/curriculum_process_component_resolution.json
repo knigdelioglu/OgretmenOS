@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.1",
+  "course_id": "TDE_12",
+  "status": "CANONICAL_RESOLUTION_CONTRACT",
+  "contract_mode": "COMPACT_ALL_OUTCOMES",
+  "outcome_scope": "ALL_CURRICULUM_OUTCOMES",
+  "curriculum_source": "curriculum_map.json",
+  "roof_catalog": "../TDE_SHARED/curriculum_process_component_catalog.json",
+  "catalog_id": "TDE_2024_ROOF_PROCESS_COMPONENTS",
+  "legacy_field_semantics": {
+    "field": "process_components_verbatim",
+    "meaning": "THEME_EXPLICIT_ONLY_UNTIL_SCHEMA_RENAME",
+    "warning": "Absence of separately enumerated theme-level subordinate process components means no THEME_EXPLICIT override was captured; it does not mean the effective process-component set is empty."
+  },
+  "source_interpretation_correction": {
+    "old_status": "PASS_NONE_EXPLICIT_SEPARATE_SUBCOMPONENT_IDS",
+    "correct_meaning": "NO_THEME_EXPLICIT_SEPARATE_SUBCOMPONENT_IDS_ON_REGISTERED_THEME_PAGES",
+    "forbidden_meaning": "NO_EFFECTIVE_PROCESS_COMPONENTS",
+    "canonical_inheritance_source": "TDE_2024_ROOF_PROCESS_COMPONENTS"
+  },
+  "resolution_precedence": ["THEME_EXPLICIT", "ROOF_INHERITED", "SOURCE_VERIFIED_NONE"],
+  "merge_explicit_with_roof": false,
+  "expected_counts": {
+    "total_outcomes": 64,
+    "outcomes_with_roof_components": 64,
+    "explicit_component_outcomes": 0,
+    "inherited_component_outcomes": 64,
+    "verified_no_component_outcomes": 0,
+    "unresolved_component_outcomes": 0,
+    "inheritance_missing_count": 0,
+    "structural_error_count": 0
+  },
+  "expected_explicit_outcome_ids": [],
+  "expected_verified_none_outcome_ids": [],
+  "expected_parent_family_distribution": {
+    "TDE1.1": 4, "TDE1.2": 4, "TDE1.3": 4, "TDE1.4": 4,
+    "TDE2.1": 4, "TDE2.2": 4, "TDE2.3": 4, "TDE2.4": 4,
+    "TDE3.1": 4, "TDE3.2": 4, "TDE3.3": 4, "TDE3.4": 4,
+    "TDE4.1": 4, "TDE4.2": 4, "TDE4.3": 4, "TDE4.4": 4
+  },
+  "verification_note": "The verified TDE_12 source bundle contains 64 parent outcomes and reports no separately enumerated theme-level subordinate process-component IDs. Under the official course-wide roof rule, all 64 outcomes inherit effective process components from the shared normative catalog unless future verified theme-specific evidence introduces an explicit override."
+}
