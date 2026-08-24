@@ -68,10 +68,18 @@ class CourseDatabaseDataSource {
   }
 
   Future<List<Outcome>> getOutcomesForBlock(String blockId) async {
+    final hasProcessOrigin = await _hasColumn(
+      'outcomes',
+      'process_component_origin',
+    );
+    final processOriginColumn = hasProcessOrigin
+        ? 'o.process_component_origin'
+        : 'NULL AS process_component_origin';
     final rows = await _database.rawQuery(
       '''
       SELECT o.outcome_id, o.theme_id, o.outcome_code, o.official_text,
-             o.process_components, o.source_locator, o.verification_status
+             o.process_components, $processOriginColumn,
+             o.source_locator, o.verification_status
       FROM outcomes o
       INNER JOIN block_outcomes bo ON bo.outcome_id = o.outcome_id
       WHERE bo.block_id = ?
@@ -83,10 +91,18 @@ class CourseDatabaseDataSource {
   }
 
   Future<List<Outcome>> getOutcomesForTheme(String themeId) async {
+    final hasProcessOrigin = await _hasColumn(
+      'outcomes',
+      'process_component_origin',
+    );
+    final processOriginColumn = hasProcessOrigin
+        ? 'process_component_origin'
+        : 'NULL AS process_component_origin';
     final rows = await _database.rawQuery(
       '''
       SELECT outcome_id, theme_id, outcome_code, official_text,
-             process_components, source_locator, verification_status
+             process_components, $processOriginColumn,
+             source_locator, verification_status
       FROM outcomes
       WHERE theme_id = ?
       ORDER BY outcome_code
