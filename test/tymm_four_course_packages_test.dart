@@ -43,7 +43,21 @@ void main() {
 
         var outcomeCount = 0;
         for (final theme in await dataSource.getThemes()) {
-          outcomeCount += (await dataSource.getOutcomesForTheme(theme.id)).length;
+          final outcomes = await dataSource.getOutcomesForTheme(theme.id);
+          outcomeCount += outcomes.length;
+          expect(outcomes, isNotEmpty);
+          expect(
+            outcomes.every(
+              (outcome) => outcome.processComponentOrigin == 'ROOF_INHERITED',
+            ),
+            isTrue,
+          );
+          expect(
+            outcomes.every(
+              (outcome) => outcome.processComponents?.isNotEmpty == true,
+            ),
+            isTrue,
+          );
           expect(await dataSource.getTextbookSections(theme.id), isEmpty);
           expect(await dataSource.getActivitiesForTheme(theme.id), isEmpty);
         }
@@ -94,6 +108,12 @@ void main() {
         final firstBlock = (await dataSource.getAnnualSequence()).first.block;
         final detail = await dataSource.getBlockDetail(firstBlock.id);
         expect(detail.outcomes, isNotEmpty);
+        expect(
+          detail.outcomes.every(
+            (outcome) => outcome.processComponentOrigin == 'ROOF_INHERITED',
+          ),
+          isTrue,
+        );
         expect(detail.textbookSections, isEmpty);
         expect(detail.activities, isEmpty);
         expect(detail.forms, isEmpty);
