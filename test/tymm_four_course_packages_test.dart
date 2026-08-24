@@ -49,6 +49,48 @@ void main() {
         }
         expect(outcomeCount, 64);
 
+        final processRows = await database.rawQuery('''
+          SELECT process_components, process_component_origin
+          FROM outcomes
+          ORDER BY outcome_id
+        ''');
+        expect(processRows.length, 64);
+        for (final row in processRows) {
+          expect(row['process_component_origin'], 'ROOF_INHERITED');
+          final raw = row['process_components']?.toString() ?? '';
+          expect(raw, isNotEmpty);
+          final decoded = jsonDecode(raw);
+          expect(decoded, isA<List<dynamic>>());
+          expect(decoded as List<dynamic>, isNotEmpty);
+        }
+
+        final manifestFile = File(
+          p.join(
+            Directory.current.path,
+            descriptor.runtimeRoot,
+            'runtime_manifest.json',
+          ),
+        );
+        final manifest =
+            jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>;
+        expect(manifest['process_component_resolution_status'], 'PASS');
+        final processCounts =
+            manifest['process_component_counts'] as Map<String, dynamic>;
+        expect(processCounts['total_outcomes'], 64);
+        expect(processCounts['outcomes_with_roof_components'], 64);
+        expect(processCounts['explicit_component_outcomes'], 0);
+        expect(processCounts['inherited_component_outcomes'], 64);
+        expect(processCounts['unresolved_component_outcomes'], 0);
+        expect(processCounts['inheritance_missing_count'], 0);
+        expect(
+          (manifest['canonical_source_files'] as List<dynamic>),
+          contains('../TDE_SHARED/curriculum_process_component_catalog.json'),
+        );
+        expect(
+          (manifest['canonical_source_files'] as List<dynamic>),
+          contains('curriculum/curriculum_process_component_resolution.json'),
+        );
+
         final firstBlock = (await dataSource.getAnnualSequence()).first.block;
         final detail = await dataSource.getBlockDetail(firstBlock.id);
         expect(detail.outcomes, isNotEmpty);
