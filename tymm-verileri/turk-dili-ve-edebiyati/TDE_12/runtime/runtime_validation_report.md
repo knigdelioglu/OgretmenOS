@@ -9,6 +9,11 @@
 - themes: 4
 - blocks: 16
 - outcomes: 64
+- process-component resolution: **PASS**
+- roof-inherited outcomes: 64
+- theme-explicit outcomes: 0
+- unresolved process-component outcomes: 0
+- inheritance missing: 0
 - textbook_sections: 0
 - activities: 0
 - forms: 0
