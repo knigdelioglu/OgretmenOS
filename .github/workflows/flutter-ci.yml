@@ -24,6 +24,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
+      - name: Validate curriculum runtime Python tools
+        run: |
+          python3 -m py_compile \
+            tool/process_component_resolver.py \
+            tool/build_curriculum_only_runtime.py \
+            tool/rebuild_curriculum_only_runtimes.py
+
       - name: Set up Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
@@ -55,6 +62,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Rebuild TDE11/TDE12 curriculum-only runtimes
+        run: python3 tool/rebuild_curriculum_only_runtimes.py
 
       - name: Set up Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
@@ -91,6 +101,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
+      - name: Rebuild TDE11/TDE12 curriculum-only runtimes
+        run: python3 tool/rebuild_curriculum_only_runtimes.py
+
       - name: Set up Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
@@ -112,6 +125,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Rebuild TDE11/TDE12 curriculum-only runtimes
+        run: python3 tool/rebuild_curriculum_only_runtimes.py
 
       - name: Set up Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
@@ -182,3 +198,48 @@ jobs:
           fi
 
           gh release view "$TAG" --json assets --jq '.assets[].name' | grep -Fx "$ASSET"
+
+  publish-curriculum-runtimes:
+    name: Publish Curriculum Runtimes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [android-release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Rebuild TDE11/TDE12 curriculum-only runtimes
+        run: python3 tool/rebuild_curriculum_only_runtimes.py
+
+      - name: Publish fresh runtime assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_12/runtime
+          if git diff --cached --quiet; then
+            echo 'Curriculum-only runtime assets are already fresh.'
+            exit 0
+          fi
+          git commit -m 'chore: publish inheritance-aware curriculum runtimes'
+          git fetch origin main
+          CHANGED=$(git diff --name-only "$GITHUB_SHA"..origin/main || true)
+          if printf '%s\n' "$CHANGED" | grep -Eq '^(tool/(process_component_resolver|build_curriculum_only_runtime|rebuild_curriculum_only_runtimes)\.py|tymm-verileri/turk-dili-ve-edebiyati/(TDE_SHARED/|TDE_(11|12)/(curriculum/|package_manifest\.json))|test/tymm_four_course_packages_test\.dart|\.github/workflows/flutter-ci\.yml$)'; then
+            echo 'A newer curriculum runtime dependency exists; refusing stale publish.'
+            exit 0
+          fi
+          git reset --hard HEAD
+          git rebase origin/main
+          python3 tool/rebuild_curriculum_only_runtimes.py
+          git add \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_12/runtime
+          git commit --amend --no-edit
+          git push origin HEAD:main
