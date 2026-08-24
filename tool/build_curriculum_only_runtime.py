@@ -80,8 +80,7 @@ def stable_outcome_id(course_id: str, theme_id: str, code: str) -> str:
 
 def resolve_skill_category(outcome: dict[str, Any]) -> str:
     category = outcome.get("skill_category")
-    known = {skill[0] for skill in SKILLS}
-    if category in known:
+    if category in {item[0] for item in SKILLS}:
         return str(category)
     prefix = str(outcome.get("outcome_code") or "").split(".", 1)[0]
     inferred = {
@@ -139,10 +138,7 @@ def resolve_curriculum(
                 f"PROCESS_COMPONENT_COUNT_MISMATCH: {key} actual={actual} expected={value}"
             )
 
-    validation_counts = (
-        validation.get("canonical", {})
-        .get("process_component_inheritance", {})
-    )
+    validation_counts = validation.get("canonical", {}).get("process_component_inheritance", {})
     if validation_counts:
         for key in (
             "total_outcomes",
@@ -202,7 +198,7 @@ def build(package_root: Path, source_commit: str) -> None:
                 grade,
                 curriculum.get("course_title", "Türk Dili ve Edebiyatı"),
                 SCHEMA_VERSION,
-                sha256(source_manifest_path),
+                fingerprint,
             ),
         )
 
@@ -266,10 +262,7 @@ def build(package_root: Path, source_commit: str) -> None:
                 for outcome in skill_outcomes:
                     outcome_id = stable_outcome_id(course_id, theme_id, outcome["outcome_code"])
                     components = outcome.get("process_components_effective", [])
-                    origin = (
-                        outcome.get("process_component_resolution", {}).get("origin")
-                        or "UNRESOLVED"
-                    )
+                    origin = outcome.get("process_component_resolution", {}).get("origin") or "UNRESOLVED"
                     if origin != "SOURCE_VERIFIED_NONE" and not components:
                         raise RuntimeError(
                             f"PROCESS_COMPONENT_EFFECTIVE_EMPTY: {outcome_id} origin={origin}"
