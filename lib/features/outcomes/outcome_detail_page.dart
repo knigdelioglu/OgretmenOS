@@ -188,12 +188,9 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
       if (outcome.processComponents?.isNotEmpty == true)
         _DisclosureSection(
           title: 'Süreç bileşenleri',
-          subtitle: 'Resmî programdaki ayrıntılı süreç ifadesi',
+          subtitle: _processComponentSubtitle(outcome.processComponentOrigin),
           icon: Icons.account_tree_outlined,
-          child: SelectableText(
-            outcome.processComponents!,
-            style: const TextStyle(height: 1.5),
-          ),
+          child: _ProcessComponentsView(raw: outcome.processComponents!),
         ),
       _DisclosureSection(
         title: 'Plan ve blok bağlamı',
@@ -754,6 +751,62 @@ class _LessonCue extends StatelessWidget {
   );
 }
 
+class _ProcessComponentsView extends StatelessWidget {
+  const _ProcessComponentsView({required this.raw});
+
+  final String raw;
+
+  @override
+  Widget build(BuildContext context) {
+    final components = model.jsonObjectList(raw);
+    if (components.isEmpty) {
+      return SelectableText(raw, style: const TextStyle(height: 1.5));
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var index = 0; index < components.length; index++) ...[
+          _ProcessComponentRow(component: components[index]),
+          if (index != components.length - 1)
+            const Divider(height: AppSpacing.lg),
+        ],
+      ],
+    );
+  }
+}
+
+class _ProcessComponentRow extends StatelessWidget {
+  const _ProcessComponentRow({required this.component});
+
+  final Map<String, dynamic> component;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = _firstNonEmpty(component, const [
+      'component_code',
+      'component_code_normalized',
+    ]);
+    final text = _firstNonEmpty(component, const [
+      'component_verbatim',
+      'component_title',
+      'component_title_verbatim',
+    ]);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.subdirectory_arrow_right, size: 18),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: SelectableText(
+            [if (code != null) code, if (text != null) text].join(' — '),
+            style: const TextStyle(height: 1.45),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _MoreInformationPanel extends StatelessWidget {
   const _MoreInformationPanel({required this.sections});
 
@@ -869,6 +922,29 @@ class _BlockContextCard extends StatelessWidget {
       ],
     ),
   );
+}
+
+String _processComponentSubtitle(String? origin) {
+  switch (origin) {
+    case 'ROOF_INHERITED':
+      return 'Resmî programın ortak çatı tanımından devralındı';
+    case 'THEME_EXPLICIT':
+      return 'Bu tema için resmî programda açıkça tanımlandı';
+    case 'SOURCE_VERIFIED_NONE':
+      return 'Resmî kaynakta süreç bileşeni olmadığı doğrulandı';
+    case null:
+      return 'Resmî programdaki ayrıntılı süreç ifadesi';
+    default:
+      return 'Resmî süreç kaynağı: $origin';
+  }
+}
+
+String? _firstNonEmpty(Map<String, dynamic> item, List<String> keys) {
+  for (final key in keys) {
+    final value = item[key]?.toString().trim();
+    if (value != null && value.isNotEmpty) return value;
+  }
+  return null;
 }
 
 String _bookCue(model.TextbookSection section, int count) {
