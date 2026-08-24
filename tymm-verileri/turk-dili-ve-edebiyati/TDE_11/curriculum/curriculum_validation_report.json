@@ -3,12 +3,7 @@
   "lifecycle_status": "CURRICULUM_ONLY_AWAITING_TEXTBOOK",
   "source": {
     "source_parts": 4,
-    "source_theme_ids": [
-      "TEMA_01",
-      "TEMA_02",
-      "TEMA_03",
-      "TEMA_04"
-    ],
+    "source_theme_ids": ["TEMA_01", "TEMA_02", "TEMA_03", "TEMA_04"],
     "bundle_sha256": "a931973ce05bfe067cccf6188a4ddc73a2c3e93a843ff0c324325f4ebb55ba93",
     "status": "PASS"
   },
@@ -19,12 +14,23 @@
     "unique_canonical_keys": 64,
     "source_locators_checked": 80,
     "synthetic_subcodes": 0,
+    "process_component_inheritance": {
+      "catalog_id": "TDE_2024_ROOF_PROCESS_COMPONENTS",
+      "resolution_contract": "curriculum_process_component_resolution.json",
+      "contract_mode": "COMPACT_ALL_OUTCOMES",
+      "total_outcomes": 64,
+      "outcomes_with_roof_components": 64,
+      "explicit_component_outcomes": 0,
+      "inherited_component_outcomes": 64,
+      "verified_no_component_outcomes": 0,
+      "unresolved_component_outcomes": 0,
+      "inheritance_missing_count": 0,
+      "structural_error_count": 0,
+      "status": "PASS"
+    },
     "status": "PASS"
   },
-  "lifecycle_safety": {
-    "premature_files": 0,
-    "status": "PASS"
-  },
+  "lifecycle_safety": {"premature_files": 0, "status": "PASS"},
   "textbook_status": "AWAITING_OFFICIAL_TEXTBOOK",
   "coverage_status": "NOT_EVALUATED",
   "gap_status": "NOT_EVALUATED",
