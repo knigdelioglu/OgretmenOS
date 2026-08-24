@@ -238,6 +238,7 @@ class Outcome {
     required this.code,
     required this.officialText,
     required this.processComponents,
+    this.processComponentOrigin,
     required this.sourceLocator,
     required this.verificationStatus,
   });
@@ -248,6 +249,7 @@ class Outcome {
     code: row['outcome_code']! as String,
     officialText: row['official_text']! as String,
     processComponents: nullableString(row['process_components']),
+    processComponentOrigin: nullableString(row['process_component_origin']),
     sourceLocator: nullableString(row['source_locator']),
     verificationStatus: nullableString(row['verification_status']),
   );
@@ -257,6 +259,7 @@ class Outcome {
   final String code;
   final String officialText;
   final String? processComponents;
+  final String? processComponentOrigin;
   final String? sourceLocator;
   final String? verificationStatus;
 }
