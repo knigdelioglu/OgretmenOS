@@ -1,0 +1,68 @@
+from pathlib import Path
+
+
+weekly_path = Path('lib/features/this_week/this_week_page.dart')
+weekly = weekly_path.read_text()
+duplicate_detail_action = """                  TextButton.icon(
+                    onPressed: onOpen,
+                    icon: const Icon(Icons.open_in_new),
+                    label: const Text('Ayrıntıyı aç'),
+                  ),
+"""
+if duplicate_detail_action in weekly:
+    weekly = weekly.replace(duplicate_detail_action, '', 1)
+    weekly_path.write_text(weekly)
+
+
+detail_path = Path('lib/features/outcomes/outcome_detail_page.dart')
+detail = detail_path.read_text()
+start_marker = """      _DisclosureSection(
+        title: 'Takip seçenekleri',
+"""
+end_marker = """      _DisclosureSection(
+        title: 'Öğretmen notu',
+"""
+start = detail.find(start_marker)
+end = detail.find(end_marker, start + 1) if start >= 0 else -1
+if start >= 0 and end > start:
+    replacement = """      _DisclosureSection(
+        title: 'Takip seçenekleri',
+        subtitle: 'Yalnızca ikincil durumlar ve başka haftaya taşıma',
+        icon: Icons.fact_check_outlined,
+        child: Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            if (_item.status == OutcomeTrackingStatus.partiallyCompleted)
+              _StatusButton(
+                label: 'Devam ediyor',
+                icon: Icons.play_circle_outline,
+                selected: false,
+                onPressed: () => _setStatus(OutcomeTrackingStatus.inProgress),
+              )
+            else if (_item.status != OutcomeTrackingStatus.completed)
+              _StatusButton(
+                label: 'Kısmen işlendi',
+                icon: Icons.timelapse_outlined,
+                selected: false,
+                onPressed: () =>
+                    _setStatus(OutcomeTrackingStatus.partiallyCompleted),
+              ),
+            if (_item.status != OutcomeTrackingStatus.planned)
+              _StatusButton(
+                label: 'Planlıya döndür',
+                icon: Icons.restart_alt,
+                selected: false,
+                onPressed: () => _setStatus(OutcomeTrackingStatus.planned),
+              ),
+            OutlinedButton.icon(
+              onPressed: _saving ? null : _carry,
+              icon: const Icon(Icons.redo_outlined),
+              label: const Text('Başka haftaya taşı'),
+            ),
+          ],
+        ),
+      ),
+"""
+    detail = detail[:start] + replacement + detail[end:]
+    detail_path.write_text(detail)
