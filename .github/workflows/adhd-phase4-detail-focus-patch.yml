@@ -1,0 +1,57 @@
+name: ADHD Phase 4 Detail Focus Patch
+
+on:
+  push:
+    branches:
+      - ux/adhd-phase-4-detail-focus
+    paths:
+      - tool/apply_adhd_phase4_detail_focus.py
+      - .github/workflows/adhd-phase4-detail-focus-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ux/adhd-phase-4-detail-focus
+
+      - name: Apply phase 4 patch
+        run: python3 tool/apply_adhd_phase4_detail_focus.py
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Format changed Dart files
+        run: dart format lib/features/outcomes/outcome_detail_page.dart test/widget_test.dart
+
+      - name: Run focused regression tests
+        run: flutter test test/widget_test.dart --reporter expanded
+
+      - name: Analyze changed UI
+        run: flutter analyze lib/features/outcomes/outcome_detail_page.dart
+
+      - name: Remove temporary patch machinery
+        run: |
+          rm -f tool/apply_adhd_phase4_detail_focus.py
+          rm -f .github/workflows/adhd-phase4-detail-focus-patch.yml
+          git checkout -- analysis_options.yaml pubspec.lock || true
+
+      - name: Commit phase 4 patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "feat(ux): keep tracking secondary in lesson detail"
+          git push origin HEAD:ux/adhd-phase-4-detail-focus
