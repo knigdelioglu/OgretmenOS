@@ -1,0 +1,48 @@
+name: ADHD Phase 2 Continuity Patch
+
+on:
+  push:
+    branches: [ux/adhd-phase-2-continuity]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ux/adhd-phase-2-continuity
+          fetch-depth: 0
+
+      - name: Apply continuity patch
+        run: python3 tool/apply_adhd_phase2_continuity.py
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Format changed Dart files
+        run: dart format lib/app/app_dependencies.dart lib/features/this_week/this_week_page.dart lib/features/this_week/continuity_this_week_page.dart test/continuity_test.dart
+
+      - name: Remove temporary patch machinery
+        run: rm -f tool/apply_adhd_phase2_continuity.py .github/workflows/adhd-phase2-continuity-patch.yml
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No changes to commit.'
+            exit 0
+          fi
+          git commit -m 'feat(ux): decouple continuity from tracking status'
+          git push origin HEAD:ux/adhd-phase-2-continuity
