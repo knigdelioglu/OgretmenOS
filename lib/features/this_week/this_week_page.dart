@@ -756,11 +756,6 @@ class _FocusOutcomeCard extends StatelessWidget {
                     icon: Icon(_primaryActionIcon(item)),
                     label: Text(_primaryActionLabel(item)),
                   ),
-                  TextButton.icon(
-                    onPressed: onOpen,
-                    icon: const Icon(Icons.open_in_new),
-                    label: const Text('Ayrıntıyı aç'),
-                  ),
                   _OutcomeActionMenu(
                     item: item,
                     canCarryNext: canCarryNext,

@@ -152,37 +152,34 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
     final moreSections = <Widget>[
       _DisclosureSection(
         title: 'Takip seçenekleri',
-        subtitle: 'İkincil durumlar ve başka haftaya taşıma',
+        subtitle: 'Yalnızca ikincil durumlar ve başka haftaya taşıma',
         icon: Icons.fact_check_outlined,
         child: Wrap(
           spacing: AppSpacing.sm,
           runSpacing: AppSpacing.sm,
           children: [
-            _StatusButton(
-              label: 'Planlı',
-              icon: Icons.schedule_outlined,
-              selected: _item.status == OutcomeTrackingStatus.planned,
-              onPressed: () => _setStatus(OutcomeTrackingStatus.planned),
-            ),
-            _StatusButton(
-              label: 'Devam ediyor',
-              icon: Icons.play_circle_outline,
-              selected: _item.status == OutcomeTrackingStatus.inProgress,
-              onPressed: () => _setStatus(OutcomeTrackingStatus.inProgress),
-            ),
-            _StatusButton(
-              label: 'Kısmen işlendi',
-              icon: Icons.timelapse_outlined,
-              selected: _item.status == OutcomeTrackingStatus.partiallyCompleted,
-              onPressed: () =>
-                  _setStatus(OutcomeTrackingStatus.partiallyCompleted),
-            ),
-            _StatusButton(
-              label: 'İşlendi',
-              icon: Icons.check_circle_outline,
-              selected: _item.status == OutcomeTrackingStatus.completed,
-              onPressed: () => _setStatus(OutcomeTrackingStatus.completed),
-            ),
+            if (_item.status == OutcomeTrackingStatus.partiallyCompleted)
+              _StatusButton(
+                label: 'Devam ediyor',
+                icon: Icons.play_circle_outline,
+                selected: false,
+                onPressed: () => _setStatus(OutcomeTrackingStatus.inProgress),
+              )
+            else if (_item.status != OutcomeTrackingStatus.completed)
+              _StatusButton(
+                label: 'Kısmen işlendi',
+                icon: Icons.timelapse_outlined,
+                selected: false,
+                onPressed: () =>
+                    _setStatus(OutcomeTrackingStatus.partiallyCompleted),
+              ),
+            if (_item.status != OutcomeTrackingStatus.planned)
+              _StatusButton(
+                label: 'Planlıya döndür',
+                icon: Icons.restart_alt,
+                selected: false,
+                onPressed: () => _setStatus(OutcomeTrackingStatus.planned),
+              ),
             OutlinedButton.icon(
               onPressed: _saving ? null : _carry,
               icon: const Icon(Icons.redo_outlined),
