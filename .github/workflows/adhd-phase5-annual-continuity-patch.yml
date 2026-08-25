@@ -25,8 +25,9 @@ jobs:
           python3 tool/apply_adhd_phase5_annual_continuity.py
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('test/adhd_phase5_annual_continuity_test.dart')
-          text = path.read_text()
+
+          test_path = Path('test/adhd_phase5_annual_continuity_test.dart')
+          text = test_path.read_text()
           text = text.replace(
               "      const LastFocusState(\n        courseId: 'TDE_9',\n        academicYear: '2026-2027',\n        weekNumber: 1,\n        trackingKey: 'TDE_9|O2',\n        outcomeCode: 'TEST.2',\n        themeTitle: 'Test Tema',\n        blockId: 'B2',\n        blockTitle: 'İkinci Blok',\n        updatedAt: _oldFocusTime,\n      ),",
               "      LastFocusState(\n        courseId: 'TDE_9',\n        academicYear: '2026-2027',\n        weekNumber: 1,\n        trackingKey: 'TDE_9|O2',\n        outcomeCode: 'TEST.2',\n        themeTitle: 'Test Tema',\n        blockId: 'B2',\n        blockTitle: 'İkinci Blok',\n        updatedAt: _oldFocusTime,\n      ),",
@@ -35,7 +36,23 @@ jobs:
               'const _oldFocusTime = DateTime.utc(2020, 1, 1);',
               'final _oldFocusTime = DateTime.utc(2020, 1, 1);',
           )
-          path.write_text(text)
+          test_path.write_text(text)
+
+          annual_path = Path('lib/features/annual_plan/annual_plan_page.dart')
+          text = annual_path.read_text()
+          text = text.replace(
+              'return preferences.getManualPositionOverrideForCourse(widget.courseId);',
+              'return (preferences as ScopedManualPositionPreferences)\n          .getManualPositionOverrideForCourse(widget.courseId);',
+          )
+          text = text.replace(
+              'await preferences.setManualPositionOverrideForCourse(\n        widget.courseId,\n        blockId,\n      );',
+              'await (preferences as ScopedManualPositionPreferences)\n          .setManualPositionOverrideForCourse(\n            widget.courseId,\n            blockId,\n          );',
+          )
+          text = text.replace(
+              'await preferences.clearManualPositionOverrideForCourse(widget.courseId);',
+              'await (preferences as ScopedManualPositionPreferences)\n          .clearManualPositionOverrideForCourse(widget.courseId);',
+          )
+          annual_path.write_text(text)
           PY
 
       - name: Set up Flutter
