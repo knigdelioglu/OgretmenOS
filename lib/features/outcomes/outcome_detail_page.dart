@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -29,31 +31,66 @@ class OutcomeDetailPage extends StatefulWidget {
   State<OutcomeDetailPage> createState() => _OutcomeDetailPageState();
 }
 
-class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
+class _OutcomeDetailPageState extends State<OutcomeDetailPage>
+    with WidgetsBindingObserver {
   late AnnualOutcomePlan _plan;
   late TrackedOutcome _item;
   late final TextEditingController _noteController;
+  late String _lastSavedNote;
+  Timer? _noteSaveDebounce;
+  Future<bool>? _noteSaveInFlight;
   bool _changed = false;
   bool _saving = false;
   bool _noteDirty = false;
+  bool _noteSaving = false;
+  bool _noteSaveFailed = false;
+  bool _closing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _plan = widget.initialPlan;
     _item = widget.initialItem;
-    _noteController = TextEditingController(text: _item.teacherNote ?? '');
+    _lastSavedNote = _item.teacherNote ?? '';
+    _noteController = TextEditingController(text: _lastSavedNote);
     _noteController.addListener(_handleNoteChanged);
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _noteSaveDebounce?.cancel();
+      unawaited(_persistNote());
+    }
+  }
+
   void _handleNoteChanged() {
-    final dirty = _noteController.text != (_item.teacherNote ?? '');
-    if (dirty == _noteDirty || !mounted) return;
-    setState(() => _noteDirty = dirty);
+    final dirty = _noteController.text != _lastSavedNote;
+    _noteSaveDebounce?.cancel();
+    if (dirty) _scheduleNoteSave();
+    if (!mounted) return;
+    if (dirty != _noteDirty || _noteSaveFailed) {
+      setState(() {
+        _noteDirty = dirty;
+        _noteSaveFailed = false;
+      });
+    }
+  }
+
+  void _scheduleNoteSave() {
+    _noteSaveDebounce?.cancel();
+    _noteSaveDebounce = Timer(const Duration(milliseconds: 700), () {
+      unawaited(_persistNote());
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _noteSaveDebounce?.cancel();
     _noteController.removeListener(_handleNoteChanged);
     _noteController.dispose();
     super.dispose();
@@ -156,7 +193,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
       ),
       _DisclosureSection(
         title: 'Öğretmen notu',
-        subtitle: _item.teacherNote?.isNotEmpty == true
+        subtitle: _noteDirty || _lastSavedNote.trim().isNotEmpty
             ? 'Bu kazanıma bağlı bir not var'
             : 'Kısa yerel not ekle',
         icon: Icons.sticky_note_2_outlined,
@@ -173,15 +210,8 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.tonalIcon(
-                onPressed: _saving || !_noteDirty ? null : _saveNote,
-                icon: const Icon(Icons.save_outlined),
-                label: const Text('Notu kaydet'),
-              ),
-            ),
+            const SizedBox(height: AppSpacing.sm),
+            _buildNoteSaveStatus(),
           ],
         ),
       ),
@@ -391,14 +421,14 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) Navigator.pop(context, _changed);
+        if (!didPop) unawaited(_closePage());
       },
       child: Scaffold(
         appBar: AppBar(
           title: Text(outcome.code),
           leading: IconButton(
             tooltip: 'Geri',
-            onPressed: () => Navigator.pop(context, _changed),
+            onPressed: _closing ? null : () => unawaited(_closePage()),
             icon: const Icon(Icons.arrow_back),
           ),
         ),
@@ -450,24 +480,157 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
     );
   }
 
+  Widget _buildNoteSaveStatus() {
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    );
+    if (_noteSaving) {
+      return Row(
+        children: [
+          const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text('Kaydediliyor…', style: style),
+        ],
+      );
+    }
+    if (_noteSaveFailed) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: () => unawaited(_persistNote()),
+          icon: const Icon(Icons.refresh, size: 18),
+          label: const Text('Not kaydedilemedi · tekrar dene'),
+        ),
+      );
+    }
+    return Row(
+      children: [
+        Icon(
+          _noteDirty ? Icons.schedule_outlined : Icons.check_circle_outline,
+          size: 18,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          _noteDirty ? 'Otomatik kaydedilecek' : 'Kaydedildi',
+          style: style,
+        ),
+      ],
+    );
+  }
+
   Future<void> _setStatus(OutcomeTrackingStatus status) async {
-    final saved = await _mutate(() => widget.service.setStatus(_item, status));
-    if (saved && status == OutcomeTrackingStatus.completed) {
+    if (!await _persistNote()) return;
+    final itemBefore = _item;
+    LearningOutcomeTrackingRecord? before;
+    try {
+      before = await widget.service.captureTracking(itemBefore);
+    } on Object {
+      _showMutationError();
+      return;
+    }
+    final saved = await _mutate(
+      () => widget.service.setStatus(itemBefore, status),
+    );
+    if (!saved || !mounted) return;
+    if (status == OutcomeTrackingStatus.completed) {
       HapticFeedback.mediumImpact();
+    }
+    showTeacherUndoFeedback(
+      context,
+      _statusChangeMessage(status),
+      onUndo: () async {
+        if (!await _persistNote()) return;
+        final restored = await _mutate(
+          () => widget.service.restoreTrackingStatus(
+            itemBefore,
+            before,
+            displayWeekNumber: itemBefore.displayWeekNumber,
+          ),
+        );
+        if (restored && mounted) {
+          showTeacherFeedback(context, 'Değişiklik geri alındı.');
+        }
+      },
+    );
+  }
+
+  Future<bool> _persistNote() async {
+    _noteSaveDebounce?.cancel();
+    final inFlight = _noteSaveInFlight;
+    if (inFlight != null) {
+      await inFlight;
+    }
+    if (!_noteDirty) return true;
+
+    final text = _noteController.text;
+    late final Future<bool> future;
+    future = _writeNote(text);
+    _noteSaveInFlight = future;
+    final saved = await future;
+    if (identical(_noteSaveInFlight, future)) {
+      _noteSaveInFlight = null;
+    }
+    return saved;
+  }
+
+  Future<bool> _writeNote(String text) async {
+    if (mounted) {
+      setState(() {
+        _noteSaving = true;
+        _noteSaveFailed = false;
+      });
+    }
+    try {
+      await widget.service.saveTeacherNote(_item, text);
+      if (!mounted) return true;
+      _lastSavedNote = text;
+      final stillDirty = _noteController.text != _lastSavedNote;
+      setState(() {
+        _noteSaving = false;
+        _noteDirty = stillDirty;
+        _noteSaveFailed = false;
+        _changed = true;
+      });
+      if (stillDirty) _scheduleNoteSave();
+      return true;
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _noteSaving = false;
+          _noteDirty = _noteController.text != _lastSavedNote;
+          _noteSaveFailed = true;
+        });
+      }
+      return false;
     }
   }
 
-  Future<void> _saveNote() async {
-    if (!_noteDirty) return;
+  Future<void> _closePage() async {
+    if (_closing) return;
+    _closing = true;
     FocusManager.instance.primaryFocus?.unfocus();
-    await _mutate(
-      () => widget.service.saveTeacherNote(_item, _noteController.text),
-      successMessage: 'Not kaydedildi.',
-    );
+    final noteSaved = await _persistNote();
+    if (!mounted) return;
+    _closing = false;
+    if (!noteSaved) {
+      showTeacherFeedback(
+        context,
+        'Not henüz kaydedilemedi. Bağlantıyı veya depolamayı kontrol edip tekrar deneyin.',
+        duration: const Duration(seconds: 4),
+      );
+      return;
+    }
+    Navigator.pop(context, _changed);
   }
 
   Future<void> _carry() async {
     FocusManager.instance.primaryFocus?.unfocus();
+    if (!await _persistNote()) return;
     final targets = _plan.weeks
         .where(
           (summary) =>
@@ -517,15 +680,41 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
       ),
     );
     if (target == null || !mounted) return;
+
+    final itemBefore = _item;
+    LearningOutcomeTrackingRecord? before;
+    try {
+      before = await widget.service.captureTracking(itemBefore);
+    } on Object {
+      _showMutationError();
+      return;
+    }
     final saved = await _mutate(
       () => widget.service.carryToWeek(
-        item: _item,
+        item: itemBefore,
         targetWeekNumber: target,
         plan: _plan,
       ),
-      successMessage: '$target. haftaya taşındı.',
     );
-    if (saved) HapticFeedback.mediumImpact();
+    if (!saved || !mounted) return;
+    HapticFeedback.mediumImpact();
+    showTeacherUndoFeedback(
+      context,
+      '$target. haftaya taşındı.',
+      onUndo: () async {
+        if (!await _persistNote()) return;
+        final restored = await _mutate(
+          () => widget.service.restoreTrackingStatus(
+            itemBefore,
+            before,
+            displayWeekNumber: itemBefore.displayWeekNumber,
+          ),
+        );
+        if (restored && mounted) {
+          showTeacherFeedback(context, 'Taşıma geri alındı.');
+        }
+      },
+    );
   }
 
   Future<bool> _mutate(
@@ -554,25 +743,31 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage> {
       setState(() {
         _plan = refreshed;
         if (next != null) _item = next;
-        _noteDirty = false;
+        _lastSavedNote = _item.teacherNote ?? _lastSavedNote;
+        _noteDirty = _noteController.text != _lastSavedNote;
+        _noteSaveFailed = false;
         _changed = true;
       });
-      _noteController.text = _item.teacherNote ?? '';
       if (successMessage != null && mounted) {
         showTeacherFeedback(context, successMessage);
       }
       return true;
     } on Object {
       if (!mounted) return false;
-      showTeacherFeedback(
-        context,
-        'Değişiklik kaydedilemedi. Tekrar deneyin.',
-        duration: const Duration(seconds: 4),
-      );
+      _showMutationError();
       return false;
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  void _showMutationError() {
+    if (!mounted) return;
+    showTeacherFeedback(
+      context,
+      'Değişiklik kaydedilemedi. Tekrar deneyin.',
+      duration: const Duration(seconds: 4),
+    );
   }
 
   Future<void> _copyDiaryText() async {
@@ -923,6 +1118,14 @@ class _BlockContextCard extends StatelessWidget {
     ),
   );
 }
+
+String _statusChangeMessage(OutcomeTrackingStatus status) => switch (status) {
+  OutcomeTrackingStatus.planned => 'Planlı durumuna döndürüldü.',
+  OutcomeTrackingStatus.inProgress => 'Devam ediyor olarak işaretlendi.',
+  OutcomeTrackingStatus.completed => 'İşlendi olarak işaretlendi.',
+  OutcomeTrackingStatus.partiallyCompleted => 'Kısmen işlendi olarak işaretlendi.',
+  OutcomeTrackingStatus.carriedOver => 'Taşındı olarak işaretlendi.',
+};
 
 String _processComponentSubtitle(String? origin) {
   switch (origin) {
