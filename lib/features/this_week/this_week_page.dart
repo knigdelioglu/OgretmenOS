@@ -47,10 +47,8 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => _WeekPickerSheet(
-        plan: plan,
-        selectedWeekNumber: selectedWeekNumber,
-      ),
+      builder: (_) =>
+          _WeekPickerSheet(plan: plan, selectedWeekNumber: selectedWeekNumber),
     );
     if (weekNumber == null || !mounted) return;
     setState(() => _selectedWeekNumber = weekNumber);
@@ -75,18 +73,6 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
     } on Object {
       _showError();
     }
-  }
-
-  Future<void> _runPrimaryAction(TrackedOutcome item) async {
-    if (item.presentationStatus == OutcomeTrackingStatus.planned) {
-      await _setStatus(item, OutcomeTrackingStatus.inProgress);
-      return;
-    }
-    await _setStatus(
-      item,
-      OutcomeTrackingStatus.completed,
-      completionHaptic: true,
-    );
   }
 
   Future<void> _completeAll(WeeklyOutcomeSummary summary) async {
@@ -169,7 +155,10 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
     final target = _nextInstructionWeekNumber(plan, item);
     if (target == null) {
       if (!mounted) return;
-      showTeacherFeedback(context, 'Taşınabilecek sonraki öğretim haftası yok.');
+      showTeacherFeedback(
+        context,
+        'Taşınabilecek sonraki öğretim haftası yok.',
+      );
       return;
     }
 
@@ -236,6 +225,12 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
     switch (action) {
       case _OutcomeAction.inProgress:
         await _setStatus(item, OutcomeTrackingStatus.inProgress);
+      case _OutcomeAction.completed:
+        await _setStatus(
+          item,
+          OutcomeTrackingStatus.completed,
+          completionHaptic: true,
+        );
       case _OutcomeAction.partiallyCompleted:
         await _setStatus(item, OutcomeTrackingStatus.partiallyCompleted);
       case _OutcomeAction.planned:
@@ -281,7 +276,8 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
   Widget build(BuildContext context) => FutureBuilder<AnnualOutcomePlan>(
     future: _future,
     builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData) {
+      if (snapshot.connectionState != ConnectionState.done &&
+          !snapshot.hasData) {
         return const LoadingView(label: 'Bu hafta hazırlanıyor…');
       }
       if (!snapshot.hasData) {
@@ -304,16 +300,24 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
           plan.currentWeekNumber ?? plan.weeks.first.week.weekNumber;
       final selectedNumber = _selectedWeekNumber ?? defaultWeekNumber;
       final summary = plan.week(selectedNumber) ?? plan.weeks.first;
-      final isCurrentWeek = plan.currentWeekNumber != null &&
+      final isCurrentWeek =
+          plan.currentWeekNumber != null &&
           summary.week.weekNumber == plan.currentWeekNumber;
-      final actionable = summary.outcomes.where(_isActionable).toList(growable: false);
+      final actionable = summary.outcomes
+          .where(_isActionable)
+          .toList(growable: false);
       final focus = _focusOutcome(actionable);
       final openOthers = actionable
           .where((item) => !identical(item, focus))
           .toList(growable: false);
-      final carriedOut = summary.outcomes.where(_isCarriedOut).toList(growable: false);
+      final carriedOut = summary.outcomes
+          .where(_isCarriedOut)
+          .toList(growable: false);
       final completed = summary.outcomes
-          .where((item) => item.presentationStatus == OutcomeTrackingStatus.completed)
+          .where(
+            (item) =>
+                item.presentationStatus == OutcomeTrackingStatus.completed,
+          )
           .toList(growable: false);
       final hasCompletable = summary.outcomes.any(
         (item) =>
@@ -339,7 +343,10 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
                   )
                 : null,
             onContinue: focus == null ? null : () => _openOutcome(plan, focus),
-            continueLabel: isCurrentWeek ? 'Derse devam et' : 'Kazanımı aç',
+            canCarryNext: focus != null && _canCarryToNextWeek(plan, focus),
+            onAction: focus == null
+                ? null
+                : (action) => _handleOutcomeAction(plan, focus, action),
           ),
           if (summary.week.isEventWeek) ...[
             const SizedBox(height: AppSpacing.lg),
@@ -354,31 +361,10 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
             const StatusPanel(
               icon: Icons.info_outline,
               title: 'Bu hafta kazanım yok',
-              message: 'Bu hafta yalnız okul temelli planlama içeriyor olabilir.',
+              message:
+                  'Bu hafta yalnız okul temelli planlama içeriyor olabilir.',
             ),
           ] else ...[
-            SectionHeading(
-              isCurrentWeek ? 'Sıradaki' : 'Bu haftanın odağı',
-              subtitle: isCurrentWeek
-                  ? 'Şu anda odaklanılacak tek kazanım'
-                  : 'Seçili haftanın ilk açık kazanımı',
-              icon: Icons.arrow_forward_rounded,
-            ),
-            if (focus != null)
-              _FocusOutcomeCard(
-                item: focus,
-                canCarryNext: _canCarryToNextWeek(plan, focus),
-                onOpen: () => _openOutcome(plan, focus),
-                onPrimary: () => _runPrimaryAction(focus),
-                onAction: (action) => _handleOutcomeAction(plan, focus, action),
-              )
-            else
-              const StatusPanel(
-                icon: Icons.check_circle_outline,
-                title: 'Bu haftada açık kazanım kalmadı',
-                message: 'İşlenen veya sonraki haftaya taşınan kazanımlar geri planda tutuluyor.',
-                tone: StatusTone.positive,
-              ),
             if (openOthers.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.md),
               _OutcomeGroup(
@@ -387,7 +373,6 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
                 icon: Icons.list_alt_outlined,
                 items: openOthers,
                 onOpen: (item) => _openOutcome(plan, item),
-                onPrimary: _runPrimaryAction,
                 canCarryNext: (item) => _canCarryToNextWeek(plan, item),
                 onAction: (item, action) =>
                     _handleOutcomeAction(plan, item, action),
@@ -401,7 +386,6 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
                 icon: Icons.redo_outlined,
                 items: carriedOut,
                 onOpen: (item) => _openOutcome(plan, item),
-                onPrimary: null,
                 canCarryNext: (_) => false,
                 onAction: (item, action) =>
                     _handleOutcomeAction(plan, item, action),
@@ -415,7 +399,6 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
                 icon: Icons.check_circle_outline,
                 items: completed,
                 onOpen: (item) => _openOutcome(plan, item),
-                onPrimary: null,
                 canCarryNext: (_) => false,
                 onAction: (item, action) =>
                     _handleOutcomeAction(plan, item, action),
@@ -425,7 +408,9 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
             _WeeklyTools(
               summary: summary,
               onCopyDiary: () => _copyDiary(summary),
-              onCompleteAll: hasCompletable ? () => _completeAll(summary) : null,
+              onCompleteAll: hasCompletable
+                  ? () => _completeAll(summary)
+                  : null,
             ),
           ],
         ],
@@ -461,9 +446,8 @@ class _WeekPickerSheet extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Haftaya git',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               IconButton(
@@ -526,7 +510,8 @@ class _FocusCard extends StatelessWidget {
     required this.onChooseWeek,
     required this.onReturnToCurrent,
     required this.onContinue,
-    required this.continueLabel,
+    required this.canCarryNext,
+    required this.onAction,
   });
 
   final WeeklyOutcomeSummary summary;
@@ -536,17 +521,18 @@ class _FocusCard extends StatelessWidget {
   final VoidCallback onChooseWeek;
   final VoidCallback? onReturnToCurrent;
   final VoidCallback? onContinue;
-  final String continueLabel;
+  final bool canCarryNext;
+  final ValueChanged<_OutcomeAction>? onAction;
 
   @override
   Widget build(BuildContext context) {
     final week = summary.week;
     final segment = _primarySegment(week);
-    final blockTitle = segment?.block?.title ??
+    final blockTitle =
+        segment?.block?.title ??
         (segment == null ? 'Ders akışı' : 'Okul temelli planlama');
     final themeTitle = segment?.theme.title;
     final total = summary.outcomes.length;
-    final progress = total == 0 ? 0.0 : summary.completedCount / total;
     final scheme = Theme.of(context).colorScheme;
 
     return Card(
@@ -591,9 +577,8 @@ class _FocusCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               '$academicYear · ${_dateRange(week.start, week.end)} · ${week.plannedLessonHours} ders saati',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: scheme.onPrimaryContainer,
-              ),
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: scheme.onPrimaryContainer),
             ),
             if (onReturnToCurrent != null) ...[
               const SizedBox(height: AppSpacing.sm),
@@ -619,111 +604,34 @@ class _FocusCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 themeTitle,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: scheme.onPrimaryContainer,
-                ),
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(color: scheme.onPrimaryContainer),
               ),
             ],
-            if (!week.isEventWeek && total > 0) ...[
-              const SizedBox(height: AppSpacing.lg),
-              Wrap(
-                spacing: AppSpacing.md,
-                runSpacing: AppSpacing.xs,
-                alignment: WrapAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Haftalık ilerleme',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: scheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    '${summary.completedCount} / $total işlendi',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: scheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              LinearProgressIndicator(
-                value: progress,
-                minHeight: 8,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ],
-            if (onContinue != null) ...[
-              const SizedBox(height: AppSpacing.xl),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: onContinue,
-                  icon: const Icon(Icons.play_arrow_rounded),
-                  label: Text(continueLabel),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FocusOutcomeCard extends StatelessWidget {
-  const _FocusOutcomeCard({
-    required this.item,
-    required this.canCarryNext,
-    required this.onOpen,
-    required this.onPrimary,
-    required this.onAction,
-  });
-
-  final TrackedOutcome item;
-  final bool canCarryNext;
-  final VoidCallback onOpen;
-  final VoidCallback onPrimary;
-  final ValueChanged<_OutcomeAction> onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      color: scheme.secondaryContainer,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onOpen,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            if (focus != null) ...[
+              const Divider(height: AppSpacing.xl),
               Wrap(
                 spacing: AppSpacing.sm,
                 runSpacing: AppSpacing.sm,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(
-                    item.outcome.code,
+                    focus!.outcome.code,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: scheme.onSecondaryContainer,
+                      color: scheme.onPrimaryContainer,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  _StatusBadge(item: item),
+                  _StatusBadge(item: focus!),
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                item.outcome.officialText,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: scheme.onSecondaryContainer,
-                  height: 1.45,
-                ),
+                focus!.outcome.officialText,
+                style: Theme.of(context).textTheme.bodyLarge
+                    ?.copyWith(color: scheme.onPrimaryContainer, height: 1.45),
               ),
-              if (item.teacherNote?.isNotEmpty == true) ...[
+              if (focus!.teacherNote?.isNotEmpty == true) ...[
                 const SizedBox(height: AppSpacing.md),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -731,15 +639,14 @@ class _FocusOutcomeCard extends StatelessWidget {
                     Icon(
                       Icons.sticky_note_2_outlined,
                       size: 18,
-                      color: scheme.onSecondaryContainer,
+                      color: scheme.onPrimaryContainer,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
-                        item.teacherNote!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSecondaryContainer,
-                        ),
+                        focus!.teacherNote!,
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: scheme.onPrimaryContainer),
                       ),
                     ),
                   ],
@@ -752,19 +659,40 @@ class _FocusOutcomeCard extends StatelessWidget {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   FilledButton.icon(
-                    onPressed: onPrimary,
-                    icon: Icon(_primaryActionIcon(item)),
-                    label: Text(_primaryActionLabel(item)),
+                    onPressed: onContinue,
+                    icon: const Icon(Icons.open_in_new_rounded),
+                    label: const Text('Ders ayrıntısını aç'),
                   ),
-                  _OutcomeActionMenu(
-                    item: item,
-                    canCarryNext: canCarryNext,
-                    onSelected: onAction,
+                  if (onAction != null)
+                    _OutcomeActionMenu(
+                      item: focus!,
+                      canCarryNext: canCarryNext,
+                      onSelected: onAction!,
+                    ),
+                ],
+              ),
+            ] else if (!week.isEventWeek && total > 0) ...[
+              const Divider(height: AppSpacing.xl),
+              Row(
+                children: [
+                  Icon(
+                    Icons.check_circle_outline,
+                    color: scheme.onPrimaryContainer,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Bu haftada açık kazanım kalmadı.',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: scheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ],
-          ),
+          ],
         ),
       ),
     );
@@ -778,7 +706,6 @@ class _OutcomeGroup extends StatelessWidget {
     required this.icon,
     required this.items,
     required this.onOpen,
-    required this.onPrimary,
     required this.canCarryNext,
     required this.onAction,
   });
@@ -788,7 +715,6 @@ class _OutcomeGroup extends StatelessWidget {
   final IconData icon;
   final List<TrackedOutcome> items;
   final ValueChanged<TrackedOutcome> onOpen;
-  final Future<void> Function(TrackedOutcome)? onPrimary;
   final bool Function(TrackedOutcome) canCarryNext;
   final void Function(TrackedOutcome, _OutcomeAction) onAction;
 
@@ -810,12 +736,10 @@ class _OutcomeGroup extends StatelessWidget {
           _OutcomeRow(
             item: items[index],
             onOpen: () => onOpen(items[index]),
-            onPrimary: onPrimary == null ? null : () => onPrimary!(items[index]),
             canCarryNext: canCarryNext(items[index]),
             onAction: (action) => onAction(items[index], action),
           ),
-          if (index != items.length - 1)
-            const SizedBox(height: AppSpacing.xs),
+          if (index != items.length - 1) const SizedBox(height: AppSpacing.xs),
         ],
       ],
     ),
@@ -878,14 +802,12 @@ class _OutcomeRow extends StatelessWidget {
   const _OutcomeRow({
     required this.item,
     required this.onOpen,
-    required this.onPrimary,
     required this.canCarryNext,
     required this.onAction,
   });
 
   final TrackedOutcome item;
   final VoidCallback onOpen;
-  final VoidCallback? onPrimary;
   final bool canCarryNext;
   final ValueChanged<_OutcomeAction> onAction;
 
@@ -914,9 +836,8 @@ class _OutcomeRow extends StatelessWidget {
                 children: [
                   Text(
                     item.outcome.code,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(item.outcome.officialText),
@@ -941,21 +862,10 @@ class _OutcomeRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.xs),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (onPrimary != null)
-                  IconButton.filledTonal(
-                    tooltip: _primaryActionLabel(item),
-                    onPressed: onPrimary,
-                    icon: Icon(_primaryActionIcon(item)),
-                  ),
-                _OutcomeActionMenu(
-                  item: item,
-                  canCarryNext: canCarryNext,
-                  onSelected: onAction,
-                ),
-              ],
+            _OutcomeActionMenu(
+              item: item,
+              canCarryNext: canCarryNext,
+              onSelected: onAction,
             ),
           ],
         ),
@@ -984,6 +894,22 @@ class _OutcomeActionMenu extends StatelessWidget {
       icon: const Icon(Icons.more_vert),
       onSelected: onSelected,
       itemBuilder: (context) => [
+        if (!carriedOut && status == OutcomeTrackingStatus.planned)
+          const PopupMenuItem(
+            value: _OutcomeAction.inProgress,
+            child: _ActionMenuItem(
+              icon: Icons.play_circle_outline,
+              label: 'Devam ediyor olarak işaretle',
+            ),
+          ),
+        if (!carriedOut && status != OutcomeTrackingStatus.completed)
+          const PopupMenuItem(
+            value: _OutcomeAction.completed,
+            child: _ActionMenuItem(
+              icon: Icons.check_circle_outline,
+              label: 'İşlendi olarak işaretle',
+            ),
+          ),
         if (!carriedOut &&
             status != OutcomeTrackingStatus.completed &&
             status != OutcomeTrackingStatus.partiallyCompleted)
@@ -1042,11 +968,7 @@ class _ActionMenuItem extends StatelessWidget {
       Icon(icon, size: 20),
       const SizedBox(width: AppSpacing.md),
       Expanded(
-        child: Text(
-          label,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
+        child: Text(label, maxLines: 2, overflow: TextOverflow.ellipsis),
       ),
     ],
   );
@@ -1121,9 +1043,8 @@ class _QuickNoteSheetState extends State<_QuickNoteSheet> {
             Expanded(
               child: Text(
                 'Hızlı not',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w800),
               ),
             ),
             IconButton(
@@ -1148,9 +1069,8 @@ class _QuickNoteSheetState extends State<_QuickNoteSheet> {
         const SizedBox(height: AppSpacing.sm),
         Text(
           'Boş kaydedersen mevcut not silinir.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: AppSpacing.lg),
         FilledButton.icon(
@@ -1172,6 +1092,7 @@ class _TrackingUndoEntry {
 
 enum _OutcomeAction {
   inProgress,
+  completed,
   partiallyCompleted,
   planned,
   carryNext,
@@ -1212,19 +1133,12 @@ int? _nextInstructionWeekNumber(AnnualOutcomePlan plan, TrackedOutcome item) {
   return null;
 }
 
-String _primaryActionLabel(TrackedOutcome item) =>
-    item.presentationStatus == OutcomeTrackingStatus.planned ? 'Başla' : 'İşlendi';
-
-IconData _primaryActionIcon(TrackedOutcome item) =>
-    item.presentationStatus == OutcomeTrackingStatus.planned
-        ? Icons.play_arrow_rounded
-        : Icons.check;
-
 String _statusChangeMessage(OutcomeTrackingStatus status) => switch (status) {
   OutcomeTrackingStatus.planned => 'Planlı durumuna döndürüldü.',
   OutcomeTrackingStatus.inProgress => 'Devam ediyor olarak işaretlendi.',
   OutcomeTrackingStatus.completed => 'İşlendi olarak işaretlendi.',
-  OutcomeTrackingStatus.partiallyCompleted => 'Kısmen işlendi olarak işaretlendi.',
+  OutcomeTrackingStatus.partiallyCompleted =>
+    'Kısmen işlendi olarak işaretlendi.',
   OutcomeTrackingStatus.carriedOver => 'Taşındı olarak işaretlendi.',
 };
 

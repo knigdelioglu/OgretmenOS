@@ -9,7 +9,9 @@ import 'package:ogretmen_os/domain/services/outcome_planning_service.dart';
 import 'package:ogretmen_os/features/this_week/this_week_page.dart';
 
 void main() {
-  testWidgets('haftalık durum değişikliği gerçek geri alma sunar', (tester) async {
+  testWidgets('haftalık durum değişikliği gerçek geri alma sunar', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(412, 915);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -32,18 +34,18 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final start = find.widgetWithText(FilledButton, 'Başla');
-    expect(start, findsOneWidget);
-    await tester.tap(start);
+    await tester.tap(find.byTooltip('Kazanım işlemleri'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('İşlendi olarak işaretle'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Devam ediyor olarak işaretlendi.'), findsOneWidget);
+    expect(find.text('İşlendi olarak işaretlendi.'), findsOneWidget);
     expect(find.text('Geri al'), findsOneWidget);
 
     var plan = await service.buildPlan();
     expect(
       plan.week(1)!.outcomes.single.status,
-      OutcomeTrackingStatus.inProgress,
+      OutcomeTrackingStatus.completed,
     );
 
     await tester.tap(find.text('Geri al'));
@@ -60,32 +62,33 @@ class _WeeklyPlanning implements WeeklyPlanningService {
   const _WeeklyPlanning();
 
   @override
-  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async => AnnualWeeklyPlan(
-    academicYear: '2026-2027',
-    courseId: 'TDE_9',
-    weeklyLessonHours: 5,
-    annualHours: 180,
-    currentWeekNumber: 1,
-    weeks: [
-      AcademicWeekPlan(
-        weekNumber: 1,
-        start: DateTime(2026, 9, 14),
-        end: DateTime(2026, 9, 18),
-        type: AcademicWeekType.instruction,
-        label: '1. Hafta',
-        plannedLessonHours: 5,
-        segments: const [
-          WeeklyPlanSegment(
-            type: WeeklyPlanSegmentType.block,
-            theme: _Repository.theme,
-            hours: 5,
-            block: _Repository.block,
+  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async =>
+      AnnualWeeklyPlan(
+        academicYear: '2026-2027',
+        courseId: 'TDE_9',
+        weeklyLessonHours: 5,
+        annualHours: 180,
+        currentWeekNumber: 1,
+        weeks: [
+          AcademicWeekPlan(
+            weekNumber: 1,
+            start: DateTime(2026, 9, 14),
+            end: DateTime(2026, 9, 18),
+            type: AcademicWeekType.instruction,
+            label: '1. Hafta',
+            plannedLessonHours: 5,
+            segments: const [
+              WeeklyPlanSegment(
+                type: WeeklyPlanSegmentType.block,
+                theme: _Repository.theme,
+                hours: 5,
+                block: _Repository.block,
+              ),
+            ],
+            outcomes: const [_Repository.outcome],
           ),
         ],
-        outcomes: const [_Repository.outcome],
-      ),
-    ],
-  );
+      );
 }
 
 class _Repository implements CourseKnowledgeRepository {
@@ -148,16 +151,17 @@ class _Repository implements CourseKnowledgeRepository {
   );
 
   @override
-  Future<model.RuntimeManifest> getManifest() async => const model.RuntimeManifest(
-    runtimePackageVersion: '1.0.0',
-    schemaVersion: '1.0.0',
-    courseId: 'TDE_9',
-    validationStatus: 'PASS',
-    canonicalContentFingerprint: 'test',
-    rowCounts: {},
-    timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
-    timelineUnresolvedFields: {},
-  );
+  Future<model.RuntimeManifest> getManifest() async =>
+      const model.RuntimeManifest(
+        runtimePackageVersion: '1.0.0',
+        schemaVersion: '1.0.0',
+        courseId: 'TDE_9',
+        validationStatus: 'PASS',
+        canonicalContentFingerprint: 'test',
+        rowCounts: {},
+        timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
+        timelineUnresolvedFields: {},
+      );
 
   @override
   Future<List<model.Theme>> getThemes() async => const [theme];
@@ -185,8 +189,9 @@ class _Repository implements CourseKnowledgeRepository {
   ];
 
   @override
-  Future<List<model.ResourceDecision>> getResourceDecisions(String themeId) async =>
-      const [];
+  Future<List<model.ResourceDecision>> getResourceDecisions(
+    String themeId,
+  ) async => const [];
 
   @override
   Future<model.TeacherPackage> getTeacherPackage(String themeId) async =>
