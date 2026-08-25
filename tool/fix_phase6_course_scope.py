@@ -30,11 +30,13 @@ new = """  Future<_OptionalTrackingSummary?> _loadTrackingSummary() async {
       final records = await service.trackingRepository.getForAcademicYear(
         plan.academicYear,
       );
-      final scopedRecords = records.where(
-        (record) => courseTrackingKeys.contains(
-          '${record.academicYear}:${record.outcomeId}:${record.plannedWeekNumber}',
-        ),
-      );
+      final scopedRecords = records
+          .where(
+            (record) => courseTrackingKeys.contains(
+              '${record.academicYear}:${record.outcomeId}:${record.plannedWeekNumber}',
+            ),
+          )
+          .toList();
       final summary = _OptionalTrackingSummary.fromRecords(scopedRecords);
       return summary.hasExplicitStatus ? summary : null;
     } on Object {
