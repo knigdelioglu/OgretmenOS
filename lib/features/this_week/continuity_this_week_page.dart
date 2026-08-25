@@ -56,7 +56,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
     }
 
     final item = _resolveFocus(plan, stored);
-    if (item == null || !_isRestorable(item)) {
+    if (item == null) {
       await widget.continuity.clearLastFocus(widget.courseId);
       return _ContinuityData(plan: plan);
     }
@@ -67,27 +67,15 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
     final preferredWeek = plan.week(stored.weekNumber);
     if (preferredWeek != null) {
       for (final item in preferredWeek.outcomes) {
-        if (item.trackingKey == stored.trackingKey && _isRestorable(item)) {
-          return item;
-        }
+        if (item.trackingKey == stored.trackingKey) return item;
       }
     }
     for (final summary in plan.weeks) {
       for (final item in summary.outcomes) {
-        if (item.trackingKey == stored.trackingKey &&
-            item.isCarriedIn &&
-            _isRestorable(item)) {
-          return item;
-        }
+        if (item.trackingKey == stored.trackingKey) return item;
       }
     }
     return null;
-  }
-
-  bool _isRestorable(TrackedOutcome item) {
-    if (item.presentationStatus == OutcomeTrackingStatus.completed) return false;
-    final carriedOut = !item.isCarriedIn && item.carriedToWeekNumber != null;
-    return !carriedOut;
   }
 
   void _reload() {
@@ -97,9 +85,30 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
     });
   }
 
+  Future<void> _rememberViewed(TrackedOutcome item) =>
+      widget.continuity.setLastFocus(
+        LastFocusState(
+          courseId: widget.courseId,
+          academicYear: item.academicYear,
+          weekNumber: item.displayWeekNumber,
+          trackingKey: item.trackingKey,
+          outcomeCode: item.outcome.code,
+          themeTitle: item.primaryTheme?.title,
+          blockId: item.primaryBlock?.id,
+          blockTitle: item.primaryBlock?.title,
+          updatedAt: DateTime.now(),
+        ),
+      );
+
   Future<void> _resume(_ContinuityData data) async {
     final item = data.item;
     if (item == null) return;
+    try {
+      await _rememberViewed(item);
+    } on Object {
+      // Resume must remain available even if preference persistence fails.
+    }
+    if (!mounted) return;
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
         builder: (_) => OutcomeDetailPage(
@@ -131,6 +140,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
               key: ValueKey(_workspaceRevision),
               repository: widget.repository,
               service: widget.service,
+              onOutcomeViewed: _rememberViewed,
             ),
           ),
         ],
@@ -197,9 +207,8 @@ class _ResumeCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   [?theme, ?block].join(' · '),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onTertiaryContainer,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: scheme.onTertiaryContainer),
                 ),
               ],
               const SizedBox(height: AppSpacing.sm),

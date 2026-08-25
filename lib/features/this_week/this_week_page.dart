@@ -14,10 +14,12 @@ class ThisWeekPage extends StatefulWidget {
     super.key,
     required this.repository,
     required this.service,
+    this.onOutcomeViewed,
   });
 
   final CourseKnowledgeRepository repository;
   final OutcomePlanningService service;
+  final Future<void> Function(TrackedOutcome item)? onOutcomeViewed;
 
   @override
   State<ThisWeekPage> createState() => _ThisWeekPageState();
@@ -111,6 +113,16 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
   }
 
   Future<void> _openOutcome(AnnualOutcomePlan plan, TrackedOutcome item) async {
+    final onOutcomeViewed = widget.onOutcomeViewed;
+    if (onOutcomeViewed != null) {
+      try {
+        await onOutcomeViewed(item);
+      } on Object {
+        // Continuity is convenience state; it must never block lesson access.
+      }
+    }
+    if (!mounted) return;
+
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
         builder: (_) => OutcomeDetailPage(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ogretmen_os/data/preferences/continuity_repository.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart' as model;
+import 'package:ogretmen_os/domain/models/outcome_tracking_models.dart';
 import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
 import 'package:ogretmen_os/domain/repositories/outcome_tracking_repository.dart';
@@ -102,6 +103,109 @@ void main() {
     expect(find.text('TEST.1'), findsWidgets);
   });
 
+  testWidgets('opening outcome stores focus without creating tracking state', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final continuity = MemoryContinuityRepository();
+    final tracking = MemoryOutcomeTrackingRepository();
+    final repository = _FakeRepository();
+    final service = OutcomePlanningService(
+      repository: repository,
+      weeklyPlanning: _FakeWeeklyPlanning(),
+      trackingRepository: tracking,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ContinuityThisWeekPage(
+            repository: repository,
+            service: service,
+            continuity: continuity,
+            courseId: 'TDE_9',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(await continuity.getLastFocus('TDE_9'), isNull);
+    expect(await tracking.getForAcademicYear('2026-2027'), isEmpty);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Ders ayrıntısını aç'));
+    await tester.pumpAndSettle();
+
+    final stored = await continuity.getLastFocus('TDE_9');
+    expect(stored, isNotNull);
+    expect(stored!.trackingKey, '2026-2027:TEST_OUTCOME:1');
+    expect(stored.outcomeCode, 'TEST.1');
+    expect(stored.blockId, 'TEST_BLOCK');
+    expect(await tracking.getForAcademicYear('2026-2027'), isEmpty);
+  });
+
+  testWidgets('completed tracking does not erase the last viewed focus', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final continuity = MemoryContinuityRepository();
+    await continuity.setLastFocus(
+      LastFocusState(
+        courseId: 'TDE_9',
+        academicYear: '2026-2027',
+        weekNumber: 1,
+        trackingKey: '2026-2027:TEST_OUTCOME:1',
+        outcomeCode: 'TEST.1',
+        themeTitle: 'TEST TEMA',
+        blockId: 'TEST_BLOCK',
+        blockTitle: 'Test Blok',
+        updatedAt: DateTime(2026, 9, 14, 10),
+      ),
+    );
+    final tracking = MemoryOutcomeTrackingRepository();
+    final repository = _FakeRepository();
+    final service = OutcomePlanningService(
+      repository: repository,
+      weeklyPlanning: _FakeWeeklyPlanning(),
+      trackingRepository: tracking,
+    );
+    final plan = await service.buildPlan();
+    final item = plan.week(1)!.outcomes.single;
+    await service.setStatus(item, OutcomeTrackingStatus.completed);
+
+    final storedBeforeBuild = await continuity.getLastFocus('TDE_9');
+    expect(storedBeforeBuild, isNotNull);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ContinuityThisWeekPage(
+            repository: repository,
+            service: service,
+            continuity: continuity,
+            courseId: 'TDE_9',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('KALDIĞIN YER'), findsOneWidget);
+    expect(find.text('1. Hafta · TEST.1'), findsOneWidget);
+    expect(
+      (await continuity.getLastFocus('TDE_9'))?.trackingKey,
+      item.trackingKey,
+    );
+  });
+
   testWidgets('stale academic-year focus is cleared', (tester) async {
     final continuity = MemoryContinuityRepository();
     await continuity.setLastFocus(
@@ -198,16 +302,17 @@ class _FakeRepository implements CourseKnowledgeRepository {
   Future<model.Course> getCourse() async => course;
 
   @override
-  Future<model.RuntimeManifest> getManifest() async => const model.RuntimeManifest(
-    runtimePackageVersion: '1.0.0',
-    schemaVersion: '1.0.0',
-    courseId: 'TDE_9',
-    validationStatus: 'PASS',
-    canonicalContentFingerprint: 'test',
-    rowCounts: {},
-    timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
-    timelineUnresolvedFields: {},
-  );
+  Future<model.RuntimeManifest> getManifest() async =>
+      const model.RuntimeManifest(
+        runtimePackageVersion: '1.0.0',
+        schemaVersion: '1.0.0',
+        courseId: 'TDE_9',
+        validationStatus: 'PASS',
+        canonicalContentFingerprint: 'test',
+        rowCounts: {},
+        timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
+        timelineUnresolvedFields: {},
+      );
 
   @override
   Future<List<model.Theme>> getThemes() async => const [theme];
@@ -235,8 +340,9 @@ class _FakeRepository implements CourseKnowledgeRepository {
   ];
 
   @override
-  Future<List<model.ResourceDecision>> getResourceDecisions(String themeId) async =>
-      const [];
+  Future<List<model.ResourceDecision>> getResourceDecisions(
+    String themeId,
+  ) async => const [];
 
   @override
   Future<model.TeacherPackage> getTeacherPackage(String themeId) async =>
@@ -257,30 +363,31 @@ class _FakeRepository implements CourseKnowledgeRepository {
 
 class _FakeWeeklyPlanning implements WeeklyPlanningService {
   @override
-  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async => AnnualWeeklyPlan(
-    academicYear: '2026-2027',
-    courseId: 'TDE_9',
-    weeklyLessonHours: 5,
-    annualHours: 180,
-    currentWeekNumber: 1,
-    weeks: [
-      AcademicWeekPlan(
-        weekNumber: 1,
-        start: DateTime(2026, 9, 14),
-        end: DateTime(2026, 9, 18),
-        type: AcademicWeekType.instruction,
-        label: '1. Hafta',
-        plannedLessonHours: 5,
-        segments: const [
-          WeeklyPlanSegment(
-            type: WeeklyPlanSegmentType.block,
-            theme: _FakeRepository.theme,
-            hours: 5,
-            block: _FakeRepository.block,
+  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async =>
+      AnnualWeeklyPlan(
+        academicYear: '2026-2027',
+        courseId: 'TDE_9',
+        weeklyLessonHours: 5,
+        annualHours: 180,
+        currentWeekNumber: 1,
+        weeks: [
+          AcademicWeekPlan(
+            weekNumber: 1,
+            start: DateTime(2026, 9, 14),
+            end: DateTime(2026, 9, 18),
+            type: AcademicWeekType.instruction,
+            label: '1. Hafta',
+            plannedLessonHours: 5,
+            segments: const [
+              WeeklyPlanSegment(
+                type: WeeklyPlanSegmentType.block,
+                theme: _FakeRepository.theme,
+                hours: 5,
+                block: _FakeRepository.block,
+              ),
+            ],
+            outcomes: const [_FakeRepository.outcome],
           ),
         ],
-        outcomes: const [_FakeRepository.outcome],
-      ),
-    ],
-  );
+      );
 }
