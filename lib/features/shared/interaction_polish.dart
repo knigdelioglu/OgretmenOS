@@ -49,7 +49,7 @@ void showTeacherUndoFeedback(
       actions: [
         TextButton(
           onPressed: () async {
-            controller.close();
+            messenger.hideCurrentMaterialBanner();
             await onUndo();
           },
           child: const Text('Geri al'),
