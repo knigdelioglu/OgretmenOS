@@ -288,7 +288,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Kaynaklar'), findsWidgets);
-    expect(find.text('Tema'), findsOneWidget);
+    expect(find.text('Tema değiştir'), findsOneWidget);
     expect(find.text('Öğretim blokları'), findsNothing);
     expect(find.text('Program çıktıları'), findsNothing);
     expect(find.text('0 etkinlik'), findsNothing);
