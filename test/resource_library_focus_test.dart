@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ogretmen_os/data/preferences/continuity_repository.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart' as model;
+import 'package:ogretmen_os/domain/models/outcome_tracking_models.dart';
+import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
+import 'package:ogretmen_os/domain/repositories/outcome_tracking_repository.dart';
+import 'package:ogretmen_os/domain/services/outcome_planning_service.dart';
 import 'package:ogretmen_os/features/resources/resource_library_page.dart';
 
 void main() {
@@ -27,6 +32,78 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('son görüntülenen ders kaynak odağında mevcut haftayı geçer', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repository = _ResourceRepository();
+    final plan = _contextPlan(currentWeekNumber: 1);
+    final service = _StaticOutcomePlanningService(repository, plan);
+    final continuity = MemoryContinuityRepository();
+    await continuity.setLastFocus(
+      LastFocusState(
+        courseId: 'TDE_9',
+        academicYear: '2026-2027',
+        weekNumber: 2,
+        trackingKey: '2026-2027:O2:2',
+        outcomeCode: 'T2.1',
+        themeTitle: 'TEMA 2',
+        blockId: 'B2',
+        blockTitle: 'Blok 2',
+        updatedAt: DateTime(2026, 10, 1, 10),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _contextApp(
+        repository: repository,
+        continuity: continuity,
+        service: service,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('ŞU ANKİ DERS'), findsOneWidget);
+    expect(find.text('Son görüntülenen ders'), findsOneWidget);
+    expect(find.text('Blok 2 · T2.1'), findsOneWidget);
+    expect(find.text('TEMA 2'), findsWidgets);
+    expect(find.text('Kaynak 2'), findsOneWidget);
+    expect(find.text('Kaynak 1'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('focus yoksa kaynaklar mevcut haftanın temasını açar', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repository = _ResourceRepository();
+    final plan = _contextPlan(currentWeekNumber: 2);
+
+    await tester.pumpWidget(
+      _contextApp(
+        repository: repository,
+        continuity: MemoryContinuityRepository(),
+        service: _StaticOutcomePlanningService(repository, plan),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('ŞU ANKİ DERS'), findsOneWidget);
+    expect(find.text('2. hafta planı'), findsOneWidget);
+    expect(find.text('Blok 2 · T2.1'), findsOneWidget);
+    expect(find.text('TEMA 2'), findsWidgets);
+    expect(find.text('Kaynak 2'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('kitap beklenen sınıfta tema seçimi ve dayanak korunur', (
     tester,
   ) async {
@@ -39,7 +116,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ders kitabı bekleniyor'), findsOneWidget);
-    expect(find.textContaining('TEMA 1 için öğretim programı hazır'), findsOneWidget);
+    expect(
+      find.textContaining('TEMA 1 için öğretim programı hazır'),
+      findsOneWidget,
+    );
     expect(find.text('Kaynak 1'), findsOneWidget);
 
     await tester.tap(find.byType(DropdownButtonFormField<String>));
@@ -47,7 +127,10 @@ void main() {
     await tester.tap(find.text('TEMA 2').last);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('TEMA 2 için öğretim programı hazır'), findsOneWidget);
+    expect(
+      find.textContaining('TEMA 2 için öğretim programı hazır'),
+      findsOneWidget,
+    );
     expect(find.text('TEMA 2'), findsWidgets);
     expect(find.text('Kaynak 2'), findsOneWidget);
     expect(find.text('Kaynak 1'), findsNothing);
@@ -90,6 +173,121 @@ Widget _app({required bool awaitingTextbook}) => MaterialApp(
   ),
 );
 
+Widget _contextApp({
+  required _ResourceRepository repository,
+  required ContinuityRepository continuity,
+  required OutcomePlanningService service,
+}) => MaterialApp(
+  home: Scaffold(
+    body: ResourceLibraryPage(
+      repository: repository,
+      awaitingTextbook: false,
+      continuity: continuity,
+      outcomePlanning: service,
+      courseId: 'TDE_9',
+    ),
+  ),
+);
+
+AnnualOutcomePlan _contextPlan({required int currentWeekNumber}) {
+  final week1 = AcademicWeekPlan(
+    weekNumber: 1,
+    start: DateTime(2026, 9, 14),
+    end: DateTime(2026, 9, 18),
+    type: AcademicWeekType.instruction,
+    label: '1. Hafta',
+    plannedLessonHours: 5,
+    segments: const [
+      WeeklyPlanSegment(
+        type: WeeklyPlanSegmentType.block,
+        theme: _ResourceRepository.theme1,
+        hours: 5,
+        block: _ResourceRepository.block,
+      ),
+    ],
+    outcomes: const [_ResourceRepository.outcome1],
+  );
+  final week2 = AcademicWeekPlan(
+    weekNumber: 2,
+    start: DateTime(2026, 9, 21),
+    end: DateTime(2026, 9, 25),
+    type: AcademicWeekType.instruction,
+    label: '2. Hafta',
+    plannedLessonHours: 5,
+    segments: const [
+      WeeklyPlanSegment(
+        type: WeeklyPlanSegmentType.block,
+        theme: _ResourceRepository.theme2,
+        hours: 5,
+        block: _ResourceRepository.block2,
+      ),
+    ],
+    outcomes: const [_ResourceRepository.outcome2],
+  );
+  return AnnualOutcomePlan(
+    weeklyPlan: AnnualWeeklyPlan(
+      academicYear: '2026-2027',
+      courseId: 'TDE_9',
+      weeklyLessonHours: 5,
+      annualHours: 180,
+      weeks: [week1, week2],
+      currentWeekNumber: currentWeekNumber,
+    ),
+    weeks: [
+      WeeklyOutcomeSummary(
+        week: week1,
+        outcomes: const [
+          TrackedOutcome(
+            outcome: _ResourceRepository.outcome1,
+            academicYear: '2026-2027',
+            plannedWeekNumber: 1,
+            displayWeekNumber: 1,
+            status: OutcomeTrackingStatus.planned,
+            contexts: [
+              OutcomeBlockContext(detail: _ResourceRepository.detail1),
+            ],
+          ),
+        ],
+      ),
+      WeeklyOutcomeSummary(
+        week: week2,
+        outcomes: const [
+          TrackedOutcome(
+            outcome: _ResourceRepository.outcome2,
+            academicYear: '2026-2027',
+            plannedWeekNumber: 2,
+            displayWeekNumber: 2,
+            status: OutcomeTrackingStatus.planned,
+            contexts: [
+              OutcomeBlockContext(detail: _ResourceRepository.detail2),
+            ],
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+class _StaticOutcomePlanningService extends OutcomePlanningService {
+  _StaticOutcomePlanningService(CourseKnowledgeRepository repository, this.plan)
+    : super(
+        repository: repository,
+        weeklyPlanning: _UnusedWeeklyPlanning(),
+        trackingRepository: MemoryOutcomeTrackingRepository(),
+      );
+
+  final AnnualOutcomePlan plan;
+
+  @override
+  Future<AnnualOutcomePlan> buildPlan({DateTime? today}) async => plan;
+}
+
+class _UnusedWeeklyPlanning implements WeeklyPlanningService {
+  @override
+  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) =>
+      throw UnimplementedError();
+}
+
 class _ResourceRepository implements CourseKnowledgeRepository {
   static const course = model.Course(
     courseId: 'TDE_9',
@@ -131,6 +329,38 @@ class _ResourceRepository implements CourseKnowledgeRepository {
     plannedHours: null,
     timeStatus: 'ORDER_ONLY',
     sourceLocators: [],
+  );
+
+  static const block2 = model.Block(
+    id: 'B2',
+    themeId: 'T2',
+    order: 1,
+    title: 'Blok 2',
+    skillDomain: 'Okuma',
+    learningArea: null,
+    plannedHours: null,
+    timeStatus: 'ORDER_ONLY',
+    sourceLocators: [],
+  );
+
+  static const outcome1 = model.Outcome(
+    id: 'O1',
+    themeId: 'T1',
+    code: 'T1.1',
+    officialText: 'Tema 1 kazanımı',
+    processComponents: null,
+    sourceLocator: null,
+    verificationStatus: 'PASS',
+  );
+
+  static const outcome2 = model.Outcome(
+    id: 'O2',
+    themeId: 'T2',
+    code: 'T2.1',
+    officialText: 'Tema 2 kazanımı',
+    processComponents: null,
+    sourceLocator: null,
+    verificationStatus: 'PASS',
   );
 
   static const book = model.TextbookSection(
@@ -181,7 +411,7 @@ class _ResourceRepository implements CourseKnowledgeRepository {
   static const package1 = model.TeacherPackage(
     theme: theme1,
     blocks: [block],
-    outcomes: [],
+    outcomes: [outcome1],
     textbookSections: [book],
     activities: [activity],
     forms: [],
@@ -194,8 +424,8 @@ class _ResourceRepository implements CourseKnowledgeRepository {
 
   static const package2 = model.TeacherPackage(
     theme: theme2,
-    blocks: [],
-    outcomes: [],
+    blocks: [block2],
+    outcomes: [outcome2],
     textbookSections: [],
     activities: [],
     forms: [],
@@ -206,20 +436,53 @@ class _ResourceRepository implements CourseKnowledgeRepository {
     sourceReferences: [source2],
   );
 
+  static const detail1 = model.BlockDetail(
+    theme: theme1,
+    block: block,
+    outcomes: [outcome1],
+    textbookSections: [book],
+    activities: [activity],
+    forms: [],
+    assessmentArtifacts: [],
+    assessmentGaps: [],
+    assessmentTaskBindings: [],
+    resourceDecisions: [],
+    sourceReferences: [source1],
+    previousBlock: null,
+    nextBlock: null,
+  );
+
+  static const detail2 = model.BlockDetail(
+    theme: theme2,
+    block: block2,
+    outcomes: [outcome2],
+    textbookSections: [],
+    activities: [],
+    forms: [],
+    assessmentArtifacts: [],
+    assessmentGaps: [],
+    assessmentTaskBindings: [],
+    resourceDecisions: [],
+    sourceReferences: [source2],
+    previousBlock: null,
+    nextBlock: null,
+  );
+
   @override
   Future<model.Course> getCourse() async => course;
 
   @override
-  Future<model.RuntimeManifest> getManifest() async => const model.RuntimeManifest(
-    runtimePackageVersion: '1.0.0',
-    schemaVersion: '1.0.0',
-    courseId: 'TDE_9',
-    validationStatus: 'PASS',
-    canonicalContentFingerprint: 'test',
-    rowCounts: {},
-    timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
-    timelineUnresolvedFields: {},
-  );
+  Future<model.RuntimeManifest> getManifest() async =>
+      const model.RuntimeManifest(
+        runtimePackageVersion: '1.0.0',
+        schemaVersion: '1.0.0',
+        courseId: 'TDE_9',
+        validationStatus: 'PASS',
+        canonicalContentFingerprint: 'test',
+        rowCounts: {},
+        timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
+        timelineUnresolvedFields: {},
+      );
 
   @override
   Future<List<model.Theme>> getThemes() async => const [theme1, theme2];
@@ -233,21 +496,8 @@ class _ResourceRepository implements CourseKnowledgeRepository {
       themeId == theme1.id ? const [block] : const [];
 
   @override
-  Future<model.BlockDetail> getBlock(String blockId) async => const model.BlockDetail(
-    theme: theme1,
-    block: block,
-    outcomes: [],
-    textbookSections: [book],
-    activities: [activity],
-    forms: [],
-    assessmentArtifacts: [],
-    assessmentGaps: [],
-    assessmentTaskBindings: [],
-    resourceDecisions: [],
-    sourceReferences: [source1],
-    previousBlock: null,
-    nextBlock: null,
-  );
+  Future<model.BlockDetail> getBlock(String blockId) async =>
+      blockId == block2.id ? detail2 : detail1;
 
   @override
   Future<List<model.TimelineEntry>> getAnnualSequence() async => const [
@@ -263,8 +513,9 @@ class _ResourceRepository implements CourseKnowledgeRepository {
   ];
 
   @override
-  Future<List<model.ResourceDecision>> getResourceDecisions(String themeId) async =>
-      const [];
+  Future<List<model.ResourceDecision>> getResourceDecisions(
+    String themeId,
+  ) async => const [];
 
   @override
   Future<model.TeacherPackage> getTeacherPackage(String themeId) async =>

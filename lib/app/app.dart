@@ -85,9 +85,8 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
     theme: AppTheme.light(),
     darkTheme: AppTheme.dark(),
     themeMode: ThemeMode.system,
-    builder: (context, child) => AppFocusDismissRegion(
-      child: child ?? const SizedBox.shrink(),
-    ),
+    builder: (context, child) =>
+        AppFocusDismissRegion(child: child ?? const SizedBox.shrink()),
     home: FutureBuilder<AppDependencies>(
       future: _dependenciesFuture,
       builder: (context, snapshot) {
@@ -253,6 +252,10 @@ class _AppShellState extends State<_AppShell> {
       ResourceLibraryPage(
         repository: repository,
         awaitingTextbook: activeCourse.isAwaitingTextbook,
+        continuity: _continuity,
+        outcomePlanning: _outcomePlanning,
+        courseId: widget.activeCourseId,
+        active: widget.selectedIndex == 2,
       ),
     ];
 
@@ -327,9 +330,8 @@ class _AppShellState extends State<_AppShell> {
                         const SizedBox(width: 6),
                         Text(
                           '${activeCourse.grade}. Sınıf',
-                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(width: 2),
                         const Icon(Icons.arrow_drop_down),
