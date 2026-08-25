@@ -62,10 +62,16 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
     bool completionHaptic = false,
   }) async {
     try {
+      final before = await widget.service.captureTracking(item);
       await widget.service.setStatus(item, status);
       if (!mounted) return;
       if (completionHaptic) HapticFeedback.mediumImpact();
       _reload();
+      showTeacherUndoFeedback(
+        context,
+        _statusChangeMessage(status),
+        onUndo: () => _undoTracking(item, before),
+      );
     } on Object {
       _showError();
     }
@@ -84,17 +90,36 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
   }
 
   Future<void> _completeAll(WeeklyOutcomeSummary summary) async {
+    final undoEntries = <_TrackingUndoEntry>[];
     try {
       for (final item in summary.outcomes) {
         if (_isCarriedOut(item)) continue;
         if (item.presentationStatus != OutcomeTrackingStatus.completed) {
+          undoEntries.add(
+            _TrackingUndoEntry(
+              item: item,
+              record: await widget.service.captureTracking(item),
+            ),
+          );
           await widget.service.setStatus(item, OutcomeTrackingStatus.completed);
         }
       }
       if (!mounted) return;
       HapticFeedback.mediumImpact();
       _reload();
+      showTeacherUndoFeedback(
+        context,
+        '${undoEntries.length} kazanım işlendi olarak işaretlendi.',
+        onUndo: () => _undoMany(undoEntries),
+      );
     } on Object {
+      for (final entry in undoEntries.reversed) {
+        try {
+          await widget.service.restoreTracking(entry.item, entry.record);
+        } on Object {
+          // Best-effort rollback; the visible error below remains authoritative.
+        }
+      }
       _showError();
     }
   }
@@ -123,10 +148,15 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
     if (note == null) return;
 
     try {
+      final before = await widget.service.captureTracking(item);
       await widget.service.saveTeacherNote(item, note);
       if (!mounted) return;
-      showTeacherFeedback(context, 'Not kaydedildi.');
       _reload();
+      showTeacherUndoFeedback(
+        context,
+        'Not kaydedildi.',
+        onUndo: () => _undoTracking(item, before),
+      );
     } on Object {
       _showError();
     }
@@ -144,6 +174,7 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
     }
 
     try {
+      final before = await widget.service.captureTracking(item);
       await widget.service.carryToWeek(
         item: item,
         targetWeekNumber: target,
@@ -151,8 +182,47 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
       );
       if (!mounted) return;
       HapticFeedback.mediumImpact();
-      showTeacherFeedback(context, '$target. haftaya taşındı.');
       _reload();
+      showTeacherUndoFeedback(
+        context,
+        '$target. haftaya taşındı.',
+        onUndo: () => _undoTracking(item, before),
+      );
+    } on Object {
+      _showError();
+    }
+  }
+
+  Future<void> _undoTracking(
+    TrackedOutcome item,
+    LearningOutcomeTrackingRecord? record,
+  ) async {
+    try {
+      await widget.service.restoreTracking(
+        item,
+        record,
+        displayWeekNumber: item.displayWeekNumber,
+      );
+      if (!mounted) return;
+      _reload();
+      showTeacherFeedback(context, 'Değişiklik geri alındı.');
+    } on Object {
+      _showError();
+    }
+  }
+
+  Future<void> _undoMany(List<_TrackingUndoEntry> entries) async {
+    try {
+      for (final entry in entries) {
+        await widget.service.restoreTracking(
+          entry.item,
+          entry.record,
+          displayWeekNumber: entry.item.displayWeekNumber,
+        );
+      }
+      if (!mounted) return;
+      _reload();
+      showTeacherFeedback(context, 'Toplu işlem geri alındı.');
     } on Object {
       _showError();
     }
@@ -1098,6 +1168,13 @@ class _QuickNoteSheetState extends State<_QuickNoteSheet> {
   );
 }
 
+class _TrackingUndoEntry {
+  const _TrackingUndoEntry({required this.item, required this.record});
+
+  final TrackedOutcome item;
+  final LearningOutcomeTrackingRecord? record;
+}
+
 enum _OutcomeAction {
   inProgress,
   partiallyCompleted,
@@ -1147,6 +1224,14 @@ IconData _primaryActionIcon(TrackedOutcome item) =>
     item.presentationStatus == OutcomeTrackingStatus.planned
         ? Icons.play_arrow_rounded
         : Icons.check;
+
+String _statusChangeMessage(OutcomeTrackingStatus status) => switch (status) {
+  OutcomeTrackingStatus.planned => 'Planlı durumuna döndürüldü.',
+  OutcomeTrackingStatus.inProgress => 'Devam ediyor olarak işaretlendi.',
+  OutcomeTrackingStatus.completed => 'İşlendi olarak işaretlendi.',
+  OutcomeTrackingStatus.partiallyCompleted => 'Kısmen işlendi olarak işaretlendi.',
+  OutcomeTrackingStatus.carriedOver => 'Taşındı olarak işaretlendi.',
+};
 
 String _statusLabel(TrackedOutcome item) {
   if (item.isCarriedIn) return 'Geçen haftadan';

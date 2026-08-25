@@ -50,6 +50,50 @@ void main() {
     expect(plan.week(1)!.completedCount, 1);
   });
 
+  test('stale status mutation preserves the latest autosaved note', () async {
+    var plan = await service.buildPlan();
+    final staleItem = plan.week(1)!.outcomes.single;
+
+    await service.saveTeacherNote(staleItem, 'Yeni otomatik not');
+    await service.setStatus(staleItem, OutcomeTrackingStatus.completed);
+
+    plan = await service.buildPlan();
+    final current = plan.week(1)!.outcomes.single;
+    expect(current.status, OutcomeTrackingStatus.completed);
+    expect(current.teacherNote, 'Yeni otomatik not');
+  });
+
+  test('status undo preserves a note written after the status change', () async {
+    var plan = await service.buildPlan();
+    final item = plan.week(1)!.outcomes.single;
+    final before = await service.captureTracking(item);
+
+    await service.setStatus(item, OutcomeTrackingStatus.completed);
+    await service.saveTeacherNote(item, 'İşlemden sonra yazılan not');
+    await service.restoreTrackingStatus(item, before);
+
+    plan = await service.buildPlan();
+    final restored = plan.week(1)!.outcomes.single;
+    expect(restored.status, OutcomeTrackingStatus.planned);
+    expect(restored.teacherNote, 'İşlemden sonra yazılan not');
+    expect(restored.completedAt, isNull);
+  });
+
+  test('full snapshot restore can undo a teacher note replacement', () async {
+    var plan = await service.buildPlan();
+    var item = plan.week(1)!.outcomes.single;
+    await service.saveTeacherNote(item, 'İlk not');
+
+    plan = await service.buildPlan();
+    item = plan.week(1)!.outcomes.single;
+    final before = await service.captureTracking(item);
+    await service.saveTeacherNote(item, 'Yeni not');
+    await service.restoreTracking(item, before);
+
+    plan = await service.buildPlan();
+    expect(plan.week(1)!.outcomes.single.teacherNote, 'İlk not');
+  });
+
   test('carry-over preserves source plan and projects into target week', () async {
     var plan = await service.buildPlan();
     final source = plan.week(1)!.outcomes.single;

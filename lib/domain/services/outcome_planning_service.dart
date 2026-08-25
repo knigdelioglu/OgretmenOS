@@ -129,12 +129,91 @@ class OutcomePlanningService {
     );
   }
 
+  Future<LearningOutcomeTrackingRecord?> captureTracking(
+    TrackedOutcome item,
+  ) => _findCurrentRecord(item);
+
+  Future<void> restoreTracking(
+    TrackedOutcome item,
+    LearningOutcomeTrackingRecord? record, {
+    int? displayWeekNumber,
+  }) async {
+    if (record == null) {
+      await trackingRepository.delete(
+        academicYear: item.academicYear,
+        outcomeId: item.outcome.id,
+        plannedWeekNumber: item.plannedWeekNumber,
+      );
+    } else {
+      await trackingRepository.save(record);
+    }
+    await _notifyInteraction(
+      item,
+      record?.status ?? OutcomeTrackingStatus.planned,
+      displayWeekNumber ?? item.displayWeekNumber,
+    );
+  }
+
+  Future<void> restoreTrackingStatus(
+    TrackedOutcome item,
+    LearningOutcomeTrackingRecord? record, {
+    int? displayWeekNumber,
+  }) async {
+    final current = await _findCurrentRecord(item);
+    if (record == null) {
+      if (current == null) return;
+      if (_hasAuxiliaryState(current)) {
+        await trackingRepository.save(
+          LearningOutcomeTrackingRecord(
+            academicYear: current.academicYear,
+            outcomeId: current.outcomeId,
+            plannedWeekNumber: current.plannedWeekNumber,
+            status: OutcomeTrackingStatus.planned,
+            actualHours: current.actualHours,
+            teacherNote: current.teacherNote,
+            completedAt: null,
+            carriedToWeekNumber: null,
+            updatedAt: DateTime.now(),
+          ),
+        );
+      } else {
+        await trackingRepository.delete(
+          academicYear: item.academicYear,
+          outcomeId: item.outcome.id,
+          plannedWeekNumber: item.plannedWeekNumber,
+        );
+      }
+    } else {
+      await trackingRepository.save(
+        LearningOutcomeTrackingRecord(
+          academicYear: record.academicYear,
+          outcomeId: record.outcomeId,
+          plannedWeekNumber: record.plannedWeekNumber,
+          status: record.status,
+          actualHours: current?.actualHours ?? record.actualHours,
+          teacherNote: _cleanText(current?.teacherNote ?? record.teacherNote),
+          completedAt: record.completedAt,
+          carriedToWeekNumber: record.carriedToWeekNumber,
+          updatedAt: DateTime.now(),
+        ),
+      );
+    }
+    await _notifyInteraction(
+      item,
+      record?.status ?? OutcomeTrackingStatus.planned,
+      displayWeekNumber ?? item.displayWeekNumber,
+    );
+  }
+
   Future<void> setStatus(
     TrackedOutcome item,
     OutcomeTrackingStatus status,
   ) async {
+    final current = await _findCurrentRecord(item);
     final now = DateTime.now();
-    final keepCarry = item.carriedToWeekNumber != null &&
+    final carriedToWeekNumber =
+        current?.carriedToWeekNumber ?? item.carriedToWeekNumber;
+    final keepCarry = carriedToWeekNumber != null &&
         status != OutcomeTrackingStatus.planned;
     await trackingRepository.save(
       LearningOutcomeTrackingRecord(
@@ -142,10 +221,10 @@ class OutcomePlanningService {
         outcomeId: item.outcome.id,
         plannedWeekNumber: item.plannedWeekNumber,
         status: status,
-        actualHours: item.actualHours,
-        teacherNote: _cleanText(item.teacherNote),
+        actualHours: current?.actualHours ?? item.actualHours,
+        teacherNote: _cleanText(current?.teacherNote ?? item.teacherNote),
         completedAt: status == OutcomeTrackingStatus.completed ? now : null,
-        carriedToWeekNumber: keepCarry ? item.carriedToWeekNumber : null,
+        carriedToWeekNumber: keepCarry ? carriedToWeekNumber : null,
         updatedAt: now,
       ),
     );
@@ -153,42 +232,54 @@ class OutcomePlanningService {
   }
 
   Future<void> saveTeacherNote(TrackedOutcome item, String? note) async {
+    final current = await _findCurrentRecord(item);
     final now = DateTime.now();
     await trackingRepository.save(
       LearningOutcomeTrackingRecord(
         academicYear: item.academicYear,
         outcomeId: item.outcome.id,
         plannedWeekNumber: item.plannedWeekNumber,
-        status: item.status,
-        actualHours: item.actualHours,
+        status: current?.status ?? item.status,
+        actualHours: current?.actualHours ?? item.actualHours,
         teacherNote: _cleanText(note),
-        completedAt: item.completedAt,
-        carriedToWeekNumber: item.carriedToWeekNumber,
+        completedAt: current?.completedAt ?? item.completedAt,
+        carriedToWeekNumber:
+            current?.carriedToWeekNumber ?? item.carriedToWeekNumber,
         updatedAt: now,
       ),
     );
-    await _notifyInteraction(item, item.status, item.displayWeekNumber);
+    await _notifyInteraction(
+      item,
+      current?.status ?? item.status,
+      item.displayWeekNumber,
+    );
   }
 
   Future<void> saveActualHours(TrackedOutcome item, int? hours) async {
     if (hours != null && hours < 0) {
       throw ArgumentError.value(hours, 'hours', 'Negatif olamaz.');
     }
+    final current = await _findCurrentRecord(item);
     final now = DateTime.now();
     await trackingRepository.save(
       LearningOutcomeTrackingRecord(
         academicYear: item.academicYear,
         outcomeId: item.outcome.id,
         plannedWeekNumber: item.plannedWeekNumber,
-        status: item.status,
+        status: current?.status ?? item.status,
         actualHours: hours,
-        teacherNote: _cleanText(item.teacherNote),
-        completedAt: item.completedAt,
-        carriedToWeekNumber: item.carriedToWeekNumber,
+        teacherNote: _cleanText(current?.teacherNote ?? item.teacherNote),
+        completedAt: current?.completedAt ?? item.completedAt,
+        carriedToWeekNumber:
+            current?.carriedToWeekNumber ?? item.carriedToWeekNumber,
         updatedAt: now,
       ),
     );
-    await _notifyInteraction(item, item.status, item.displayWeekNumber);
+    await _notifyInteraction(
+      item,
+      current?.status ?? item.status,
+      item.displayWeekNumber,
+    );
   }
 
   Future<void> carryToWeek({
@@ -210,6 +301,7 @@ class OutcomePlanningService {
     if (targetWeekNumber <= item.plannedWeekNumber) {
       throw StateError('Kazanım yalnız daha sonraki bir öğretim haftasına taşınabilir.');
     }
+    final current = await _findCurrentRecord(item);
     final now = DateTime.now();
     await trackingRepository.save(
       LearningOutcomeTrackingRecord(
@@ -217,8 +309,8 @@ class OutcomePlanningService {
         outcomeId: item.outcome.id,
         plannedWeekNumber: item.plannedWeekNumber,
         status: OutcomeTrackingStatus.carriedOver,
-        actualHours: item.actualHours,
-        teacherNote: _cleanText(item.teacherNote),
+        actualHours: current?.actualHours ?? item.actualHours,
+        teacherNote: _cleanText(current?.teacherNote ?? item.teacherNote),
         completedAt: null,
         carriedToWeekNumber: targetWeekNumber,
         updatedAt: now,
@@ -236,6 +328,21 @@ class OutcomePlanningService {
     outcomeId: item.outcome.id,
     plannedWeekNumber: item.plannedWeekNumber,
   );
+
+  Future<LearningOutcomeTrackingRecord?> _findCurrentRecord(
+    TrackedOutcome item,
+  ) async {
+    final records = await trackingRepository.getForAcademicYear(
+      item.academicYear,
+    );
+    for (final record in records) {
+      if (_recordKey(record) == item.trackingKey) return record;
+    }
+    return null;
+  }
+
+  bool _hasAuxiliaryState(LearningOutcomeTrackingRecord record) =>
+      record.actualHours != null || record.teacherNote != null;
 
   Future<void> _notifyInteraction(
     TrackedOutcome item,
