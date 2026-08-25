@@ -1,0 +1,72 @@
+name: ADHD Phase 5 Annual Continuity Patch
+
+on:
+  push:
+    branches:
+      - ux/adhd-phase-5-annual-continuity
+    paths:
+      - tool/apply_adhd_phase5_annual_continuity.py
+      - .github/workflows/adhd-phase5-annual-continuity-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ux/adhd-phase-5-annual-continuity
+
+      - name: Apply phase 5 patch
+        run: |
+          python3 tool/apply_adhd_phase5_annual_continuity.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('test/adhd_phase5_annual_continuity_test.dart')
+          text = path.read_text()
+          text = text.replace(
+              "      const LastFocusState(\n        courseId: 'TDE_9',\n        academicYear: '2026-2027',\n        weekNumber: 1,\n        trackingKey: 'TDE_9|O2',\n        outcomeCode: 'TEST.2',\n        themeTitle: 'Test Tema',\n        blockId: 'B2',\n        blockTitle: 'İkinci Blok',\n        updatedAt: _oldFocusTime,\n      ),",
+              "      LastFocusState(\n        courseId: 'TDE_9',\n        academicYear: '2026-2027',\n        weekNumber: 1,\n        trackingKey: 'TDE_9|O2',\n        outcomeCode: 'TEST.2',\n        themeTitle: 'Test Tema',\n        blockId: 'B2',\n        blockTitle: 'İkinci Blok',\n        updatedAt: _oldFocusTime,\n      ),",
+          )
+          text = text.replace(
+              'const _oldFocusTime = DateTime.utc(2020, 1, 1);',
+              'final _oldFocusTime = DateTime.utc(2020, 1, 1);',
+          )
+          path.write_text(text)
+          PY
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Format changed Dart files
+        run: dart format lib/data/preferences/user_preferences_repository.dart lib/features/annual_plan/annual_plan_page.dart test/user_preferences_test.dart test/adhd_phase5_annual_continuity_test.dart
+
+      - name: Run focused regression tests
+        run: flutter test test/user_preferences_test.dart test/adhd_phase5_annual_continuity_test.dart test/widget_test.dart test/responsive_accessibility_test.dart --reporter expanded
+
+      - name: Analyze changed UI and preferences
+        run: flutter analyze lib/data/preferences/user_preferences_repository.dart lib/features/annual_plan/annual_plan_page.dart test/adhd_phase5_annual_continuity_test.dart
+
+      - name: Remove temporary patch machinery
+        run: |
+          rm -f tool/apply_adhd_phase5_annual_continuity.py
+          rm -f .github/workflows/adhd-phase5-annual-continuity-patch.yml
+          git checkout -- analysis_options.yaml pubspec.lock || true
+
+      - name: Commit phase 5 patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "feat(ux): make annual position follow latest lesson context"
+          git push origin HEAD:ux/adhd-phase-5-annual-continuity
