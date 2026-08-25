@@ -24,7 +24,7 @@ void main() {
     expect(find.text('Ders Bloğu'), findsOneWidget);
     expect(find.text('Derste lazım'), findsOneWidget);
     expect(find.text('TEST.1'), findsOneWidget);
-    expect(find.text('TEST SÜREÇ BİLEŞENİ'), findsNothing);
+    expect(find.textContaining('TEST SÜREÇ BİLEŞENİ'), findsNothing);
     expect(find.text('Program çıktıları'), findsNothing);
 
     final more = find.text('Daha fazla bilgi');
@@ -45,7 +45,7 @@ void main() {
     expect(find.text('Değerlendirme'), findsOneWidget);
     expect(find.text('Materyal kararları'), findsOneWidget);
     expect(find.text('Kaynak referansları'), findsOneWidget);
-    expect(find.text('TEST SÜREÇ BİLEŞENİ'), findsNothing);
+    expect(find.textContaining('TEST SÜREÇ BİLEŞENİ'), findsNothing);
 
     final outcomes = find.text('Program çıktıları');
     await tester.ensureVisible(outcomes);
@@ -53,7 +53,11 @@ void main() {
     await tester.tap(outcomes);
     await tester.pumpAndSettle();
 
-    expect(find.text('TEST SÜREÇ BİLEŞENİ'), findsOneWidget);
+    expect(
+      find.text('a) TEST.1.1 — TEST SÜREÇ BİLEŞENİ'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('"component_code"'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -135,7 +139,8 @@ class _BlockDetailRepository implements CourseKnowledgeRepository {
     themeId: 'TEST_THEME',
     code: 'TEST.1',
     officialText: 'İlk test kazanımı',
-    processComponents: 'TEST SÜREÇ BİLEŞENİ',
+    processComponents:
+        '[{"component_code":"a) TEST.1.1","component_title":"Belirler.","component_verbatim":"TEST SÜREÇ BİLEŞENİ","source_locator":"s. 66"}]',
     sourceLocator: null,
     verificationStatus: 'PASS',
   );
