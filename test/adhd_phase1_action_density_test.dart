@@ -54,7 +54,8 @@ void main() {
     expect(find.text('Kısmen işlendi'), findsOneWidget);
     expect(find.text('Devam ediyor'), findsNothing);
     expect(find.text('İşlendi'), findsNothing);
-    expect(find.text('Planlı'), findsOneWidget);
+    expect(find.text('Planlı'), findsNothing);
+    expect(find.text('Planlıya döndür'), findsNothing);
     expect(find.text('Başka haftaya taşı'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
