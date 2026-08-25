@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../data/preferences/continuity_repository.dart';
 import '../../data/preferences/user_preferences_repository.dart';
 import '../../domain/models/course_models.dart' as model;
+import '../../domain/models/outcome_tracking_models.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
+import '../../domain/services/outcome_planning_service.dart';
 import '../block/block_detail_page.dart';
 import '../shared/feature_widgets.dart';
 
@@ -14,12 +16,14 @@ class AnnualPlanPage extends StatefulWidget {
     required this.preferences,
     required this.continuity,
     required this.courseId,
+    this.outcomePlanning,
   });
 
   final CourseKnowledgeRepository repository;
   final UserPreferencesRepository preferences;
   final ContinuityRepository continuity;
   final String courseId;
+  final OutcomePlanningService? outcomePlanning;
 
   @override
   State<AnnualPlanPage> createState() => _AnnualPlanPageState();
@@ -44,6 +48,7 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
     final sequence = await widget.repository.getAnnualSequence();
     final manual = await _getManualPosition();
     final lastFocus = await widget.continuity.getLastFocus(widget.courseId);
+    final trackingSummary = await _loadTrackingSummary();
     var manualBlockId =
         sequence.any((entry) => entry.block.id == manual?.blockId)
         ? manual?.blockId
@@ -67,7 +72,24 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
       sequence: sequence,
       manualBlockId: manualBlockId,
       automaticBlockId: automaticBlockId,
+      trackingSummary: trackingSummary,
     );
+  }
+
+  Future<_OptionalTrackingSummary?> _loadTrackingSummary() async {
+    final service = widget.outcomePlanning;
+    if (service == null) return null;
+    try {
+      final weeklyPlan = await service.weeklyPlanning.buildPlan();
+      final records = await service.trackingRepository.getForAcademicYear(
+        weeklyPlan.academicYear,
+      );
+      final summary = _OptionalTrackingSummary.fromRecords(records);
+      return summary.hasExplicitStatus ? summary : null;
+    } on Object {
+      // Optional tracking summary must never block the annual lesson sequence.
+      return null;
+    }
   }
 
   Future<ManualPositionOverrideState?> _getManualPosition() async {
@@ -170,6 +192,7 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
             annualHours: annualHours,
             activeEntry: activeEntry,
             isManualPosition: isManualPosition,
+            trackingSummary: data.trackingSummary,
             onClear: _clearPosition,
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -208,11 +231,13 @@ class _PlanData {
     required this.sequence,
     required this.manualBlockId,
     required this.automaticBlockId,
+    required this.trackingSummary,
   });
 
   final List<model.TimelineEntry> sequence;
   final String? manualBlockId;
   final String? automaticBlockId;
+  final _OptionalTrackingSummary? trackingSummary;
 }
 
 class _AnnualSummary extends StatelessWidget {
@@ -222,6 +247,7 @@ class _AnnualSummary extends StatelessWidget {
     required this.annualHours,
     required this.activeEntry,
     required this.isManualPosition,
+    required this.trackingSummary,
     required this.onClear,
   });
 
@@ -230,6 +256,7 @@ class _AnnualSummary extends StatelessWidget {
   final int annualHours;
   final model.TimelineEntry? activeEntry;
   final bool isManualPosition;
+  final _OptionalTrackingSummary? trackingSummary;
   final VoidCallback onClear;
 
   @override
@@ -298,26 +325,130 @@ class _AnnualSummary extends StatelessWidget {
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  LinearProgressIndicator(
-                    value: activeEntry!.sequencePosition / blockCount,
-                    minHeight: 8,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
                   Text(
-                    '${activeEntry!.sequencePosition} / $blockCount blok',
+                    'Öğretim sırası: ${activeEntry!.sequencePosition}. blok / $blockCount',
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Bu konum bir ilerleme veya tamamlanma yüzdesi değildir.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
           ],
+          if (trackingSummary != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            _OptionalTrackingPanel(summary: trackingSummary!),
+          ],
         ],
       ),
     ),
   );
+}
+
+class _OptionalTrackingSummary {
+  const _OptionalTrackingSummary({
+    required this.completed,
+    required this.inProgress,
+    required this.partiallyCompleted,
+    required this.carriedOver,
+  });
+
+  factory _OptionalTrackingSummary.fromRecords(
+    List<LearningOutcomeTrackingRecord> records,
+  ) {
+    var completed = 0;
+    var inProgress = 0;
+    var partiallyCompleted = 0;
+    var carriedOver = 0;
+    for (final record in records) {
+      switch (record.status) {
+        case OutcomeTrackingStatus.completed:
+          completed++;
+        case OutcomeTrackingStatus.inProgress:
+          inProgress++;
+        case OutcomeTrackingStatus.partiallyCompleted:
+          partiallyCompleted++;
+        case OutcomeTrackingStatus.carriedOver:
+          carriedOver++;
+        case OutcomeTrackingStatus.planned:
+          break;
+      }
+    }
+    return _OptionalTrackingSummary(
+      completed: completed,
+      inProgress: inProgress,
+      partiallyCompleted: partiallyCompleted,
+      carriedOver: carriedOver,
+    );
+  }
+
+  final int completed;
+  final int inProgress;
+  final int partiallyCompleted;
+  final int carriedOver;
+
+  bool get hasExplicitStatus =>
+      completed + inProgress + partiallyCompleted + carriedOver > 0;
+}
+
+class _OptionalTrackingPanel extends StatelessWidget {
+  const _OptionalTrackingPanel({required this.summary});
+
+  final _OptionalTrackingSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'İSTEĞE BAĞLI TAKİP',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              if (summary.completed > 0)
+                Chip(label: Text('İşlendi ${summary.completed}')),
+              if (summary.inProgress > 0)
+                Chip(label: Text('Devam ediyor ${summary.inProgress}')),
+              if (summary.partiallyCompleted > 0)
+                Chip(label: Text('Kısmen ${summary.partiallyCompleted}')),
+              if (summary.carriedOver > 0)
+                Chip(label: Text('Taşındı ${summary.carriedOver}')),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Yalnız senin açıkça işaretlediğin durumları özetler; işaretlenmemiş kazanımlar eksik sayılmaz.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ThemePlanCard extends StatelessWidget {
@@ -377,7 +508,7 @@ class _ThemePlanCard extends StatelessWidget {
               ),
               title: Text(entries[i].block.title),
               subtitle: Text(
-                '${entries[i].sequencePosition} / $totalBlocks',
+                'Sıra ${entries[i].sequencePosition} / $totalBlocks',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               trailing: IconButton(

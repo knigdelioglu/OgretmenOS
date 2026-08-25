@@ -26,6 +26,8 @@ void main() {
     expect(find.text('TEST.1'), findsOneWidget);
     expect(find.text('TEST.2'), findsNothing);
     expect(find.text('TEST.3'), findsNothing);
+    expect(find.text('Planlı'), findsNothing);
+    expect(find.textContaining('Takip:'), findsNothing);
     expect(find.widgetWithText(FilledButton, 'Başla'), findsNothing);
     expect(find.widgetWithText(FilledButton, 'İşlendi'), findsNothing);
     expect(await tracking.getForAcademicYear('2026-2027'), isEmpty);
@@ -121,7 +123,7 @@ void main() {
 
     expect(find.text('TEST.1'), findsNothing);
 
-    final completedGroup = find.text('Tamamlananlar');
+    final completedGroup = find.text('İşlendi olarak işaretlenenler');
     await tester.scrollUntilVisible(
       completedGroup,
       300,
@@ -180,7 +182,7 @@ void main() {
     final records = await tracking.getForAcademicYear('2026-2027');
     expect(records, hasLength(1));
     expect(records.single.status.storageValue, 'partially_completed');
-    expect(find.text('Kısmen işlendi'), findsOneWidget);
+    expect(find.text('Takip: Kısmen işlendi'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'İşlendi'), findsNothing);
   });
 
@@ -239,7 +241,7 @@ void main() {
 
     expect(find.text('Öğretmen notu'), findsOneWidget);
     expect(find.text('Takip seçenekleri'), findsOneWidget);
-    expect(find.text('İsteğe bağlı · Planlı'), findsOneWidget);
+    expect(find.text('İsteğe bağlı · Takip yok'), findsOneWidget);
     expect(find.text('Süreç bileşenleri'), findsOneWidget);
     expect(find.text('Plan ve blok bağlamı'), findsOneWidget);
     expect(find.text('TEST SÜREÇ BİLEŞENİ'), findsNothing);
@@ -264,6 +266,44 @@ void main() {
     expect(find.text('TEST TEMA'), findsOneWidget);
     expect(find.text('Test Blok'), findsOneWidget);
     expect(find.textContaining('Bu blok için ayrı süre bilgisi'), findsNothing);
+  });
+
+  testWidgets('Faz 6 konum ile isteğe bağlı takibi birbirine karıştırmaz', (
+    tester,
+  ) async {
+    _phone(tester);
+    final tracking = MemoryOutcomeTrackingRepository();
+    await _pump(tester, tracking: tracking);
+
+    // Viewing a lesson creates continuity only; it is not teacher progress.
+    await tester.tap(find.text('Ders ayrıntısını aç'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Geri'));
+    await tester.pumpAndSettle();
+
+    // An explicit teacher action creates optional tracking.
+    await tester.tap(find.byTooltip('Kazanım işlemleri'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('İşlendi olarak işaretle'));
+    await tester.pumpAndSettle();
+
+    await _tapNavigation(tester, Icons.view_timeline_outlined);
+    await tester.pumpAndSettle();
+
+    expect(find.text('ŞU AN BURADASIN'), findsOneWidget);
+    expect(find.text('Öğretim sırası: 1. blok / 1'), findsOneWidget);
+    expect(
+      find.text('Bu konum bir ilerleme veya tamamlanma yüzdesi değildir.'),
+      findsOneWidget,
+    );
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(find.text('İSTEĞE BAĞLI TAKİP'), findsOneWidget);
+    expect(find.text('İşlendi 1'), findsOneWidget);
+    expect(
+      find.textContaining('işaretlenmemiş kazanımlar eksik sayılmaz'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('%'), findsNothing);
   });
 
   testWidgets('ana navigasyon yalnız üç öğretmen işini gösterir', (
