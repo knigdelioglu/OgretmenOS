@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../data/preferences/continuity_repository.dart';
 import '../../domain/models/course_models.dart' as model;
+import '../../domain/models/outcome_tracking_models.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
+import '../../domain/services/outcome_planning_service.dart';
 import '../shared/feature_widgets.dart';
 
 class ResourceLibraryPage extends StatefulWidget {
@@ -9,10 +12,18 @@ class ResourceLibraryPage extends StatefulWidget {
     super.key,
     required this.repository,
     required this.awaitingTextbook,
+    this.continuity,
+    this.outcomePlanning,
+    this.courseId,
+    this.active = true,
   });
 
   final CourseKnowledgeRepository repository;
   final bool awaitingTextbook;
+  final ContinuityRepository? continuity;
+  final OutcomePlanningService? outcomePlanning;
+  final String? courseId;
+  final bool active;
 
   @override
   State<ResourceLibraryPage> createState() => _ResourceLibraryPageState();
@@ -28,17 +39,130 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
     _future = _load();
   }
 
+  @override
+  void didUpdateWidget(covariant ResourceLibraryPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.active && widget.active) {
+      _selectedThemeId = null;
+      _future = _load();
+    }
+  }
+
   Future<_ResourceData> _load() async {
     final themes = await widget.repository.getThemes();
     if (themes.isEmpty) return const _ResourceData(themes: [], package: null);
-    final selected = _selectedThemeId != null &&
-            themes.any((theme) => theme.id == _selectedThemeId)
-        ? _selectedThemeId!
-        : themes.first.id;
+
+    final explicitThemeId = _selectedThemeId;
+    if (explicitThemeId != null &&
+        themes.any((theme) => theme.id == explicitThemeId)) {
+      final package = await widget.repository.getTeacherPackage(
+        explicitThemeId,
+      );
+      return _ResourceData(
+        themes: themes,
+        package: package,
+        context: _LessonResourceContext(
+          kind: _ResourceContextKind.manual,
+          themeId: package.theme.id,
+          themeTitle: package.theme.title,
+        ),
+      );
+    }
+
+    final resolvedContext = await _resolveLessonContext(themes);
+    final selectedThemeId = resolvedContext?.themeId ?? themes.first.id;
+    final package = await widget.repository.getTeacherPackage(selectedThemeId);
     return _ResourceData(
       themes: themes,
-      package: await widget.repository.getTeacherPackage(selected),
+      package: package,
+      context:
+          resolvedContext ??
+          _LessonResourceContext(
+            kind: _ResourceContextKind.fallback,
+            themeId: package.theme.id,
+            themeTitle: package.theme.title,
+          ),
     );
+  }
+
+  Future<_LessonResourceContext?> _resolveLessonContext(
+    List<model.Theme> themes,
+  ) async {
+    final continuity = widget.continuity;
+    final outcomePlanning = widget.outcomePlanning;
+    final courseId = widget.courseId;
+    if (continuity == null || outcomePlanning == null || courseId == null) {
+      return null;
+    }
+
+    try {
+      final plan = await outcomePlanning.buildPlan();
+      LastFocusState? stored;
+      try {
+        stored = await continuity.getLastFocus(courseId);
+      } on Object {
+        stored = null;
+      }
+
+      if (stored != null && stored.academicYear == plan.academicYear) {
+        final item = _findTrackedOutcome(plan, stored.trackingKey);
+        final theme = item?.primaryTheme;
+        if (item != null &&
+            theme != null &&
+            themes.any((candidate) => candidate.id == theme.id)) {
+          return _LessonResourceContext(
+            kind: _ResourceContextKind.lastViewed,
+            themeId: theme.id,
+            themeTitle: theme.title,
+            blockTitle: item.primaryBlock?.title ?? stored.blockTitle,
+            outcomeCode: item.outcome.code,
+            weekNumber: item.displayWeekNumber,
+          );
+        }
+      }
+
+      final currentWeek = plan.currentWeek;
+      if (currentWeek == null) return null;
+
+      for (final item in currentWeek.outcomes) {
+        final theme = item.primaryTheme;
+        if (theme != null &&
+            themes.any((candidate) => candidate.id == theme.id)) {
+          return _LessonResourceContext(
+            kind: _ResourceContextKind.currentWeek,
+            themeId: theme.id,
+            themeTitle: theme.title,
+            blockTitle: item.primaryBlock?.title,
+            outcomeCode: item.outcome.code,
+            weekNumber: currentWeek.week.weekNumber,
+          );
+        }
+      }
+
+      for (final segment in currentWeek.week.segments) {
+        if (themes.any((candidate) => candidate.id == segment.theme.id)) {
+          return _LessonResourceContext(
+            kind: _ResourceContextKind.currentWeek,
+            themeId: segment.theme.id,
+            themeTitle: segment.theme.title,
+            blockTitle: segment.block?.title,
+            weekNumber: currentWeek.week.weekNumber,
+          );
+        }
+      }
+    } on Object {
+      // Context is a convenience layer; resource access must still work.
+    }
+    return null;
+  }
+
+  TrackedOutcome? _findTrackedOutcome(AnnualOutcomePlan plan, String key) {
+    for (final summary in plan.weeks) {
+      for (final item in summary.outcomes) {
+        if (item.trackingKey == key) return item;
+      }
+    }
+    return null;
   }
 
   void _selectTheme(String themeId) {
@@ -77,6 +201,14 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
       if (widget.awaitingTextbook) {
         return AppPage(
           children: [
+            _ThemeResourceFocus(
+              package: package,
+              primary: package.sourceReferences.isNotEmpty
+                  ? _ResourceKind.sources
+                  : null,
+              context: data.context!,
+            ),
+            const SizedBox(height: AppSpacing.md),
             _ThemeSelector(
               themes: data.themes,
               selectedThemeId: package.theme.id,
@@ -117,7 +249,8 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
       final hasBook = package.textbookSections.isNotEmpty;
       final hasActivities = package.activities.isNotEmpty;
       final hasForms = package.forms.isNotEmpty;
-      final hasAssessment = package.assessmentArtifacts.isNotEmpty ||
+      final hasAssessment =
+          package.assessmentArtifacts.isNotEmpty ||
           package.assessmentTaskBindings.isNotEmpty;
       final hasSources = package.sourceReferences.isNotEmpty;
       final primary = _primaryResource(
@@ -130,6 +263,12 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
 
       return AppPage(
         children: [
+          _ThemeResourceFocus(
+            package: package,
+            primary: primary,
+            context: data.context!,
+          ),
+          const SizedBox(height: AppSpacing.md),
           _ThemeSelector(
             themes: data.themes,
             selectedThemeId: package.theme.id,
@@ -141,7 +280,6 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
             const LinearProgressIndicator(),
           ],
           const SizedBox(height: AppSpacing.lg),
-          _ThemeResourceFocus(package: package, primary: primary),
           const SectionHeading(
             'Kaynaklar',
             subtitle: 'İlk yararlı bölüm açık; diğerlerini gerektiğinde aç',
@@ -191,7 +329,8 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
               initiallyExpanded: primary == _ResourceKind.assessment,
               child: _Assessments(package: package),
             ),
-          if (hasAssessment && hasSources) const SizedBox(height: AppSpacing.sm),
+          if (hasAssessment && hasSources)
+            const SizedBox(height: AppSpacing.sm),
           if (hasSources)
             _ResourceSection(
               key: ValueKey('${package.theme.id}:sources'),
@@ -224,11 +363,58 @@ _ResourceKind? _primaryResource({
   return null;
 }
 
+enum _ResourceContextKind { lastViewed, currentWeek, manual, fallback }
+
+class _LessonResourceContext {
+  const _LessonResourceContext({
+    required this.kind,
+    required this.themeId,
+    required this.themeTitle,
+    this.blockTitle,
+    this.outcomeCode,
+    this.weekNumber,
+  });
+
+  final _ResourceContextKind kind;
+  final String themeId;
+  final String themeTitle;
+  final String? blockTitle;
+  final String? outcomeCode;
+  final int? weekNumber;
+
+  String get eyebrow => switch (kind) {
+    _ResourceContextKind.lastViewed ||
+    _ResourceContextKind.currentWeek => 'ŞU ANKİ DERS',
+    _ResourceContextKind.manual => 'SEÇİLİ TEMA',
+    _ResourceContextKind.fallback => 'BU TEMADA HAZIR',
+  };
+
+  String? get detailLine {
+    final parts = <String>[
+      if (blockTitle?.trim().isNotEmpty == true) blockTitle!.trim(),
+      if (outcomeCode?.trim().isNotEmpty == true) outcomeCode!.trim(),
+    ];
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
+
+  String? get sourceLabel => switch (kind) {
+    _ResourceContextKind.lastViewed => 'Son görüntülenen ders',
+    _ResourceContextKind.currentWeek =>
+      weekNumber == null ? 'Bu haftanın planı' : '$weekNumber. hafta planı',
+    _ResourceContextKind.manual || _ResourceContextKind.fallback => null,
+  };
+}
+
 class _ResourceData {
-  const _ResourceData({required this.themes, required this.package});
+  const _ResourceData({
+    required this.themes,
+    required this.package,
+    this.context,
+  });
 
   final List<model.Theme> themes;
   final model.TeacherPackage? package;
+  final _LessonResourceContext? context;
 }
 
 class _ThemeSelector extends StatelessWidget {
@@ -249,7 +435,7 @@ class _ThemeSelector extends StatelessWidget {
     initialValue: selectedThemeId,
     isExpanded: true,
     decoration: const InputDecoration(
-      labelText: 'Tema',
+      labelText: 'Tema değiştir',
       prefixIcon: Icon(Icons.layers_outlined),
     ),
     items: [
@@ -268,15 +454,21 @@ class _ThemeSelector extends StatelessWidget {
 }
 
 class _ThemeResourceFocus extends StatelessWidget {
-  const _ThemeResourceFocus({required this.package, required this.primary});
+  const _ThemeResourceFocus({
+    required this.package,
+    required this.primary,
+    required this.context,
+  });
 
   final model.TeacherPackage package;
   final _ResourceKind? primary;
+  final _LessonResourceContext context;
 
   @override
   Widget build(BuildContext context) {
     final assessmentCount =
-        package.assessmentArtifacts.length + package.assessmentTaskBindings.length;
+        package.assessmentArtifacts.length +
+        package.assessmentTaskBindings.length;
     final counts = <Widget>[
       if (package.textbookSections.isNotEmpty)
         _ResourceCount(
@@ -308,7 +500,7 @@ class _ThemeResourceFocus extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'BU TEMADA HAZIR',
+              this.context.eyebrow,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 color: Theme.of(context).colorScheme.onPrimaryContainer,
                 fontWeight: FontWeight.w800,
@@ -322,6 +514,26 @@ class _ThemeResourceFocus extends StatelessWidget {
                 fontWeight: FontWeight.w800,
               ),
             ),
+            if (this.context.detailLine != null) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                this.context.detailLine!,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+            if (this.context.sourceLabel != null) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                this.context.sourceLabel!,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.sm),
             Text(
               _focusMessage(primary),
