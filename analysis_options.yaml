@@ -10,13 +10,6 @@
 analyzer:
   exclude:
     - tool/runtime_verifier/**
-    - build/**
-    - android/**
-    - ios/**
-    - web/**
-    - windows/**
-    - macos/**
-    - linux/**
 
 # The following line activates a set of recommended lints for Flutter apps,
 # packages, and plugins designed to encourage good coding practices.
