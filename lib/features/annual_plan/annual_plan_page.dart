@@ -80,11 +80,22 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
     final service = widget.outcomePlanning;
     if (service == null) return null;
     try {
-      final weeklyPlan = await service.weeklyPlanning.buildPlan();
+      final plan = await service.buildPlan();
+      final courseTrackingKeys = <String>{
+        for (final week in plan.weeks)
+          for (final item in week.outcomes) item.trackingKey,
+      };
       final records = await service.trackingRepository.getForAcademicYear(
-        weeklyPlan.academicYear,
+        plan.academicYear,
       );
-      final summary = _OptionalTrackingSummary.fromRecords(records);
+      final scopedRecords = records
+          .where(
+            (record) => courseTrackingKeys.contains(
+              '${record.academicYear}:${record.outcomeId}:${record.plannedWeekNumber}',
+            ),
+          )
+          .toList();
+      final summary = _OptionalTrackingSummary.fromRecords(scopedRecords);
       return summary.hasExplicitStatus ? summary : null;
     } on Object {
       // Optional tracking summary must never block the annual lesson sequence.
