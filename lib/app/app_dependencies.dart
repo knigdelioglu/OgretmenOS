@@ -6,7 +6,6 @@ import '../data/course/course_knowledge_repository_impl.dart';
 import '../data/preferences/continuity_repository.dart';
 import '../data/preferences/user_preferences_repository.dart';
 import '../data/tracking/outcome_tracking_database.dart';
-import '../domain/models/outcome_tracking_models.dart';
 import '../domain/models/weekly_plan_models.dart';
 import '../domain/repositories/course_knowledge_repository.dart';
 import '../domain/services/outcome_planning_service.dart';
@@ -53,32 +52,6 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
       repository: repository,
       weeklyPlanning: weeklyPlanning,
       trackingRepository: trackingRepository,
-      onInteraction: (
-        item,
-        resultingStatus,
-        displayWeekNumber,
-      ) async {
-        if (resultingStatus == OutcomeTrackingStatus.completed) {
-          final current = await continuity.getLastFocus(courseId);
-          if (current?.trackingKey == item.trackingKey) {
-            await continuity.clearLastFocus(courseId);
-          }
-          return;
-        }
-        await continuity.setLastFocus(
-          LastFocusState(
-            courseId: courseId,
-            academicYear: item.academicYear,
-            weekNumber: displayWeekNumber,
-            trackingKey: item.trackingKey,
-            outcomeCode: item.outcome.code,
-            themeTitle: item.primaryTheme?.title,
-            blockId: item.primaryBlock?.id,
-            blockTitle: item.primaryBlock?.title,
-            updatedAt: DateTime.now(),
-          ),
-        );
-      },
     );
 
     return AppDependencies(
