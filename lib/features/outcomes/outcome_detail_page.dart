@@ -139,8 +139,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
     final moreSections = <Widget>[
       _DisclosureSection(
         title: 'Takip seçenekleri',
-        subtitle:
-            'İsteğe bağlı · ${outcomeStatusLabel(_item.presentationStatus)}',
+        subtitle: 'İsteğe bağlı · ${_optionalTrackingLabel(_item)}',
         icon: Icons.fact_check_outlined,
         child: Wrap(
           spacing: AppSpacing.sm,
@@ -163,7 +162,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
               ),
             if (_item.status != OutcomeTrackingStatus.planned)
               _StatusButton(
-                label: 'Planlıya döndür',
+                label: 'Takip durumunu temizle',
                 icon: Icons.restart_alt,
                 selected: false,
                 onPressed: () => _setStatus(OutcomeTrackingStatus.planned),
@@ -1089,7 +1088,7 @@ class _BlockContextCard extends StatelessWidget {
 }
 
 String _statusChangeMessage(OutcomeTrackingStatus status) => switch (status) {
-  OutcomeTrackingStatus.planned => 'Planlı durumuna döndürüldü.',
+  OutcomeTrackingStatus.planned => 'Takip durumu temizlendi.',
   OutcomeTrackingStatus.inProgress => 'Devam ediyor olarak işaretlendi.',
   OutcomeTrackingStatus.completed => 'İşlendi olarak işaretlendi.',
   OutcomeTrackingStatus.partiallyCompleted =>
@@ -1137,6 +1136,11 @@ String _activityCue(model.Activity activity, int count) {
   if (count > 1) parts.add('+${count - 1} etkinlik');
   return parts.join(' · ');
 }
+
+String _optionalTrackingLabel(TrackedOutcome item) =>
+    item.presentationStatus == OutcomeTrackingStatus.planned
+    ? 'Takip yok'
+    : outcomeStatusLabel(item.presentationStatus);
 
 List<T> _uniqueBy<T>(Iterable<T> items, String Function(T item) idOf) {
   final seen = <String>{};

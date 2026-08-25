@@ -248,6 +248,7 @@ class _AppShellState extends State<_AppShell> {
         preferences: widget.dependencies.preferences,
         continuity: _continuity,
         courseId: widget.activeCourseId,
+        outcomePlanning: _outcomePlanning,
       ),
       ResourceLibraryPage(
         repository: repository,

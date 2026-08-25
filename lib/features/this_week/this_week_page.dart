@@ -406,7 +406,7 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
             if (completed.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.md),
               _OutcomeGroup(
-                title: 'Tamamlananlar',
+                title: 'İşlendi olarak işaretlenenler',
                 subtitle: '${completed.length} kazanım',
                 icon: Icons.check_circle_outline,
                 items: completed,
@@ -458,8 +458,9 @@ class _WeekPickerSheet extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Haftaya git',
-                  style: Theme.of(context).textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               IconButton(
@@ -589,8 +590,9 @@ class _FocusCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               '$academicYear · ${_dateRange(week.start, week.end)} · ${week.plannedLessonHours} ders saati',
-              style: Theme.of(context).textTheme.bodyMedium
-                  ?.copyWith(color: scheme.onPrimaryContainer),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: scheme.onPrimaryContainer,
+              ),
             ),
             if (onReturnToCurrent != null) ...[
               const SizedBox(height: AppSpacing.sm),
@@ -616,8 +618,9 @@ class _FocusCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 themeTitle,
-                style: Theme.of(context).textTheme.bodyMedium
-                    ?.copyWith(color: scheme.onPrimaryContainer),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: scheme.onPrimaryContainer,
+                ),
               ),
             ],
             if (focus != null) ...[
@@ -634,14 +637,17 @@ class _FocusCard extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  _StatusBadge(item: focus!),
+                  if (_hasVisibleTrackingStatus(focus!))
+                    _StatusBadge(item: focus!),
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 focus!.outcome.officialText,
-                style: Theme.of(context).textTheme.bodyLarge
-                    ?.copyWith(color: scheme.onPrimaryContainer, height: 1.45),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: scheme.onPrimaryContainer,
+                  height: 1.45,
+                ),
               ),
               if (focus!.teacherNote?.isNotEmpty == true) ...[
                 const SizedBox(height: AppSpacing.md),
@@ -657,8 +663,9 @@ class _FocusCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         focus!.teacherNote!,
-                        style: Theme.of(context).textTheme.bodySmall
-                            ?.copyWith(color: scheme.onPrimaryContainer),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onPrimaryContainer,
+                        ),
                       ),
                     ),
                   ],
@@ -778,7 +785,7 @@ class _WeeklyTools extends StatelessWidget {
         'Haftalık araçlar',
         style: TextStyle(fontWeight: FontWeight.w700),
       ),
-      subtitle: const Text('Defter ve toplu işlemler'),
+      subtitle: const Text('Defter ve isteğe bağlı takip'),
       childrenPadding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
         0,
@@ -800,7 +807,7 @@ class _WeeklyTools extends StatelessWidget {
               FilledButton.tonalIcon(
                 onPressed: onCompleteAll,
                 icon: const Icon(Icons.done_all),
-                label: const Text('Tümünü işlendi'),
+                label: const Text('Tümünü işlendi olarak işaretle'),
               ),
             ],
           ),
@@ -848,19 +855,22 @@ class _OutcomeRow extends StatelessWidget {
                 children: [
                   Text(
                     item.outcome.code,
-                    style: Theme.of(context).textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w800),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(item.outcome.officialText),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    _statusLabel(item),
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w700,
+                  if (_hasVisibleTrackingStatus(item)) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      _displayStatusLabel(item),
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
+                  ],
                   if (item.teacherNote?.isNotEmpty == true) ...[
                     const SizedBox(height: AppSpacing.sm),
                     Text(
@@ -945,7 +955,7 @@ class _OutcomeActionMenu extends StatelessWidget {
             value: _OutcomeAction.planned,
             child: _ActionMenuItem(
               icon: Icons.restart_alt,
-              label: 'Planlıya döndür',
+              label: 'Takip durumunu temizle',
             ),
           ),
         if (canCarryNext)
@@ -1004,7 +1014,7 @@ class _StatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        _statusLabel(item),
+        _displayStatusLabel(item),
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
           color: scheme.onSurfaceVariant,
           fontWeight: FontWeight.w700,
@@ -1055,8 +1065,9 @@ class _QuickNoteSheetState extends State<_QuickNoteSheet> {
             Expanded(
               child: Text(
                 'Hızlı not',
-                style: Theme.of(context).textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w800),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
               ),
             ),
             IconButton(
@@ -1081,8 +1092,9 @@ class _QuickNoteSheetState extends State<_QuickNoteSheet> {
         const SizedBox(height: AppSpacing.sm),
         Text(
           'Boş kaydedersen mevcut not silinir.',
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: AppSpacing.lg),
         FilledButton.icon(
@@ -1146,13 +1158,24 @@ int? _nextInstructionWeekNumber(AnnualOutcomePlan plan, TrackedOutcome item) {
 }
 
 String _statusChangeMessage(OutcomeTrackingStatus status) => switch (status) {
-  OutcomeTrackingStatus.planned => 'Planlı durumuna döndürüldü.',
+  OutcomeTrackingStatus.planned => 'Takip durumu temizlendi.',
   OutcomeTrackingStatus.inProgress => 'Devam ediyor olarak işaretlendi.',
   OutcomeTrackingStatus.completed => 'İşlendi olarak işaretlendi.',
   OutcomeTrackingStatus.partiallyCompleted =>
     'Kısmen işlendi olarak işaretlendi.',
   OutcomeTrackingStatus.carriedOver => 'Taşındı olarak işaretlendi.',
 };
+
+bool _hasVisibleTrackingStatus(TrackedOutcome item) =>
+    item.isCarriedIn ||
+    _isCarriedOut(item) ||
+    item.presentationStatus != OutcomeTrackingStatus.planned;
+
+String _displayStatusLabel(TrackedOutcome item) {
+  final label = _statusLabel(item);
+  if (item.isCarriedIn || _isCarriedOut(item)) return label;
+  return 'Takip: $label';
+}
 
 String _statusLabel(TrackedOutcome item) {
   if (item.isCarriedIn) return 'Geçen haftadan';
@@ -1169,7 +1192,7 @@ String _statusLabel(TrackedOutcome item) {
 IconData _statusIcon(TrackedOutcome item) {
   if (item.isCarriedIn || _isCarriedOut(item)) return Icons.redo_outlined;
   return switch (item.presentationStatus) {
-    OutcomeTrackingStatus.planned => Icons.radio_button_unchecked,
+    OutcomeTrackingStatus.planned => Icons.article_outlined,
     OutcomeTrackingStatus.inProgress => Icons.play_circle_outline,
     OutcomeTrackingStatus.completed => Icons.check_circle,
     OutcomeTrackingStatus.partiallyCompleted => Icons.timelapse_outlined,
