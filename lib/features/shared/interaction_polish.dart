@@ -31,6 +31,29 @@ void showTeacherFeedback(
   );
 }
 
+void showTeacherUndoFeedback(
+  BuildContext context,
+  String message, {
+  required Future<void> Function() onUndo,
+  Duration duration = const Duration(seconds: 5),
+}) {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.clearSnackBars();
+  messenger.showSnackBar(
+    SnackBar(
+      content: Text(message),
+      duration: duration,
+      behavior: SnackBarBehavior.floating,
+      action: SnackBarAction(
+        label: 'Geri al',
+        onPressed: () {
+          onUndo();
+        },
+      ),
+    ),
+  );
+}
+
 class FeatureEmptyView extends StatelessWidget {
   const FeatureEmptyView({
     super.key,
