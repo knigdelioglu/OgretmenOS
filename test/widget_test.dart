@@ -10,7 +10,7 @@ import 'package:ogretmen_os/domain/repositories/outcome_tracking_repository.dart
 import 'package:ogretmen_os/domain/services/outcome_planning_service.dart';
 
 void main() {
-  testWidgets('ana deneyim Başla ve İşlendi akışını tek odakta yürütür', (
+  testWidgets('ana deneyim tracking gerektirmeden tek odakta yürür', (
     tester,
   ) async {
     _phone(tester);
@@ -19,36 +19,31 @@ void main() {
 
     expect(find.text('Bu Hafta'), findsWidgets);
     expect(find.text('ŞİMDİ'), findsOneWidget);
-    expect(find.text('Sıradaki'), findsOneWidget);
-    expect(find.text('Derse devam et'), findsOneWidget);
+    expect(find.text('Sıradaki'), findsNothing);
+    expect(find.text('Ders ayrıntısını aç'), findsOneWidget);
     expect(find.text('Hafta değiştir'), findsOneWidget);
-    expect(find.text('Okul haftası'), findsNothing);
-    expect(find.byTooltip('Önceki hafta'), findsNothing);
-    expect(find.byTooltip('Sonraki hafta'), findsNothing);
     expect(find.text('1. Hafta'), findsOneWidget);
     expect(find.text('TEST.1'), findsOneWidget);
     expect(find.text('TEST.2'), findsNothing);
     expect(find.text('TEST.3'), findsNothing);
-    expect(find.text('Başla'), findsOneWidget);
-    expect(find.text('Paket'), findsNothing);
-    expect(find.text('Haftalık Plan'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Başla'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'İşlendi'), findsNothing);
+    expect(await tracking.getForAcademicYear('2026-2027'), isEmpty);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Başla'));
+    await tester.tap(find.byTooltip('Kazanım işlemleri'));
+    await tester.pumpAndSettle();
+    expect(find.text('Devam ediyor olarak işaretle'), findsOneWidget);
+    expect(find.text('İşlendi olarak işaretle'), findsOneWidget);
+    expect(find.text('Kısmen işlendi'), findsOneWidget);
+
+    await tester.tap(find.text('İşlendi olarak işaretle'));
     await tester.pumpAndSettle();
 
-    var records = await tracking.getForAcademicYear('2026-2027');
+    final records = await tracking.getForAcademicYear('2026-2027');
     expect(records, hasLength(1));
-    expect(records.single.status.storageValue, 'in_progress');
-    expect(find.text('Devam ediyor'), findsOneWidget);
-    expect(find.text('İşlendi'), findsOneWidget);
-
-    await tester.tap(find.widgetWithText(FilledButton, 'İşlendi'));
-    await tester.pumpAndSettle();
-
-    records = await tracking.getForAcademicYear('2026-2027');
     expect(records.single.status.storageValue, 'completed');
-    expect(find.text('1 / 3 işlendi'), findsOneWidget);
     expect(find.text('TEST.2'), findsOneWidget);
+    expect(find.text('Ders ayrıntısını aç'), findsOneWidget);
   });
 
   testWidgets('başka hafta isteğe bağlı açılır ve bu haftaya dönüş nettir', (
@@ -75,7 +70,7 @@ void main() {
     expect(find.text('ŞİMDİ'), findsNothing);
     expect(find.text('2. Hafta'), findsOneWidget);
     expect(find.text('Bu haftaya dön'), findsOneWidget);
-    expect(find.text('Derse devam et'), findsNothing);
+    expect(find.text('Ders ayrıntısını aç'), findsNothing);
 
     await tester.tap(find.text('Bu haftaya dön'));
     await tester.pumpAndSettle();
@@ -83,7 +78,7 @@ void main() {
     expect(find.text('ŞİMDİ'), findsOneWidget);
     expect(find.text('1. Hafta'), findsOneWidget);
     expect(find.text('Bu haftaya dön'), findsNothing);
-    expect(find.text('Derse devam et'), findsOneWidget);
+    expect(find.text('Ders ayrıntısını aç'), findsOneWidget);
   });
 
   testWidgets('diğer açık kazanımlar varsayılan olarak kapalıdır', (
@@ -119,9 +114,9 @@ void main() {
     final tracking = MemoryOutcomeTrackingRepository();
     await _pump(tester, tracking: tracking);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Başla'));
+    await tester.tap(find.byTooltip('Kazanım işlemleri'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'İşlendi'));
+    await tester.tap(find.text('İşlendi olarak işaretle'));
     await tester.pumpAndSettle();
 
     expect(find.text('TEST.1'), findsNothing);
@@ -186,7 +181,7 @@ void main() {
     expect(records, hasLength(1));
     expect(records.single.status.storageValue, 'partially_completed');
     expect(find.text('Kısmen işlendi'), findsOneWidget);
-    expect(find.text('İşlendi'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'İşlendi'), findsNothing);
   });
 
   testWidgets('gelecek haftaya taşı kaynak haftanın odağını serbest bırakır', (
@@ -223,7 +218,7 @@ void main() {
     _phone(tester);
     await _pump(tester);
 
-    await tester.tap(find.text('Derse devam et'));
+    await tester.tap(find.text('Ders ayrıntısını aç'));
     await tester.pumpAndSettle();
 
     expect(find.text('Derste lazım'), findsOneWidget);
@@ -267,7 +262,9 @@ void main() {
     expect(find.textContaining('Bu blok için ayrı süre bilgisi'), findsNothing);
   });
 
-  testWidgets('ana navigasyon yalnız üç öğretmen işini gösterir', (tester) async {
+  testWidgets('ana navigasyon yalnız üç öğretmen işini gösterir', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1000, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -348,7 +345,8 @@ class _FakePreferences implements UserPreferencesRepository {
   Future<String?> getManualPositionOverride() async => value;
 
   @override
-  Future<void> setManualPositionOverride(String blockId) async => value = blockId;
+  Future<void> setManualPositionOverride(String blockId) async =>
+      value = blockId;
 }
 
 class _FakeRepository implements CourseKnowledgeRepository {
@@ -428,16 +426,17 @@ class _FakeRepository implements CourseKnowledgeRepository {
   Future<model.Course> getCourse() async => course;
 
   @override
-  Future<model.RuntimeManifest> getManifest() async => const model.RuntimeManifest(
-    runtimePackageVersion: '1.0.0',
-    schemaVersion: '1.0.0',
-    courseId: 'TDE_9',
-    validationStatus: 'PASS',
-    canonicalContentFingerprint: 'test',
-    rowCounts: {},
-    timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
-    timelineUnresolvedFields: {},
-  );
+  Future<model.RuntimeManifest> getManifest() async =>
+      const model.RuntimeManifest(
+        runtimePackageVersion: '1.0.0',
+        schemaVersion: '1.0.0',
+        courseId: 'TDE_9',
+        validationStatus: 'PASS',
+        canonicalContentFingerprint: 'test',
+        rowCounts: {},
+        timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
+        timelineUnresolvedFields: {},
+      );
 
   @override
   Future<List<model.Theme>> getThemes() async => const [theme];
@@ -465,8 +464,9 @@ class _FakeRepository implements CourseKnowledgeRepository {
   ];
 
   @override
-  Future<List<model.ResourceDecision>> getResourceDecisions(String themeId) async =>
-      const [];
+  Future<List<model.ResourceDecision>> getResourceDecisions(
+    String themeId,
+  ) async => const [];
 
   @override
   Future<model.TeacherPackage> getTeacherPackage(String themeId) async =>
@@ -487,51 +487,52 @@ class _FakeRepository implements CourseKnowledgeRepository {
 
 class _FakeWeeklyPlanning implements WeeklyPlanningService {
   @override
-  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async => AnnualWeeklyPlan(
-    academicYear: '2026-2027',
-    courseId: 'TDE_9',
-    weeklyLessonHours: 5,
-    annualHours: 180,
-    currentWeekNumber: 1,
-    weeks: [
-      AcademicWeekPlan(
-        weekNumber: 1,
-        start: DateTime(2026, 9, 14),
-        end: DateTime(2026, 9, 18),
-        type: AcademicWeekType.instruction,
-        label: '1. Hafta',
-        plannedLessonHours: 5,
-        segments: const [
-          WeeklyPlanSegment(
-            type: WeeklyPlanSegmentType.block,
-            theme: _FakeRepository.theme,
-            hours: 5,
-            block: _FakeRepository.block,
+  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async =>
+      AnnualWeeklyPlan(
+        academicYear: '2026-2027',
+        courseId: 'TDE_9',
+        weeklyLessonHours: 5,
+        annualHours: 180,
+        currentWeekNumber: 1,
+        weeks: [
+          AcademicWeekPlan(
+            weekNumber: 1,
+            start: DateTime(2026, 9, 14),
+            end: DateTime(2026, 9, 18),
+            type: AcademicWeekType.instruction,
+            label: '1. Hafta',
+            plannedLessonHours: 5,
+            segments: const [
+              WeeklyPlanSegment(
+                type: WeeklyPlanSegmentType.block,
+                theme: _FakeRepository.theme,
+                hours: 5,
+                block: _FakeRepository.block,
+              ),
+            ],
+            outcomes: const [
+              _FakeRepository.outcome,
+              _FakeRepository.outcome2,
+              _FakeRepository.outcome3,
+            ],
+          ),
+          AcademicWeekPlan(
+            weekNumber: 2,
+            start: DateTime(2026, 9, 21),
+            end: DateTime(2026, 9, 25),
+            type: AcademicWeekType.instruction,
+            label: '2. Hafta',
+            plannedLessonHours: 5,
+            segments: const [
+              WeeklyPlanSegment(
+                type: WeeklyPlanSegmentType.block,
+                theme: _FakeRepository.theme,
+                hours: 5,
+                block: _FakeRepository.block,
+              ),
+            ],
+            outcomes: const [],
           ),
         ],
-        outcomes: const [
-          _FakeRepository.outcome,
-          _FakeRepository.outcome2,
-          _FakeRepository.outcome3,
-        ],
-      ),
-      AcademicWeekPlan(
-        weekNumber: 2,
-        start: DateTime(2026, 9, 21),
-        end: DateTime(2026, 9, 25),
-        type: AcademicWeekType.instruction,
-        label: '2. Hafta',
-        plannedLessonHours: 5,
-        segments: const [
-          WeeklyPlanSegment(
-            type: WeeklyPlanSegmentType.block,
-            theme: _FakeRepository.theme,
-            hours: 5,
-            block: _FakeRepository.block,
-          ),
-        ],
-        outcomes: const [],
-      ),
-    ],
-  );
+      );
 }

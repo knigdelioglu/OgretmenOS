@@ -8,7 +8,7 @@ import 'package:ogretmen_os/domain/services/outcome_planning_service.dart';
 import 'package:ogretmen_os/features/this_week/this_week_page.dart';
 
 void main() {
-  testWidgets('odak akışı tek ana eylem gösterir ve takip seçenekleri tekrar etmez', (
+  testWidgets('odak akışı tracking gerektirmeden tek ŞİMDİ kartında yürür', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(412, 915);
@@ -32,31 +32,30 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(FilledButton, 'Başla'), findsOneWidget);
-    expect(find.text('Ayrıntıyı aç'), findsNothing);
+    expect(find.text('ŞİMDİ'), findsOneWidget);
+    expect(find.text('Sıradaki'), findsNothing);
+    expect(find.text('TEST.1'), findsOneWidget);
+    expect(
+      find.widgetWithText(FilledButton, 'Ders ayrıntısını aç'),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(FilledButton, 'Başla'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'İşlendi'), findsNothing);
 
-    await tester.tap(find.text('TEST.1'));
+    await tester.tap(find.byTooltip('Kazanım işlemleri'));
+    await tester.pumpAndSettle();
+    expect(find.text('Devam ediyor olarak işaretle'), findsOneWidget);
+    expect(find.text('İşlendi olarak işaretle'), findsOneWidget);
+    expect(find.text('Kısmen işlendi'), findsOneWidget);
+    expect(find.text('Gelecek haftaya taşı'), findsNothing);
+    await tester.tapAt(const Offset(8, 8));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Ders ayrıntısını aç'));
     await tester.pumpAndSettle();
 
     expect(find.text('Derste lazım'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Başla'), findsOneWidget);
-
-    final more = find.text('Daha fazla bilgi');
-    await tester.ensureVisible(more);
-    await tester.tap(more);
-    await tester.pumpAndSettle();
-
-    final tracking = find.text('Takip seçenekleri');
-    await tester.ensureVisible(tracking);
-    await tester.tap(tracking);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Kısmen işlendi'), findsOneWidget);
-    expect(find.text('Devam ediyor'), findsNothing);
-    expect(find.text('İşlendi'), findsNothing);
-    expect(find.text('Planlı'), findsNothing);
-    expect(find.text('Planlıya döndür'), findsNothing);
-    expect(find.text('Başka haftaya taşı'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
@@ -65,32 +64,33 @@ class _WeeklyPlanning implements WeeklyPlanningService {
   const _WeeklyPlanning();
 
   @override
-  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async => AnnualWeeklyPlan(
-    academicYear: '2026-2027',
-    courseId: 'TDE_9',
-    weeklyLessonHours: 5,
-    annualHours: 180,
-    currentWeekNumber: 1,
-    weeks: [
-      AcademicWeekPlan(
-        weekNumber: 1,
-        start: DateTime(2026, 9, 14),
-        end: DateTime(2026, 9, 18),
-        type: AcademicWeekType.instruction,
-        label: '1. Hafta',
-        plannedLessonHours: 5,
-        segments: const [
-          WeeklyPlanSegment(
-            type: WeeklyPlanSegmentType.block,
-            theme: _Repository.theme,
-            hours: 5,
-            block: _Repository.block,
+  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async =>
+      AnnualWeeklyPlan(
+        academicYear: '2026-2027',
+        courseId: 'TDE_9',
+        weeklyLessonHours: 5,
+        annualHours: 180,
+        currentWeekNumber: 1,
+        weeks: [
+          AcademicWeekPlan(
+            weekNumber: 1,
+            start: DateTime(2026, 9, 14),
+            end: DateTime(2026, 9, 18),
+            type: AcademicWeekType.instruction,
+            label: '1. Hafta',
+            plannedLessonHours: 5,
+            segments: const [
+              WeeklyPlanSegment(
+                type: WeeklyPlanSegmentType.block,
+                theme: _Repository.theme,
+                hours: 5,
+                block: _Repository.block,
+              ),
+            ],
+            outcomes: const [_Repository.outcome],
           ),
         ],
-        outcomes: const [_Repository.outcome],
-      ),
-    ],
-  );
+      );
 }
 
 class _Repository implements CourseKnowledgeRepository {
@@ -153,16 +153,17 @@ class _Repository implements CourseKnowledgeRepository {
   );
 
   @override
-  Future<model.RuntimeManifest> getManifest() async => const model.RuntimeManifest(
-    runtimePackageVersion: '1.0.0',
-    schemaVersion: '1.0.0',
-    courseId: 'TDE_9',
-    validationStatus: 'PASS',
-    canonicalContentFingerprint: 'test',
-    rowCounts: {},
-    timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
-    timelineUnresolvedFields: {},
-  );
+  Future<model.RuntimeManifest> getManifest() async =>
+      const model.RuntimeManifest(
+        runtimePackageVersion: '1.0.0',
+        schemaVersion: '1.0.0',
+        courseId: 'TDE_9',
+        validationStatus: 'PASS',
+        canonicalContentFingerprint: 'test',
+        rowCounts: {},
+        timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
+        timelineUnresolvedFields: {},
+      );
 
   @override
   Future<List<model.Theme>> getThemes() async => const [theme];
@@ -190,8 +191,9 @@ class _Repository implements CourseKnowledgeRepository {
   ];
 
   @override
-  Future<List<model.ResourceDecision>> getResourceDecisions(String themeId) async =>
-      const [];
+  Future<List<model.ResourceDecision>> getResourceDecisions(
+    String themeId,
+  ) async => const [];
 
   @override
   Future<model.TeacherPackage> getTeacherPackage(String themeId) async =>
