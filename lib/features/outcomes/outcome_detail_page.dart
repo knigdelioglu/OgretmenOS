@@ -524,7 +524,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
   }
 
   Future<void> _setStatus(OutcomeTrackingStatus status) async {
-    if (!await _persistNote()) return;
+    if (!await _persistNote() || !mounted) return;
     final itemBefore = _item;
     LearningOutcomeTrackingRecord? before;
     try {
@@ -544,7 +544,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
       context,
       _statusChangeMessage(status),
       onUndo: () async {
-        if (!await _persistNote()) return;
+        if (!await _persistNote() || !mounted) return;
         final restored = await _mutate(
           () => widget.service.restoreTrackingStatus(
             itemBefore,
@@ -630,7 +630,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
 
   Future<void> _carry() async {
     FocusManager.instance.primaryFocus?.unfocus();
-    if (!await _persistNote()) return;
+    if (!await _persistNote() || !mounted) return;
     final targets = _plan.weeks
         .where(
           (summary) =>
@@ -702,7 +702,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
       context,
       '$target. haftaya taşındı.',
       onUndo: () async {
-        if (!await _persistNote()) return;
+        if (!await _persistNote() || !mounted) return;
         final restored = await _mutate(
           () => widget.service.restoreTrackingStatus(
             itemBefore,
@@ -743,7 +743,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
       setState(() {
         _plan = refreshed;
         if (next != null) _item = next;
-        _lastSavedNote = _item.teacherNote ?? _lastSavedNote;
+        _lastSavedNote = _item.teacherNote ?? '';
         _noteDirty = _noteController.text != _lastSavedNote;
         _noteSaveFailed = false;
         _changed = true;
@@ -993,7 +993,7 @@ class _ProcessComponentRow extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: SelectableText(
-            [if (code != null) code, if (text != null) text].join(' — '),
+            [?code, ?text].join(' — '),
             style: const TextStyle(height: 1.45),
           ),
         ),
