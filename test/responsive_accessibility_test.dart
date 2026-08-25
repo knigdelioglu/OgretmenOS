@@ -82,12 +82,12 @@ void main() {
     await _tapBottomDestination(tester, Icons.view_timeline_outlined);
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.byTooltip('Burada kaldım'),
+      find.byTooltip('Burayı geçici olarak işaretle'),
       300,
       scrollable: find.byType(Scrollable).last,
     );
 
-    final bookmark = find.byTooltip('Burada kaldım');
+    final bookmark = find.byTooltip('Burayı geçici olarak işaretle');
     expect(bookmark, findsOneWidget);
     final size = tester.getSize(bookmark);
     expect(size.width, greaterThanOrEqualTo(48));

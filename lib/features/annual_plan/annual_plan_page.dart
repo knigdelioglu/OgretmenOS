@@ -42,16 +42,27 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
 
   Future<_PlanData> _load() async {
     final sequence = await widget.repository.getAnnualSequence();
-    final manual = await widget.preferences.getManualPositionOverride();
+    final manual = await _getManualPosition();
     final lastFocus = await widget.continuity.getLastFocus(widget.courseId);
-    final manualBlockId = sequence.any((entry) => entry.block.id == manual)
-        ? manual
+    var manualBlockId =
+        sequence.any((entry) => entry.block.id == manual?.blockId)
+        ? manual?.blockId
         : null;
-    final automaticBlockId = sequence.any(
-      (entry) => entry.block.id == lastFocus?.blockId,
-    )
+    final automaticBlockId =
+        sequence.any((entry) => entry.block.id == lastFocus?.blockId)
         ? lastFocus?.blockId
         : null;
+
+    final manualIsStale =
+        manualBlockId != null &&
+        automaticBlockId != null &&
+        lastFocus != null &&
+        lastFocus.updatedAt.isAfter(manual!.updatedAt);
+    if ((manual != null && manualBlockId == null) || manualIsStale) {
+      manualBlockId = null;
+      await _clearPositionPreferenceBestEffort();
+    }
+
     return _PlanData(
       sequence: sequence,
       manualBlockId: manualBlockId,
@@ -59,15 +70,58 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
     );
   }
 
+  Future<ManualPositionOverrideState?> _getManualPosition() async {
+    final preferences = widget.preferences;
+    if (preferences is ScopedManualPositionPreferences) {
+      return (preferences as ScopedManualPositionPreferences)
+          .getManualPositionOverrideForCourse(widget.courseId);
+    }
+    final blockId = await preferences.getManualPositionOverride();
+    if (blockId == null) return null;
+    return ManualPositionOverrideState(
+      courseId: widget.courseId,
+      blockId: blockId,
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    );
+  }
+
+  Future<void> _setPositionPreference(String blockId) async {
+    final preferences = widget.preferences;
+    if (preferences is ScopedManualPositionPreferences) {
+      await (preferences as ScopedManualPositionPreferences)
+          .setManualPositionOverrideForCourse(widget.courseId, blockId);
+      return;
+    }
+    await preferences.setManualPositionOverride(blockId);
+  }
+
+  Future<void> _clearPositionPreference() async {
+    final preferences = widget.preferences;
+    if (preferences is ScopedManualPositionPreferences) {
+      await (preferences as ScopedManualPositionPreferences)
+          .clearManualPositionOverrideForCourse(widget.courseId);
+      return;
+    }
+    await preferences.clearManualPositionOverride();
+  }
+
+  Future<void> _clearPositionPreferenceBestEffort() async {
+    try {
+      await _clearPositionPreference();
+    } on Object {
+      // Position preference is convenience state and must not block the plan.
+    }
+  }
+
   void _reload() => setState(() => _future = _load());
 
   Future<void> _setPosition(String blockId) async {
-    await widget.preferences.setManualPositionOverride(blockId);
+    await _setPositionPreference(blockId);
     if (mounted) _reload();
   }
 
   Future<void> _clearPosition() async {
-    await widget.preferences.clearManualPositionOverride();
+    await _clearPositionPreference();
     if (mounted) _reload();
   }
 
@@ -87,7 +141,9 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
 
       final data = snapshot.data!;
       if (data.sequence.isEmpty) {
-        return const Center(child: Text('Gösterilebilir yıllık plan bulunmuyor.'));
+        return const Center(
+          child: Text('Gösterilebilir yıllık plan bulunmuyor.'),
+        );
       }
 
       final grouped = <String, List<model.TimelineEntry>>{};
@@ -100,7 +156,9 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
       final activeBlockId = data.manualBlockId ?? data.automaticBlockId;
       final activeEntry = activeBlockId == null
           ? null
-          : data.sequence.firstWhere((entry) => entry.block.id == activeBlockId);
+          : data.sequence.firstWhere(
+              (entry) => entry.block.id == activeBlockId,
+            );
       final isManualPosition =
           activeEntry != null && data.manualBlockId == activeEntry.block.id;
 
@@ -124,8 +182,8 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
               initiallyExpanded: activeBlockId == null
                   ? i == 0
                   : grouped.values
-                      .elementAt(i)
-                      .any((entry) => entry.block.id == activeBlockId),
+                        .elementAt(i)
+                        .any((entry) => entry.block.id == activeBlockId),
               onSelect: _setPosition,
               onOpen: (blockId) => Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -193,7 +251,7 @@ class _AnnualSummary extends StatelessWidget {
               ),
               if (isManualPosition)
                 IconButton(
-                  tooltip: 'İşaretli konumu temizle',
+                  tooltip: 'Geçici konum işaretini temizle',
                   onPressed: onClear,
                   icon: const Icon(Icons.restart_alt),
                 ),
@@ -235,8 +293,8 @@ class _AnnualSummary extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     isManualPosition
-                        ? 'İşaretlediğin konum'
-                        : 'Son ders odağı',
+                        ? 'Elle işaretlendi · yeni bir ders açtığında otomatik güncellenir'
+                        : 'Son görüntülenen ders odağı',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -324,8 +382,8 @@ class _ThemePlanCard extends StatelessWidget {
               ),
               trailing: IconButton(
                 tooltip: entries[i].block.id == manualBlockId
-                    ? 'İşaretli konum'
-                    : 'Burada kaldım',
+                    ? 'Geçici konum işareti'
+                    : 'Burayı geçici olarak işaretle',
                 onPressed: () => onSelect(entries[i].block.id),
                 icon: Icon(
                   entries[i].block.id == manualBlockId
@@ -335,8 +393,7 @@ class _ThemePlanCard extends StatelessWidget {
               ),
               onTap: () => onOpen(entries[i].block.id),
             ),
-            if (i != entries.length - 1)
-              const Divider(height: 1, indent: 68),
+            if (i != entries.length - 1) const Divider(height: 1, indent: 68),
           ],
         ],
       ),
