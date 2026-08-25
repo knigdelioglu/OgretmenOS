@@ -154,6 +154,57 @@ class OutcomePlanningService {
     );
   }
 
+  Future<void> restoreTrackingStatus(
+    TrackedOutcome item,
+    LearningOutcomeTrackingRecord? record, {
+    int? displayWeekNumber,
+  }) async {
+    final current = await _findCurrentRecord(item);
+    if (record == null) {
+      if (current == null) return;
+      if (_hasAuxiliaryState(current)) {
+        await trackingRepository.save(
+          LearningOutcomeTrackingRecord(
+            academicYear: current.academicYear,
+            outcomeId: current.outcomeId,
+            plannedWeekNumber: current.plannedWeekNumber,
+            status: OutcomeTrackingStatus.planned,
+            actualHours: current.actualHours,
+            teacherNote: current.teacherNote,
+            completedAt: null,
+            carriedToWeekNumber: null,
+            updatedAt: DateTime.now(),
+          ),
+        );
+      } else {
+        await trackingRepository.delete(
+          academicYear: item.academicYear,
+          outcomeId: item.outcome.id,
+          plannedWeekNumber: item.plannedWeekNumber,
+        );
+      }
+    } else {
+      await trackingRepository.save(
+        LearningOutcomeTrackingRecord(
+          academicYear: record.academicYear,
+          outcomeId: record.outcomeId,
+          plannedWeekNumber: record.plannedWeekNumber,
+          status: record.status,
+          actualHours: current?.actualHours ?? record.actualHours,
+          teacherNote: _cleanText(current?.teacherNote ?? record.teacherNote),
+          completedAt: record.completedAt,
+          carriedToWeekNumber: record.carriedToWeekNumber,
+          updatedAt: DateTime.now(),
+        ),
+      );
+    }
+    await _notifyInteraction(
+      item,
+      record?.status ?? OutcomeTrackingStatus.planned,
+      displayWeekNumber ?? item.displayWeekNumber,
+    );
+  }
+
   Future<void> setStatus(
     TrackedOutcome item,
     OutcomeTrackingStatus status,
@@ -289,6 +340,9 @@ class OutcomePlanningService {
     }
     return null;
   }
+
+  bool _hasAuxiliaryState(LearningOutcomeTrackingRecord record) =>
+      record.actualHours != null || record.teacherNote != null;
 
   Future<void> _notifyInteraction(
     TrackedOutcome item,
