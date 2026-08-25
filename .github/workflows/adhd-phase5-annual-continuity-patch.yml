@@ -53,6 +53,17 @@ jobs:
               'await (preferences as ScopedManualPositionPreferences)\n          .clearManualPositionOverrideForCourse(widget.courseId);',
           )
           annual_path.write_text(text)
+
+          accessibility_path = Path('test/responsive_accessibility_test.dart')
+          text = accessibility_path.read_text()
+          old = "find.byTooltip('Burada kaldım')"
+          if text.count(old) != 2:
+              raise SystemExit(
+                  f'accessibility tooltip: expected 2 matches, found {text.count(old)}'
+              )
+          accessibility_path.write_text(
+              text.replace(old, "find.byTooltip('Burayı geçici olarak işaretle')")
+          )
           PY
 
       - name: Set up Flutter
@@ -65,13 +76,13 @@ jobs:
         run: flutter pub get
 
       - name: Format changed Dart files
-        run: dart format lib/data/preferences/user_preferences_repository.dart lib/features/annual_plan/annual_plan_page.dart test/user_preferences_test.dart test/adhd_phase5_annual_continuity_test.dart
+        run: dart format lib/data/preferences/user_preferences_repository.dart lib/features/annual_plan/annual_plan_page.dart test/user_preferences_test.dart test/adhd_phase5_annual_continuity_test.dart test/responsive_accessibility_test.dart
 
       - name: Run focused regression tests
         run: flutter test test/user_preferences_test.dart test/adhd_phase5_annual_continuity_test.dart test/widget_test.dart test/responsive_accessibility_test.dart --reporter expanded
 
       - name: Analyze changed UI and preferences
-        run: flutter analyze lib/data/preferences/user_preferences_repository.dart lib/features/annual_plan/annual_plan_page.dart test/adhd_phase5_annual_continuity_test.dart
+        run: flutter analyze lib/data/preferences/user_preferences_repository.dart lib/features/annual_plan/annual_plan_page.dart test/adhd_phase5_annual_continuity_test.dart test/responsive_accessibility_test.dart
 
       - name: Remove temporary patch machinery
         run: |
