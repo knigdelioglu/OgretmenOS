@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'feature_widgets.dart';
 
+OverlayEntry? _teacherUndoOverlay;
+
 class AppFocusDismissRegion extends StatelessWidget {
   const AppFocusDismissRegion({super.key, required this.child});
 
@@ -36,28 +38,73 @@ void showTeacherUndoFeedback(
   String message, {
   required Future<void> Function() onUndo,
 }) {
-  final messenger = ScaffoldMessenger.of(context);
-  messenger.clearSnackBars();
-  messenger.clearMaterialBanners();
-  messenger.showMaterialBanner(
-    MaterialBanner(
-      content: Text(message),
-      leading: const Icon(Icons.undo_rounded),
-      actions: [
-        TextButton(
-          onPressed: () async {
-            messenger.hideCurrentMaterialBanner();
-            await onUndo();
-          },
-          child: const Text('Geri al'),
+  final previous = _teacherUndoOverlay;
+  if (previous != null && previous.mounted) previous.remove();
+  _teacherUndoOverlay = null;
+
+  final overlay = Overlay.of(context, rootOverlay: true);
+  late final OverlayEntry entry;
+
+  void dismiss() {
+    if (entry.mounted) entry.remove();
+    if (identical(_teacherUndoOverlay, entry)) {
+      _teacherUndoOverlay = null;
+    }
+  }
+
+  entry = OverlayEntry(
+    builder: (overlayContext) => SafeArea(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Material(
+              elevation: 6,
+              borderRadius: BorderRadius.circular(16),
+              clipBehavior: Clip.antiAlias,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.undo_rounded),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        message,
+                        style: Theme.of(overlayContext).textTheme.bodyMedium,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        dismiss();
+                        await onUndo();
+                      },
+                      child: const Text('Geri al'),
+                    ),
+                    IconButton(
+                      tooltip: 'Kapat',
+                      onPressed: dismiss,
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
-        TextButton(
-          onPressed: messenger.hideCurrentMaterialBanner,
-          child: const Text('Kapat'),
-        ),
-      ],
+      ),
     ),
   );
+
+  _teacherUndoOverlay = entry;
+  overlay.insert(entry);
 }
 
 class FeatureEmptyView extends StatelessWidget {
