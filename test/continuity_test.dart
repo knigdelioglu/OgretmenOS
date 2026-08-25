@@ -242,6 +242,62 @@ void main() {
     expect(find.text('KALDIĞIN YER'), findsNothing);
     expect(await continuity.getLastFocus('TDE_9'), isNull);
   });
+
+  test(
+    'malformed optional continuity fields are ignored instead of throwing',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'last_focus_v1_TDE_9':
+            '{"course_id":"TDE_9","academic_year":"2026-2027","week_number":1,'
+            '"tracking_key":"2026-2027:TEST_OUTCOME:1","outcome_code":"TEST.1",'
+            '"theme_title":42,"updated_at":"2026-09-14T10:00:00.000"}',
+      });
+      final preferences = await SharedPreferences.getInstance();
+      final repository = SharedPreferencesContinuityRepository(preferences);
+
+      expect(await repository.getLastFocus('TDE_9'), isNull);
+      expect(preferences.getString('last_focus_v1_TDE_9'), isNull);
+    },
+  );
+
+  testWidgets(
+    'continuity read failure does not block the weekly lesson workspace',
+    (tester) async {
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repository = _FakeRepository();
+      final service = OutcomePlanningService(
+        repository: repository,
+        weeklyPlanning: _FakeWeeklyPlanning(),
+        trackingRepository: MemoryOutcomeTrackingRepository(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ContinuityThisWeekPage(
+              repository: repository,
+              service: service,
+              continuity: const _FailingContinuityRepository(),
+              courseId: 'TDE_9',
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('ŞİMDİ'), findsOneWidget);
+      expect(find.text('TEST.1'), findsOneWidget);
+      expect(
+        find.widgetWithText(FilledButton, 'Ders ayrıntısını aç'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 class _FakeRepository implements CourseKnowledgeRepository {
@@ -390,4 +446,20 @@ class _FakeWeeklyPlanning implements WeeklyPlanningService {
           ),
         ],
       );
+}
+
+class _FailingContinuityRepository implements ContinuityRepository {
+  const _FailingContinuityRepository();
+
+  @override
+  Future<LastFocusState?> getLastFocus(String courseId) =>
+      Future<LastFocusState?>.error(StateError('continuity unavailable'));
+
+  @override
+  Future<void> setLastFocus(LastFocusState state) =>
+      Future<void>.error(StateError('continuity unavailable'));
+
+  @override
+  Future<void> clearLastFocus(String courseId) =>
+      Future<void>.error(StateError('continuity unavailable'));
 }

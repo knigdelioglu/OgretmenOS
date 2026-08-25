@@ -1,222 +1,162 @@
 # AGENT.md — ÖğretmenOS Agent Execution Protocol
 
-> **Project:** ÖğretmenOS  
-> **Implementation:** Flutter + Dart + Material 3  
-> **Document version:** 1.2.0  
+> **Document version:** 1.3.0  
 > **Status:** Binding execution protocol
 
 ## 0. Authority
 
-Read before code changes:
+Kod değişikliğinden önce sırayla oku:
 
 1. `docs/PRODUCT_SCOPE.md`
 2. `docs/FLUTTER_BLUEPRINT.md`
 3. `AGENT.md`
 
-Higher authority wins. Do not implement through an unresolved document conflict.
+Belge çatışması varsa yüksek otorite kazanır; çatışmayı çözmeden eski davranışı restore etme.
 
 ## 1. Mission
 
-Build an offline-first teacher workflow whose primary surface is weekly **kazanım tracking**, backed by verified TYMM course knowledge, versioned academic calendar data and separate local teacher tracking state.
+Öğretmenin **uygulamayı aç → şu anki dersi gör → gereken doğrulanmış bilgiyi al → çık** akışını en düşük karar yüküyle destekle.
+
+**Tracking isteğe bağlıdır. `İşlendi` zorunlu değildir.** Tracking kullanan öğretmen için veri güvenilir ve geri alınabilir olmalıdır; kullanmayan öğretmen için ana ders akışı eksik/geride görünmemelidir.
 
 ## 2. Hard invariants
 
-- Canonical TYMM knowledge is immutable from this app repo.
-- `course_runtime.sqlite` is read-only.
-- Outcomes, themes, blocks, activities, textbook mappings, assessments and resource decisions are never hardcoded in Dart.
-- The app does not invent pedagogical relationships or official text.
-- Derived block-hour allocation is scheduling policy, never presented as official block duration.
-- Planned progression is not student mastery.
-- Calendar dates and yearly scheduling rules come from versioned assets.
-- Teacher tracking state is stored separately from runtime knowledge.
-- Runtime/calendar refresh must not erase teacher tracking state.
-- V1 core remains offline; no backend/account/telemetry/AI dependency.
-- Keep architecture lean; do not add speculative layers or frameworks.
+- Canonical TYMM runtime read-only.
+- Curriculum facts Dart'ta hardcode edilmez.
+- Runtime/calendar update teacher state'i silmez.
+- Planned schedule != classroom tracking != last-viewed continuity.
+- Viewing an outcome tracking kaydı oluşturmaz.
+- Tracking status continuity oluşturmaz/silmez.
+- Convenience preference failure authoritative content'i bloke etmez.
+- Teacher note silent-loss kabul etmez.
+- Position != progress/completion percentage.
+- Missing tracking row kullanıcıya borç/eksik iş olarak gösterilmez.
+- No backend/account/telemetry/AI dependency for V1 core.
 
-## 3. Data boundaries
+## 3. Active product surfaces
 
-```text
-course_runtime.sqlite
-  READ ONLY
-  authoritative runtime projection
-
-assets/calendars/*.json
-  READ ONLY
-  academic calendar and scheduling profile
-
-teacher_state.sqlite
-  READ/WRITE
-  local teacher outcome tracking only
-```
-
-Allowed teacher-state writes:
+Top-level:
 
 ```text
-learning-outcome weekly status
-actual hours (optional)
-short teacher note
-completion timestamp
-carry-to-week pointer
-UI preferences/manual position override
+Bu Hafta
+Yıllık
+Kaynaklar
 ```
 
-A short note attached to an outcome tracking row is allowed. A general notes/task-manager feature is not.
+Default `Bu Hafta`.
 
-## 4. Outcome-first capability gate
-
-Allowed V1.2 product capabilities:
+Supporting routed details:
 
 ```text
-A  Kazanım Takibi
-B  Kazanım Detail / Ders Yürütme
-C  Ders Defteri Desteği
-D  Takvim Tabanlı Haftalık Plan
-E  Yıllık Plan
-F  Kitap-Önce / Materyal
-G  Öğretmen Paketi
+OutcomeDetailPage
+BlockDetailPage
 ```
 
-Still out of scope unless scope is explicitly revised:
+Eski `Kazanımlar / Haftalık / Paket` top-level yapısını veya unrouted legacy pages'i scope revizyonu olmadan yeniden bağlama.
+
+## 4. Bu Hafta UX gate
+
+- Tek dominant `ŞİMDİ` card.
+- Primary CTA `Ders ayrıntısını aç`.
+- Direct `Başla/İşlendi` primary button yok.
+- Tracking overflow/disclosure altında optional.
+- Default planned status badge/text yok.
+- Completed/carry groups explicit teacher-marking dili kullanır.
+
+## 5. Continuity
+
+`LastFocusState` last-viewed lesson'dır. View event detail navigation öncesi best-effort yazılır.
+
+Read/write/cleanup failure navigation veya weekly content'i engelleyemez. Stale academic year/tracking key güvenle temizlenir veya yok sayılır.
+
+## 6. Detail and notes
+
+Outcome detail information-first kalır. Tracking `Daha fazla bilgi` altında optionaldır.
+
+Not sistemi:
 
 ```text
-student roster/attendance/grades
-student mastery analytics
-cloud sync/accounts
-MEBBİS/e-Okul
-LLM/RAG/AI generation
-OCR/PDF ingestion
-personal calendar manager
-curriculum editor
-general notes/task manager
+700ms autosave
+back/lifecycle flush
+save failure => no silent exit
+retry feedback
 ```
 
-## 5. Runtime truth rules
+Tracking/carry mutationları Undo sunar ve newer note/hours'u ezmez.
 
-Before modifying runtime SQL/query behavior, inspect current runtime schema/manifest. If a requested exact relationship is unavailable, surface it as block-level context or report a runtime-contract gap. Never reconstruct missing canonical logic in widgets.
+## 7. Resources
 
-Outcome detail may aggregate containing-block data, but labels must say that it is block context unless an explicit runtime relation targets the outcome.
-
-## 6. Tracking semantics
-
-Canonical plan and classroom execution are distinct:
+Context priority:
 
 ```text
-planned schedule != teacher execution state
+last viewed lesson
+→ current instructional week
+→ fallback theme
 ```
 
-Tracking status values:
+Tema 1'e hardcoded reset yok. Context resolution failure resource access'i engellemez.
+
+## 8. Annual
+
+Temporary manual marker course-scoped ve timestamped'dır. Daha yeni viewed lesson eski marker'ı geçersiz kılar.
+
+Annual sequence konumu yalnız `Sıra N / total` anlamındadır; progress bar veya completion yüzdesi üretme.
+
+Optional tracking summary sadece explicit non-planned states sayar ve active course tracking keys ile scope edilir.
+
+## 9. Data boundaries
 
 ```text
-planned
-in_progress
-completed
-partially_completed
-carried_over
+course_runtime.sqlite  READ ONLY
+calendar assets        READ ONLY
+teacher_state.sqlite   READ/WRITE optional tracking/note/carry
+SharedPreferences      continuity/manual UI convenience
 ```
 
-A missing local row means `planned`.
+Widget raw SQL çalıştırmaz. Missing curriculum relationship uydurulmaz.
 
-Carry-over:
+## 10. Tracking identity
 
-- keeps original planned week identity;
-- does not modify `AnnualWeeklyPlan`;
-- may project into a later instructional week;
-- cannot target event week;
-- updates the original tracking row rather than creating curriculum data.
+Tracking identity için yalnız domain helper kullan:
 
-## 7. Flutter architecture
-
-Default flow:
-
-```text
-Widgets
-  ↓
-OutcomePlanningService / existing lean feature state
-  ↓
-CourseKnowledgeRepository + WeeklyPlanningService + OutcomeTrackingRepository
-  ↓
-read-only runtime / calendar assets / writable teacher-state DB
+```dart
+outcomeTrackingKey(
+  academicYear: ...,
+  outcomeId: ...,
+  plannedWeekNumber: ...,
+)
 ```
 
-Rules:
+Aynı string formatını UI/service içinde tekrar elle kurma.
 
-- widgets do not execute raw SQL;
-- runtime writes are forbidden;
-- teacher-state SQL stays in tracking data layer;
-- no new state-management package unless demonstrated necessary;
-- no ORM/codegen merely for convenience;
-- use existing Material 3 shared components and responsive conventions.
+## 11. Git safety
 
-## 8. Calendar invariants
+- Unrelated user work korunur.
+- Feature/debt work current `main`den branch edilir.
+- Kullanıcı uygulama istemişse PR + CI + merge akışı tamamlanabilir.
+- Geçici patch workflow/script final diff'te bırakılmaz.
 
-For active TDE_9 2026-2027 profile:
+## 12. Validation
 
-```text
-weekly_hours = 5
-annual_hours = 180
-theme_count = 4
-theme_hours = 45
-structured_theme_hours = 43
-school_based_theme_hours = 2
-instructional_weeks = 36
-active_week_37 = EVENT_WEEK
-EVENT_WEEK new curriculum hours = 0
-```
-
-Do not duplicate these as widget facts; consume planning service output.
-
-## 9. UX requirements
-
-Primary navigation:
-
-```text
-Kazanımlar
-Haftalık
-Yıllık Plan
-Paket
-```
-
-`Kazanımlar` is default.
-
-Outcome cards must prioritize classroom-useful information: code, official text, status, week, theme/block context, carry-over and relevant source hints. Long content uses progressive disclosure.
-
-`Deftere Bakış` uses verified strings and may copy them to clipboard; it must not generate an invented official lesson-log sentence.
-
-Support phone/tablet, large text and dark mode.
-
-## 10. Git safety
-
-- Preserve unrelated user work.
-- Do not reset/revert unrelated changes.
-- Branch feature work from current `main` unless user requests direct main edits.
-- Push/PR/merge only when requested or when the user explicitly asked the feature to be applied in the repository; default PR remains draft until validation succeeds.
-
-## 11. Testing
-
-Do not run tests between grouped implementation sprints when the user explicitly asks for a single final validation batch.
-
-Final validation target:
+Final gate:
 
 ```text
 flutter analyze
-runtime contract
+Runtime Contract TDE9/TDE10/TDE11/TDE12
 flutter test
-flutter build apk --release
+Android release APK
+APK runtime asset verification
 ```
 
-Tests must prove tracking persistence, carry semantics, event-week restriction, outcome projection and existing runtime/weekly regressions.
+Tests yalnız happy path değil, convenience-state failure ve stale/malformed state davranışlarını da kanıtlamalıdır.
 
-## 12. Error states
+## 13. Pre-merge checklist
 
-Do not fabricate content to avoid emptiness. Support Loading, Content, Empty, Error, Unresolved and Event Week states. Stale tracking rows whose outcome no longer exists must not create fake outcomes.
-
-## 13. Final pre-merge gate
-
-Before merging to main verify:
-
-- authoritative docs aligned;
-- runtime DB remains read-only;
-- teacher-state DB is separate;
-- all tracking mutations preserve planned schedule;
-- no invented outcome relationships;
-- full CI batch green.
+- binding docs active UX ile uyumlu;
+- tracking optional;
+- continuity independent;
+- no fake progress semantics;
+- note/Undo safety preserved;
+- resources lesson-context aware;
+- runtime read-only / teacher state separate;
+- full CI green.
