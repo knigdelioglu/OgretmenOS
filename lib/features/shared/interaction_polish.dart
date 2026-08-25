@@ -38,12 +38,18 @@ void showTeacherUndoFeedback(
   Duration duration = const Duration(seconds: 5),
 }) {
   final messenger = ScaffoldMessenger.of(context);
+  final media = MediaQuery.of(context);
+  final topAnchor = media.padding.top + kToolbarHeight + 12;
+  final desiredBottom = media.size.height - topAnchor - 72;
+  final bottomMargin = desiredBottom > 16 ? desiredBottom : 16.0;
+
   messenger.clearSnackBars();
   messenger.showSnackBar(
     SnackBar(
       content: Text(message),
       duration: duration,
       behavior: SnackBarBehavior.floating,
+      margin: EdgeInsets.fromLTRB(16, 8, 16, bottomMargin),
       action: SnackBarAction(
         label: 'Geri al',
         onPressed: () async {
