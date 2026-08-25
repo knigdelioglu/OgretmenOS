@@ -136,23 +136,11 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
     );
     final sourceWeek = _plan.week(_item.plannedWeekNumber)?.week;
 
-    VoidCallback? primaryAction;
-    String? primaryActionLabel;
-    IconData? primaryActionIcon;
-    if (_item.presentationStatus == OutcomeTrackingStatus.planned) {
-      primaryAction = () => _setStatus(OutcomeTrackingStatus.inProgress);
-      primaryActionLabel = 'Başla';
-      primaryActionIcon = Icons.play_arrow_rounded;
-    } else if (_item.presentationStatus != OutcomeTrackingStatus.completed) {
-      primaryAction = () => _setStatus(OutcomeTrackingStatus.completed);
-      primaryActionLabel = 'İşlendi';
-      primaryActionIcon = Icons.check_rounded;
-    }
-
     final moreSections = <Widget>[
       _DisclosureSection(
         title: 'Takip seçenekleri',
-        subtitle: 'Yalnızca ikincil durumlar ve başka haftaya taşıma',
+        subtitle:
+            'İsteğe bağlı · ${outcomeStatusLabel(_item.presentationStatus)}',
         icon: Icons.fact_check_outlined,
         child: Wrap(
           spacing: AppSpacing.sm,
@@ -234,9 +222,11 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
               )
             : Column(
                 children: [
-                  for (var index = 0;
-                      index < _item.contexts.length;
-                      index++) ...[
+                  for (
+                    var index = 0;
+                    index < _item.contexts.length;
+                    index++
+                  ) ...[
                     _BlockContextCard(
                       contextItem: _item.contexts[index],
                       onOpen: () => Navigator.of(context).push(
@@ -318,7 +308,8 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
                 InfoCard(
                   title: forms[index].title,
                   subtitle:
-                      forms[index].assessmentType ?? forms[index].structuralType,
+                      forms[index].assessmentType ??
+                      forms[index].structuralType,
                   icon: Icons.description_outlined,
                   child: Text(
                     forms[index].printedPage == null
@@ -342,11 +333,14 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
           child: Column(
             children: [
               if (targetedBindings.isNotEmpty)
-                for (var index = 0;
-                    index < targetedBindings.length;
-                    index++) ...[
+                for (
+                  var index = 0;
+                  index < targetedBindings.length;
+                  index++
+                ) ...[
                   InfoCard(
-                    title: targetedBindings[index].taskTitle ??
+                    title:
+                        targetedBindings[index].taskTitle ??
                         'Değerlendirme görevi',
                     subtitle: 'Doğrudan kazanım hedeflemesi',
                     icon: Icons.fact_check_outlined,
@@ -436,7 +430,6 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
               eyebrow: 'Kazanım',
               title: outcome.code,
               description: outcome.officialText,
-              trailing: OutcomeStatusChip(status: _item.presentationStatus),
             ),
             if (_item.isCarriedIn)
               StatusPanel(
@@ -464,9 +457,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
               sourceWeek: sourceWeek,
               textbook: textbook,
               activities: activities,
-              primaryAction: _saving ? null : primaryAction,
-              primaryActionLabel: primaryActionLabel,
-              primaryActionIcon: primaryActionIcon,
+              teacherNote: _noteController.text,
               onCopyDiary: _copyDiaryText,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -512,10 +503,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
         const SizedBox(width: AppSpacing.sm),
-        Text(
-          _noteDirty ? 'Otomatik kaydedilecek' : 'Kaydedildi',
-          style: style,
-        ),
+        Text(_noteDirty ? 'Otomatik kaydedilecek' : 'Kaydedildi', style: style),
       ],
     );
   }
@@ -636,7 +624,10 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
         )
         .toList(growable: false);
     if (targets.isEmpty) {
-      showTeacherFeedback(context, 'Taşınabilecek sonraki öğretim haftası yok.');
+      showTeacherFeedback(
+        context,
+        'Taşınabilecek sonraki öğretim haftası yok.',
+      );
       return;
     }
     var selected = targets.first.week.weekNumber;
@@ -648,7 +639,9 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
           content: DropdownButtonFormField<int>(
             initialValue: selected,
             isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Hedef öğretim haftası'),
+            decoration: const InputDecoration(
+              labelText: 'Hedef öğretim haftası',
+            ),
             items: [
               for (final summary in targets)
                 DropdownMenuItem<int>(
@@ -723,7 +716,8 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
     try {
       await action();
       final refreshed = await widget.service.buildPlan();
-      final summary = refreshed.week(_item.displayWeekNumber) ??
+      final summary =
+          refreshed.week(_item.displayWeekNumber) ??
           refreshed.week(_item.plannedWeekNumber);
       TrackedOutcome? next;
       if (summary != null) {
@@ -794,9 +788,7 @@ class _LessonReadyCard extends StatelessWidget {
     required this.sourceWeek,
     required this.textbook,
     required this.activities,
-    required this.primaryAction,
-    required this.primaryActionLabel,
-    required this.primaryActionIcon,
+    required this.teacherNote,
     required this.onCopyDiary,
   });
 
@@ -804,17 +796,14 @@ class _LessonReadyCard extends StatelessWidget {
   final AcademicWeekPlan? sourceWeek;
   final List<model.TextbookSection> textbook;
   final List<model.Activity> activities;
-  final VoidCallback? primaryAction;
-  final String? primaryActionLabel;
-  final IconData? primaryActionIcon;
+  final String teacherNote;
   final VoidCallback onCopyDiary;
 
   @override
   Widget build(BuildContext context) {
     final firstBook = textbook.isEmpty ? null : textbook.first;
     final firstActivity = activities.isEmpty ? null : activities.first;
-    final completed =
-        item.presentationStatus == OutcomeTrackingStatus.completed;
+    final note = teacherNote.trim();
 
     return Card(
       color: Theme.of(context).colorScheme.secondaryContainer,
@@ -862,36 +851,19 @@ class _LessonReadyCard extends StatelessWidget {
                 value: _activityCue(firstActivity, activities.length),
               ),
             ],
-            const SizedBox(height: AppSpacing.lg),
-            if (completed)
-              Row(
-                children: [
-                  Icon(
-                    Icons.check_circle,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      'Bu kazanım işlendi.',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
+            if (note.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.md),
+              _LessonCue(
+                icon: Icons.sticky_note_2_outlined,
+                label: 'Öğretmen notu',
+                value: note,
               ),
-            if (completed) const SizedBox(height: AppSpacing.md),
+            ],
+            const SizedBox(height: AppSpacing.lg),
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
               children: [
-                if (primaryActionLabel != null && primaryActionIcon != null)
-                  FilledButton.icon(
-                    onPressed: primaryAction,
-                    icon: Icon(primaryActionIcon),
-                    label: Text(primaryActionLabel!),
-                  ),
                 OutlinedButton.icon(
                   onPressed: onCopyDiary,
                   icon: const Icon(Icons.copy_outlined),
@@ -1014,7 +986,7 @@ class _MoreInformationPanel extends StatelessWidget {
         style: TextStyle(fontWeight: FontWeight.w800),
       ),
       subtitle: const Text(
-        'Takip, notlar, plan bağlamı, değerlendirme ve kaynaklar',
+        'Notlar, plan bağlamı, değerlendirme, kaynaklar ve isteğe bağlı takip',
       ),
       childrenPadding: const EdgeInsets.fromLTRB(
         AppSpacing.sm,
@@ -1120,7 +1092,8 @@ String _statusChangeMessage(OutcomeTrackingStatus status) => switch (status) {
   OutcomeTrackingStatus.planned => 'Planlı durumuna döndürüldü.',
   OutcomeTrackingStatus.inProgress => 'Devam ediyor olarak işaretlendi.',
   OutcomeTrackingStatus.completed => 'İşlendi olarak işaretlendi.',
-  OutcomeTrackingStatus.partiallyCompleted => 'Kısmen işlendi olarak işaretlendi.',
+  OutcomeTrackingStatus.partiallyCompleted =>
+    'Kısmen işlendi olarak işaretlendi.',
   OutcomeTrackingStatus.carriedOver => 'Taşındı olarak işaretlendi.',
 };
 

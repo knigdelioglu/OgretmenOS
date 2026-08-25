@@ -223,7 +223,9 @@ void main() {
 
     expect(find.text('Derste lazım'), findsOneWidget);
     expect(find.text('Daha fazla bilgi'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Başla'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Başla'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'İşlendi'), findsNothing);
+    expect(find.text('Planlı'), findsNothing);
     expect(find.text('Deftere kopyala'), findsOneWidget);
     expect(find.text('TEST SÜREÇ BİLEŞENİ'), findsNothing);
     expect(find.text('Notu kaydet'), findsNothing);
@@ -236,6 +238,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Öğretmen notu'), findsOneWidget);
+    expect(find.text('Takip seçenekleri'), findsOneWidget);
+    expect(find.text('İsteğe bağlı · Planlı'), findsOneWidget);
     expect(find.text('Süreç bileşenleri'), findsOneWidget);
     expect(find.text('Plan ve blok bağlamı'), findsOneWidget);
     expect(find.text('TEST SÜREÇ BİLEŞENİ'), findsNothing);
