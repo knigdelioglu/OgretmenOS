@@ -1,6 +1,12 @@
 import 'course_models.dart';
 import 'weekly_plan_models.dart';
 
+String outcomeTrackingKey({
+  required String academicYear,
+  required String outcomeId,
+  required int plannedWeekNumber,
+}) => '$academicYear:$outcomeId:$plannedWeekNumber';
+
 enum OutcomeTrackingStatus {
   planned,
   inProgress,
@@ -47,6 +53,12 @@ class LearningOutcomeTrackingRecord {
   final DateTime? completedAt;
   final int? carriedToWeekNumber;
   final DateTime updatedAt;
+
+  String get trackingKey => outcomeTrackingKey(
+    academicYear: academicYear,
+    outcomeId: outcomeId,
+    plannedWeekNumber: plannedWeekNumber,
+  );
 
   LearningOutcomeTrackingRecord copyWith({
     OutcomeTrackingStatus? status,
@@ -112,28 +124,31 @@ class TrackedOutcome {
   final int? carriedFromWeekNumber;
   final bool isCarriedIn;
 
-  String get trackingKey => '$academicYear:${outcome.id}:$plannedWeekNumber';
+  String get trackingKey => outcomeTrackingKey(
+    academicYear: academicYear,
+    outcomeId: outcome.id,
+    plannedWeekNumber: plannedWeekNumber,
+  );
 
   Theme? get primaryTheme => contexts.isEmpty ? null : contexts.first.theme;
   Block? get primaryBlock => contexts.isEmpty ? null : contexts.first.block;
 
   OutcomeTrackingStatus get presentationStatus =>
       !isCarriedIn && carriedToWeekNumber != null
-          ? OutcomeTrackingStatus.carriedOver
-          : status;
+      ? OutcomeTrackingStatus.carriedOver
+      : status;
 }
 
 class WeeklyOutcomeSummary {
-  const WeeklyOutcomeSummary({
-    required this.week,
-    required this.outcomes,
-  });
+  const WeeklyOutcomeSummary({required this.week, required this.outcomes});
 
   final AcademicWeekPlan week;
   final List<TrackedOutcome> outcomes;
 
   int get completedCount => outcomes
-      .where((item) => item.presentationStatus == OutcomeTrackingStatus.completed)
+      .where(
+        (item) => item.presentationStatus == OutcomeTrackingStatus.completed,
+      )
       .length;
 
   int get inProgressCount => outcomes
@@ -165,10 +180,7 @@ class WeeklyOutcomeSummary {
 }
 
 class AnnualOutcomePlan {
-  const AnnualOutcomePlan({
-    required this.weeklyPlan,
-    required this.weeks,
-  });
+  const AnnualOutcomePlan({required this.weeklyPlan, required this.weeks});
 
   final AnnualWeeklyPlan weeklyPlan;
   final List<WeeklyOutcomeSummary> weeks;

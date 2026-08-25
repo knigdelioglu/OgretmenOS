@@ -44,12 +44,18 @@ class LastFocusState {
     final trackingKey = json['tracking_key'];
     final outcomeCode = json['outcome_code'];
     final updatedAt = json['updated_at'];
+    final themeTitle = json['theme_title'];
+    final blockId = json['block_id'];
+    final blockTitle = json['block_title'];
     if (courseId is! String ||
         academicYear is! String ||
         weekNumber is! int ||
         trackingKey is! String ||
         outcomeCode is! String ||
-        updatedAt is! String) {
+        updatedAt is! String ||
+        (themeTitle != null && themeTitle is! String) ||
+        (blockId != null && blockId is! String) ||
+        (blockTitle != null && blockTitle is! String)) {
       return null;
     }
     final parsedUpdatedAt = DateTime.tryParse(updatedAt);
@@ -60,9 +66,9 @@ class LastFocusState {
       weekNumber: weekNumber,
       trackingKey: trackingKey,
       outcomeCode: outcomeCode,
-      themeTitle: json['theme_title'] as String?,
-      blockId: json['block_id'] as String?,
-      blockTitle: json['block_title'] as String?,
+      themeTitle: themeTitle as String?,
+      blockId: blockId as String?,
+      blockTitle: blockTitle as String?,
       updatedAt: parsedUpdatedAt,
     );
   }
@@ -88,29 +94,43 @@ class SharedPreferencesContinuityRepository implements ContinuityRepository {
   @override
   Future<LastFocusState?> getLastFocus(String courseId) async {
     final key = _key(courseId);
-    final raw = _preferences.getString(key);
-    if (raw == null) return null;
     try {
+      final raw = _preferences.getString(key);
+      if (raw == null) return null;
       final decoded = jsonDecode(raw);
       if (decoded is! Map<String, dynamic>) {
-        await _preferences.remove(key);
+        await _removeBestEffort(key);
         return null;
       }
       final state = LastFocusState.fromJson(decoded);
       if (state == null || state.courseId != courseId) {
-        await _preferences.remove(key);
+        await _removeBestEffort(key);
         return null;
       }
       return state;
-    } on FormatException {
-      await _preferences.remove(key);
+    } on Object {
+      // Continuity is convenience state. Corruption or preference read errors
+      // must never block authoritative lesson content.
+      await _removeBestEffort(key);
       return null;
+    }
+  }
+
+  Future<void> _removeBestEffort(String key) async {
+    try {
+      await _preferences.remove(key);
+    } on Object {
+      // A failed cleanup may leave stale convenience state, but it must not
+      // turn a non-authoritative preference into an app failure.
     }
   }
 
   @override
   Future<void> setLastFocus(LastFocusState state) async {
-    await _preferences.setString(_key(state.courseId), jsonEncode(state.toJson()));
+    await _preferences.setString(
+      _key(state.courseId),
+      jsonEncode(state.toJson()),
+    );
   }
 
   @override
@@ -123,7 +143,8 @@ class MemoryContinuityRepository implements ContinuityRepository {
   final Map<String, LastFocusState> _states = {};
 
   @override
-  Future<LastFocusState?> getLastFocus(String courseId) async => _states[courseId];
+  Future<LastFocusState?> getLastFocus(String courseId) async =>
+      _states[courseId];
 
   @override
   Future<void> setLastFocus(LastFocusState state) async {

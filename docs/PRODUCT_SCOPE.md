@@ -1,47 +1,26 @@
-# PRODUCT_SCOPE.md — ÖğretmenOS V1.2
+# PRODUCT_SCOPE.md — ÖğretmenOS V1.3
 
 **Product:** ÖğretmenOS  
-**Document version:** 1.2.0  
+**Document version:** 1.3.0  
 **Status:** Binding Product Scope Authority  
 **Implementation:** Flutter + Dart + Material 3  
-**V1 Distribution Target:** Android  
-**Initial Course Package:** `TDE_9`  
-**Operation Mode:** Offline-first, deterministic, local
-
----
+**Operation mode:** Offline-first, deterministic, local
 
 ## 1. Product definition
 
-ÖğretmenOS, öğretmenin derse girerken haftalık kazanımlarını görüp ders defterini güvenilir program verisine bakarak doldurabildiği **kazanım takip ve ders yürütme uygulamasıdır**.
-
-Ürün ön yüzde kazanım odaklıdır. Arka planda ise:
+ÖğretmenOS öğretmenin derse girerken **şu anki ders bağlamını mümkün olan en az karar yüküyle** görmesini sağlar. Birincil akış:
 
 ```text
-verified TYMM course runtime
-+
-versioned academic calendar
-+
-versioned course scheduling profile
-+
-local teacher tracking state
+uygulamayı aç
+→ Bu Hafta / ŞİMDİ
+→ ders bağlamını ve gerekli doğrulanmış bilgiyi gör
+→ gerekirse ayrıntı/kaynak aç
+→ çık
 ```
 
-birleştirilir.
+**Tracking isteğe bağlıdır.** Bir kazanımı görüntülemek, derse hazırlanmak veya uygulamadan çıkmak için `Başla`, `İşlendi` ya da başka bir tracking durumu zorunlu değildir.
 
-Uygulama şu soruları en fazla birkaç dokunuşta cevaplamalıdır:
-
-```text
-Bu hafta hangi kazanımlar planlı?
-Hangi tema/blok içindeyim?
-Bu hafta kaç ders saati var?
-Hangi kazanımları işledim, hangileri kısmen kaldı veya sarktı?
-Ders defterine bakarken hangi resmî kazanım metnini kullanacağım?
-Bu kazanımın bulunduğu blokta hangi kitap, etkinlik, materyal ve değerlendirme verileri var?
-```
-
----
-
-## 2. Authority and immutable knowledge
+## 2. Authority and truth boundary
 
 Authority order:
 
@@ -51,7 +30,7 @@ Authority order:
 3. AGENT.md
 ```
 
-Course knowledge remains authoritative only in the verified runtime package:
+Canonical TYMM knowledge yalnız doğrulanmış runtime paketinden gelir:
 
 ```text
 Canonical TYMM Knowledge
@@ -60,159 +39,104 @@ Canonical TYMM Knowledge
 → read-only CourseKnowledgeRepository
 ```
 
-The app must never edit runtime outcomes, themes, blocks, textbook relationships, activities, assessment mappings or resource decisions.
+Uygulama runtime outcome/theme/block/textbook/activity/assessment ilişkilerini değiştirmez veya uydurmaz.
 
----
+## 3. Primary navigation
 
-## 3. Calendar and scheduling authority
-
-Academic-year dates and scheduling parameters remain versioned data assets. Dart UI code must not hardcode yearly dates or curriculum facts.
-
-For `TDE_9` 2026-2027:
+Top-level navigation yalnız üç öğretmen işidir:
 
 ```text
-weekly lesson hours = 5
-annual course hours = 180
-4 themes × 45 hours
-43 structured + 2 school-based hours per theme
-36 instructional weeks consume 180 hours
-37th active week = EVENT_WEEK
+Bu Hafta
+Yıllık
+Kaynaklar
 ```
 
-The current deterministic block planning allocation remains:
+Default surface `Bu Hafta`dır.
+
+Legacy `Kazanımlar / Haftalık / Paket` ekranları top-level ürün navigasyonu değildir. Tracking, haftalık ders akışının ikincil/isteğe bağlı bir özelliğidir.
+
+## 4. Bu Hafta — single focus contract
+
+`Bu Hafta` tek baskın `ŞİMDİ` odağı sunar. Birincil CTA:
 
 ```text
-12 + 11 + 10 + 10 = 43 structured hours
+Ders ayrıntısını aç
 ```
 
-This is a product scheduling policy, not an official block-duration claim.
+Varsayılan `planned` durumu kullanıcıya eksik iş, ilerleme veya yapılacaklar listesi gibi sunulmaz. Explicit öğretmen durumları yalnız kullanıcı gerçekten işaretlediyse `Takip: ...` olarak görünür.
 
----
-
-## 4. Core capability A — Kazanım Takibi
-
-**Kazanımlar is the default application surface.** The app must look and behave primarily like a weekly learning-outcome tracker rather than a runtime browser.
-
-For the selected academic week the teacher can see card-based outcomes with:
+İsteğe bağlı işlemler:
 
 ```text
-outcome code
-official outcome text
-week/date context
-theme and block context
-planned lesson context
-tracking status
-carry-over indicator
-teacher note indicator
-available book/material context summary
+Devam ediyor olarak işaretle
+İşlendi olarak işaretle
+Kısmen işlendi
+sonraki öğretim haftasına taşı
+hızlı öğretmen notu
 ```
 
-Supported local tracking states:
+Bu işlemler ana CTA değildir.
+
+## 5. Continuity / Kaldığın Yer
+
+`LastFocusState` **son görüntülenen ders bağlamıdır**, tracking durumu değildir.
+
+- outcome detail açılması continuity kaydını günceller;
+- status değişikliği continuity oluşturmaz veya silmez;
+- `completed` olmak son görüntülenen dersi yok etmez;
+- continuity okuma/yazma/temizleme hatası ana ders içeriğini bloke edemez;
+- stale veya bozuk continuity state güvenle yok sayılır.
+
+## 6. Ders ayrıntısı
+
+Ders ayrıntısı bilgi-first yüzeydir. `Derste lazım` bölümü official outcome, hafta/blok/tema, kitap/etkinlik ipuçları ve varsa öğretmen notunu öne çıkarır.
+
+Tracking kontrolleri yalnız `Daha fazla bilgi → Takip seçenekleri` altında bulunur. Varsayılan durum `İsteğe bağlı · Takip yok` olarak sunulur.
+
+Öğretmen notu otomatik kaydolur; kayıt başarısızsa sessiz veri kaybına izin verilmez ve sayfadan çıkış engellenir.
+
+## 7. Kaynaklar
+
+Kaynak ekranı tema 1'e körlemesine sıfırlanmaz. Bağlam önceliği:
 
 ```text
-PLANNED
-IN_PROGRESS
-COMPLETED
-PARTIALLY_COMPLETED
-CARRIED_OVER
+1. son görüntülenen ders
+2. mevcut öğretim haftası
+3. güvenli ilk-tema fallback
 ```
 
-Absence of a local tracking row means `PLANNED`.
+Bağlam convenience state'tir; okunamazsa kaynak erişimi yine çalışır. Manuel tema seçimi ekranda kalındığı sürece korunur; sekmeye yeniden girişte güncel ders bağlamı tekrar çözülür.
 
-Planned progression is not student mastery. Tracking state means only the teacher's classroom execution state for that week.
+## 8. Yıllık plan
 
----
-
-## 5. Core capability B — Kazanım Detail / Ders Yürütme
-
-Tapping an outcome opens a detail surface centred on the selected outcome.
-
-The screen may expose only data that can be reached truthfully through the current runtime/planning contracts, including:
+Yıllık plan canonical öğretim sırasını gösterir. `ŞU AN BURADASIN` konumu:
 
 ```text
-official outcome text
-process components
-planned week and date range
-theme
-block
-block-level textbook sections/page ranges
-block-level activities
-forms
-assessment artifacts
-targeted assessment task bindings when the runtime explicitly targets the outcome
-resource decisions
-source/block navigation
+son görüntülenen ders
+veya daha yeni geçici manuel konum işareti
 ```
 
-If a relationship is only known at block level, the UI must label it as **block context** and must not imply an outcome-specific relationship.
+Manuel işaret course-scoped ve geçicidir; daha sonra açılan yeni ders odağı eski manuel işareti otomatik geçersiz kılar.
 
-No pedagogical text or missing relationship may be invented.
+**Konum ilerleme değildir.** Blok sırası yüzde/tamamlanma progress bar'ına dönüştürülemez.
 
----
+Tracking kullanılmışsa ayrı `İSTEĞE BAĞLI TAKİP` özeti yalnız açıkça işaretlenen statü adetlerini gösterebilir. İşaretlenmemiş kazanımlar eksik sayılmaz ve denominator/yüzde üretilmez.
 
-## 6. Core capability C — Ders Defteri Desteği
+## 9. Teacher-local mutable state
 
-The selected week provides a compact **Deftere Bakış** view containing only verified/derived planning facts:
+Canonical runtime'dan ayrı tutulur:
 
 ```text
-academic week/date range
-theme(s)
-block(s)
-outcome codes
-official outcome texts when expanded/copied
+teacher_state.sqlite
+  learning_outcome_tracking
+
+SharedPreferences
+  last viewed lesson continuity
+  course-scoped temporary annual marker
+  UI preferences
 ```
 
-The app may provide copy-to-clipboard convenience. It must not fabricate a new official lesson-log sentence unless such text exists in authoritative data.
-
-The primary goal is to replace the common workflow of carrying Excel-table screenshots on a phone.
-
----
-
-## 7. Core capability D — Takvim Tabanlı Haftalık Plan
-
-The existing weekly plan remains available as the scheduling view and must expose:
-
-```text
-week type
-planned TDE hours
-active block segments
-segment hours
-school-based planning segments
-weekly outcomes
-```
-
-Break weeks do not consume course hours. `EVENT_WEEK` consumes zero new curriculum hours.
-
----
-
-## 8. Core capability E — Annual plan, book/material and teacher package
-
-Existing capabilities remain supported:
-
-```text
-Akademik Takvime Bağlı Yıllık Plan
-Kitap-Önce / Materyal Gerekliliği
-Otomatik Öğretmen Paketi
-Block Detail
-```
-
-They are secondary/detail surfaces behind the outcome-first workflow.
-
----
-
-## 9. Mutable teacher state
-
-Teacher-local tracking is explicitly in scope and must remain physically/logically separate from `course_runtime.sqlite`.
-
-Allowed local mutable state:
-
-```text
-manual_position_override
-UI preferences
-learning_outcome_tracking
-```
-
-A tracking record may store:
+Tracking record alanları:
 
 ```text
 academic_year
@@ -226,119 +150,84 @@ carried_to_week_number (optional)
 updated_at
 ```
 
-Tracking rows may be written to a dedicated local teacher-state database. Runtime DB remains read-only.
+## 10. Tracking semantics
 
-Runtime/calendar asset updates must not erase teacher tracking state.
-
----
-
-## 10. Carry-over semantics
-
-The canonical plan never moves when classroom execution drifts.
-
-The application shows two separate truths:
+Valid storage states:
 
 ```text
-PLANLANAN
-vs
-GERÇEKLEŞEN / TAKİP DURUMU
+planned
+in_progress
+completed
+partially_completed
+carried_over
 ```
 
-When an outcome is carried forward:
+`planned` domain/storage fallback'ıdır; kullanıcıya otomatik ilerleme borcu olarak gösterilmez. Canonical schedule ve classroom tracking iki ayrı gerçektir.
 
-- its original planned week remains known;
-- the source week shows `CARRIED_OVER`;
-- the target instructional week may additionally show it as `Geçen haftadan`;
-- event week is not a valid carry target;
-- carry-over does not rewrite the annual planning service.
+Carry-over canonical planned week'i değiştirmez, EVENT_WEEK'e hedeflenemez ve aynı original tracking identity üzerinden yürür.
 
----
+## 11. Calendar/runtime invariants
 
-## 11. Navigation and UX identity
-
-Top-level navigation is outcome-first:
+Aktif TDE_9 2026-2027 profilinde:
 
 ```text
-Kazanımlar
-Haftalık
-Yıllık Plan
-Paket
+weekly_hours = 5
+annual_hours = 180
+theme_count = 4
+theme_hours = 45
+structured_theme_hours = 43
+school_based_theme_hours = 2
+instructional_weeks = 36
+active_week_37 = EVENT_WEEK
+EVENT_WEEK new curriculum hours = 0
 ```
 
-`Kazanımlar` opens by default.
+Bu değerler feature widget'larında hardcode edilmez; versioned planning/runtime authority'den gelir.
 
-The teacher should be able to answer **“Bu hafta ne işleyeceğim?”** immediately after launch.
+## 12. Offline/privacy boundary
 
-Outcome cards should use clear visual state chips, concise context, large touch targets and progressive disclosure. Technical runtime codes that do not help classroom use should not dominate the card.
-
-Phone and tablet layouts, large text and dark mode must remain usable.
-
----
-
-## 12. Offline and privacy boundary
-
-All core capability remains offline after installation.
-
-Still out of scope:
+Core kullanım kurulum sonrası offline çalışır. V1.3 dışında kalanlar:
 
 ```text
 student roster / attendance / grades
-student mastery tracking
-cloud account / backend / sync
-MEBBİS or e-Okul integration
-Google Calendar integration
-school timetable synchronization
-LLM / RAG / AI generation
+student mastery analytics
+cloud account/backend/sync
+MEBBİS/e-Okul
+LLM/RAG/AI generation
 OCR/PDF ingestion
 curriculum editing
+general-purpose notes/task manager
 ```
 
-A teacher note attached to a weekly outcome tracking record is in scope; a general-purpose notes/task-manager product is not.
+## 13. Required UX invariants
 
----
-
-## 13. Required invariants
-
-The product must preserve:
-
-```text
-runtime DB is read-only
-tracking DB/state is separate
-weekly_hours = 5 for the active TDE_9 profile
-36 × 5 = 180
-4 × 45 = 180
-43 + 2 = 45 per theme
-37th active week = EVENT_WEEK
-EVENT_WEEK new curriculum assignment = 0
-tracking never changes canonical outcome text or planned schedule
-outcome detail never invents unavailable relationships
-```
-
----
+- Tek baskın mevcut ders odağı.
+- Tracking zorunlu değildir.
+- Bir dersi görüntülemek tracking kaydı oluşturmaz.
+- Continuity tracking'den bağımsızdır.
+- Convenience preference hataları authoritative içeriği bloke etmez.
+- Notlarda sessiz veri kaybı yoktur.
+- Tracking/carry mutationları gerçek Undo sunar.
+- `planned` bir kullanıcı borcu gibi sunulmaz.
+- Konum, tamamlanma yüzdesi değildir.
+- Phone/tablet, large text ve dark mode kullanılabilir kalır.
+- Touch target'lar Material minimumlarını korur.
 
 ## 14. Definition of success
 
-V1.2 is successful when a teacher can:
+V1.3 başarılıdır when a teacher can:
 
-1. open the app directly into `Kazanımlar`;
-2. see the current/selected week's outcome cards;
-3. understand theme/block/date context without opening an Excel image;
-4. mark an outcome in progress, completed, partial or carried over;
-5. add a short local teacher note;
-6. reopen the app and retain tracking state;
-7. open an outcome and reach the verified block/book/activity/assessment/resource data currently available;
-8. use `Deftere Bakış` while filling the class record;
-9. distinguish planned schedule from actual classroom tracking;
-10. use all of the above offline without modifying canonical course knowledge.
-
----
+1. uygulamayı açıp `ŞİMDİ` dersini doğrudan görmek;
+2. hiçbir tracking işlemi yapmadan ders ayrıntısına ve kaynaklara ulaşmak;
+3. kesinti sonrası son görüntülenen derse dönmek;
+4. isterse tracking/not/carry özelliklerini kullanmak ve Undo yapabilmek;
+5. yıllık konumu ilerleme yüzdesiyle karıştırmamak;
+6. runtime doğruluğunu bozmadan tüm core akışı offline kullanmak.
 
 ## 15. Change protocol
 
-Future product changes follow:
-
 ```text
-scope → blueprint → implementation → tests/CI
+scope → blueprint → implementation → regression tests → full CI
 ```
 
-New academic years remain data updates through versioned calendar/profile assets.
+DEHB Faz 0–6 sözleşmesini değiştiren bir çalışma önce bu belgeyi bilinçli biçimde revize etmelidir; eski unrouted ekranları yeniden bağlamak scope değişikliği sayılır.

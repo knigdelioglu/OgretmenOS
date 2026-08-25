@@ -4,11 +4,12 @@ import '../models/weekly_plan_models.dart';
 import '../repositories/course_knowledge_repository.dart';
 import '../repositories/outcome_tracking_repository.dart';
 
-typedef OutcomeInteractionObserver = Future<void> Function(
-  TrackedOutcome item,
-  OutcomeTrackingStatus resultingStatus,
-  int displayWeekNumber,
-);
+typedef OutcomeInteractionObserver =
+    Future<void> Function(
+      TrackedOutcome item,
+      OutcomeTrackingStatus resultingStatus,
+      int displayWeekNumber,
+    );
 
 class OutcomePlanningService {
   const OutcomePlanningService({
@@ -29,7 +30,7 @@ class OutcomePlanningService {
       weeklyPlan.academicYear,
     );
     final recordsByKey = <String, LearningOutcomeTrackingRecord>{
-      for (final record in records) _recordKey(record): record,
+      for (final record in records) record.trackingKey: record,
     };
 
     final detailCache = <String, BlockDetail>{};
@@ -41,7 +42,8 @@ class OutcomePlanningService {
       for (final segment in week.segments) {
         final block = segment.block;
         if (block == null) continue;
-        final detail = detailCache[block.id] ?? await repository.getBlock(block.id);
+        final detail =
+            detailCache[block.id] ?? await repository.getBlock(block.id);
         detailCache[block.id] = detail;
         if (!blockDetails.any((item) => item.block.id == detail.block.id)) {
           blockDetails.add(detail);
@@ -56,7 +58,11 @@ class OutcomePlanningService {
             )
             .map((detail) => OutcomeBlockContext(detail: detail))
             .toList(growable: false);
-        final key = _key(weeklyPlan.academicYear, outcome.id, week.weekNumber);
+        final key = outcomeTrackingKey(
+          academicYear: weeklyPlan.academicYear,
+          outcomeId: outcome.id,
+          plannedWeekNumber: week.weekNumber,
+        );
         final record = recordsByKey[key];
         final tracked = TrackedOutcome(
           outcome: outcome,
@@ -81,7 +87,7 @@ class OutcomePlanningService {
       if (target == null || target == record.plannedWeekNumber) continue;
       final targetWeek = weeklyPlan.week(target);
       if (targetWeek == null || targetWeek.isEventWeek) continue;
-      final base = baseByKey[_recordKey(record)];
+      final base = baseByKey[record.trackingKey];
       if (base == null) continue;
       final targetItems = weekItems[target];
       if (targetItems == null) continue;
@@ -116,10 +122,7 @@ class OutcomePlanningService {
         return a.outcome.code.compareTo(b.outcome.code);
       });
       summaries.add(
-        WeeklyOutcomeSummary(
-          week: week,
-          outcomes: List.unmodifiable(items),
-        ),
+        WeeklyOutcomeSummary(week: week, outcomes: List.unmodifiable(items)),
       );
     }
 
@@ -129,9 +132,8 @@ class OutcomePlanningService {
     );
   }
 
-  Future<LearningOutcomeTrackingRecord?> captureTracking(
-    TrackedOutcome item,
-  ) => _findCurrentRecord(item);
+  Future<LearningOutcomeTrackingRecord?> captureTracking(TrackedOutcome item) =>
+      _findCurrentRecord(item);
 
   Future<void> restoreTracking(
     TrackedOutcome item,
@@ -213,8 +215,8 @@ class OutcomePlanningService {
     final now = DateTime.now();
     final carriedToWeekNumber =
         current?.carriedToWeekNumber ?? item.carriedToWeekNumber;
-    final keepCarry = carriedToWeekNumber != null &&
-        status != OutcomeTrackingStatus.planned;
+    final keepCarry =
+        carriedToWeekNumber != null && status != OutcomeTrackingStatus.planned;
     await trackingRepository.save(
       LearningOutcomeTrackingRecord(
         academicYear: item.academicYear,
@@ -299,7 +301,9 @@ class OutcomePlanningService {
       throw StateError('Etkinlik haftasına kazanım taşınamaz.');
     }
     if (targetWeekNumber <= item.plannedWeekNumber) {
-      throw StateError('Kazanım yalnız daha sonraki bir öğretim haftasına taşınabilir.');
+      throw StateError(
+        'Kazanım yalnız daha sonraki bir öğretim haftasına taşınabilir.',
+      );
     }
     final current = await _findCurrentRecord(item);
     final now = DateTime.now();
@@ -336,7 +340,7 @@ class OutcomePlanningService {
       item.academicYear,
     );
     for (final record in records) {
-      if (_recordKey(record) == item.trackingKey) return record;
+      if (record.trackingKey == item.trackingKey) return record;
     }
     return null;
   }
@@ -358,14 +362,6 @@ class OutcomePlanningService {
       // authoritative teacher tracking persistence.
     }
   }
-
-  String _recordKey(LearningOutcomeTrackingRecord record) => _key(
-    record.academicYear,
-    record.outcomeId,
-    record.plannedWeekNumber,
-  );
-
-  String _key(String year, String outcomeId, int week) => '$year:$outcomeId:$week';
 
   String? _cleanText(String? value) {
     final clean = value?.trim();

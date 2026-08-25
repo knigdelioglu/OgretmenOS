@@ -8,6 +8,7 @@ import '../../domain/repositories/course_knowledge_repository.dart';
 import '../../domain/services/outcome_planning_service.dart';
 import '../block/block_detail_page.dart';
 import '../shared/feature_widgets.dart';
+import '../shared/interaction_polish.dart';
 
 class AnnualPlanPage extends StatefulWidget {
   const AnnualPlanPage({
@@ -46,8 +47,8 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
 
   Future<_PlanData> _load() async {
     final sequence = await widget.repository.getAnnualSequence();
-    final manual = await _getManualPosition();
-    final lastFocus = await widget.continuity.getLastFocus(widget.courseId);
+    final manual = await _getManualPositionBestEffort();
+    final lastFocus = await _getLastFocusBestEffort();
     final trackingSummary = await _loadTrackingSummary();
     var manualBlockId =
         sequence.any((entry) => entry.block.id == manual?.blockId)
@@ -89,11 +90,7 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
         plan.academicYear,
       );
       final scopedRecords = records
-          .where(
-            (record) => courseTrackingKeys.contains(
-              '${record.academicYear}:${record.outcomeId}:${record.plannedWeekNumber}',
-            ),
-          )
+          .where((record) => courseTrackingKeys.contains(record.trackingKey))
           .toList();
       final summary = _OptionalTrackingSummary.fromRecords(scopedRecords);
       return summary.hasExplicitStatus ? summary : null;
@@ -103,19 +100,31 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
     }
   }
 
-  Future<ManualPositionOverrideState?> _getManualPosition() async {
-    final preferences = widget.preferences;
-    if (preferences is ScopedManualPositionPreferences) {
-      return (preferences as ScopedManualPositionPreferences)
-          .getManualPositionOverrideForCourse(widget.courseId);
+  Future<ManualPositionOverrideState?> _getManualPositionBestEffort() async {
+    try {
+      final preferences = widget.preferences;
+      if (preferences is ScopedManualPositionPreferences) {
+        return await (preferences as ScopedManualPositionPreferences)
+            .getManualPositionOverrideForCourse(widget.courseId);
+      }
+      final blockId = await preferences.getManualPositionOverride();
+      if (blockId == null) return null;
+      return ManualPositionOverrideState(
+        courseId: widget.courseId,
+        blockId: blockId,
+        updatedAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      );
+    } on Object {
+      return null;
     }
-    final blockId = await preferences.getManualPositionOverride();
-    if (blockId == null) return null;
-    return ManualPositionOverrideState(
-      courseId: widget.courseId,
-      blockId: blockId,
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-    );
+  }
+
+  Future<LastFocusState?> _getLastFocusBestEffort() async {
+    try {
+      return await widget.continuity.getLastFocus(widget.courseId);
+    } on Object {
+      return null;
+    }
   }
 
   Future<void> _setPositionPreference(String blockId) async {
@@ -149,13 +158,25 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
   void _reload() => setState(() => _future = _load());
 
   Future<void> _setPosition(String blockId) async {
-    await _setPositionPreference(blockId);
-    if (mounted) _reload();
+    try {
+      await _setPositionPreference(blockId);
+      if (mounted) _reload();
+    } on Object {
+      if (mounted) {
+        showTeacherFeedback(context, 'Geçici konum işareti kaydedilemedi.');
+      }
+    }
   }
 
   Future<void> _clearPosition() async {
-    await _clearPositionPreference();
-    if (mounted) _reload();
+    try {
+      await _clearPositionPreference();
+      if (mounted) _reload();
+    } on Object {
+      if (mounted) {
+        showTeacherFeedback(context, 'Geçici konum işareti temizlenemedi.');
+      }
+    }
   }
 
   @override

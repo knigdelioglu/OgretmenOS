@@ -43,24 +43,36 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
   }
 
   Future<_ContinuityData> _load() async {
-    final results = await Future.wait<Object?>([
-      widget.service.buildPlan(),
-      widget.continuity.getLastFocus(widget.courseId),
-    ]);
-    final plan = results[0] as AnnualOutcomePlan;
-    final stored = results[1] as LastFocusState?;
+    final plan = await widget.service.buildPlan();
+    final stored = await _readLastFocusBestEffort();
     if (stored == null) return _ContinuityData(plan: plan);
     if (stored.academicYear != plan.academicYear) {
-      await widget.continuity.clearLastFocus(widget.courseId);
+      await _clearLastFocusBestEffort();
       return _ContinuityData(plan: plan);
     }
 
     final item = _resolveFocus(plan, stored);
     if (item == null) {
-      await widget.continuity.clearLastFocus(widget.courseId);
+      await _clearLastFocusBestEffort();
       return _ContinuityData(plan: plan);
     }
     return _ContinuityData(plan: plan, stored: stored, item: item);
+  }
+
+  Future<LastFocusState?> _readLastFocusBestEffort() async {
+    try {
+      return await widget.continuity.getLastFocus(widget.courseId);
+    } on Object {
+      return null;
+    }
+  }
+
+  Future<void> _clearLastFocusBestEffort() async {
+    try {
+      await widget.continuity.clearLastFocus(widget.courseId);
+    } on Object {
+      // Stale continuity cleanup must never block the weekly workspace.
+    }
   }
 
   TrackedOutcome? _resolveFocus(AnnualOutcomePlan plan, LastFocusState stored) {
@@ -207,8 +219,9 @@ class _ResumeCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   [?theme, ?block].join(' · '),
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: scheme.onTertiaryContainer),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onTertiaryContainer,
+                  ),
                 ),
               ],
               const SizedBox(height: AppSpacing.sm),

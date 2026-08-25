@@ -109,6 +109,34 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('convenience preference failures do not block the annual plan', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: AnnualPlanPage(
+            repository: _Repository(),
+            preferences: _FailingPreferences(),
+            continuity: _FailingAnnualContinuity(),
+            courseId: 'TDE_9',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('1 tema · 45 saat · 2 blok'), findsOneWidget);
+    expect(find.text('Test Tema'), findsOneWidget);
+    expect(find.text('ŞU AN BURADASIN'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 final _oldFocusTime = DateTime.utc(2020, 1, 1);
@@ -244,4 +272,36 @@ class _Repository implements CourseKnowledgeRepository {
         resourceDecisions: [],
         sourceReferences: [],
       );
+}
+
+class _FailingPreferences implements UserPreferencesRepository {
+  const _FailingPreferences();
+
+  @override
+  Future<String?> getManualPositionOverride() =>
+      Future<String?>.error(StateError('preferences unavailable'));
+
+  @override
+  Future<void> setManualPositionOverride(String blockId) =>
+      Future<void>.error(StateError('preferences unavailable'));
+
+  @override
+  Future<void> clearManualPositionOverride() =>
+      Future<void>.error(StateError('preferences unavailable'));
+}
+
+class _FailingAnnualContinuity implements ContinuityRepository {
+  const _FailingAnnualContinuity();
+
+  @override
+  Future<LastFocusState?> getLastFocus(String courseId) =>
+      Future<LastFocusState?>.error(StateError('continuity unavailable'));
+
+  @override
+  Future<void> setLastFocus(LastFocusState state) =>
+      Future<void>.error(StateError('continuity unavailable'));
+
+  @override
+  Future<void> clearLastFocus(String courseId) =>
+      Future<void>.error(StateError('continuity unavailable'));
 }

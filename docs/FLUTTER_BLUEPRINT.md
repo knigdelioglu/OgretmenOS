@@ -1,20 +1,16 @@
-# ÖğretmenOS — Flutter Blueprint V1.2
+# ÖğretmenOS — Flutter Blueprint V1.3
 
-**Belge sürümü:** 1.2.0  
+**Belge sürümü:** 1.3.0  
 **Durum:** Bağlayıcı teknik blueprint  
 **Teknoloji:** Flutter + Dart + Material 3  
 **Çalışma modu:** Offline-first / yerel / deterministik
 
-`PRODUCT_SCOPE.md` bu belgenin üst otoritesidir.
+`PRODUCT_SCOPE.md` üst otoritedir.
 
----
-
-## 1. Architecture summary
-
-ÖğretmenOS dört ayrı kaynağı birleştirir:
+## 1. Architecture
 
 ```text
-course_runtime.sqlite (read-only course knowledge)
+course_runtime.sqlite (read-only)
         ↓
 CourseKnowledgeRepository
 
@@ -22,7 +18,7 @@ calendar/profile assets
         ↓
 WeeklyPlanningService
 
-teacher_state.sqlite (mutable local tracking)
+teacher_state.sqlite (mutable optional tracking)
         ↓
 OutcomeTrackingRepository
 
@@ -30,346 +26,189 @@ CourseKnowledgeRepository + WeeklyPlanningService + OutcomeTrackingRepository
         ↓
 OutcomePlanningService
         ↓
-Outcome-first Flutter UI
+Bu Hafta / Yıllık / Kaynaklar
 ```
 
-Runtime course knowledge ile teacher tracking aynı veritabanına yazılmaz.
+Continuity ve annual manual marker SharedPreferences tabanlı convenience state'tir; curriculum veya tracking authority değildir.
 
----
+## 2. Top-level shell
 
-## 2. Runtime boundary
-
-`course_runtime.sqlite` read-only kalır. Outcomes, themes, blocks, textbook sections, activities, forms, assessment artifacts, resource decisions ve source references bu kaynaktan gelir.
-
-Widget katmanı curriculum ilişkisi üretmez. Bir ilişki yalnız block seviyesinde biliniyorsa outcome detail bunu block context olarak sunar.
-
----
-
-## 3. Calendar / weekly planning
-
-Mevcut versioned calendar flow korunur:
+`TeacherOsApp` üç destination kullanır:
 
 ```text
-calendar_index.json
-→ active academic calendar JSON
-→ AssetWeeklyPlanningService
-→ AnnualWeeklyPlan
+0 Bu Hafta
+1 Yıllık
+2 Kaynaklar
 ```
 
-2026-2027 TDE_9 profile:
+`IndexedStack` ekran state'ini korur. Resource destination inactive→active geçişinde lesson context yeniden çözülür.
+
+## 3. Bu Hafta composition
 
 ```text
-5 hours/week
-180 annual hours
-4 × 45 theme hours
-43 structured + 2 school-based per theme
-36 instruction weeks
-37th active week EVENT_WEEK
+ContinuityThisWeekPage
+  ├─ optional KALDIĞIN YER card
+  └─ ThisWeekPage
+       └─ single ŞİMDİ focus card
 ```
 
-Derived block allocation `12,11,10,10` calendar/profile data authority altında kalır.
+`ContinuityThisWeekPage` önce authoritative `OutcomePlanningService.buildPlan()` sonucunu yükler. Continuity read/cleanup hataları yakalanır ve weekly workspace yine render edilir.
 
----
+`ThisWeekPage` detail açılmadan önce optional `onOutcomeViewed` callback'ini best-effort çağırır. Callback hatası navigation'ı bloke etmez.
 
-## 4. Teacher tracking database
+## 4. Continuity contract
 
-Yeni mutable store:
-
-```text
-teacher_state.sqlite
-```
-
-İlk schema:
+`LastFocusState`:
 
 ```text
-outcome_tracking
-  academic_year TEXT
-  outcome_id TEXT
-  planned_week_number INTEGER
-  status TEXT
-  actual_hours INTEGER NULL
-  teacher_note TEXT NULL
-  completed_at TEXT NULL
-  carried_to_week_number INTEGER NULL
-  updated_at TEXT
-  PRIMARY KEY (academic_year, outcome_id, planned_week_number)
-```
-
-Bu DB uygulama-local veridir ve runtime asset refresh işleminden bağımsızdır.
-
-Valid status values:
-
-```text
-planned
-in_progress
-completed
-partially_completed
-carried_over
-```
-
-Eksik row = `planned`.
-
----
-
-## 5. OutcomePlanningService
-
-Service input:
-
-```text
-WeeklyPlanningService
-CourseKnowledgeRepository
-OutcomeTrackingRepository
-```
-
-Service responsibilities:
-
-1. annual weekly planı yükle;
-2. week segmentlerindeki unique block detail'leri repository'den al;
-3. weekly outcomes ile block context'i eşleştir;
-4. local tracking records ile merge et;
-5. carry-over kayıtlarını hedef instruction week'e ek görünüm olarak taşı;
-6. weekly summary/count üret;
-7. status, note ve carry mutationlarını tracking repository üzerinden kaydet.
-
-The service never mutates `AnnualWeeklyPlan` authority or runtime objects.
-
----
-
-## 6. Outcome domain types
-
-```text
-OutcomeTrackingStatus
-LearningOutcomeTrackingRecord
-OutcomeBlockContext
-TrackedOutcome
-WeeklyOutcomeSummary
-AnnualOutcomePlan
-```
-
-`TrackedOutcome` bir projection'dır:
-
-```text
-verified Outcome
-+
-planned week
-+
-verified block context(s)
-+
-local teacher tracking state
-```
-
-`isCarriedIn` yalnız UI context bilgisidir; canonical planı değiştirmez.
-
----
-
-## 7. Top-level navigation
-
-```text
-Kazanımlar
-Haftalık
-Yıllık Plan
-Paket
-```
-
-Default index = `Kazanımlar`.
-
-Existing Home dashboard top-level navigation'dan çıkarılır; reusable underlying feature pages remain available where needed.
-
----
-
-## 8. Outcome Tracker screen
-
-`OutcomeTrackerPage` loads `AnnualOutcomePlan` and defaults to calendar-resolved current week, otherwise first active week.
-
-Required screen elements:
-
-```text
-academic year
-week selector + previous/next controls
-date range
-planned lesson hours
-summary metrics
-filter chips
-Deftere Bakış
-outcome cards
-```
-
-Outcome card:
-
-```text
-code
-official text
-status chip
+courseId
+academicYear
+weekNumber
+trackingKey
+outcomeCode
 theme/block context
-carry-over marker
-book/page context if available
-note indicator
-quick Complete action
-more-actions menu
+updatedAt
 ```
 
-Filters:
+Continuity yalnız viewing event ile güncellenir. Production `OutcomePlanningService` continuity callback'i almaz. Tracking mutationları continuity üzerinde side effect üretmez.
+
+Malformed JSON, malformed optional field veya preference I/O problemi `null` continuity olarak ele alınır.
+
+## 5. OutcomePlanningService and tracking identity
+
+Tracking storage identity tek canonical encoder kullanır:
 
 ```text
-all
-open
-completed
-carried
+outcomeTrackingKey(
+  academicYear,
+  outcomeId,
+  plannedWeekNumber,
+)
 ```
 
-Event week shows event status and no fabricated new outcomes.
+`LearningOutcomeTrackingRecord.trackingKey`, `TrackedOutcome.trackingKey`, plan projection ve annual optional tracking scope aynı encoder'a dayanır.
 
----
+Missing tracking row projection'da `planned` olur; bu storage/domain fallback'ıdır, zorunlu kullanıcı görevi değildir.
 
-## 9. Outcome Detail screen
+## 6. Outcome detail
 
-`OutcomeDetailPage` receives a `TrackedOutcome` and current annual outcome plan.
-
-Sections:
+`OutcomeDetailPage` foreground hiyerarşisi:
 
 ```text
-Outcome / official text
-Tracking controls
-Teacher note
-Deftere Bakış
-Plan context
-Block context navigation
-Textbook sections/pages
-Activities
-Forms
-Assessment artifacts
-Explicitly targeted assessment task bindings
-Resource decisions
+official outcome
+Derste lazım
+Daha fazla bilgi
+  ├─ Takip seçenekleri (optional)
+  ├─ Öğretmen notu
+  ├─ süreç bileşenleri
+  ├─ plan/blok context
+  └─ doğrulanmış resource/assessment context
 ```
 
-Aggregations must deduplicate by stable runtime IDs.
+`Başla` / `İşlendi` primary CTA değildir.
 
-Outcome-specific targeting is shown only if runtime data explicitly targets the outcome. Otherwise labels state that the data belongs to the containing block.
+Teacher note:
 
----
+- 700ms debounce autosave;
+- lifecycle/back flush;
+- concurrent save serialization;
+- save error görünür retry state;
+- dirty note kaydedilemezse route kapanmaz.
 
-## 10. Carry-over behavior
+## 7. Mutation safety
 
-Carry action stores:
+Status/carry/bulk tracking mutations persisted snapshot alır ve gerçek Undo sağlar. Status undo newer note/actual-hours state'ini ezmez.
+
+Tracking optional olsa da kullanıldığında persistence authoritative teacher state'tir; mutation hataları sessizce başarı gibi gösterilemez.
+
+## 8. Resources context resolver
+
+Resolution order:
 
 ```text
-status = carried_over
-carried_to_week_number = target
+valid last-viewed outcome
+→ current week outcome/theme
+→ first theme fallback
 ```
 
-Target choices include only instructional weeks after the planned/source week. Event week cannot be selected.
+Resolver errors resource package access'ini engellemez. Manual theme selection yalnız mevcut Resources oturumu için override'dır.
 
-Source week keeps the canonical planned card with carried status. Target week gets an additional `Geçen haftadan` card projection.
+## 9. Annual plan
 
-If the teacher later marks the carried item completed, the same original tracking row is updated; no duplicate canonical record is created.
+Annual authoritative sequence `CourseKnowledgeRepository.getAnnualSequence()`dan gelir.
 
----
+Manual marker ve continuity read hataları annual sequence'i bloke etmez. Manual marker write/clear hataları kullanıcı feedback'i verir.
 
-## 11. Deftere Bakış
-
-The tracker screen exposes a compact copy-friendly summary built only from:
+Active position:
 
 ```text
-week/date
-runtime theme/block names
-runtime outcome codes and official texts
+newer temporary manual marker
+else last viewed block
 ```
 
-Clipboard output must not invent a rewritten curriculum sentence.
-
----
-
-## 12. Dependency wiring
-
-Production:
+Position presentation:
 
 ```text
-CourseDatabase.open()
-OutcomeTrackingDatabase.open()
-CourseKnowledgeRepositoryImpl
-SqfliteOutcomeTrackingRepository
-AssetWeeklyPlanningService
-OutcomePlanningService
-AppDependencies
+Öğretim sırası: N. blok / total
 ```
 
-Dispose closes teacher-state DB and runtime DB.
+Position-derived `LinearProgressIndicator` yasaktır.
 
-Tests may inject an in-memory tracking repository.
+Optional tracking panel yalnız active course planındaki canonical tracking keys ile eşleşen explicit non-planned statüleri sayar. Yüzde/denominator üretmez.
 
----
+## 10. Runtime truth
 
-## 13. UX guardrails
+- `course_runtime.sqlite` read-only.
+- Widgets raw SQL çalıştırmaz.
+- Block-level relation outcome-specific gibi sunulmaz.
+- UI missing canonical relationship üretmez.
+- Calendar/year rules versioned assets'ten gelir.
+
+## 11. Responsive/accessibility
 
 - Material 3.
-- Cards must remain readable at large text scale.
-- Avoid fixed-height outcome cards.
-- Use `Wrap` for state/actions likely to overflow.
-- Tablet uses existing NavigationRail breakpoint.
-- Dark theme inherits app color scheme; no hardcoded light-only colors.
-- Long official texts use progressive disclosure on cards and full text in detail.
-- Touch targets remain at least standard Material interactive size.
+- Phone bottom navigation, tablet/desktop NavigationRail.
+- Large text fixed-height cardlarla kırılmaz.
+- Action groups overflow için `Wrap` kullanır.
+- Dark mode scheme-based.
+- Standard interactive target >= 48 logical px where audited.
 
----
+## 12. Legacy feature code
 
-## 14. Error / empty states
+Faz 0–6 öncesi top-level alternatif ekranlar active shell tarafından route edilmez. Unrouted duplicate implementations ürün authority'si değildir ve bakım borcu olarak kaldırılabilir. Aynı capability gerekiyorsa mevcut `Bu Hafta / Yıllık / Kaynaklar / OutcomeDetail / BlockDetail` akışları üzerinden geliştirilir.
 
-Supported states:
+## 13. Error hierarchy
+
+Authoritative failures:
 
 ```text
-Loading
-Content
-Empty
-Error
-Unresolved
-Event week
+runtime/course DB
+weekly planning
+tracking DB startup (production dependency)
 ```
 
-Tracking DB failure is a startup error because persistence is a core capability in V1.2.
+uygun Loading/Error state üretir.
 
-Stale tracking rows whose outcome no longer exists in the active runtime are ignored in projections; they must not manufacture course content.
+Convenience failures:
 
----
+```text
+last focus
+manual annual marker
+resource context preference
+```
 
-## 15. Test strategy
+ana içeriği bloke etmez.
 
-After implementation completes, run as one validation batch:
+## 14. Validation gate
+
+Her merge öncesi:
 
 ```text
 flutter analyze
-runtime contract checks
+runtime contract TDE9–TDE12
 flutter test
 flutter build apk --release
+APK runtime asset verification
 ```
 
-Required new tests include:
-
-1. tracking DB CRUD and persistence;
-2. default missing row = planned;
-3. status update does not mutate runtime;
-4. carry-over appears in target week while source remains planned-origin aware;
-5. event week is not a valid carry target;
-6. completed/partial/in-progress summary counts;
-7. OutcomeTracker phone/tablet/large-text smoke;
-8. outcome detail block-context aggregation;
-9. existing weekly/annual/runtime regressions.
-
----
-
-## 16. Data truth rule
-
-The UI may reorganize verified information for teacher usability but never upgrade the certainty of a relationship.
-
-Correct:
-
-```text
-Bu kazanımın yer aldığı blokta erişilebilen kitap bölümleri
-```
-
-Incorrect when no direct mapping exists:
-
-```text
-Bu kitap sayfası doğrudan bu kazanıma aittir
-```
-
-Planning and tracking remain separate truths throughout the UI.
+Regresyon testleri ayrıca DEHB sözleşmesini korur: tracking-free primary flow, continuity independence, autosave/Undo, context-aware resources, temporary annual marker ve truthful progress semantics.
