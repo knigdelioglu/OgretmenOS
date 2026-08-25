@@ -46,8 +46,8 @@ void showTeacherUndoFeedback(
       behavior: SnackBarBehavior.floating,
       action: SnackBarAction(
         label: 'Geri al',
-        onPressed: () {
-          onUndo();
+        onPressed: () async {
+          await onUndo();
         },
       ),
     ),
