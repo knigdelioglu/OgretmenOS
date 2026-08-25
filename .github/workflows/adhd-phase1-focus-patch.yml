@@ -1,0 +1,50 @@
+name: ADHD Phase 1 Focus Patch
+
+on:
+  push:
+    branches: [ux/adhd-phase-1-focus]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ux/adhd-phase-1-focus
+          fetch-depth: 0
+
+      - name: Apply focus patch
+        run: python3 tool/adhd_phase1_focus_patch.py
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Format changed Dart files
+        run: |
+          dart format \
+            lib/features/this_week/this_week_page.dart \
+            test/widget_test.dart \
+            test/adhd_phase0_ux_test.dart \
+            test/adhd_phase1_action_density_test.dart
+
+      - name: Remove temporary patch machinery
+        run: |
+          rm tool/adhd_phase1_focus_patch.py
+          rm .github/workflows/adhd-phase1-focus-patch.yml
+
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat(ux): make weekly focus tracking optional'
+          git push origin HEAD:ux/adhd-phase-1-focus
