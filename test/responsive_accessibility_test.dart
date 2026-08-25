@@ -45,7 +45,11 @@ void main() {
   testWidgets('large system text keeps teacher workspace usable', (
     tester,
   ) async {
-    await _configureView(tester, const Size(360, 800), textScaleFactor: 2);
+    await _configureView(
+      tester,
+      const Size(360, 800),
+      textScaleFactor: 2,
+    );
     await _pumpApp(tester);
 
     expect(find.text('Bu Hafta'), findsWidgets);
@@ -71,9 +75,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('annual bookmark action keeps a 48dp touch target', (
-    tester,
-  ) async {
+  testWidgets('annual bookmark action keeps a 48dp touch target', (tester) async {
     await _configureView(tester, const Size(360, 800));
     await _pumpApp(tester);
 
@@ -124,13 +126,13 @@ Future<void> _pumpApp(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _tapBottomDestination(WidgetTester tester, IconData icon) async {
+Future<void> _tapBottomDestination(
+  WidgetTester tester,
+  IconData icon,
+) async {
   final navigationBar = find.byType(NavigationBar);
   expect(navigationBar, findsOneWidget);
-  final target = find.descendant(
-    of: navigationBar,
-    matching: find.byIcon(icon),
-  );
+  final target = find.descendant(of: navigationBar, matching: find.byIcon(icon));
   expect(target, findsOneWidget);
   await tester.tap(target);
 }
@@ -196,17 +198,16 @@ class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
   );
 
   @override
-  Future<model.RuntimeManifest> getManifest() async =>
-      const model.RuntimeManifest(
-        runtimePackageVersion: '1.0.0',
-        schemaVersion: '1.0.0',
-        courseId: 'TDE_9',
-        validationStatus: 'PASS',
-        canonicalContentFingerprint: 'test',
-        rowCounts: {},
-        timelineResolution: 'THEME_TIME_RESOLVED',
-        timelineUnresolvedFields: {},
-      );
+  Future<model.RuntimeManifest> getManifest() async => const model.RuntimeManifest(
+    runtimePackageVersion: '1.0.0',
+    schemaVersion: '1.0.0',
+    courseId: 'TDE_9',
+    validationStatus: 'PASS',
+    canonicalContentFingerprint: 'test',
+    rowCounts: {},
+    timelineResolution: 'THEME_TIME_RESOLVED',
+    timelineUnresolvedFields: {},
+  );
 
   @override
   Future<List<model.Theme>> getThemes() async => const [_theme];
@@ -234,9 +235,8 @@ class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
   ];
 
   @override
-  Future<List<model.ResourceDecision>> getResourceDecisions(
-    String themeId,
-  ) async => const [];
+  Future<List<model.ResourceDecision>> getResourceDecisions(String themeId) async =>
+      const [];
 
   @override
   Future<model.TeacherPackage> getTeacherPackage(String themeId) async =>
@@ -257,33 +257,32 @@ class _ResponsiveFakeRepository implements CourseKnowledgeRepository {
 
 class _ResponsiveFakeWeeklyPlanning implements WeeklyPlanningService {
   @override
-  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async =>
-      AnnualWeeklyPlan(
-        academicYear: '2026-2027',
-        courseId: 'TDE_9',
-        weeklyLessonHours: 5,
-        annualHours: 180,
-        currentWeekNumber: 1,
-        weeks: [
-          AcademicWeekPlan(
-            weekNumber: 1,
-            start: DateTime(2026, 9, 14),
-            end: DateTime(2026, 9, 18),
-            type: AcademicWeekType.instruction,
-            label: '1. Hafta',
-            plannedLessonHours: 5,
-            segments: const [
-              WeeklyPlanSegment(
-                type: WeeklyPlanSegmentType.block,
-                theme: _ResponsiveFakeRepository._theme,
-                block: _ResponsiveFakeRepository._block,
-                hours: 5,
-              ),
-            ],
-            outcomes: const [_ResponsiveFakeRepository._outcome],
+  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async => AnnualWeeklyPlan(
+    academicYear: '2026-2027',
+    courseId: 'TDE_9',
+    weeklyLessonHours: 5,
+    annualHours: 180,
+    currentWeekNumber: 1,
+    weeks: [
+      AcademicWeekPlan(
+        weekNumber: 1,
+        start: DateTime(2026, 9, 14),
+        end: DateTime(2026, 9, 18),
+        type: AcademicWeekType.instruction,
+        label: '1. Hafta',
+        plannedLessonHours: 5,
+        segments: const [
+          WeeklyPlanSegment(
+            type: WeeklyPlanSegmentType.block,
+            theme: _ResponsiveFakeRepository._theme,
+            block: _ResponsiveFakeRepository._block,
+            hours: 5,
           ),
         ],
-      );
+        outcomes: const [_ResponsiveFakeRepository._outcome],
+      ),
+    ],
+  );
 }
 
 class _ResponsiveFakePreferences implements UserPreferencesRepository {
