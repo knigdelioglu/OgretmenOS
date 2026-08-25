@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import 'feature_widgets.dart';
@@ -37,12 +35,11 @@ void showTeacherUndoFeedback(
   BuildContext context,
   String message, {
   required Future<void> Function() onUndo,
-  Duration duration = const Duration(seconds: 5),
 }) {
   final messenger = ScaffoldMessenger.of(context);
   messenger.clearSnackBars();
   messenger.clearMaterialBanners();
-  final controller = messenger.showMaterialBanner(
+  messenger.showMaterialBanner(
     MaterialBanner(
       content: Text(message),
       leading: const Icon(Icons.undo_rounded),
@@ -54,13 +51,12 @@ void showTeacherUndoFeedback(
           },
           child: const Text('Geri al'),
         ),
+        TextButton(
+          onPressed: messenger.hideCurrentMaterialBanner,
+          child: const Text('Kapat'),
+        ),
       ],
     ),
-  );
-  unawaited(
-    Future<void>.delayed(duration, () {
-      controller.close();
-    }),
   );
 }
 
