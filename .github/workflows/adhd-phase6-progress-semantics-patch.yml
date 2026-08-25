@@ -21,7 +21,27 @@ jobs:
           ref: ux/adhd-phase-6-progress-semantics
 
       - name: Apply phase 6 patch
-        run: python3 tool/apply_adhd_phase6_progress_semantics.py
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('tool/apply_adhd_phase6_progress_semantics.py')
+          text = path.read_text()
+          text = text.replace(
+              "List<T> _uniqueBy<T>(Iterable<T> items, String Function(T item) keyOf) {\\n",
+              "List<T> _uniqueBy<T>(Iterable<T> items, String Function(T item) idOf) {\\n",
+          )
+          path.write_text(text)
+          PY
+          python3 tool/apply_adhd_phase6_progress_semantics.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('lib/features/outcomes/outcome_detail_page.dart')
+          text = path.read_text().replace(
+              "OutcomeTrackingStatus.planned => 'Planlı durumuna döndürüldü.',",
+              "OutcomeTrackingStatus.planned => 'Takip durumu temizlendi.',",
+          )
+          path.write_text(text)
+          PY
 
       - name: Set up Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
