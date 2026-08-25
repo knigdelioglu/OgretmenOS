@@ -55,7 +55,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Derste lazım'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Başla'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Başla'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'İşlendi'), findsNothing);
+    expect(find.text('Daha fazla bilgi'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
