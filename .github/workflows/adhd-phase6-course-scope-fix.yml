@@ -5,6 +5,7 @@ on:
     branches:
       - ux/adhd-phase-6-progress-semantics
     paths:
+      - tool/fix_phase6_course_scope.py
       - .github/workflows/adhd-phase6-course-scope-fix.yml
 
 permissions:
@@ -20,56 +21,7 @@ jobs:
           ref: ux/adhd-phase-6-progress-semantics
 
       - name: Scope annual tracking summary to active course
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('lib/features/annual_plan/annual_plan_page.dart')
-          text = path.read_text()
-          old = '''  Future<_OptionalTrackingSummary?> _loadTrackingSummary() async {
-    final service = widget.outcomePlanning;
-    if (service == null) return null;
-    try {
-      final weeklyPlan = await service.weeklyPlanning.buildPlan();
-      final records = await service.trackingRepository.getForAcademicYear(
-        weeklyPlan.academicYear,
-      );
-      final summary = _OptionalTrackingSummary.fromRecords(records);
-      return summary.hasExplicitStatus ? summary : null;
-    } on Object {
-      // Optional tracking summary must never block the annual lesson sequence.
-      return null;
-    }
-  }
-'''
-          new = '''  Future<_OptionalTrackingSummary?> _loadTrackingSummary() async {
-    final service = widget.outcomePlanning;
-    if (service == null) return null;
-    try {
-      final plan = await service.buildPlan();
-      final courseTrackingKeys = <String>{
-        for (final week in plan.weeks)
-          for (final item in week.outcomes) item.trackingKey,
-      };
-      final records = await service.trackingRepository.getForAcademicYear(
-        plan.academicYear,
-      );
-      final scopedRecords = records.where(
-        (record) => courseTrackingKeys.contains(
-          '${record.academicYear}:${record.outcomeId}:${record.plannedWeekNumber}',
-        ),
-      );
-      final summary = _OptionalTrackingSummary.fromRecords(scopedRecords);
-      return summary.hasExplicitStatus ? summary : null;
-    } on Object {
-      // Optional tracking summary must never block the annual lesson sequence.
-      return null;
-    }
-  }
-'''
-          if text.count(old) != 1:
-              raise SystemExit(f'expected one tracking helper, found {text.count(old)}')
-          path.write_text(text.replace(old, new, 1))
-          PY
+        run: python3 tool/fix_phase6_course_scope.py
 
       - name: Set up Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
@@ -89,8 +41,9 @@ jobs:
       - name: Analyze
         run: flutter analyze lib/features/annual_plan/annual_plan_page.dart
 
-      - name: Remove temporary workflow
+      - name: Remove temporary machinery
         run: |
+          rm -f tool/fix_phase6_course_scope.py
           rm -f .github/workflows/adhd-phase6-course-scope-fix.yml
           git checkout -- analysis_options.yaml pubspec.lock || true
 
