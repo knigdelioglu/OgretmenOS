@@ -1,0 +1,58 @@
+name: ADHD Phase 3 Resource Context Fix
+
+on:
+  push:
+    branches: [ux/adhd-phase-3-resource-context]
+    paths:
+      - tool/fix_adhd_phase3_resource_context.py
+      - .github/workflows/adhd-phase3-resource-context-fix.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ux/adhd-phase-3-resource-context
+
+      - name: Apply resource-context patch
+        run: |
+          python3 tool/apply_adhd_phase3_resource_context.py
+          python3 tool/fix_adhd_phase3_resource_context.py
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Format changed Dart files
+        run: dart format lib/app/app.dart lib/features/resources/resource_library_page.dart test/resource_library_focus_test.dart
+
+      - name: Run focused regression tests
+        run: flutter test test/resource_library_focus_test.dart --reporter expanded
+
+      - name: Remove temporary patch machinery
+        run: |
+          rm tool/apply_adhd_phase3_resource_context.py
+          rm tool/fix_adhd_phase3_resource_context.py
+          rm .github/workflows/adhd-phase3-resource-context-patch.yml
+          rm .github/workflows/adhd-phase3-resource-context-fix.yml
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat(ux): make resources follow current lesson context'
+          git push origin HEAD:ux/adhd-phase-3-resource-context
