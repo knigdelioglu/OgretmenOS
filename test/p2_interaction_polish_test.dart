@@ -40,7 +40,9 @@ void main() {
     expect(focusNode.hasFocus, isFalse);
   });
 
-  testWidgets('değişmemiş not kaydetme eylemi üretmez', (tester) async {
+  testWidgets('değişen öğretmen notu ayrıca kaydet demeden otomatik saklanır', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(412, 915);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -80,28 +82,19 @@ void main() {
     await tester.tap(noteSection);
     await tester.pumpAndSettle();
 
-    final saveFinder = find.widgetWithText(FilledButton, 'Notu kaydet');
-    await tester.scrollUntilVisible(saveFinder, 160, scrollable: scrollable);
-    await tester.pumpAndSettle();
-
-    var save = tester.widget<FilledButton>(saveFinder);
-    expect(save.onPressed, isNull);
+    expect(find.text('Notu kaydet'), findsNothing);
+    expect(find.text('Kaydedildi'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'Yarın buradan devam.');
     await tester.pump();
+    expect(find.text('Otomatik kaydedilecek'), findsOneWidget);
 
-    save = tester.widget<FilledButton>(saveFinder);
-    expect(save.onPressed, isNotNull);
-
-    await tester.tap(saveFinder);
+    await tester.pump(const Duration(milliseconds: 750));
     await tester.pumpAndSettle();
 
-    expect(find.text('Not kaydedildi.'), findsOneWidget);
+    expect(find.text('Kaydedildi'), findsOneWidget);
     final records = await tracking.getForAcademicYear('2026-2027');
     expect(records.single.teacherNote, 'Yarın buradan devam.');
-
-    save = tester.widget<FilledButton>(saveFinder);
-    expect(save.onPressed, isNull);
     expect(tester.takeException(), isNull);
   });
 
