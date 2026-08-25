@@ -1,0 +1,60 @@
+name: ADHD Phase 3 Widget Label Fix
+
+on:
+  push:
+    branches: [ux/adhd-phase-3-resource-context]
+    paths:
+      - .github/workflows/adhd-phase3-widget-label-fix.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ux/adhd-phase-3-resource-context
+
+      - name: Update resource selector expectation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('test/widget_test.dart')
+          text = path.read_text()
+          old = "expect(find.text('Tema'), findsOneWidget);"
+          new = "expect(find.text('Tema değiştir'), findsOneWidget);"
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one old selector assertion, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run affected widget tests
+        run: flutter test test/widget_test.dart --reporter expanded
+
+      - name: Remove temporary workflow
+        run: rm .github/workflows/adhd-phase3-widget-label-fix.yml
+
+      - name: Commit expectation update
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -- analysis_options.yaml pubspec.lock
+          git add test/widget_test.dart .github/workflows/adhd-phase3-widget-label-fix.yml
+          git commit -m 'test: align resource selector label'
+          git push origin HEAD:ux/adhd-phase-3-resource-context
