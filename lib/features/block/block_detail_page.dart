@@ -440,11 +440,13 @@ class _OutcomesSection extends StatelessWidget {
                   outcomes[index].officialText,
                   style: const TextStyle(height: 1.45),
                 ),
-                if (outcomes[index].processComponents != null) ...[
+                if (outcomes[index].processComponents?.trim().isNotEmpty == true) ...[
                   const SizedBox(height: AppSpacing.md),
                   LabeledValue(
                     label: 'Süreç bileşenleri',
-                    value: outcomes[index].processComponents!,
+                    value: _formatProcessComponents(
+                      outcomes[index].processComponents!,
+                    ),
                     icon: Icons.account_tree_outlined,
                   ),
                 ],
@@ -457,6 +459,37 @@ class _OutcomesSection extends StatelessWidget {
       ],
     );
   }
+}
+
+String _formatProcessComponents(String raw) {
+  final components = model.jsonObjectList(raw);
+  if (components.isEmpty) return raw;
+
+  final lines = components.map((component) {
+    final code = _firstNonEmptyProcessComponent(component, const [
+      'component_code',
+      'component_code_normalized',
+    ]);
+    final text = _firstNonEmptyProcessComponent(component, const [
+      'component_verbatim',
+      'component_title',
+      'component_title_verbatim',
+    ]);
+    return [?code, ?text].join(' — ');
+  }).where((line) => line.isNotEmpty).toList(growable: false);
+
+  return lines.isEmpty ? raw : lines.join('\n\n');
+}
+
+String? _firstNonEmptyProcessComponent(
+  Map<String, dynamic> component,
+  List<String> keys,
+) {
+  for (final key in keys) {
+    final value = component[key]?.toString().trim();
+    if (value != null && value.isNotEmpty) return value;
+  }
+  return null;
 }
 
 class _TextbookSection extends StatelessWidget {
