@@ -40,12 +40,20 @@ jobs:
           python3 tool/apply_adhd_phase6_progress_semantics.py
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('lib/features/outcomes/outcome_detail_page.dart')
-          text = path.read_text().replace(
+          detail_path = Path('lib/features/outcomes/outcome_detail_page.dart')
+          text = detail_path.read_text().replace(
               "OutcomeTrackingStatus.planned => 'Planlı durumuna döndürüldü.',",
               "OutcomeTrackingStatus.planned => 'Takip durumu temizlendi.',",
           )
-          path.write_text(text)
+          detail_path.write_text(text)
+
+          test_path = Path('test/widget_test.dart')
+          text = test_path.read_text().replace(
+              "    await tester.pageBack();\n    await tester.pumpAndSettle();",
+              "    await tester.tap(find.byTooltip('Geri'));\n    await tester.pumpAndSettle();",
+              1,
+          )
+          test_path.write_text(text)
           PY
 
       - name: Set up Flutter
@@ -61,7 +69,7 @@ jobs:
         run: dart format lib/app/app.dart lib/features/annual_plan/annual_plan_page.dart lib/features/this_week/this_week_page.dart lib/features/outcomes/outcome_detail_page.dart test/widget_test.dart
 
       - name: Run phase 6 and regression tests
-        run: flutter test test/widget_test.dart test/adhd_phase0_ux_test.dart test/adhd_phase1_action_density_test.dart test/adhd_phase2_continuity_test.dart test/responsive_accessibility_test.dart --reporter expanded
+        run: flutter test test/widget_test.dart test/adhd_phase0_ux_test.dart test/adhd_phase1_action_density_test.dart test/continuity_test.dart test/responsive_accessibility_test.dart --reporter expanded
 
       - name: Analyze changed code
         run: flutter analyze lib/app/app.dart lib/features/annual_plan/annual_plan_page.dart lib/features/this_week/this_week_page.dart lib/features/outcomes/outcome_detail_page.dart test/widget_test.dart
