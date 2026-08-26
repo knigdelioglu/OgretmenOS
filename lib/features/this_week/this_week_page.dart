@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../domain/models/outcome_tracking_models.dart';
 import '../../domain/models/weekly_plan_models.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
+import '../../domain/repositories/lesson_plan_progress_repository.dart';
 import '../../domain/services/outcome_planning_service.dart';
 import '../lesson_plan/lesson_plan_panels.dart';
 import '../outcomes/outcome_detail_page.dart';
@@ -15,11 +16,13 @@ class ThisWeekPage extends StatefulWidget {
     super.key,
     required this.repository,
     required this.service,
+    this.lessonPlanProgress,
     this.onOutcomeViewed,
   });
 
   final CourseKnowledgeRepository repository;
   final OutcomePlanningService service;
+  final LessonPlanProgressRepository? lessonPlanProgress;
   final Future<void> Function(TrackedOutcome item)? onOutcomeViewed;
 
   @override
@@ -365,6 +368,7 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
             repository: widget.repository,
             annualPlan: plan,
             weekNumber: summary.week.weekNumber,
+            progressRepository: widget.lessonPlanProgress,
           ),
           if (summary.week.isEventWeek) ...[
             const SizedBox(height: AppSpacing.lg),
