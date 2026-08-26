@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../data/preferences/continuity_repository.dart';
+import '../domain/repositories/lesson_plan_progress_repository.dart';
 import '../domain/repositories/outcome_tracking_repository.dart';
 import '../domain/runtime/course_runtime_registry.dart';
 import '../domain/services/outcome_planning_service.dart';
@@ -215,6 +216,7 @@ class _AppShell extends StatefulWidget {
 class _AppShellState extends State<_AppShell> {
   late final OutcomePlanningService _outcomePlanning;
   late final ContinuityRepository _continuity;
+  late final LessonPlanProgressRepository _lessonPlanProgress;
 
   static const _titles = ['Bu Hafta', 'Yıllık Plan', 'Kaynaklar'];
 
@@ -223,6 +225,9 @@ class _AppShellState extends State<_AppShell> {
     super.initState();
     _continuity =
         widget.dependencies.continuity ?? MemoryContinuityRepository();
+    _lessonPlanProgress =
+        widget.dependencies.lessonPlanProgress ??
+        MemoryLessonPlanProgressRepository();
     _outcomePlanning =
         widget.dependencies.outcomePlanning ??
         OutcomePlanningService(
@@ -241,12 +246,14 @@ class _AppShellState extends State<_AppShell> {
         repository: repository,
         service: _outcomePlanning,
         continuity: _continuity,
+        lessonPlanProgress: _lessonPlanProgress,
         courseId: widget.activeCourseId,
       ),
       AnnualPlanPage(
         repository: repository,
         preferences: widget.dependencies.preferences,
         continuity: _continuity,
+        lessonPlanProgress: _lessonPlanProgress,
         courseId: widget.activeCourseId,
         outcomePlanning: _outcomePlanning,
       ),
