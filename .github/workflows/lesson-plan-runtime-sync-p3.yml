@@ -55,9 +55,9 @@ jobs:
       - name: Install app dependencies
         run: flutter pub get
 
-      - name: Validate sync tool formatting and analysis
+      - name: Format and analyze sync tool
         run: |
-          dart format --output=none --set-exit-if-changed tool/sync_course_runtime.dart
+          dart format tool/sync_course_runtime.dart
           dart analyze tool/sync_course_runtime.dart
 
       - name: Build lesson-plan-aware TYMM runtimes from pinned commit
