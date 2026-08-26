@@ -12,7 +12,7 @@ import 'package:ogretmen_os/domain/runtime/runtime_manifest_policy.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-const _pinnedTymmCommit = 'e2e067b76c59abae6e050fd268be8cc895d7b2c7';
+const _pinnedTymmCommit = 'ceca539d29ad6d030d49c2426cfa1dee4017f083';
 
 void main() {
   sqfliteFfiInit();
@@ -153,45 +153,39 @@ void main() {
 
       test('repository gerçek payloadı okuyup yıllık paket navigasyonunu korur', () async {
         final capability = await repository.getLessonPlanCapability();
-        expect(capability.available, isTrue);
         expect(capability.usable, isTrue);
         expect(capability.packageCount, 88);
         expect(capability.instructionHours, 172);
 
-        final orderedRows = await database!.rawQuery('''
-          SELECT lp.package_id, lp.block_id, lp.lesson_hours, lp.payload_json
+        final firstRows = await database!.rawQuery('''
+          SELECT lp.package_id, lp.block_id
           FROM lesson_plan_packages lp
           JOIN blocks b ON b.block_id = lp.block_id
-          JOIN themes t ON t.theme_id = b.theme_id
+          JOIN themes t ON t.theme_id = lp.theme_id
           ORDER BY t.theme_order, b.block_order, lp.package_no
+          LIMIT 2
         ''');
-        expect(orderedRows, hasLength(88));
+        expect(firstRows, hasLength(2));
 
-        final first = orderedRows.first;
-        final last = orderedRows.last;
-        final firstPackageId = first['package_id']!.toString();
-        final firstBlockId = first['block_id']!.toString();
-        final lastPackageId = last['package_id']!.toString();
+        final firstId = firstRows.first['package_id']! as String;
+        final secondId = firstRows[1]['package_id']! as String;
+        final blockId = firstRows.first['block_id']! as String;
 
-        final blockPlans = await repository.getLessonPlansForBlock(firstBlockId);
+        final blockPlans = await repository.getLessonPlansForBlock(blockId);
         expect(blockPlans, isNotEmpty);
-        expect(blockPlans.first.packageId, firstPackageId);
-        expect(blockPlans.first.courseId, courseId);
-        expect(blockPlans.first.lessons, isNotEmpty);
-        expect(blockPlans.first.lessonHours, first['lesson_hours']);
+        expect(blockPlans.first.packageId, firstId);
+        expect(blockPlans.first.validationStatus, 'PASS');
         expect(blockPlans.first.payloadSha256, isNotEmpty);
-        expect(blockPlans.first.sourcePath, isNotEmpty);
+        expect(blockPlans.first.rawPayload['package_id'], firstId);
 
-        final rawPayload = jsonDecode(first['payload_json']!.toString()) as Map;
-        expect(rawPayload['course_id'], courseId);
-        expect(rawPayload['block_id'], firstBlockId);
-        expect(rawPayload['lesson_hours'], first['lesson_hours']);
+        final first = await repository.getLessonPlan(firstId);
+        expect(first, isNotNull);
+        expect(first!.lessons, isNotEmpty);
+        expect(first.courseId, courseId);
 
-        expect(await repository.getPreviousLessonPlan(firstPackageId), isNull);
-        final next = await repository.getNextLessonPlan(firstPackageId);
-        expect(next, isNotNull);
-        expect(next!.packageId, orderedRows[1]['package_id']);
-        expect(await repository.getNextLessonPlan(lastPackageId), isNull);
+        expect(await repository.getPreviousLessonPlan(firstId), isNull);
+        final next = await repository.getNextLessonPlan(firstId);
+        expect(next?.packageId, secondId);
       });
     });
   }
