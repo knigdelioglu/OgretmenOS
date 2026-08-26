@@ -87,11 +87,23 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
     LessonPlanProgressStatus status,
   ) async {
     final service = _progressService;
-    if (service == null) return;
+    final progressRepository = widget.progressRepository;
+    final academicYear = widget.academicYear;
+    if (service == null ||
+        progressRepository == null ||
+        academicYear == null ||
+        academicYear.isEmpty) {
+      return;
+    }
+
     try {
+      final previous = await service.get(
+        package: package,
+        academicYear: academicYear,
+      );
       await service.setStatus(
         package: package,
-        academicYear: widget.academicYear!,
+        academicYear: academicYear,
         status: status,
       );
       if (!mounted) return;
@@ -99,7 +111,38 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
         HapticFeedback.mediumImpact();
       }
       setState(() => _localProgressStatus = status);
-      showTeacherFeedback(context, '${status.teacherLabel} olarak kaydedildi.');
+      showTeacherUndoFeedback(
+        context,
+        '${status.teacherLabel} olarak kaydedildi.',
+        onUndo: () async {
+          try {
+            if (previous == null) {
+              await progressRepository.delete(
+                courseId: package.courseId,
+                academicYear: academicYear,
+                packageId: package.packageId,
+              );
+            } else {
+              await progressRepository.save(previous);
+            }
+            if (!mounted) return;
+            if (_packageId == package.packageId) {
+              setState(
+                () => _localProgressStatus =
+                    previous?.status ?? LessonPlanProgressStatus.notStarted,
+              );
+            }
+            showTeacherFeedback(context, 'Ders planı değişikliği geri alındı.');
+          } on Object {
+            if (!mounted) return;
+            showTeacherFeedback(
+              context,
+              'Ders planı değişikliği geri alınamadı. Tekrar deneyin.',
+              duration: const Duration(seconds: 4),
+            );
+          }
+        },
+      );
     } on Object {
       if (!mounted) return;
       showTeacherFeedback(
@@ -174,7 +217,8 @@ class _LessonPlanContent extends StatelessWidget {
         if (progressEnabled) ...[
           _PlanProgressCard(
             plan: plan,
-            status: progressStatusOverride ??
+            status:
+                progressStatusOverride ??
                 data.progress?.status ??
                 LessonPlanProgressStatus.notStarted,
             next: data.next,
@@ -200,10 +244,13 @@ class _LessonPlanContent extends StatelessWidget {
                         children: [
                           Text(
                             'Plan konumu',
-                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: Theme.of(context).textTheme.labelMedium
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w700,
+                                ),
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(

@@ -44,9 +44,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(record?.status, LessonPlanProgressStatus.inProgress);
     expect(
-      tester.widget<ChoiceChip>(
-        find.widgetWithText(ChoiceChip, 'Kısmen işlendi'),
-      ).selected,
+      tester
+          .widget<ChoiceChip>(
+            find.widgetWithText(ChoiceChip, 'Kısmen işlendi'),
+          )
+          .selected,
       isTrue,
     );
 
@@ -106,9 +108,174 @@ void main() {
     await tester.pumpAndSettle();
     expect(record, isNull);
     expect(
-      tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Başlanmadı')).selected,
+      tester
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Başlanmadı'))
+          .selected,
       isTrue,
     );
+  });
+
+  testWidgets('ilk durum değişikliği gerçek geri alma ile kaydı tamamen kaldırır', (
+    tester,
+  ) async {
+    final package = _package('BLOCK_A_P01', 1, title: 'Başlangıç');
+    final progress = MemoryLessonPlanProgressRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonPlanPage(
+          repository: _FakeRepository([package]),
+          initialPackageId: package.packageId,
+          progressRepository: progress,
+          academicYear: '2026-2027',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Kısmen işlendi'));
+    await tester.pumpAndSettle();
+    expect(find.text('Geri al'), findsOneWidget);
+    expect(
+      (await progress.get(
+        courseId: 'TDE_9',
+        academicYear: '2026-2027',
+        packageId: package.packageId,
+      ))
+          ?.status,
+      LessonPlanProgressStatus.inProgress,
+    );
+
+    await tester.tap(find.text('Geri al'));
+    await tester.pumpAndSettle();
+
+    expect(
+      await progress.get(
+        courseId: 'TDE_9',
+        academicYear: '2026-2027',
+        packageId: package.packageId,
+      ),
+      isNull,
+    );
+    expect(
+      tester
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Başlanmadı'))
+          .selected,
+      isTrue,
+    );
+  });
+
+  testWidgets('geri alma önceki kalıcı snapshot ve zamanlarını aynen geri yükler', (
+    tester,
+  ) async {
+    final package = _package('BLOCK_A_P01', 1, title: 'Başlangıç');
+    final progress = MemoryLessonPlanProgressRepository();
+    final previous = LessonPlanProgressRecord(
+      courseId: 'TDE_9',
+      academicYear: '2026-2027',
+      packageId: package.packageId,
+      status: LessonPlanProgressStatus.inProgress,
+      startedAt: DateTime(2026, 9, 7, 10),
+      updatedAt: DateTime(2026, 9, 8, 11, 30),
+    );
+    await progress.save(previous);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonPlanPage(
+          repository: _FakeRepository([package]),
+          initialPackageId: package.packageId,
+          progressRepository: progress,
+          academicYear: '2026-2027',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'İşlendi'));
+    await tester.pumpAndSettle();
+    final completed = await progress.get(
+      courseId: 'TDE_9',
+      academicYear: '2026-2027',
+      packageId: package.packageId,
+    );
+    expect(completed?.status, LessonPlanProgressStatus.completed);
+    expect(completed?.startedAt, previous.startedAt);
+    expect(completed?.completedAt, isNotNull);
+
+    await tester.tap(find.text('Geri al'));
+    await tester.pumpAndSettle();
+
+    final restored = await progress.get(
+      courseId: 'TDE_9',
+      academicYear: '2026-2027',
+      packageId: package.packageId,
+    );
+    expect(restored, isNotNull);
+    expect(restored!.status, previous.status);
+    expect(restored.startedAt, previous.startedAt);
+    expect(restored.completedAt, previous.completedAt);
+    expect(restored.updatedAt, previous.updatedAt);
+    expect(
+      tester
+          .widget<ChoiceChip>(
+            find.widgetWithText(ChoiceChip, 'Kısmen işlendi'),
+          )
+          .selected,
+      isTrue,
+    );
+  });
+
+  testWidgets('başlanmadı ile silinen önceki kayıt geri alma ile geri gelir', (
+    tester,
+  ) async {
+    final package = _package('BLOCK_A_P01', 1, title: 'Başlangıç');
+    final progress = MemoryLessonPlanProgressRepository();
+    final previous = LessonPlanProgressRecord(
+      courseId: 'TDE_9',
+      academicYear: '2026-2027',
+      packageId: package.packageId,
+      status: LessonPlanProgressStatus.inProgress,
+      startedAt: DateTime(2026, 9, 7, 10),
+      updatedAt: DateTime(2026, 9, 7, 10, 15),
+    );
+    await progress.save(previous);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonPlanPage(
+          repository: _FakeRepository([package]),
+          initialPackageId: package.packageId,
+          progressRepository: progress,
+          academicYear: '2026-2027',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Başlanmadı'));
+    await tester.pumpAndSettle();
+    expect(
+      await progress.get(
+        courseId: 'TDE_9',
+        academicYear: '2026-2027',
+        packageId: package.packageId,
+      ),
+      isNull,
+    );
+
+    await tester.tap(find.text('Geri al'));
+    await tester.pumpAndSettle();
+
+    final restored = await progress.get(
+      courseId: 'TDE_9',
+      academicYear: '2026-2027',
+      packageId: package.packageId,
+    );
+    expect(restored, isNotNull);
+    expect(restored!.status, previous.status);
+    expect(restored.startedAt, previous.startedAt);
+    expect(restored.updatedAt, previous.updatedAt);
   });
 }
 
@@ -185,7 +352,9 @@ class _FakeRepository
   @override
   Future<LessonPlanPackage?> getNextLessonPlan(String packageId) async {
     final index = packages.indexWhere((plan) => plan.packageId == packageId);
-    return index < 0 || index >= packages.length - 1 ? null : packages[index + 1];
+    return index < 0 || index >= packages.length - 1
+        ? null
+        : packages[index + 1];
   }
 
   @override
@@ -201,13 +370,15 @@ class _FakeRepository
   Future<Theme> getTheme(String themeId) async => throw UnimplementedError();
 
   @override
-  Future<List<Block>> getBlocks(String themeId) async => throw UnimplementedError();
+  Future<List<Block>> getBlocks(String themeId) async =>
+      throw UnimplementedError();
 
   @override
   Future<BlockDetail> getBlock(String blockId) async => throw UnimplementedError();
 
   @override
-  Future<List<TimelineEntry>> getAnnualSequence() async => throw UnimplementedError();
+  Future<List<TimelineEntry>> getAnnualSequence() async =>
+      throw UnimplementedError();
 
   @override
   Future<List<ResourceDecision>> getResourceDecisions(String themeId) async =>
