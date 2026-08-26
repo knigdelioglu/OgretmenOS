@@ -37,7 +37,8 @@ extension LessonPlanCourseKnowledgeAccess on CourseKnowledgeRepository {
   Future<LessonPlanCapability> getLessonPlanCapability() {
     final repository = this;
     if (repository is LessonPlanKnowledgeRepository) {
-      return repository.getLessonPlanCapability();
+      return (repository as LessonPlanKnowledgeRepository)
+          .getLessonPlanCapability();
     }
     return Future.value(
       const LessonPlanCapability.unavailable(
@@ -49,7 +50,8 @@ extension LessonPlanCourseKnowledgeAccess on CourseKnowledgeRepository {
   Future<List<LessonPlanPackage>> getLessonPlansForBlock(String blockId) {
     final repository = this;
     if (repository is LessonPlanKnowledgeRepository) {
-      return repository.getLessonPlansForBlock(blockId);
+      return (repository as LessonPlanKnowledgeRepository)
+          .getLessonPlansForBlock(blockId);
     }
     return Future.value(const []);
   }
@@ -57,7 +59,8 @@ extension LessonPlanCourseKnowledgeAccess on CourseKnowledgeRepository {
   Future<LessonPlanPackage?> getLessonPlan(String packageId) {
     final repository = this;
     if (repository is LessonPlanKnowledgeRepository) {
-      return repository.getLessonPlan(packageId);
+      return (repository as LessonPlanKnowledgeRepository)
+          .getLessonPlan(packageId);
     }
     return Future.value(null);
   }
@@ -65,7 +68,8 @@ extension LessonPlanCourseKnowledgeAccess on CourseKnowledgeRepository {
   Future<LessonPlanPackage?> getPreviousLessonPlan(String packageId) {
     final repository = this;
     if (repository is LessonPlanKnowledgeRepository) {
-      return repository.getPreviousLessonPlan(packageId);
+      return (repository as LessonPlanKnowledgeRepository)
+          .getPreviousLessonPlan(packageId);
     }
     return Future.value(null);
   }
@@ -73,7 +77,8 @@ extension LessonPlanCourseKnowledgeAccess on CourseKnowledgeRepository {
   Future<LessonPlanPackage?> getNextLessonPlan(String packageId) {
     final repository = this;
     if (repository is LessonPlanKnowledgeRepository) {
-      return repository.getNextLessonPlan(packageId);
+      return (repository as LessonPlanKnowledgeRepository)
+          .getNextLessonPlan(packageId);
     }
     return Future.value(null);
   }
