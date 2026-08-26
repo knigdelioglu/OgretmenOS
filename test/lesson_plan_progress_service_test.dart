@@ -27,6 +27,7 @@ void main() {
 
     expect(snapshot.currentPackageId, 'BLOCK_A_P01');
     expect(snapshot.nextPackageId, 'BLOCK_A_P02');
+    expect(snapshot.stalePackageIds, isEmpty);
     expect(
       snapshot.statusFor('BLOCK_A_P01'),
       LessonPlanProgressStatus.notStarted,
@@ -131,6 +132,7 @@ void main() {
     expect(completed!.startedAt, startedAt);
     expect(completed.completedAt, completedAt);
     expect(completed.status, LessonPlanProgressStatus.completed);
+    expect(completed.payloadSha256, packages[0].payloadSha256);
   });
 
   test('başlanmadı seçimi açık ilerleme kaydını siler', () async {
@@ -154,9 +156,125 @@ void main() {
       isNull,
     );
   });
+
+  test('aynı package id altında içerik değişirse eski completed kayıt stale olur', () async {
+    final oldPackage = packages[0];
+    await service.setStatus(
+      package: oldPackage,
+      academicYear: '2026-2027',
+      status: LessonPlanProgressStatus.completed,
+      now: DateTime(2026, 9, 7, 10),
+    );
+    final updatedPackage = _package(
+      oldPackage.packageId,
+      oldPackage.packageNo,
+      payloadSha256: 'sha256-updated-content',
+    );
+
+    final resolution = await service.resolve(
+      package: updatedPackage,
+      academicYear: '2026-2027',
+    );
+    final snapshot = await service.snapshot(
+      orderedPackages: [updatedPackage, packages[1], packages[2]],
+      academicYear: '2026-2027',
+    );
+
+    expect(resolution.isStale, isTrue);
+    expect(resolution.record?.status, LessonPlanProgressStatus.completed);
+    expect(resolution.effectiveStatus, LessonPlanProgressStatus.notStarted);
+    expect(snapshot.isStale(oldPackage.packageId), isTrue);
+    expect(snapshot.currentPackageId, oldPackage.packageId);
+    expect(
+      snapshot.statusFor(oldPackage.packageId),
+      LessonPlanProgressStatus.notStarted,
+    );
+  });
+
+  test('v2den kalan hashesiz kayıt stale kabul edilir ama silinmez', () async {
+    final legacy = LessonPlanProgressRecord(
+      courseId: 'TDE_9',
+      academicYear: '2026-2027',
+      packageId: packages[0].packageId,
+      status: LessonPlanProgressStatus.inProgress,
+      startedAt: DateTime(2026, 9, 7, 10),
+      updatedAt: DateTime(2026, 9, 7, 10),
+    );
+    await repository.save(legacy);
+
+    final resolution = await service.resolve(
+      package: packages[0],
+      academicYear: '2026-2027',
+    );
+
+    expect(resolution.isStale, isTrue);
+    expect(resolution.record, same(legacy));
+    expect(
+      await repository.get(
+        courseId: 'TDE_9',
+        academicYear: '2026-2027',
+        packageId: packages[0].packageId,
+      ),
+      isNotNull,
+    );
+  });
+
+  test('stale kayıt yeniden işaretlenince yeni hash ve yeni başlangıç zamanı kullanılır', () async {
+    final oldPackage = packages[0];
+    final oldStartedAt = DateTime(2026, 9, 7, 10);
+    await service.setStatus(
+      package: oldPackage,
+      academicYear: '2026-2027',
+      status: LessonPlanProgressStatus.inProgress,
+      now: oldStartedAt,
+    );
+    final updatedPackage = _package(
+      oldPackage.packageId,
+      oldPackage.packageNo,
+      payloadSha256: 'sha256-updated-content',
+    );
+    final reconfirmedAt = DateTime(2026, 9, 12, 14);
+
+    final record = await service.setStatus(
+      package: updatedPackage,
+      academicYear: '2026-2027',
+      status: LessonPlanProgressStatus.inProgress,
+      now: reconfirmedAt,
+    );
+    final resolution = await service.resolve(
+      package: updatedPackage,
+      academicYear: '2026-2027',
+    );
+
+    expect(record?.payloadSha256, 'sha256-updated-content');
+    expect(record?.startedAt, reconfirmedAt);
+    expect(record?.startedAt, isNot(oldStartedAt));
+    expect(resolution.isCurrent, isTrue);
+  });
+
+  test('payload hash olmayan canonical paket için ilerleme başlatılmaz', () async {
+    final invalid = _package(
+      'BLOCK_A_P99',
+      99,
+      payloadSha256: '   ',
+    );
+
+    expect(
+      () => service.setStatus(
+        package: invalid,
+        academicYear: '2026-2027',
+        status: LessonPlanProgressStatus.inProgress,
+      ),
+      throwsStateError,
+    );
+  });
 }
 
-LessonPlanPackage _package(String packageId, int packageNo) => LessonPlanPackage(
+LessonPlanPackage _package(
+  String packageId,
+  int packageNo, {
+  String? payloadSha256,
+}) => LessonPlanPackage(
   packageId: packageId,
   courseId: 'TDE_9',
   themeId: 'TEMA_01',
@@ -169,7 +287,7 @@ LessonPlanPackage _package(String packageId, int packageNo) => LessonPlanPackage
   schemaVersion: '1.0.0',
   validationStatus: 'PASS',
   sourcePath: 'generated/$packageId.json',
-  payloadSha256: 'sha256-$packageId',
+  payloadSha256: payloadSha256 ?? 'sha256-$packageId',
   outcomeCodes: const ['TDE9.1.1'],
   usedActivityIds: const [],
   usedFormIds: const [],
