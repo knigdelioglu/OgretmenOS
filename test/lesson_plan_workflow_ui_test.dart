@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Theme;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart';
 import 'package:ogretmen_os/domain/models/lesson_plan_models.dart';
