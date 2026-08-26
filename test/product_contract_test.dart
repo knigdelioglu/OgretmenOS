@@ -14,6 +14,8 @@ void main() {
       expect(document, contains('Kaynaklar'));
       expect(document, contains('LessonPlanPage'));
       expect(document, contains('lesson_plan_progress'));
+      expect(document, contains('payload_sha256'));
+      expect(document.toLowerCase(), contains('stale'));
       expect(document.toLowerCase(), contains('tracking'));
       expect(document, contains('Undo'));
     }
@@ -25,14 +27,20 @@ void main() {
       product,
       contains('Lesson-plan status mutationları önceki persisted snapshot'),
     );
+    expect(
+      product,
+      contains('Course-wide runtime fingerprint progress geçerlilik anahtarı değildir'),
+    );
     expect(agent, contains('`İşlendi` zorunlu değildir'));
     expect(agent, contains('previous == null'));
     expect(agent, contains('TDE_11/TDE_12 curriculum-only fallback'));
+    expect(agent, contains('resolve/resolveRecord'));
     expect(
       blueprint,
       contains('Position-derived `LinearProgressIndicator` yasaktır'),
     );
     expect(blueprint, contains('P5 real Undo contract'));
+    expect(blueprint, contains('teacher_state schema v3 migration'));
     expect(blueprint, contains('88 package / 172 instructional hours'));
 
     const staleNavigation = 'Kazanımlar\nHaftalık\nYıllık Plan\nPaket';

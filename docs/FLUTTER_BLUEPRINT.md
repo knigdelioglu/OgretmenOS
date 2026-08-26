@@ -1,6 +1,6 @@
 # ÖğretmenOS — Flutter Blueprint V1.3
 
-**Belge sürümü:** 1.3.1  
+**Belge sürümü:** 1.3.2  
 **Durum:** Bağlayıcı teknik blueprint  
 **Teknoloji:** Flutter + Dart + Material 3  
 **Çalışma modu:** Offline-first / yerel / deterministik
@@ -167,17 +167,65 @@ Storage identity:
 course_id + academic_year + package_id
 ```
 
+Content-validity binding:
+
+```text
+lesson_plan_progress.payload_sha256
+        ↕ exact equality
+lesson_plan_packages.payload_sha256
+```
+
+`payload_sha256` storage identity'nin parçası değildir. Aynı package identity korunurken canonical içerik değişebilir; bu durumda existing teacher record korunur fakat stale olur.
+
 Semantics:
 
 ```text
-missing row  → notStarted / Başlanmadı
-in_progress  → Kısmen işlendi
-completed    → İşlendi
+missing row                         → notStarted / Başlanmadı
+matching hash + in_progress         → Kısmen işlendi
+matching hash + completed           → İşlendi
+missing/mismatched payload_sha256   → stale / Plan güncellendi
 ```
 
-`notStarted` mutation persisted row'u siler. `inProgress/completed` kayıtları `startedAt/completedAt/updatedAt` alanlarını taşır. Planı yalnız görüntülemek progress kaydı oluşturmaz.
+`LessonPlanProgressService.resolveRecord()` tek binding resolver'dır. UI/service katmanları hash karşılaştırmasını farklı biçimlerde tekrar kurmaz.
 
-### P5 real Undo contract
+`LessonPlanProgressSnapshot.records` yalnız current-binding kayıtları içerir; `stalePackageIds` stale identity'leri ayrı taşır. Böylece stale `completed` current/next çözümünde tamamlanmış sayılmaz ve `allCompleted` üretemez.
+
+`notStarted` mutation persisted row'u siler. `inProgress/completed` mutationlarında current package hash zorunludur ve yeni kayıt `payloadSha256` alanını taşır. Hash boşsa mutation fail closed olur.
+
+Matching-hash record üzerinde `inProgress → completed` geçişi existing `startedAt` değerini korur. Stale/unbound record yeniden işaretlenirse önceki timeline yeni canonical içeriğe taşınmaz; yeni `startedAt` mutation anında başlar.
+
+Planı yalnız görüntülemek progress kaydı oluşturmaz.
+
+### 7.1 teacher_state schema v3 migration
+
+`OutcomeTrackingDatabase.schemaVersion = 3`.
+
+v3 lesson-plan schema:
+
+```text
+lesson_plan_progress
+  course_id
+  academic_year
+  package_id
+  payload_sha256 NULLABLE
+  status
+  started_at
+  completed_at
+  updated_at
+```
+
+Yeni service mutationları non-null hash yazar. Column yalnız legacy migration güvenliği için nullable'dır.
+
+Migration:
+
+```text
+v1 → v3: lesson_plan_progress doğrudan v3 schema ile oluştur
+v2 → v3: payload_sha256 nullable column ekle
+```
+
+v2 existing rows backfill edilmez ve silinmez; canonical geçmiş binding kanıtı olmadığı için null hash güvenli biçimde stale'dir.
+
+### 7.2 P5 real Undo contract
 
 Her `LessonPlanPage` status mutasyonundan **önce** mevcut persisted `LessonPlanProgressRecord?` snapshot alınır. Mutation başarıyla persist edildikten sonra `showTeacherUndoFeedback` gösterilir.
 
@@ -190,7 +238,9 @@ previous != null
   → previous record'u aynen save et
 ```
 
-Böylece `status`, `startedAt`, `completedAt` ve `updatedAt` önceki persisted değere döner. Undo yalnız mutation yapılan package'ın state'ini değiştirir; kullanıcı bu sırada başka pakete geçtiyse current package UI state'i yanlışlıkla overwrite edilmez.
+Böylece `payloadSha256`, `status`, `startedAt`, `completedAt` ve `updatedAt` önceki persisted değere döner. Undo stale bir record'u geri getirirse `resolveRecord()` tekrar stale üretir; stale state local UI tarafından current progress gibi gösterilmez.
+
+Undo yalnız mutation yapılan package'ın state'ini değiştirir; kullanıcı bu sırada başka pakete geçtiyse current package UI state'i yanlışlıkla overwrite edilmez.
 
 Yeni bir mutasyon mevcut Undo teklifinin yerini alır. Undo persistence failure başarı gibi gösterilmez.
 
@@ -199,6 +249,8 @@ Yeni bir mutasyon mevcut Undo teklifinin yerini alır. Undo persistence failure 
 Outcome status/carry/bulk tracking mutations persisted snapshot alır ve gerçek Undo sağlar. Status undo newer note/actual-hours state'ini ezmez.
 
 Lesson-plan status mutationları da persisted snapshot'a gerçek Undo sağlar. Outcome tracking ile lesson-plan progress birbirinden bağımsız teacher-state kanallarıdır.
+
+Runtime replacement teacher-state DB'yi silmez. Lesson-plan content değişimi destructive migration yerine hash-binding resolution ile ele alınır.
 
 Tracking optional olsa da kullanıldığında persistence authoritative teacher state'tir; mutation hataları sessizce başarı gibi gösterilemez.
 
@@ -245,6 +297,7 @@ Optional tracking panel yalnız active course planındaki canonical tracking key
 - UI missing canonical relationship üretmez.
 - Calendar/year rules versioned assets'ten gelir.
 - Lesson-plan package payload/hash/navigation yalnız doğrulanmış runtime capability üzerinden açılır.
+- Progress validity package-level `payload_sha256` exact match ile çözülür; course-wide runtime fingerprint değişimi tek başına unaffected package progress'ini stale yapmaz.
 - TDE_9/TDE_10 lesson-plan runtime contract: package 1.3.0, schema 1.2.0, 88 package / 172 instructional hours.
 - TDE_11/TDE_12 lesson-plan capability yokluğu normal fallback'tir.
 
@@ -257,6 +310,7 @@ Optional tracking panel yalnız active course planındaki canonical tracking key
 - Dark mode scheme-based.
 - Standard interactive target >= 48 logical px where audited.
 - Lesson-plan status controls `Wrap` kullanır; yeni top-level navigation eklemez.
+- Stale progress görünür metinle (`Plan güncellendi`) ifade edilir; yalnız renge güvenilmez.
 
 ## 13. Legacy feature code
 
@@ -285,7 +339,7 @@ lesson-plan capability unavailable
 
 ana içeriği bloke etmez.
 
-Lesson-plan progress mutation/undo failure görünür feedback üretir; canonical plan içeriğini okunamaz hâle getirmez.
+Lesson-plan progress mutation/undo failure görünür feedback üretir; canonical plan içeriğini okunamaz hâle getirmez. Stale progress de error screen değildir; teacher-state review state'idir.
 
 ## 15. Validation gate
 
@@ -299,4 +353,4 @@ flutter build apk --release
 APK runtime asset verification
 ```
 
-Regresyon testleri ayrıca DEHB ve lesson-plan sözleşmesini korur: tracking-free primary flow, continuity independence, autosave/Undo, lesson-plan real Undo, context-aware resources, temporary annual marker, capability-safe TDE11/TDE12 fallback ve truthful progress semantics.
+Regresyon testleri ayrıca DEHB ve lesson-plan sözleşmesini korur: tracking-free primary flow, continuity independence, autosave/Undo, lesson-plan real Undo, v2→v3 progress migration, stale hash resolution, runtime replacement without teacher-state loss, context-aware resources, temporary annual marker, capability-safe TDE11/TDE12 fallback ve truthful progress semantics.

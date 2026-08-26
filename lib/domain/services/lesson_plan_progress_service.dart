@@ -16,6 +16,33 @@ class LessonPlanProgressService {
     packageId: package.packageId,
   );
 
+  Future<LessonPlanProgressResolution> resolve({
+    required LessonPlanPackage package,
+    required String academicYear,
+  }) async => resolveRecord(
+    package: package,
+    record: await get(package: package, academicYear: academicYear),
+  );
+
+  LessonPlanProgressResolution resolveRecord({
+    required LessonPlanPackage package,
+    required LessonPlanProgressRecord? record,
+  }) {
+    if (record == null) return const LessonPlanProgressResolution.none();
+    final packageHash = _cleanHash(package.payloadSha256);
+    final recordHash = _cleanHash(record.payloadSha256);
+    if (packageHash == null || recordHash == null || packageHash != recordHash) {
+      return LessonPlanProgressResolution(
+        record: record,
+        bindingState: LessonPlanProgressBindingState.stale,
+      );
+    }
+    return LessonPlanProgressResolution(
+      record: record,
+      bindingState: LessonPlanProgressBindingState.current,
+    );
+  }
+
   Future<Map<String, LessonPlanProgressRecord>> getForPackages({
     required List<LessonPlanPackage> packages,
     required String academicYear,
@@ -40,10 +67,24 @@ class LessonPlanProgressService {
     required List<LessonPlanPackage> orderedPackages,
     required String academicYear,
   }) async {
-    final records = await getForPackages(
+    final rawRecords = await getForPackages(
       packages: orderedPackages,
       academicYear: academicYear,
     );
+    final records = <String, LessonPlanProgressRecord>{};
+    final stalePackageIds = <String>{};
+
+    for (final package in orderedPackages) {
+      final resolution = resolveRecord(
+        package: package,
+        record: rawRecords[package.packageId],
+      );
+      if (resolution.isCurrent && resolution.record != null) {
+        records[package.packageId] = resolution.record!;
+      } else if (resolution.isStale) {
+        stalePackageIds.add(package.packageId);
+      }
+    }
 
     String? currentPackageId;
     for (final package in orderedPackages) {
@@ -72,6 +113,7 @@ class LessonPlanProgressService {
 
     return LessonPlanProgressSnapshot(
       records: Map<String, LessonPlanProgressRecord>.unmodifiable(records),
+      stalePackageIds: Set<String>.unmodifiable(stalePackageIds),
       currentPackageId: currentPackageId,
       nextPackageId: nextPackageId,
     );
@@ -92,14 +134,24 @@ class LessonPlanProgressService {
       return null;
     }
 
+    final packageHash = _cleanHash(package.payloadSha256);
+    if (packageHash == null) {
+      throw StateError(
+        'Ders planı ilerlemesi canonical payload hash olmadan kaydedilemez.',
+      );
+    }
+
     final timestamp = now ?? DateTime.now();
     final previous = await get(package: package, academicYear: academicYear);
+    final previousResolution = resolveRecord(package: package, record: previous);
+    final previousCurrent = previousResolution.isCurrent ? previous : null;
     final record = LessonPlanProgressRecord(
       courseId: package.courseId,
       academicYear: academicYear,
       packageId: package.packageId,
+      payloadSha256: packageHash,
       status: status,
-      startedAt: previous?.startedAt ?? timestamp,
+      startedAt: previousCurrent?.startedAt ?? timestamp,
       completedAt: status == LessonPlanProgressStatus.completed
           ? timestamp
           : null,
@@ -121,4 +173,9 @@ class LessonPlanProgressService {
     }
     return null;
   }
+}
+
+String? _cleanHash(String? value) {
+  final clean = value?.trim();
+  return clean == null || clean.isEmpty ? null : clean;
 }

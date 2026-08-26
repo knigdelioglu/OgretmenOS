@@ -43,6 +43,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(record?.status, LessonPlanProgressStatus.inProgress);
+    expect(record?.payloadSha256, packages.first.payloadSha256);
     expect(
       tester
           .widget<ChoiceChip>(
@@ -79,6 +80,7 @@ void main() {
         courseId: 'TDE_9',
         academicYear: '2026-2027',
         packageId: package.packageId,
+        payloadSha256: package.payloadSha256,
         status: LessonPlanProgressStatus.inProgress,
         startedAt: DateTime(2026, 9, 7, 10),
         updatedAt: DateTime(2026, 9, 7, 10),
@@ -174,6 +176,7 @@ void main() {
       courseId: 'TDE_9',
       academicYear: '2026-2027',
       packageId: package.packageId,
+      payloadSha256: package.payloadSha256,
       status: LessonPlanProgressStatus.inProgress,
       startedAt: DateTime(2026, 9, 7, 10),
       updatedAt: DateTime(2026, 9, 8, 11, 30),
@@ -213,6 +216,7 @@ void main() {
     );
     expect(restored, isNotNull);
     expect(restored!.status, previous.status);
+    expect(restored.payloadSha256, previous.payloadSha256);
     expect(restored.startedAt, previous.startedAt);
     expect(restored.completedAt, previous.completedAt);
     expect(restored.updatedAt, previous.updatedAt);
@@ -235,6 +239,7 @@ void main() {
       courseId: 'TDE_9',
       academicYear: '2026-2027',
       packageId: package.packageId,
+      payloadSha256: package.payloadSha256,
       status: LessonPlanProgressStatus.inProgress,
       startedAt: DateTime(2026, 9, 7, 10),
       updatedAt: DateTime(2026, 9, 7, 10, 15),
@@ -274,8 +279,78 @@ void main() {
     );
     expect(restored, isNotNull);
     expect(restored!.status, previous.status);
+    expect(restored.payloadSha256, previous.payloadSha256);
     expect(restored.startedAt, previous.startedAt);
     expect(restored.updatedAt, previous.updatedAt);
+  });
+
+  testWidgets('değişen payload eski durumu stale gösterir ve yeniden onay ister', (
+    tester,
+  ) async {
+    final package = _package('BLOCK_A_P01', 1, title: 'Güncel plan');
+    final progress = MemoryLessonPlanProgressRepository();
+    final previous = LessonPlanProgressRecord(
+      courseId: 'TDE_9',
+      academicYear: '2026-2027',
+      packageId: package.packageId,
+      payloadSha256: 'sha256-old-content',
+      status: LessonPlanProgressStatus.completed,
+      startedAt: DateTime(2026, 9, 7, 10),
+      completedAt: DateTime(2026, 9, 7, 12),
+      updatedAt: DateTime(2026, 9, 7, 12),
+    );
+    await progress.save(previous);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonPlanPage(
+          repository: _FakeRepository([package]),
+          initialPackageId: package.packageId,
+          progressRepository: progress,
+          academicYear: '2026-2027',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Plan güncellendi'), findsOneWidget);
+    expect(find.textContaining('İşlendi'), findsWidgets);
+    expect(
+      tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'İşlendi')).selected,
+      isFalse,
+    );
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Kısmen işlendi'));
+    await tester.pumpAndSettle();
+
+    final reconfirmed = await progress.get(
+      courseId: 'TDE_9',
+      academicYear: '2026-2027',
+      packageId: package.packageId,
+    );
+    expect(reconfirmed?.status, LessonPlanProgressStatus.inProgress);
+    expect(reconfirmed?.payloadSha256, package.payloadSha256);
+    expect(find.text('Plan güncellendi'), findsNothing);
+    expect(
+      tester
+          .widget<ChoiceChip>(
+            find.widgetWithText(ChoiceChip, 'Kısmen işlendi'),
+          )
+          .selected,
+      isTrue,
+    );
+
+    await tester.tap(find.text('Geri al'));
+    await tester.pumpAndSettle();
+
+    final restored = await progress.get(
+      courseId: 'TDE_9',
+      academicYear: '2026-2027',
+      packageId: package.packageId,
+    );
+    expect(restored?.payloadSha256, 'sha256-old-content');
+    expect(restored?.status, LessonPlanProgressStatus.completed);
+    expect(find.text('Plan güncellendi'), findsOneWidget);
   });
 }
 

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart' hide Theme;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart';
 import 'package:ogretmen_os/domain/models/lesson_plan_models.dart';
+import 'package:ogretmen_os/domain/models/lesson_plan_progress_models.dart';
 import 'package:ogretmen_os/domain/models/outcome_tracking_models.dart';
 import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
+import 'package:ogretmen_os/domain/repositories/lesson_plan_progress_repository.dart';
 import 'package:ogretmen_os/features/lesson_plan/lesson_plan_page.dart';
 import 'package:ogretmen_os/features/lesson_plan/lesson_plan_panels.dart';
 
@@ -107,6 +109,66 @@ void main() {
     await tester.drag(find.byType(Scrollable).first, const Offset(0, 2000));
     await tester.pumpAndSettle();
     expect(find.text('Yakın okuma'), findsWidgets);
+  });
+
+  testWidgets('haftalık panel stale completed kaydı tamamlanmış saymaz', (
+    tester,
+  ) async {
+    final packages = [
+      _package('BLOCK_A_P01', 1, title: 'Başlangıç'),
+      _package('BLOCK_A_P02', 2, title: 'Yakın okuma'),
+      _package('BLOCK_A_P03', 3, title: 'Metin çözümleme'),
+      _package('BLOCK_A_P04', 4, title: 'Değerlendirme'),
+    ];
+    final progress = MemoryLessonPlanProgressRepository();
+    final timestamp = DateTime(2026, 9, 14, 10);
+    await progress.save(
+      LessonPlanProgressRecord(
+        courseId: 'TDE_9',
+        academicYear: '2026-2027',
+        packageId: packages[2].packageId,
+        payloadSha256: 'sha256-old-p03',
+        status: LessonPlanProgressStatus.completed,
+        startedAt: timestamp,
+        completedAt: timestamp,
+        updatedAt: timestamp,
+      ),
+    );
+    await progress.save(
+      LessonPlanProgressRecord(
+        courseId: 'TDE_9',
+        academicYear: '2026-2027',
+        packageId: packages[3].packageId,
+        payloadSha256: packages[3].payloadSha256,
+        status: LessonPlanProgressStatus.completed,
+        startedAt: timestamp,
+        completedAt: timestamp,
+        updatedAt: timestamp,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: WeeklyLessonPlanPanel(
+              repository: _FakeRepository(packages),
+              annualPlan: _annualPlan(theme: theme, block: block),
+              weekNumber: 2,
+              progressRepository: progress,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('1 paket plan güncellemesi sonrası yeniden işaretlenmeli.'),
+      findsOneWidget,
+    );
+    expect(find.text('Plan güncellendi · yeniden işaretle'), findsOneWidget);
+    expect(find.text('Bu haftanın plan paketleri işlendi.'), findsNothing);
   });
 }
 

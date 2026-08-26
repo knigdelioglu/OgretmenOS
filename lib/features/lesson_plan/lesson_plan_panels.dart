@@ -106,8 +106,14 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
         progress?.currentPackageId,
       );
       final next = _selectionByPackageId(selections, progress?.nextPackageId);
+      final staleCount = progress == null
+          ? 0
+          : selections
+                .where((item) => progress.isStale(item.package.packageId))
+                .length;
       final allCompleted =
           progress != null &&
+          staleCount == 0 &&
           selections.every(
             (item) =>
                 progress.statusFor(item.package.packageId) ==
@@ -147,7 +153,9 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
                           if (progress != null) ...[
                             const SizedBox(height: AppSpacing.xs),
                             Text(
-                              allCompleted
+                              staleCount > 0
+                                  ? '$staleCount paket plan güncellemesi sonrası yeniden işaretlenmeli.'
+                                  : allCompleted
                                   ? 'Bu haftanın plan paketleri işlendi.'
                                   : [
                                       if (current != null)
@@ -156,7 +164,9 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
                                         'Sonraki ${_packageLabel(next.package)}',
                                     ].join(' · '),
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.primary,
+                                color: staleCount > 0
+                                    ? Theme.of(context).colorScheme.error
+                                    : Theme.of(context).colorScheme.primary,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -173,6 +183,9 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
                     status: progress?.statusFor(
                       selections[index].package.packageId,
                     ),
+                    stale:
+                        progress?.isStale(selections[index].package.packageId) ??
+                        false,
                     isCurrent:
                         progress?.currentPackageId ==
                         selections[index].package.packageId,
@@ -263,12 +276,14 @@ class _WeeklyPlanRow extends StatelessWidget {
   const _WeeklyPlanRow({
     required this.selection,
     required this.status,
+    required this.stale,
     required this.isCurrent,
     required this.onOpen,
   });
 
   final WeeklyLessonPlanSelection selection;
   final LessonPlanProgressStatus? status;
+  final bool stale;
   final bool isCurrent;
   final VoidCallback onOpen;
 
@@ -343,7 +358,16 @@ class _WeeklyPlanRow extends StatelessWidget {
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  if (status != null) ...[
+                  if (stale) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Plan güncellendi · yeniden işaretle',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.error,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ] else if (status != null) ...[
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       status!.teacherLabel,

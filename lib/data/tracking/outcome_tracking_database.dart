@@ -10,7 +10,7 @@ class OutcomeTrackingDatabase {
   OutcomeTrackingDatabase._(this.database);
 
   static const fileName = 'ogretmen_os_teacher_state.sqlite';
-  static const schemaVersion = 2;
+  static const schemaVersion = 3;
 
   final Database database;
 
@@ -26,6 +26,10 @@ class OutcomeTrackingDatabase {
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await _createLessonPlanProgress(db);
+        } else if (oldVersion < 3) {
+          await db.execute(
+            'ALTER TABLE lesson_plan_progress ADD COLUMN payload_sha256 TEXT',
+          );
         }
       },
     );
@@ -59,6 +63,7 @@ class OutcomeTrackingDatabase {
         course_id TEXT NOT NULL,
         academic_year TEXT NOT NULL,
         package_id TEXT NOT NULL,
+        payload_sha256 TEXT,
         status TEXT NOT NULL,
         started_at TEXT,
         completed_at TEXT,
@@ -204,6 +209,7 @@ class SqfliteLessonPlanProgressRepository
         courseId: row['course_id']! as String,
         academicYear: row['academic_year']! as String,
         packageId: row['package_id']! as String,
+        payloadSha256: _cleanText(row['payload_sha256'] as String?),
         status: LessonPlanProgressStatus.fromStorage(row['status']! as String),
         startedAt: _parseDate(row['started_at']),
         completedAt: _parseDate(row['completed_at']),
@@ -214,6 +220,7 @@ class SqfliteLessonPlanProgressRepository
     'course_id': record.courseId,
     'academic_year': record.academicYear,
     'package_id': record.packageId,
+    'payload_sha256': _cleanText(record.payloadSha256),
     'status': record.status.storageValue,
     'started_at': record.startedAt?.toUtc().toIso8601String(),
     'completed_at': record.completedAt?.toUtc().toIso8601String(),
