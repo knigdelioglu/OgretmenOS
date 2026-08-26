@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/preferences/continuity_repository.dart';
 import '../../domain/models/outcome_tracking_models.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
+import '../../domain/repositories/lesson_plan_progress_repository.dart';
 import '../../domain/services/outcome_planning_service.dart';
 import '../outcomes/outcome_detail_page.dart';
 import '../shared/feature_widgets.dart';
@@ -15,11 +16,13 @@ class ContinuityThisWeekPage extends StatefulWidget {
     required this.service,
     required this.continuity,
     required this.courseId,
+    this.lessonPlanProgress,
   });
 
   final CourseKnowledgeRepository repository;
   final OutcomePlanningService service;
   final ContinuityRepository continuity;
+  final LessonPlanProgressRepository? lessonPlanProgress;
   final String courseId;
 
   @override
@@ -152,6 +155,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
               key: ValueKey(_workspaceRevision),
               repository: widget.repository,
               service: widget.service,
+              lessonPlanProgress: widget.lessonPlanProgress,
               onOutcomeViewed: _rememberViewed,
             ),
           ),
