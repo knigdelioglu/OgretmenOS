@@ -1,4 +1,5 @@
 import '../models/course_models.dart';
+import '../models/lesson_plan_models.dart';
 
 abstract interface class CourseKnowledgeRepository {
   Future<Course> getCourse();
@@ -18,4 +19,62 @@ abstract interface class CourseKnowledgeRepository {
   Future<List<ResourceDecision>> getResourceDecisions(String themeId);
 
   Future<TeacherPackage> getTeacherPackage(String themeId);
+}
+
+abstract interface class LessonPlanKnowledgeRepository {
+  Future<LessonPlanCapability> getLessonPlanCapability();
+
+  Future<List<LessonPlanPackage>> getLessonPlansForBlock(String blockId);
+
+  Future<LessonPlanPackage?> getLessonPlan(String packageId);
+
+  Future<LessonPlanPackage?> getPreviousLessonPlan(String packageId);
+
+  Future<LessonPlanPackage?> getNextLessonPlan(String packageId);
+}
+
+extension LessonPlanCourseKnowledgeAccess on CourseKnowledgeRepository {
+  Future<LessonPlanCapability> getLessonPlanCapability() {
+    final repository = this;
+    if (repository is LessonPlanKnowledgeRepository) {
+      return repository.getLessonPlanCapability();
+    }
+    return Future.value(
+      const LessonPlanCapability.unavailable(
+        reason: 'LESSON_PLAN_REPOSITORY_UNSUPPORTED',
+      ),
+    );
+  }
+
+  Future<List<LessonPlanPackage>> getLessonPlansForBlock(String blockId) {
+    final repository = this;
+    if (repository is LessonPlanKnowledgeRepository) {
+      return repository.getLessonPlansForBlock(blockId);
+    }
+    return Future.value(const []);
+  }
+
+  Future<LessonPlanPackage?> getLessonPlan(String packageId) {
+    final repository = this;
+    if (repository is LessonPlanKnowledgeRepository) {
+      return repository.getLessonPlan(packageId);
+    }
+    return Future.value(null);
+  }
+
+  Future<LessonPlanPackage?> getPreviousLessonPlan(String packageId) {
+    final repository = this;
+    if (repository is LessonPlanKnowledgeRepository) {
+      return repository.getPreviousLessonPlan(packageId);
+    }
+    return Future.value(null);
+  }
+
+  Future<LessonPlanPackage?> getNextLessonPlan(String packageId) {
+    final repository = this;
+    if (repository is LessonPlanKnowledgeRepository) {
+      return repository.getNextLessonPlan(packageId);
+    }
+    return Future.value(null);
+  }
 }
