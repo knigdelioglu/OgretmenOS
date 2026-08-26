@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/calendar/asset_weekly_planning_service.dart';
 import '../data/course/course_database_installer.dart';
 import '../data/course/course_knowledge_repository_impl.dart';
+import '../data/course/lesson_plan_database_data_source.dart';
 import '../data/preferences/continuity_repository.dart';
 import '../data/preferences/user_preferences_repository.dart';
 import '../data/tracking/outcome_tracking_database.dart';
@@ -41,6 +42,7 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
     final repository = CourseKnowledgeRepositoryImpl(
       dataSource: database.dataSource,
       manifest: database.manifest,
+      lessonPlanDataSource: LessonPlanDatabaseDataSource(database.database),
     );
     final weeklyPlanning = AssetWeeklyPlanningService(repository: repository);
     trackingDatabase = await OutcomeTrackingDatabase.open();
