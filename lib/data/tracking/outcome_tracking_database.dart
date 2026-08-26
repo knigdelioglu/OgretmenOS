@@ -1,14 +1,16 @@
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+import '../../domain/models/lesson_plan_progress_models.dart';
 import '../../domain/models/outcome_tracking_models.dart';
+import '../../domain/repositories/lesson_plan_progress_repository.dart';
 import '../../domain/repositories/outcome_tracking_repository.dart';
 
 class OutcomeTrackingDatabase {
   OutcomeTrackingDatabase._(this.database);
 
   static const fileName = 'ogretmen_os_teacher_state.sqlite';
-  static const schemaVersion = 1;
+  static const schemaVersion = 2;
 
   final Database database;
 
@@ -18,27 +20,56 @@ class OutcomeTrackingDatabase {
       path,
       version: schemaVersion,
       onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE outcome_tracking (
-            academic_year TEXT NOT NULL,
-            outcome_id TEXT NOT NULL,
-            planned_week_number INTEGER NOT NULL,
-            status TEXT NOT NULL,
-            actual_hours INTEGER,
-            teacher_note TEXT,
-            completed_at TEXT,
-            carried_to_week_number INTEGER,
-            updated_at TEXT NOT NULL,
-            PRIMARY KEY (academic_year, outcome_id, planned_week_number)
-          )
-        ''');
-        await db.execute('''
-          CREATE INDEX idx_outcome_tracking_carry
-          ON outcome_tracking (academic_year, carried_to_week_number)
-        ''');
+        await _createOutcomeTracking(db);
+        await _createLessonPlanProgress(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await _createLessonPlanProgress(db);
+        }
       },
     );
     return OutcomeTrackingDatabase._(database);
+  }
+
+  static Future<void> _createOutcomeTracking(Database db) async {
+    await db.execute('''
+      CREATE TABLE outcome_tracking (
+        academic_year TEXT NOT NULL,
+        outcome_id TEXT NOT NULL,
+        planned_week_number INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        actual_hours INTEGER,
+        teacher_note TEXT,
+        completed_at TEXT,
+        carried_to_week_number INTEGER,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (academic_year, outcome_id, planned_week_number)
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX idx_outcome_tracking_carry
+      ON outcome_tracking (academic_year, carried_to_week_number)
+    ''');
+  }
+
+  static Future<void> _createLessonPlanProgress(Database db) async {
+    await db.execute('''
+      CREATE TABLE lesson_plan_progress (
+        course_id TEXT NOT NULL,
+        academic_year TEXT NOT NULL,
+        package_id TEXT NOT NULL,
+        status TEXT NOT NULL,
+        started_at TEXT,
+        completed_at TEXT,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (course_id, academic_year, package_id)
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX idx_lesson_plan_progress_scope
+      ON lesson_plan_progress (course_id, academic_year, status)
+    ''');
   }
 
   Future<void> close() => database.close();
@@ -59,14 +90,14 @@ class SqfliteOutcomeTrackingRepository implements OutcomeTrackingRepository {
       whereArgs: [academicYear],
       orderBy: 'planned_week_number ASC, outcome_id ASC',
     );
-    return rows.map(_fromRow).toList(growable: false);
+    return rows.map(_outcomeFromRow).toList(growable: false);
   }
 
   @override
   Future<void> save(LearningOutcomeTrackingRecord record) async {
     await _database.insert(
       'outcome_tracking',
-      _toRow(record),
+      _outcomeToRow(record),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
@@ -85,7 +116,7 @@ class SqfliteOutcomeTrackingRepository implements OutcomeTrackingRepository {
     );
   }
 
-  LearningOutcomeTrackingRecord _fromRow(Map<String, Object?> row) =>
+  LearningOutcomeTrackingRecord _outcomeFromRow(Map<String, Object?> row) =>
       LearningOutcomeTrackingRecord(
         academicYear: row['academic_year']! as String,
         outcomeId: row['outcome_id']! as String,
@@ -98,7 +129,7 @@ class SqfliteOutcomeTrackingRepository implements OutcomeTrackingRepository {
         updatedAt: DateTime.parse(row['updated_at']! as String).toLocal(),
       );
 
-  Map<String, Object?> _toRow(LearningOutcomeTrackingRecord record) => {
+  Map<String, Object?> _outcomeToRow(LearningOutcomeTrackingRecord record) => {
     'academic_year': record.academicYear,
     'outcome_id': record.outcomeId,
     'planned_week_number': record.plannedWeekNumber,
@@ -109,14 +140,93 @@ class SqfliteOutcomeTrackingRepository implements OutcomeTrackingRepository {
     'carried_to_week_number': record.carriedToWeekNumber,
     'updated_at': record.updatedAt.toUtc().toIso8601String(),
   };
+}
 
-  DateTime? _parseDate(Object? value) {
-    if (value is! String || value.isEmpty) return null;
-    return DateTime.tryParse(value)?.toLocal();
+class SqfliteLessonPlanProgressRepository
+    implements LessonPlanProgressRepository {
+  const SqfliteLessonPlanProgressRepository(this._database);
+
+  final Database _database;
+
+  @override
+  Future<List<LessonPlanProgressRecord>> getForCourseAcademicYear({
+    required String courseId,
+    required String academicYear,
+  }) async {
+    final rows = await _database.query(
+      'lesson_plan_progress',
+      where: 'course_id = ? AND academic_year = ?',
+      whereArgs: [courseId, academicYear],
+      orderBy: 'updated_at ASC, package_id ASC',
+    );
+    return rows.map(_progressFromRow).toList(growable: false);
   }
 
-  String? _cleanText(String? value) {
-    final clean = value?.trim();
-    return clean == null || clean.isEmpty ? null : clean;
+  @override
+  Future<LessonPlanProgressRecord?> get({
+    required String courseId,
+    required String academicYear,
+    required String packageId,
+  }) async {
+    final rows = await _database.query(
+      'lesson_plan_progress',
+      where: 'course_id = ? AND academic_year = ? AND package_id = ?',
+      whereArgs: [courseId, academicYear, packageId],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : _progressFromRow(rows.first);
   }
+
+  @override
+  Future<void> save(LessonPlanProgressRecord record) async {
+    await _database.insert(
+      'lesson_plan_progress',
+      _progressToRow(record),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  @override
+  Future<void> delete({
+    required String courseId,
+    required String academicYear,
+    required String packageId,
+  }) async {
+    await _database.delete(
+      'lesson_plan_progress',
+      where: 'course_id = ? AND academic_year = ? AND package_id = ?',
+      whereArgs: [courseId, academicYear, packageId],
+    );
+  }
+
+  LessonPlanProgressRecord _progressFromRow(Map<String, Object?> row) =>
+      LessonPlanProgressRecord(
+        courseId: row['course_id']! as String,
+        academicYear: row['academic_year']! as String,
+        packageId: row['package_id']! as String,
+        status: LessonPlanProgressStatus.fromStorage(row['status']! as String),
+        startedAt: _parseDate(row['started_at']),
+        completedAt: _parseDate(row['completed_at']),
+        updatedAt: DateTime.parse(row['updated_at']! as String).toLocal(),
+      );
+
+  Map<String, Object?> _progressToRow(LessonPlanProgressRecord record) => {
+    'course_id': record.courseId,
+    'academic_year': record.academicYear,
+    'package_id': record.packageId,
+    'status': record.status.storageValue,
+    'started_at': record.startedAt?.toUtc().toIso8601String(),
+    'completed_at': record.completedAt?.toUtc().toIso8601String(),
+    'updated_at': record.updatedAt.toUtc().toIso8601String(),
+  };
+}
+
+DateTime? _parseDate(Object? value) {
+  if (value is! String || value.isEmpty) return null;
+  return DateTime.tryParse(value)?.toLocal();
+}
+
+String? _cleanText(String? value) {
+  final clean = value?.trim();
+  return clean == null || clean.isEmpty ? null : clean;
 }

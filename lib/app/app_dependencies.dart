@@ -9,6 +9,7 @@ import '../data/preferences/user_preferences_repository.dart';
 import '../data/tracking/outcome_tracking_database.dart';
 import '../domain/models/weekly_plan_models.dart';
 import '../domain/repositories/course_knowledge_repository.dart';
+import '../domain/repositories/lesson_plan_progress_repository.dart';
 import '../domain/services/outcome_planning_service.dart';
 
 class AppDependencies {
@@ -18,6 +19,7 @@ class AppDependencies {
     required this.weeklyPlanning,
     this.outcomePlanning,
     this.continuity,
+    this.lessonPlanProgress,
     this.dispose,
   });
 
@@ -26,6 +28,7 @@ class AppDependencies {
   final WeeklyPlanningService weeklyPlanning;
   final OutcomePlanningService? outcomePlanning;
   final ContinuityRepository? continuity;
+  final LessonPlanProgressRepository? lessonPlanProgress;
   final Future<void> Function()? dispose;
 }
 
@@ -49,6 +52,9 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
     final trackingRepository = SqfliteOutcomeTrackingRepository(
       trackingDatabase.database,
     );
+    final lessonPlanProgress = SqfliteLessonPlanProgressRepository(
+      trackingDatabase.database,
+    );
     final continuity = SharedPreferencesContinuityRepository(preferences);
     final outcomePlanning = OutcomePlanningService(
       repository: repository,
@@ -62,6 +68,7 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
       weeklyPlanning: weeklyPlanning,
       outcomePlanning: outcomePlanning,
       continuity: continuity,
+      lessonPlanProgress: lessonPlanProgress,
       dispose: () async {
         await trackingDatabase?.close();
         await database.close();

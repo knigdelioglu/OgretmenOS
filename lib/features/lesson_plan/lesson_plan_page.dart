@@ -1,18 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../domain/models/lesson_plan_models.dart';
+import '../../domain/models/lesson_plan_progress_models.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
+import '../../domain/repositories/lesson_plan_progress_repository.dart';
+import '../../domain/services/lesson_plan_progress_service.dart';
 import '../shared/feature_widgets.dart';
+import '../shared/interaction_polish.dart';
 
 class LessonPlanPage extends StatefulWidget {
   const LessonPlanPage({
     super.key,
     required this.repository,
     required this.initialPackageId,
+    this.progressRepository,
+    this.academicYear,
   });
 
   final CourseKnowledgeRepository repository;
   final String initialPackageId;
+  final LessonPlanProgressRepository? progressRepository;
+  final String? academicYear;
 
   @override
   State<LessonPlanPage> createState() => _LessonPlanPageState();
@@ -21,6 +30,16 @@ class LessonPlanPage extends StatefulWidget {
 class _LessonPlanPageState extends State<LessonPlanPage> {
   late String _packageId;
   late Future<_LessonPlanViewData> _future;
+  LessonPlanProgressStatus? _localProgressStatus;
+
+  LessonPlanProgressService? get _progressService {
+    final repository = widget.progressRepository;
+    final academicYear = widget.academicYear;
+    if (repository == null || academicYear == null || academicYear.isEmpty) {
+      return null;
+    }
+    return LessonPlanProgressService(repository: repository);
+  }
 
   @override
   void initState() {
@@ -36,22 +55,59 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
     }
     final previous = await widget.repository.getPreviousLessonPlan(packageId);
     final next = await widget.repository.getNextLessonPlan(packageId);
+    final progressService = _progressService;
+    final progress = progressService == null
+        ? null
+        : await progressService.get(
+            package: current,
+            academicYear: widget.academicYear!,
+          );
     return _LessonPlanViewData(
       current: current,
       previous: previous,
       next: next,
+      progress: progress,
     );
   }
 
   void _openPackage(String packageId) {
     setState(() {
       _packageId = packageId;
+      _localProgressStatus = null;
       _future = _load(packageId);
     });
   }
 
   void _reload() {
     setState(() => _future = _load(_packageId));
+  }
+
+  Future<void> _setProgress(
+    LessonPlanPackage package,
+    LessonPlanProgressStatus status,
+  ) async {
+    final service = _progressService;
+    if (service == null) return;
+    try {
+      await service.setStatus(
+        package: package,
+        academicYear: widget.academicYear!,
+        status: status,
+      );
+      if (!mounted) return;
+      if (status == LessonPlanProgressStatus.completed) {
+        HapticFeedback.mediumImpact();
+      }
+      setState(() => _localProgressStatus = status);
+      showTeacherFeedback(context, '${status.teacherLabel} olarak kaydedildi.');
+    } on Object {
+      if (!mounted) return;
+      showTeacherFeedback(
+        context,
+        'Ders planı ilerlemesi kaydedilemedi. Tekrar deneyin.',
+        duration: const Duration(seconds: 4),
+      );
+    }
   }
 
   @override
@@ -72,6 +128,9 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
         }
         return _LessonPlanContent(
           data: snapshot.data!,
+          progressEnabled: _progressService != null,
+          progressStatusOverride: _localProgressStatus,
+          onSetProgress: _setProgress,
           onOpenPackage: _openPackage,
         );
       },
@@ -82,10 +141,19 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
 class _LessonPlanContent extends StatelessWidget {
   const _LessonPlanContent({
     required this.data,
+    required this.progressEnabled,
+    required this.progressStatusOverride,
+    required this.onSetProgress,
     required this.onOpenPackage,
   });
 
   final _LessonPlanViewData data;
+  final bool progressEnabled;
+  final LessonPlanProgressStatus? progressStatusOverride;
+  final Future<void> Function(
+    LessonPlanPackage package,
+    LessonPlanProgressStatus status,
+  ) onSetProgress;
   final ValueChanged<String> onOpenPackage;
 
   @override
@@ -103,6 +171,18 @@ class _LessonPlanContent extends StatelessWidget {
           title: plan.title,
           description: plan.summary,
         ),
+        if (progressEnabled) ...[
+          _PlanProgressCard(
+            plan: plan,
+            status: progressStatusOverride ??
+                data.progress?.status ??
+                LessonPlanProgressStatus.notStarted,
+            next: data.next,
+            onSetProgress: onSetProgress,
+            onOpenPackage: onOpenPackage,
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
         Card(
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -192,6 +272,81 @@ class _LessonPlanContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         _PlanProvenance(plan: plan),
       ],
+    );
+  }
+}
+
+class _PlanProgressCard extends StatelessWidget {
+  const _PlanProgressCard({
+    required this.plan,
+    required this.status,
+    required this.next,
+    required this.onSetProgress,
+    required this.onOpenPackage,
+  });
+
+  final LessonPlanPackage plan;
+  final LessonPlanProgressStatus status;
+  final LessonPlanPackage? next;
+  final Future<void> Function(
+    LessonPlanPackage package,
+    LessonPlanProgressStatus status,
+  ) onSetProgress;
+  final ValueChanged<String> onOpenPackage;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final completed = status == LessonPlanProgressStatus.completed;
+    return Card(
+      color: completed ? scheme.secondaryContainer : scheme.tertiaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'DERS DURUMU',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.7,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              status.teacherLabel,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                for (final candidate in LessonPlanProgressStatus.values)
+                  ChoiceChip(
+                    selected: status == candidate,
+                    label: Text(candidate.teacherLabel),
+                    onSelected: status == candidate
+                        ? null
+                        : (_) => onSetProgress(plan, candidate),
+                  ),
+              ],
+            ),
+            if (completed && next != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              FilledButton.icon(
+                onPressed: () => onOpenPackage(next!.packageId),
+                icon: const Icon(Icons.arrow_forward),
+                label: Text(
+                  'Sonraki pakete geç · P${next!.packageNo.toString().padLeft(2, '0')}',
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
@@ -405,11 +560,13 @@ class _LessonPlanViewData {
     required this.current,
     required this.previous,
     required this.next,
+    required this.progress,
   });
 
   final LessonPlanPackage current;
   final LessonPlanPackage? previous;
   final LessonPlanPackage? next;
+  final LessonPlanProgressRecord? progress;
 }
 
 List<String> _humanLines(Object? value) {

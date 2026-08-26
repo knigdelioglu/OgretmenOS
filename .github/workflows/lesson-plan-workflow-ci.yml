@@ -5,20 +5,37 @@ on:
     branches:
       - main
       - feat/lesson-plan-workflow-p4
+      - feat/lesson-plan-progress-p5
     paths:
+      - 'lib/app/app.dart'
+      - 'lib/app/app_dependencies.dart'
+      - 'lib/data/tracking/outcome_tracking_database.dart'
+      - 'lib/domain/models/lesson_plan_progress_models.dart'
+      - 'lib/domain/repositories/lesson_plan_progress_repository.dart'
+      - 'lib/domain/services/lesson_plan_progress_service.dart'
       - 'lib/domain/services/lesson_plan_workflow_service.dart'
       - 'lib/features/lesson_plan/**'
       - 'lib/features/this_week/**'
       - 'lib/features/block/**'
+      - 'test/lesson_plan_progress_*.dart'
       - 'test/lesson_plan_workflow_*.dart'
+      - 'test/outcome_tracking_database_test.dart'
       - '.github/workflows/lesson-plan-workflow-ci.yml'
   pull_request:
     paths:
+      - 'lib/app/app.dart'
+      - 'lib/app/app_dependencies.dart'
+      - 'lib/data/tracking/outcome_tracking_database.dart'
+      - 'lib/domain/models/lesson_plan_progress_models.dart'
+      - 'lib/domain/repositories/lesson_plan_progress_repository.dart'
+      - 'lib/domain/services/lesson_plan_progress_service.dart'
       - 'lib/domain/services/lesson_plan_workflow_service.dart'
       - 'lib/features/lesson_plan/**'
       - 'lib/features/this_week/**'
       - 'lib/features/block/**'
+      - 'test/lesson_plan_progress_*.dart'
       - 'test/lesson_plan_workflow_*.dart'
+      - 'test/outcome_tracking_database_test.dart'
       - '.github/workflows/lesson-plan-workflow-ci.yml'
 
 permissions:
@@ -52,10 +69,14 @@ jobs:
       - name: Run lesson-plan workflow tests
         run: |
           flutter test --reporter expanded \
+            test/lesson_plan_progress_service_test.dart \
+            test/lesson_plan_progress_database_test.dart \
+            test/lesson_plan_progress_ui_test.dart \
             test/lesson_plan_workflow_service_test.dart \
             test/lesson_plan_workflow_ui_test.dart \
             test/lesson_plan_repository_test.dart \
-            test/lesson_plan_runtime_package_integration_test.dart
+            test/lesson_plan_runtime_package_integration_test.dart \
+            test/outcome_tracking_database_test.dart
 
       - name: Run full regression suite
         run: flutter test --reporter compact
