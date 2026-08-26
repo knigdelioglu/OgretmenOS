@@ -30,6 +30,7 @@ class LessonPlanPage extends StatefulWidget {
 class _LessonPlanPageState extends State<LessonPlanPage> {
   late String _packageId;
   late Future<_LessonPlanViewData> _future;
+  LessonPlanProgressStatus? _localProgressStatus;
 
   LessonPlanProgressService? get _progressService {
     final repository = widget.progressRepository;
@@ -72,6 +73,7 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
   void _openPackage(String packageId) {
     setState(() {
       _packageId = packageId;
+      _localProgressStatus = null;
       _future = _load(packageId);
     });
   }
@@ -96,7 +98,7 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
       if (status == LessonPlanProgressStatus.completed) {
         HapticFeedback.mediumImpact();
       }
-      _reload();
+      setState(() => _localProgressStatus = status);
       showTeacherFeedback(context, '${status.teacherLabel} olarak kaydedildi.');
     } on Object {
       if (!mounted) return;
@@ -127,6 +129,7 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
         return _LessonPlanContent(
           data: snapshot.data!,
           progressEnabled: _progressService != null,
+          progressStatusOverride: _localProgressStatus,
           onSetProgress: _setProgress,
           onOpenPackage: _openPackage,
         );
@@ -139,12 +142,14 @@ class _LessonPlanContent extends StatelessWidget {
   const _LessonPlanContent({
     required this.data,
     required this.progressEnabled,
+    required this.progressStatusOverride,
     required this.onSetProgress,
     required this.onOpenPackage,
   });
 
   final _LessonPlanViewData data;
   final bool progressEnabled;
+  final LessonPlanProgressStatus? progressStatusOverride;
   final Future<void> Function(
     LessonPlanPackage package,
     LessonPlanProgressStatus status,
@@ -169,8 +174,9 @@ class _LessonPlanContent extends StatelessWidget {
         if (progressEnabled) ...[
           _PlanProgressCard(
             plan: plan,
-            status:
-                data.progress?.status ?? LessonPlanProgressStatus.notStarted,
+            status: progressStatusOverride ??
+                data.progress?.status ??
+                LessonPlanProgressStatus.notStarted,
             next: data.next,
             onSetProgress: onSetProgress,
             onOpenPackage: onOpenPackage,
