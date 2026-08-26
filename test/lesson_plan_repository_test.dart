@@ -23,10 +23,16 @@ void main() {
     await database.close();
   });
 
-  CourseKnowledgeRepository repository({int manifestCount = 3}) {
+  CourseKnowledgeRepository repository({
+    int manifestCount = 3,
+    String validationStatus = 'PASS',
+  }) {
     return CourseKnowledgeRepositoryImpl(
       dataSource: CourseDatabaseDataSource(database),
-      manifest: _manifest(manifestCount),
+      manifest: _manifest(
+        manifestCount,
+        validationStatus: validationStatus,
+      ),
       lessonPlanDataSource: LessonPlanDatabaseDataSource(database),
     );
   }
@@ -73,12 +79,27 @@ void main() {
     expect(await repo.getNextLessonPlan('BLOCK_02_P01'), isNull);
   });
 
-  test('manifest row count drift capabilityyi fail closed yapar', () async {
-    final capability = await repository(manifestCount: 2).getLessonPlanCapability();
+  test('manifest row count drift capabilityyi ve doğrudan okumaları fail closed yapar', () async {
+    final repo = repository(manifestCount: 2);
+    final capability = await repo.getLessonPlanCapability();
 
     expect(capability.available, isFalse);
     expect(capability.reason, 'LESSON_PLAN_ROW_COUNT_MISMATCH');
     expect(capability.packageCount, 3);
+    expect(await repo.getLessonPlansForBlock('BLOCK_01'), isEmpty);
+    expect(await repo.getLessonPlan('BLOCK_01_P01'), isNull);
+  });
+
+  test('runtime validation PASS değilse plan satırları dışarı açılmaz', () async {
+    final repo = repository(validationStatus: 'FAIL');
+    final capability = await repo.getLessonPlanCapability();
+
+    expect(capability.available, isFalse);
+    expect(capability.reason, 'RUNTIME_VALIDATION_NOT_PASS');
+    expect(await repo.getLessonPlansForBlock('BLOCK_01'), isEmpty);
+    expect(await repo.getLessonPlan('BLOCK_01_P01'), isNull);
+    expect(await repo.getPreviousLessonPlan('BLOCK_02_P01'), isNull);
+    expect(await repo.getNextLessonPlan('BLOCK_01_P01'), isNull);
   });
 
   test('eski runtime lesson_plan_packages tablosu olmadan güvenli fallback verir', () async {
@@ -95,11 +116,14 @@ void main() {
   });
 }
 
-RuntimeManifest _manifest(int packageCount) => RuntimeManifest(
+RuntimeManifest _manifest(
+  int packageCount, {
+  String validationStatus = 'PASS',
+}) => RuntimeManifest(
   runtimePackageVersion: '1.3.0',
   schemaVersion: '1.2.0',
   courseId: 'TDE_9',
-  validationStatus: 'PASS',
+  validationStatus: validationStatus,
   canonicalContentFingerprint: 'fixture',
   rowCounts: {'lesson_plan_packages': packageCount},
   timelineResolution: 'BLOCK_TIME_RESOLVED',
