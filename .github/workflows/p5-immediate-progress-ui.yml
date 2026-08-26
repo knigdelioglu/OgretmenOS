@@ -1,0 +1,29 @@
+name: P5 Immediate Progress UI
+
+on:
+  push:
+    branches:
+      - feat/lesson-plan-progress-p5
+    paths:
+      - tool/p5_patch_immediate_progress_ui.py
+      - .github/workflows/p5-immediate-progress-ui.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: feat/lesson-plan-progress-p5
+      - run: python tool/p5_patch_immediate_progress_ui.py
+      - run: rm tool/p5_patch_immediate_progress_ui.py .github/workflows/p5-immediate-progress-ui.yml
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix(p5): update lesson progress UI immediately after save"
+          git push origin HEAD:feat/lesson-plan-progress-p5
