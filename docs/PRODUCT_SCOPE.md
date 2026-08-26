@@ -1,7 +1,7 @@
 # PRODUCT_SCOPE.md — ÖğretmenOS V1.3
 
 **Product:** ÖğretmenOS  
-**Document version:** 1.3.1  
+**Document version:** 1.3.2  
 **Status:** Binding Product Scope Authority  
 **Implementation:** Flutter + Dart + Material 3  
 **Operation mode:** Offline-first, deterministic, local
@@ -123,7 +123,29 @@ completed       = İşlendi
 
 `Başlanmadı` seçimi persisted progress kaydını siler. `Kısmen işlendi` ve `İşlendi` teacher-local kayıt oluşturur/günceller. Bu durumlar kullanıcının seçtiği explicit işaretlerdir; uygulama planı yalnız görüntülediği için otomatik progress üretmez.
 
-**Her ders planı durum mutasyonu gerçek Undo sunar.** Undo, mutasyondan önceki persisted snapshot'ı geri yükler; önce kayıt yoksa oluşturulan kayıt tamamen silinir, önce kayıt varsa önceki `status/started_at/completed_at/updated_at` değerleri aynen geri gelir. Yeni bir mutasyon eski Undo teklifinin yerini alır.
+### 7.1 Progress → canonical content binding
+
+Her non-empty progress kaydı, işaretlendiği anda canonical `lesson_plan_packages.payload_sha256` değeriyle bağlanır.
+
+Geçerlilik kuralı:
+
+```text
+record.payload_sha256 == current package.payload_sha256
+  => current / geçerli progress
+
+record.payload_sha256 missing veya farklı
+  => stale / yeniden gözden geçirilecek progress
+```
+
+Stale kayıt **silinmez**; öğretmenin geçmiş işareti korunur. Ancak stale `in_progress/completed` durumu yeni plan içeriği için etkin status sayılmaz, paketi otomatik tamamlanmış/geçilmiş yapmaz ve haftalık `all completed` hesabına katılmaz. UI `Plan güncellendi` / `yeniden işaretle` diliyle durumu açıkça gösterir.
+
+Öğretmen yeni içeriği gördükten sonra `Kısmen işlendi` veya `İşlendi` seçerse kayıt current package hash'iyle yeniden bağlanır ve yeni içerik için yeni `started_at` zaman çizelgesi başlar. `Başlanmadı` stale kaydı da temizleyebilir.
+
+Schema v2'den gelen ve hash taşımayan legacy lesson-plan progress kayıtları migration sırasında korunur; otomatik doğru kabul edilmez ve stale olarak ele alınır.
+
+Course-wide runtime fingerprint progress geçerlilik anahtarı değildir. Validity package-level `payload_sha256` ile belirlenir; böylece runtime paketinde başka bir plan değiştiğinde içeriği değişmeyen paketlerin teacher-state'i gereksiz yere stale olmaz.
+
+**Her ders planı durum mutasyonu gerçek Undo sunar.** Undo, mutasyondan önceki persisted snapshot'ı geri yükler; önce kayıt yoksa oluşturulan kayıt tamamen silinir, önce kayıt varsa önceki `payload_sha256/status/started_at/completed_at/updated_at` değerleri aynen geri gelir. Undo stale bir snapshot'ı geri getirirse UI tekrar stale durumunu gösterir.
 
 TDE_11/TDE_12 curriculum-only runtime için lesson-plan CTA gösterilmez ve bu eksiklik hata state'i değildir.
 
@@ -189,13 +211,14 @@ Lesson-plan progress record alanları:
 course_id
 academic_year
 package_id
+payload_sha256 (nullable only for migrated legacy rows)
 status
 started_at (optional)
 completed_at (optional)
 updated_at
 ```
 
-Runtime/calendar güncellemesi teacher state'i sessizce silemez. Lesson-plan progress, `course_id + academic_year + package_id` scope'unda tutulur.
+Runtime/calendar güncellemesi teacher state'i sessizce silemez. Lesson-plan progress, `course_id + academic_year + package_id` scope'unda tutulur; `payload_sha256` identity değil content-validity binding'idir.
 
 ## 11. Tracking semantics
 
@@ -270,6 +293,8 @@ general-purpose notes/task manager
 - Notlarda sessiz veri kaybı yoktur.
 - Outcome tracking/carry mutationları gerçek Undo sunar.
 - Lesson-plan status mutationları önceki persisted snapshot'a gerçek Undo sunar.
+- Lesson-plan progress yalnız eşleşen package `payload_sha256` ile current kabul edilir.
+- Stale lesson-plan progress otomatik tamamlanma/ilerleme üretmez ve sessizce silinmez.
 - `planned` bir kullanıcı borcu gibi sunulmaz.
 - Konum, tamamlanma yüzdesi değildir.
 - Phone/tablet, large text ve dark mode kullanılabilir kalır.
@@ -284,8 +309,9 @@ V1.3 başarılıdır when a teacher can:
 3. lesson-plan capability varsa mevcut dersin doğrulanmış planını açmak ve önceki/sonraki pakette ilerlemek;
 4. kesinti sonrası son görüntülenen derse dönmek;
 5. isterse outcome tracking/not/carry ve lesson-plan progress özelliklerini kullanmak ve mutasyonları Undo yapabilmek;
-6. yıllık konumu ilerleme yüzdesiyle karıştırmamak;
-7. runtime doğruluğunu bozmadan tüm core akışı offline kullanmak.
+6. runtime güncellemesinde değişen plan içeriğine ait eski progress'in yeniden gözden geçirilmesi gerektiğini açıkça görmek;
+7. yıllık konumu ilerleme yüzdesiyle karıştırmamak;
+8. runtime doğruluğunu bozmadan tüm core akışı offline kullanmak.
 
 ## 16. Change protocol
 
