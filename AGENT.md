@@ -1,6 +1,6 @@
 # AGENT.md — ÖğretmenOS Agent Execution Protocol
 
-> **Document version:** 1.3.1  
+> **Document version:** 1.3.2  
 > **Status:** Binding execution protocol
 
 ## 0. Authority
@@ -31,6 +31,8 @@ Lesson-plan capability varsa doğrulanmış ders planını mevcut ders bağlamı
 - Tracking/progress status continuity oluşturmaz/silmez.
 - Convenience preference failure authoritative content'i bloke etmez.
 - Lesson-plan capability yokluğu normal fallback'tir; TDE_11/TDE_12 için hata üretme.
+- Lesson-plan progress yalnız current package `payload_sha256` ile eşleşiyorsa current kabul edilir.
+- Stale/missing hash progress completed veya in-progress gibi projekte edilmez ve otomatik silinmez.
 - Teacher note silent-loss kabul etmez.
 - Position != progress/completion percentage.
 - Missing tracking/progress row kullanıcıya borç/eksik iş olarak gösterilmez.
@@ -68,6 +70,7 @@ LessonPlanPage
 - Completed/carry groups explicit teacher-marking dili kullanır.
 - Lesson-plan entry yalnız runtime capability usable ise secondary action olarak görünür.
 - Lesson-plan capability için top-level navigation ekleme.
+- Stale lesson-plan progress varsa `Plan güncellendi / yeniden işaretle` açık metni göster; yalnız renge güvenme.
 
 ## 5. Continuity
 
@@ -104,7 +107,9 @@ previous != null
   → undo: previous record exact save
 ```
 
-Undo önceki `status`, `startedAt`, `completedAt`, `updatedAt` değerlerini korur. Kullanıcı mutation sonrası başka pakete geçtiyse eski package'ın Undo işlemi yeni package'ın local status görünümünü overwrite etmemelidir. Undo failure kullanıcıya görünür feedback vermelidir.
+Undo önceki `payloadSha256`, `status`, `startedAt`, `completedAt`, `updatedAt` değerlerini korur. Kullanıcı mutation sonrası başka pakete geçtiyse eski package'ın Undo işlemi yeni package'ın local status görünümünü overwrite etmemelidir. Undo failure kullanıcıya görünür feedback vermelidir.
+
+Undo stale snapshot'ı geri getirirse stale state de geri gelmelidir; eski status current package'a yeniden uygulanmış gibi gösterilemez.
 
 ## 7. Lesson-plan runtime and progress boundary
 
@@ -132,15 +137,34 @@ Progress identity:
 course_id + academic_year + package_id
 ```
 
+Content validity:
+
+```text
+progress.payload_sha256 == package.payload_sha256
+  → current
+
+progress.payload_sha256 null / mismatch
+  → stale
+```
+
+`payload_sha256` identity değildir; canonical package content binding kanıtıdır. Course-wide runtime fingerprint'i progress validity anahtarı yapma: unrelated package değişimi unaffected package progress'ini stale etmemelidir.
+
 Semantics:
 
 ```text
-missing row  = Başlanmadı
-in_progress  = Kısmen işlendi
-completed    = İşlendi
+missing row                  = Başlanmadı
+matching in_progress         = Kısmen işlendi
+matching completed           = İşlendi
+missing/mismatched hash      = Plan güncellendi / yeniden gözden geçirilecek
 ```
 
-`Başlanmadı` persisted row'u siler. Plan payload/hash/source metadata teacher-state DB'ye canonical truth olarak kopyalanmaz; içerik bağlama/fingerprint politikası ayrı migration ile bilinçli tasarlanmalıdır.
+Hash karşılaştırması için yalnız `LessonPlanProgressService.resolve/resolveRecord` kullan. UI veya başka service aynı karşılaştırmayı elle tekrar etmesin.
+
+`LessonPlanProgressSnapshot.records` yalnız current-binding kayıtları taşır; stale identity'ler `stalePackageIds` üzerinden ayrı tutulur. Stale completed current/next veya all-completed hesabında completed sayılmaz.
+
+`Başlanmadı` persisted row'u siler. `Kısmen işlendi/İşlendi` kaydı current canonical package hash'i olmadan oluşturulamaz. Stale record yeniden işaretlenirken eski `startedAt` yeni içeriğe taşınmaz; yeni timeline başlatılır.
+
+Teacher-state schema v3'te `lesson_plan_progress.payload_sha256` nullable'dır yalnız migration uyumluluğu için. v2 hashesiz kayıtları backfill etme veya tahminen current sayma; koru ve stale kabul et.
 
 TDE_9/TDE_10 lesson-plan runtime kullanılabilir; TDE_11/TDE_12 curriculum-only fallback'tir. Widget veya service package count/saat değerini hardcode ederek capability uyduramaz.
 
@@ -177,6 +201,8 @@ SharedPreferences      continuity/manual UI convenience
 
 Widget raw SQL çalıştırmaz. Missing curriculum/lesson-plan relationship uydurulmaz.
 
+Runtime replacement teacher-state DB'yi silmez. Content change destructive cleanup yerine binding-state resolution ile ele alınır.
+
 ## 11. Tracking identity
 
 Outcome tracking identity için yalnız domain helper kullan:
@@ -191,7 +217,7 @@ outcomeTrackingKey(
 
 Aynı string formatını UI/service içinde tekrar elle kurma.
 
-Lesson-plan progress identity `courseId + academicYear + packageId` repository API'si üzerinden taşınır; UI key-string üretmez.
+Lesson-plan progress identity `courseId + academicYear + packageId` repository API'si üzerinden taşınır; UI key-string üretmez. `payloadSha256` identity'ye eklenmez.
 
 ## 12. Git safety
 
@@ -215,12 +241,15 @@ APK runtime asset verification
 
 Tests yalnız happy path değil, convenience-state failure, stale/malformed state ve Undo persistence davranışlarını da kanıtlamalıdır.
 
-Lesson-plan P5 değişikliğinde en az:
+Lesson-plan P5 content-binding değişikliğinde en az:
 
 ```text
-no previous row → mutation → Undo → row absent
-previous row → mutation → Undo → exact previous timestamps/status
-row delete via Başlanmadı → Undo → previous row restored
+same package id + same hash → progress current
+same package id + changed hash → previous progress stale
+v2 null hash → preserved + stale
+stale completed → does not advance current package
+stale reconfirm → new hash + new startedAt
+mutation → Undo → exact previous hash/status/timestamps
 ```
 
 kanıtlanmalıdır.
@@ -235,6 +264,8 @@ kanıtlanmalıdır.
 - no fake progress semantics;
 - note/Undo safety preserved;
 - lesson-plan status real Undo preserved;
+- stale progress preserved but not treated current;
+- payload hash binding package-level, runtime-wide değil;
 - resources lesson-context aware;
 - runtime read-only / teacher state separate;
 - full CI green.
