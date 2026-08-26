@@ -5,6 +5,7 @@ import '../../domain/models/outcome_tracking_models.dart';
 import '../../domain/models/weekly_plan_models.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../../domain/services/outcome_planning_service.dart';
+import '../lesson_plan/lesson_plan_panels.dart';
 import '../outcomes/outcome_detail_page.dart';
 import '../shared/feature_widgets.dart';
 import '../shared/interaction_polish.dart';
@@ -359,6 +360,11 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
             onAction: focus == null
                 ? null
                 : (action) => _handleOutcomeAction(plan, focus, action),
+          ),
+          WeeklyLessonPlanPanel(
+            repository: widget.repository,
+            annualPlan: plan,
+            weekNumber: summary.week.weekNumber,
           ),
           if (summary.week.isEventWeek) ...[
             const SizedBox(height: AppSpacing.lg),
