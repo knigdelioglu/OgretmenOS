@@ -12,6 +12,16 @@ on:
       - 'lib/data/course/course_database_installer.dart'
       - 'test/runtime_manifest_policy_test.dart'
       - 'test/lesson_plan_runtime_package_integration_test.dart'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/lesson-plan-runtime-sync-p3.yml'
+      - 'tool/sync_course_runtime.dart'
+      - 'lib/domain/runtime/runtime_manifest_policy.dart'
+      - 'lib/data/course/course_database_installer.dart'
+      - 'test/runtime_manifest_policy_test.dart'
+      - 'test/lesson_plan_runtime_package_integration_test.dart'
   workflow_dispatch:
 
 permissions:
@@ -23,7 +33,7 @@ concurrency:
 
 env:
   TYMM_REPOSITORY: knigdelioglu/tymm
-  TYMM_COMMIT: e2e067b76c59abae6e050fd268be8cc895d7b2c7
+  TYMM_COMMIT: ceca539d29ad6d030d49c2426cfa1dee4017f083
 
 jobs:
   sync-and-verify:
@@ -93,7 +103,7 @@ jobs:
           import json
           from pathlib import Path
 
-          expected_commit = 'e2e067b76c59abae6e050fd268be8cc895d7b2c7'
+          expected_commit = 'ceca539d29ad6d030d49c2426cfa1dee4017f083'
           root = Path('tymm-verileri/turk-dili-ve-edebiyati')
           for course in ('TDE_9', 'TDE_10'):
               package = json.loads((root / course / 'package_manifest.json').read_text(encoding='utf-8'))
