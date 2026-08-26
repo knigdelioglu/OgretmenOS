@@ -65,9 +65,6 @@ void main() {
       tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'İşlendi')).selected,
       isTrue,
     );
-
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -420));
-    await tester.pumpAndSettle();
     expect(find.text('Sonraki pakete geç · P02'), findsOneWidget);
   });
 
