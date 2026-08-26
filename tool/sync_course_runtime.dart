@@ -23,7 +23,8 @@ Future<void> main(List<String> args) async {
 
     final requireLessonPlans = args.contains('--require-lesson-plans');
     final sourceCommit = _valueFor(args, '--source-commit');
-    if (sourceCommit != null && !RegExp(r'^[0-9a-fA-F]{40}$').hasMatch(sourceCommit)) {
+    if (sourceCommit != null &&
+        !RegExp(r'^[0-9a-fA-F]{40}$').hasMatch(sourceCommit)) {
       throw StateError('Geçersiz TYMM source commit SHA: $sourceCommit');
     }
 
@@ -51,7 +52,8 @@ Future<void> main(List<String> args) async {
     }
     if (manifestJson['course_id'] != courseId) {
       throw StateError(
-        'İstenen course_id ile runtime uyuşmuyor: $courseId/${manifestJson['course_id']}',
+        'İstenen course_id ile runtime uyuşmuyor: '
+        '$courseId/${manifestJson['course_id']}',
       );
     }
     final validationReport = sourceValidationReport.existsSync()
@@ -113,7 +115,9 @@ Future<void> main(List<String> args) async {
     stdout.writeln('RUNTIME_SYNC: PASS');
     stdout.writeln('COURSE_ID: $courseId');
     stdout.writeln('TARGET_ROOT: $targetRoot');
-    if (sourceCommit != null) stdout.writeln('TYMM_SOURCE_COMMIT: $sourceCommit');
+    if (sourceCommit != null) {
+      stdout.writeln('TYMM_SOURCE_COMMIT: $sourceCommit');
+    }
     stdout.writeln(
       'RUNTIME_PACKAGE_VERSION: ${manifestJson['runtime_package_version']}',
     );
@@ -127,7 +131,8 @@ Future<void> main(List<String> args) async {
         'LESSON_PLAN_HOURS: ${manifestJson['lesson_plan_instruction_hours']}',
       );
       stdout.writeln(
-        'LESSON_PLAN_VALIDATION: ${(manifestJson['lesson_plan_validation'] as Map)['status']}',
+        'LESSON_PLAN_VALIDATION: '
+        '${(manifestJson['lesson_plan_validation'] as Map)['status']}',
       );
     }
   } catch (error, stackTrace) {
@@ -143,7 +148,9 @@ void _validateLessonPlanManifest(
   String courseId,
 ) {
   if (courseId != 'TDE_9' && courseId != 'TDE_10') {
-    throw StateError('Lesson-plan-aware sync yalnız TDE_9/TDE_10 için tanımlı.');
+    throw StateError(
+      'Lesson-plan-aware sync yalnız TDE_9/TDE_10 için tanımlı.',
+    );
   }
   final runtimeVersion = manifest['runtime_package_version']?.toString() ?? '';
   final schemaVersion = manifest['schema_version']?.toString() ?? '';
@@ -165,7 +172,8 @@ void _validateLessonPlanManifest(
       _int(rowCounts['lesson_plan_packages']) != _expectedLessonPlanPackages) {
     throw StateError('Manifest lesson_plan_packages row count 88 olmalı.');
   }
-  if (_int(manifest['lesson_plan_package_count']) != _expectedLessonPlanPackages) {
+  if (_int(manifest['lesson_plan_package_count']) !=
+      _expectedLessonPlanPackages) {
     throw StateError('Manifest lesson_plan_package_count 88 olmalı.');
   }
   if (_int(manifest['lesson_plan_instruction_hours']) !=
@@ -196,7 +204,8 @@ void _validateLessonPlanManifest(
   if (validation is! Map) {
     throw StateError('lesson_plan_validation eksik.');
   }
-  if (validation['status'] != 'VERIFIED' || validation['scope'] != 'COURSE') {
+  if (validation['status'] != 'VERIFIED' ||
+      validation['scope'] != 'COURSE') {
     throw StateError(
       'Lesson-plan validation doğrulanmamış: '
       '${validation['status']}/${validation['scope']}',
@@ -223,8 +232,9 @@ Future<void> _validateRuntimeDatabase(
   required bool requireLessonPlans,
 }) async {
   sqfliteFfiInit();
+  final resolvedDatabasePath = File(databasePath).absolute.path;
   final database = await databaseFactoryFfi.openDatabase(
-    databasePath,
+    resolvedDatabasePath,
     options: OpenDatabaseOptions(readOnly: true),
   );
   try {
@@ -240,7 +250,8 @@ Future<void> _validateRuntimeDatabase(
     if (course['course_id']?.toString() != manifest['course_id']?.toString()) {
       throw StateError('Runtime SQLite course_id manifest ile uyuşmuyor.');
     }
-    if (course['schema_version']?.toString() != manifest['schema_version']?.toString()) {
+    if (course['schema_version']?.toString() !=
+        manifest['schema_version']?.toString()) {
       throw StateError('Runtime SQLite schema_version manifest ile uyuşmuyor.');
     }
     if (course['source_manifest_fingerprint']?.toString() !=
@@ -253,10 +264,13 @@ Future<void> _validateRuntimeDatabase(
       throw StateError('Runtime SQLite foreign_key_check başarısız.');
     }
 
-    if (!requireLessonPlans) return;
+    if (!requireLessonPlans) {
+      return;
+    }
 
     final tableRows = await database.rawQuery(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name='lesson_plan_packages'",
+      "SELECT name FROM sqlite_master "
+      "WHERE type='table' AND name='lesson_plan_packages'",
     );
     if (tableRows.isEmpty) {
       throw StateError('Runtime SQLite lesson_plan_packages tablosu eksik.');
@@ -271,11 +285,14 @@ Future<void> _validateRuntimeDatabase(
     if (_int(totals['package_count']) != _expectedLessonPlanPackages) {
       throw StateError('Runtime SQLite lesson-plan package count 88 değil.');
     }
-    if (_int(totals['instruction_hours']) != _expectedLessonPlanInstructionHours) {
+    if (_int(totals['instruction_hours']) !=
+        _expectedLessonPlanInstructionHours) {
       throw StateError('Runtime SQLite lesson-plan instruction hours 172 değil.');
     }
     if (_int(totals['invalid_rows']) != 0) {
-      throw StateError('Runtime SQLite doğrulanmamış lesson-plan satırı içeriyor.');
+      throw StateError(
+        'Runtime SQLite doğrulanmamış lesson-plan satırı içeriyor.',
+      );
     }
 
     final payloadRows = await database.rawQuery('''
@@ -288,12 +305,16 @@ Future<void> _validateRuntimeDatabase(
       final rawPayload = row['payload_json']?.toString() ?? '';
       final decoded = jsonDecode(rawPayload);
       if (decoded is! Map) {
-        throw StateError('Lesson-plan payload JSON nesnesi değil: ${row['package_id']}');
+        throw StateError(
+          'Lesson-plan payload JSON nesnesi değil: ${row['package_id']}',
+        );
       }
       if (decoded['course_id']?.toString() != row['course_id']?.toString() ||
           decoded['block_id']?.toString() != row['block_id']?.toString() ||
           _int(decoded['lesson_hours']) != _int(row['lesson_hours'])) {
-        throw StateError('Lesson-plan payload/relational parity bozuk: ${row['package_id']}');
+        throw StateError(
+          'Lesson-plan payload/relational parity bozuk: ${row['package_id']}',
+        );
       }
       if ((row['payload_sha256']?.toString().trim() ?? '').isEmpty ||
           (row['source_path']?.toString().trim() ?? '').isEmpty) {
@@ -314,13 +335,16 @@ Future<void> _updatePackageManifest({
   final packageManifest = File(
     p.join(Directory(targetRoot).parent.path, 'package_manifest.json'),
   );
-  if (!packageManifest.existsSync()) return;
+  if (!packageManifest.existsSync()) {
+    return;
+  }
 
   final decoded = jsonDecode(await packageManifest.readAsString());
   if (decoded is! Map<String, dynamic>) {
     throw StateError('package_manifest.json JSON nesnesi olmalı.');
   }
-  if (decoded['course_id']?.toString() != runtimeManifest['course_id']?.toString()) {
+  if (decoded['course_id']?.toString() !=
+      runtimeManifest['course_id']?.toString()) {
     throw StateError('package_manifest course_id runtime ile uyuşmuyor.');
   }
 
@@ -336,12 +360,15 @@ Future<void> _updatePackageManifest({
 
   if (requireLessonPlans) {
     final validation = runtimeManifest['lesson_plan_validation'] as Map;
-    decoded['lesson_plan_package_count'] = runtimeManifest['lesson_plan_package_count'];
+    decoded['lesson_plan_package_count'] =
+        runtimeManifest['lesson_plan_package_count'];
     decoded['lesson_plan_instruction_hours'] =
         runtimeManifest['lesson_plan_instruction_hours'];
     decoded['lesson_plan_validation_status'] = validation['status'];
-    decoded['lesson_plan_content_fingerprint'] = validation['content_fingerprint'];
-    decoded['lesson_plan_validated_commit_sha'] = validation['validated_commit_sha'];
+    decoded['lesson_plan_content_fingerprint'] =
+        validation['content_fingerprint'];
+    decoded['lesson_plan_validated_commit_sha'] =
+        validation['validated_commit_sha'];
   }
 
   await _replaceText(
@@ -352,37 +379,53 @@ Future<void> _updatePackageManifest({
 
 String? _valueFor(List<String> args, String name) {
   final index = args.indexOf(name);
-  if (index == -1 || index + 1 >= args.length) return null;
+  if (index == -1 || index + 1 >= args.length) {
+    return null;
+  }
   return args[index + 1];
 }
 
 Future<void> _replaceFromSource(File source, File destination) async {
   final temporary = File('${destination.path}.sync-tmp');
-  if (temporary.existsSync()) await temporary.delete();
+  if (temporary.existsSync()) {
+    await temporary.delete();
+  }
   await source.copy(temporary.path);
   if (!await _filesEqual(source, temporary)) {
     await temporary.delete();
     throw StateError('Staging dosyası kaynakla uyuşmuyor: ${destination.path}');
   }
-  if (destination.existsSync()) await destination.delete();
+  if (destination.existsSync()) {
+    await destination.delete();
+  }
   await temporary.rename(destination.path);
 }
 
 Future<void> _replaceText(File destination, String content) async {
   final temporary = File('${destination.path}.sync-tmp');
-  if (temporary.existsSync()) await temporary.delete();
+  if (temporary.existsSync()) {
+    await temporary.delete();
+  }
   await temporary.writeAsString(content, flush: true);
-  if (destination.existsSync()) await destination.delete();
+  if (destination.existsSync()) {
+    await destination.delete();
+  }
   await temporary.rename(destination.path);
 }
 
 Future<bool> _filesEqual(File source, File target) async {
-  if (!source.existsSync() || !target.existsSync()) return false;
-  if (await source.length() != await target.length()) return false;
+  if (!source.existsSync() || !target.existsSync()) {
+    return false;
+  }
+  if (await source.length() != await target.length()) {
+    return false;
+  }
   final sourceBytes = await source.readAsBytes();
   final targetBytes = await target.readAsBytes();
   for (var index = 0; index < sourceBytes.length; index++) {
-    if (sourceBytes[index] != targetBytes[index]) return false;
+    if (sourceBytes[index] != targetBytes[index]) {
+      return false;
+    }
   }
   return true;
 }
@@ -400,14 +443,22 @@ bool _versionAtLeast(String actual, String minimum) {
   for (var index = 0; index < length; index++) {
     final left = index < actualParts.length ? actualParts[index]! : 0;
     final right = index < minimumParts.length ? minimumParts[index]! : 0;
-    if (left > right) return true;
-    if (left < right) return false;
+    if (left > right) {
+      return true;
+    }
+    if (left < right) {
+      return false;
+    }
   }
   return true;
 }
 
 int _int(Object? value) {
-  if (value is int) return value;
-  if (value is num) return value.toInt();
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
   return int.tryParse(value?.toString() ?? '') ?? 0;
 }
