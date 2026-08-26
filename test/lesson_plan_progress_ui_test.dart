@@ -33,9 +33,7 @@ void main() {
     expect(find.text('DERS DURUMU'), findsOneWidget);
     expect(find.text('Başlanmadı'), findsWidgets);
 
-    await tester.tap(
-      find.widgetWithText(ChoiceChip, 'Kısmen işlendi'),
-    );
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Kısmen işlendi'));
     await tester.pumpAndSettle();
 
     var record = await progress.get(
@@ -43,8 +41,14 @@ void main() {
       academicYear: '2026-2027',
       packageId: 'BLOCK_A_P01',
     );
+    await tester.pumpAndSettle();
     expect(record?.status, LessonPlanProgressStatus.inProgress);
-    expect(find.text('Kısmen işlendi'), findsWidgets);
+    expect(
+      tester.widget<ChoiceChip>(
+        find.widgetWithText(ChoiceChip, 'Kısmen işlendi'),
+      ).selected,
+      isTrue,
+    );
 
     await tester.tap(find.widgetWithText(ChoiceChip, 'İşlendi'));
     await tester.pumpAndSettle();
@@ -54,11 +58,13 @@ void main() {
       academicYear: '2026-2027',
       packageId: 'BLOCK_A_P01',
     );
+    await tester.pumpAndSettle();
     expect(record?.status, LessonPlanProgressStatus.completed);
     expect(record?.completedAt, isNotNull);
-
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -320));
-    await tester.pumpAndSettle();
+    expect(
+      tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'İşlendi')).selected,
+      isTrue,
+    );
     expect(find.text('Sonraki pakete geç · P02'), findsOneWidget);
   });
 
@@ -92,15 +98,17 @@ void main() {
     await tester.tap(find.widgetWithText(ChoiceChip, 'Başlanmadı'));
     await tester.pumpAndSettle();
 
-    expect(
-      await progress.get(
-        courseId: 'TDE_9',
-        academicYear: '2026-2027',
-        packageId: package.packageId,
-      ),
-      isNull,
+    final record = await progress.get(
+      courseId: 'TDE_9',
+      academicYear: '2026-2027',
+      packageId: package.packageId,
     );
-    expect(find.text('Başlanmadı'), findsWidgets);
+    await tester.pumpAndSettle();
+    expect(record, isNull);
+    expect(
+      tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Başlanmadı')).selected,
+      isTrue,
+    );
   });
 }
 
