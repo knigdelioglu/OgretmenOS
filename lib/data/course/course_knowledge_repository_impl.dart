@@ -58,20 +58,43 @@ class CourseKnowledgeRepositoryImpl
       );
 
   @override
-  Future<List<LessonPlanPackage>> getLessonPlansForBlock(String blockId) =>
-      lessonPlanDataSource?.getLessonPlansForBlock(blockId) ??
-      Future.value(const []);
+  Future<List<LessonPlanPackage>> getLessonPlansForBlock(String blockId) async {
+    final lessonPlans = lessonPlanDataSource;
+    if (lessonPlans == null || !await _lessonPlansUsable(lessonPlans)) {
+      return const [];
+    }
+    return lessonPlans.getLessonPlansForBlock(blockId);
+  }
 
   @override
-  Future<LessonPlanPackage?> getLessonPlan(String packageId) =>
-      lessonPlanDataSource?.getLessonPlan(packageId) ?? Future.value(null);
+  Future<LessonPlanPackage?> getLessonPlan(String packageId) async {
+    final lessonPlans = lessonPlanDataSource;
+    if (lessonPlans == null || !await _lessonPlansUsable(lessonPlans)) {
+      return null;
+    }
+    return lessonPlans.getLessonPlan(packageId);
+  }
 
   @override
-  Future<LessonPlanPackage?> getPreviousLessonPlan(String packageId) =>
-      lessonPlanDataSource?.getPreviousLessonPlan(packageId) ??
-      Future.value(null);
+  Future<LessonPlanPackage?> getPreviousLessonPlan(String packageId) async {
+    final lessonPlans = lessonPlanDataSource;
+    if (lessonPlans == null || !await _lessonPlansUsable(lessonPlans)) {
+      return null;
+    }
+    return lessonPlans.getPreviousLessonPlan(packageId);
+  }
 
   @override
-  Future<LessonPlanPackage?> getNextLessonPlan(String packageId) =>
-      lessonPlanDataSource?.getNextLessonPlan(packageId) ?? Future.value(null);
+  Future<LessonPlanPackage?> getNextLessonPlan(String packageId) async {
+    final lessonPlans = lessonPlanDataSource;
+    if (lessonPlans == null || !await _lessonPlansUsable(lessonPlans)) {
+      return null;
+    }
+    return lessonPlans.getNextLessonPlan(packageId);
+  }
+
+  Future<bool> _lessonPlansUsable(LessonPlanDatabaseDataSource lessonPlans) async {
+    final capability = await lessonPlans.getCapability(manifest);
+    return capability.usable;
+  }
 }
