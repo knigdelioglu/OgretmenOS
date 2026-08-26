@@ -100,11 +100,13 @@ void main() {
     await tester.tap(find.text('P02'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Yakın okuma'), findsWidgets);
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -1200));
-    await tester.pumpAndSettle();
+    // The list stays at the bottom after the package changes. Verify the new
+    // navigation state while it is visible, then return to the top for title.
     expect(find.text('P01'), findsOneWidget);
     expect(find.text('Son paket'), findsOneWidget);
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 2000));
+    await tester.pumpAndSettle();
+    expect(find.text('Yakın okuma'), findsWidgets);
   });
 }
 
