@@ -176,7 +176,9 @@ void main() {
         expect(blockPlans.first.packageId, firstId);
         expect(blockPlans.first.validationStatus, 'PASS');
         expect(blockPlans.first.payloadSha256, isNotEmpty);
-        expect(blockPlans.first.rawPayload['package_id'], firstId);
+        expect(blockPlans.first.rawPayload['course_id'], courseId);
+        expect(blockPlans.first.rawPayload['block_id'], blockId);
+        expect(blockPlans.first.rawPayload['plan_title'], blockPlans.first.title);
 
         final first = await repository.getLessonPlan(firstId);
         expect(first, isNotNull);
