@@ -1,0 +1,61 @@
+name: Lesson Plan Workflow CI
+
+on:
+  push:
+    branches:
+      - main
+      - feat/lesson-plan-workflow-p4
+    paths:
+      - 'lib/domain/services/lesson_plan_workflow_service.dart'
+      - 'lib/features/lesson_plan/**'
+      - 'lib/features/this_week/**'
+      - 'lib/features/block/**'
+      - 'test/lesson_plan_workflow_*.dart'
+      - '.github/workflows/lesson-plan-workflow-ci.yml'
+  pull_request:
+    paths:
+      - 'lib/domain/services/lesson_plan_workflow_service.dart'
+      - 'lib/features/lesson_plan/**'
+      - 'lib/features/this_week/**'
+      - 'lib/features/block/**'
+      - 'test/lesson_plan_workflow_*.dart'
+      - '.github/workflows/lesson-plan-workflow-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lesson-plan-workflow-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Analyze and Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze app
+        run: flutter analyze
+
+      - name: Run lesson-plan workflow tests
+        run: |
+          flutter test --reporter expanded \
+            test/lesson_plan_workflow_service_test.dart \
+            test/lesson_plan_workflow_ui_test.dart \
+            test/lesson_plan_repository_test.dart \
+            test/lesson_plan_runtime_package_integration_test.dart
+
+      - name: Run full regression suite
+        run: flutter test --reporter compact
