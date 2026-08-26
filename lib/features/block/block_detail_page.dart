@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/models/course_models.dart' as model;
 import '../../domain/repositories/course_knowledge_repository.dart';
+import '../lesson_plan/lesson_plan_panels.dart';
 import '../shared/feature_widgets.dart';
 import '../shared/teacher_presentation.dart';
 import 'rubric_score_card.dart';
@@ -81,6 +82,10 @@ class _BlockDetailContent extends StatelessWidget {
         icon: Icons.play_lesson_outlined,
       ),
       _LessonReadyBlockCard(detail: detail),
+      BlockLessonPlanPanel(
+        repository: repository,
+        blockId: detail.block.id,
+      ),
       const SectionHeading(
         'Plan sırası',
         subtitle: 'Önceki veya sonraki öğretim bloğuna geçin',
