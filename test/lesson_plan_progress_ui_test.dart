@@ -56,6 +56,9 @@ void main() {
     );
     expect(record?.status, LessonPlanProgressStatus.completed);
     expect(record?.completedAt, isNotNull);
+
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -320));
+    await tester.pumpAndSettle();
     expect(find.text('Sonraki pakete geç · P02'), findsOneWidget);
   });
 
