@@ -16,8 +16,7 @@ void main() {
     'canonical_content_fingerprint': fingerprint,
     'runtime_database_path': 'runtime/course_runtime.sqlite',
     'row_counts': <String, dynamic>{
-      if (lessonPlanPackages != null)
-        'lesson_plan_packages': lessonPlanPackages,
+      'lesson_plan_packages': ?lessonPlanPackages,
     },
     'timeline_resolution': 'BLOCK_TIME_RESOLVED',
     'timeline_unresolved_fields': <String, dynamic>{},
