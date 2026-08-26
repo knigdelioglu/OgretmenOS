@@ -92,6 +92,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Başlangıç'), findsWidgets);
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -1200));
+    await tester.pumpAndSettle();
     expect(find.text('Önceki yok'), findsOneWidget);
     expect(find.text('P02'), findsOneWidget);
 
@@ -99,6 +101,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Yakın okuma'), findsWidgets);
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -1200));
+    await tester.pumpAndSettle();
     expect(find.text('P01'), findsOneWidget);
     expect(find.text('Son paket'), findsOneWidget);
   });
