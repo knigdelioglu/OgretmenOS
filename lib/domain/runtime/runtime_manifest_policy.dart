@@ -1,3 +1,4 @@
+import '../models/course_models.dart';
 import 'course_runtime_registry.dart';
 
 const supportedRuntimeSchemaMajor = '1.';
@@ -93,3 +94,27 @@ bool isRuntimeDatabaseSchemaCompatible(
   final manifestMajor = manifestSchemaVersion.split('.').first;
   return databaseMajor == manifestMajor;
 }
+
+/// Returns whether an already installed runtime is byte-contract equivalent to
+/// the bundled package identity that the app is about to open.
+///
+/// Lesson-plan row count is included explicitly even though a canonical source
+/// change should also alter the fingerprint. This keeps additive runtime
+/// capabilities fail-closed if a malformed package reuses an old fingerprint.
+bool runtimePackageIdentityMatches(
+  RuntimeManifest local,
+  RuntimeManifest expected,
+) =>
+    local.runtimePackageVersion == expected.runtimePackageVersion &&
+    local.schemaVersion == expected.schemaVersion &&
+    local.courseId == expected.courseId &&
+    local.canonicalContentFingerprint == expected.canonicalContentFingerprint &&
+    local.validationStatus == expected.validationStatus &&
+    local.rowCounts['lesson_plan_packages'] ==
+        expected.rowCounts['lesson_plan_packages'];
+
+bool runtimePackageRequiresInstall(
+  RuntimeManifest local,
+  RuntimeManifest expected,
+) =>
+    !runtimePackageIdentityMatches(local, expected);

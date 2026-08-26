@@ -14,7 +14,12 @@
 | canonical ID uniqueness: assessment_artifacts | PASS |  |
 | orphan relations | PASS | 0 |
 | source fingerprint status | PASS | RUNTIME_FRESH |
-| timeline projection status | PASS | block hours remain ORDER_ONLY |
+| effective process components projected | PASS | empty=0, verified_none=0 |
+| process component origins valid | PASS | invalid=0 |
+| process component origin counts | PASS | runtime={'ROOF_INHERITED': 64}, canonical={'total_outcomes': 64, 'outcomes_with_roof_components': 64, 'explicit_component_outcomes': 0, 'inherited_component_outcomes': 64, 'verified_no_component_outcomes': 0, 'unresolved_component_outcomes': 0, 'inheritance_missing_count': 0, 'structural_error_count': 0} |
+| timeline projection status | PASS | resolved=16, expected=16 |
+| block-hour theme totals | PASS | runtime={'TEMA_01': 43, 'TEMA_02': 43, 'TEMA_03': 43, 'TEMA_04': 43}, expected={'TEMA_01': 43, 'TEMA_02': 43, 'TEMA_03': 43, 'TEMA_04': 43} |
+| block-hour projection parity | PASS | runtime=16, expected=16 |
 | assessment mapping status | PASS | runtime=0, canonical=0 |
 | assessment artifact projection status | PASS | runtime=2, canonical=2 |
 | resource decision projection status | PASS |  |
@@ -60,3 +65,15 @@
 | task binding count | PASS | runtime=8, canonical=8 |
 | task-specific criteria payload | PASS | runtime=8, canonical=8 |
 | payload JSON validity | PASS | all projected JSON columns parse |
+
+## Lesson plan payload projection
+
+| Check | Status | Detail |
+|---|---|---|
+| lesson plan validation seal | PASS | verified=sha256:9744bfbf54a57b7b7731176d5c6cd93bb8ca2e0f67a6a97d1ee29bf5e04dd223 |
+| lesson plan package count | PASS | runtime=88, expected=88 |
+| lesson plan instruction hours | PASS | runtime=172, expected=172 |
+| lesson plan block topology | PASS | all blocks match package count and planned hours |
+| lesson plan payload JSON validity | PASS | all payload_json rows parse |
+| lesson plan source payload parity | PASS | all SQLite payloads match source JSON and SHA256 |
+| lesson plan foreign key integrity | PASS | PRAGMA foreign_key_check |

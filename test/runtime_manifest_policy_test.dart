@@ -1,15 +1,40 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ogretmen_os/domain/models/course_models.dart';
 import 'package:ogretmen_os/domain/runtime/runtime_manifest_policy.dart';
 
 void main() {
-  Map<String, dynamic> validManifest() => <String, dynamic>{
+  Map<String, dynamic> validManifest({
+    String schemaVersion = '1.0.0',
+    String runtimePackageVersion = '1.0.0',
+    String fingerprint = 'fingerprint',
+    int? lessonPlanPackages,
+  }) => <String, dynamic>{
     'course_id': 'TDE_9',
-    'schema_version': '1.0.0',
-    'runtime_package_version': '1.0.0',
+    'schema_version': schemaVersion,
+    'runtime_package_version': runtimePackageVersion,
     'validation_status': 'PASS',
-    'canonical_content_fingerprint': 'fingerprint',
+    'canonical_content_fingerprint': fingerprint,
     'runtime_database_path': 'runtime/course_runtime.sqlite',
+    'row_counts': <String, dynamic>{
+      'lesson_plan_packages': ?lessonPlanPackages,
+    },
+    'timeline_resolution': 'BLOCK_TIME_RESOLVED',
+    'timeline_unresolved_fields': <String, dynamic>{},
   };
+
+  RuntimeManifest runtime({
+    String schemaVersion = '1.2.0',
+    String runtimePackageVersion = '1.3.0',
+    String fingerprint = 'lesson-plan-fingerprint',
+    int lessonPlanPackages = 88,
+  }) => RuntimeManifest.fromJson(
+    validManifest(
+      schemaVersion: schemaVersion,
+      runtimePackageVersion: runtimePackageVersion,
+      fingerprint: fingerprint,
+      lessonPlanPackages: lessonPlanPackages,
+    ),
+  );
 
   test('uyumlu ve doğrulanmış runtime manifest startup için kabul edilir', () {
     expect(() => validateRuntimeManifest(validManifest()), returnsNormally);
@@ -66,5 +91,39 @@ void main() {
       () => validateRuntimeManifest(manifest),
       throwsA(isA<StateError>()),
     );
+  });
+
+  test('aynı runtime identity yeniden kurulum gerektirmez', () {
+    final local = runtime();
+    final expected = runtime();
+
+    expect(runtimePackageIdentityMatches(local, expected), isTrue);
+    expect(runtimePackageRequiresInstall(local, expected), isFalse);
+  });
+
+  test('legacy 1.2/1.1 runtime lesson-plan 1.3/1.2 pakete yükseltilir', () {
+    final local = runtime(
+      schemaVersion: '1.1.0',
+      runtimePackageVersion: '1.2.0',
+      fingerprint: 'legacy-fingerprint',
+      lessonPlanPackages: 0,
+    );
+    final expected = runtime();
+
+    expect(runtimePackageRequiresInstall(local, expected), isTrue);
+  });
+
+  test('canonical fingerprint drift yeniden kurulum gerektirir', () {
+    final local = runtime(fingerprint: 'old-fingerprint');
+    final expected = runtime();
+
+    expect(runtimePackageRequiresInstall(local, expected), isTrue);
+  });
+
+  test('lesson-plan row count drift aynı fingerprintte bile fail closed', () {
+    final local = runtime(lessonPlanPackages: 87);
+    final expected = runtime();
+
+    expect(runtimePackageRequiresInstall(local, expected), isTrue);
   });
 }

@@ -1,0 +1,157 @@
+name: Lesson Plan Runtime Sync P3
+
+on:
+  push:
+    branches:
+      - main
+      - feat/lesson-plan-runtime-sync-p3
+    paths:
+      - '.github/workflows/lesson-plan-runtime-sync-p3.yml'
+      - 'tool/sync_course_runtime.dart'
+      - 'lib/domain/runtime/runtime_manifest_policy.dart'
+      - 'lib/data/course/course_database_installer.dart'
+      - 'test/runtime_manifest_policy_test.dart'
+      - 'test/lesson_plan_runtime_package_integration_test.dart'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lesson-plan-runtime-sync-p3-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TYMM_REPOSITORY: knigdelioglu/tymm
+  TYMM_COMMIT: e2e067b76c59abae6e050fd268be8cc895d7b2c7
+
+jobs:
+  sync-and-verify:
+    name: Build, Sync and Verify TDE9/TDE10
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout ÖğretmenOS
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout pinned TYMM source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: ${{ env.TYMM_REPOSITORY }}
+          ref: ${{ env.TYMM_COMMIT }}
+          path: .p3-tymm-source
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install app dependencies
+        run: flutter pub get
+
+      - name: Format and analyze sync tool
+        run: |
+          dart format tool/sync_course_runtime.dart
+          dart analyze tool/sync_course_runtime.dart
+
+      - name: Build lesson-plan-aware TYMM runtimes from pinned commit
+        working-directory: .p3-tymm-source
+        run: |
+          python skill/tymm-material-planner/scripts/resolve_course_timeline_hours.py --knowledge-root courses/TDE_9
+          python skill/tymm-material-planner/scripts/resolve_course_timeline_hours.py --knowledge-root courses/TDE_10
+          python skill/tymm-material-planner/scripts/build_runtime_course_package.py build --knowledge-root courses/TDE_9
+          python skill/tymm-material-planner/scripts/build_runtime_course_package.py build --knowledge-root courses/TDE_10
+
+      - name: Sync validated runtimes into ÖğretmenOS package tree
+        run: |
+          dart run tool/sync_course_runtime.dart \
+            --course TDE_9 \
+            --source-root "$GITHUB_WORKSPACE/.p3-tymm-source/courses/TDE_9/runtime" \
+            --target-root "tymm-verileri/turk-dili-ve-edebiyati/TDE_9/runtime" \
+            --source-commit "$TYMM_COMMIT" \
+            --require-lesson-plans
+          dart run tool/sync_course_runtime.dart \
+            --course TDE_10 \
+            --source-root "$GITHUB_WORKSPACE/.p3-tymm-source/courses/TDE_10/runtime" \
+            --target-root "tymm-verileri/turk-dili-ve-edebiyati/TDE_10/runtime" \
+            --source-commit "$TYMM_COMMIT" \
+            --require-lesson-plans
+
+      - name: Verify synchronized package metadata
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          expected_commit = 'e2e067b76c59abae6e050fd268be8cc895d7b2c7'
+          root = Path('tymm-verileri/turk-dili-ve-edebiyati')
+          for course in ('TDE_9', 'TDE_10'):
+              package = json.loads((root / course / 'package_manifest.json').read_text(encoding='utf-8'))
+              runtime = json.loads((root / course / 'runtime/runtime_manifest.json').read_text(encoding='utf-8'))
+              assert package['tymm_source_commit'] == expected_commit, course
+              assert package['runtime_package_version'] == '1.3.0', course
+              assert package['runtime_schema_version'] == '1.2.0', course
+              assert package['runtime_canonical_content_fingerprint'] == runtime['canonical_content_fingerprint'], course
+              assert package['lesson_plan_package_count'] == 88, course
+              assert package['lesson_plan_instruction_hours'] == 172, course
+              assert package['lesson_plan_validation_status'] == 'VERIFIED', course
+              assert runtime['row_counts']['lesson_plan_packages'] == 88, course
+              assert runtime['lesson_plan_capabilities']['validation_bound'] is True, course
+              assert runtime['lesson_plan_capabilities']['source_payload_parity'] is True, course
+              assert runtime['lesson_plan_capabilities']['calendar_neutral'] is True, course
+              print(f'{course} synchronized metadata: PASS')
+          PY
+
+      - name: Verify synchronized runtimes with ÖğretmenOS verifier
+        working-directory: tool/runtime_verifier
+        run: |
+          dart pub get
+          dart run bin/verify_runtime.dart --course TDE_9
+          dart run bin/verify_runtime.dart --course TDE_10
+
+      - name: Run application regression suite against synchronized runtimes
+        run: flutter test --reporter expanded
+
+      - name: Check generated diff
+        run: |
+          git diff --check
+          git status --short
+
+      - name: Publish synchronized runtime assets to current branch
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_9/runtime \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_9/package_manifest.json \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_10/runtime \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_10/package_manifest.json
+          if git diff --cached --quiet; then
+            echo 'Runtime assets are already synchronized.'
+            exit 0
+          fi
+          git commit -m 'chore(runtime): sync lesson-plan-aware TDE9/TDE10 [p3-sync]'
+
+          # Flutter/pub and the validation checkout may leave transient changes.
+          # Keep the generated runtime commit clean before rebasing/pushing it.
+          git restore --worktree -- \
+            analysis_options.yaml \
+            pubspec.lock \
+            tool/sync_course_runtime.dart || true
+          rm -rf .p3-tymm-source
+
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin HEAD:"$GITHUB_REF_NAME"

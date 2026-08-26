@@ -94,12 +94,7 @@ class CourseDatabaseInstaller {
       if (decoded is! Map<String, dynamic>) return true;
       validateRuntimeManifest(decoded);
       final local = RuntimeManifest.fromJson(decoded);
-      return local.runtimePackageVersion != expected.runtimePackageVersion ||
-          local.schemaVersion != expected.schemaVersion ||
-          local.courseId != expected.courseId ||
-          local.canonicalContentFingerprint !=
-              expected.canonicalContentFingerprint ||
-          local.validationStatus != expected.validationStatus;
+      return runtimePackageRequiresInstall(local, expected);
     } on Object {
       return true;
     }
