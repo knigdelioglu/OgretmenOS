@@ -30,7 +30,7 @@ class LessonPlanPage extends StatefulWidget {
 class _LessonPlanPageState extends State<LessonPlanPage> {
   late String _packageId;
   late Future<_LessonPlanViewData> _future;
-  LessonPlanProgressStatus? _localProgressStatus;
+  LessonPlanProgressResolution? _localProgressResolution;
 
   LessonPlanProgressService? get _progressService {
     final repository = widget.progressRepository;
@@ -58,7 +58,7 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
     final progressService = _progressService;
     final progress = progressService == null
         ? null
-        : await progressService.get(
+        : await progressService.resolve(
             package: current,
             academicYear: widget.academicYear!,
           );
@@ -73,7 +73,7 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
   void _openPackage(String packageId) {
     setState(() {
       _packageId = packageId;
-      _localProgressStatus = null;
+      _localProgressResolution = null;
       _future = _load(packageId);
     });
   }
@@ -101,7 +101,7 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
         package: package,
         academicYear: academicYear,
       );
-      await service.setStatus(
+      final saved = await service.setStatus(
         package: package,
         academicYear: academicYear,
         status: status,
@@ -110,7 +110,12 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
       if (status == LessonPlanProgressStatus.completed) {
         HapticFeedback.mediumImpact();
       }
-      setState(() => _localProgressStatus = status);
+      setState(
+        () => _localProgressResolution = service.resolveRecord(
+          package: package,
+          record: saved,
+        ),
+      );
       showTeacherUndoFeedback(
         context,
         '${status.teacherLabel} olarak kaydedildi.',
@@ -128,8 +133,10 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
             if (!mounted) return;
             if (_packageId == package.packageId) {
               setState(
-                () => _localProgressStatus =
-                    previous?.status ?? LessonPlanProgressStatus.notStarted,
+                () => _localProgressResolution = service.resolveRecord(
+                  package: package,
+                  record: previous,
+                ),
               );
             }
             showTeacherFeedback(context, 'Ders planı değişikliği geri alındı.');
@@ -172,7 +179,7 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
         return _LessonPlanContent(
           data: snapshot.data!,
           progressEnabled: _progressService != null,
-          progressStatusOverride: _localProgressStatus,
+          progressOverride: _localProgressResolution,
           onSetProgress: _setProgress,
           onOpenPackage: _openPackage,
         );
@@ -185,14 +192,14 @@ class _LessonPlanContent extends StatelessWidget {
   const _LessonPlanContent({
     required this.data,
     required this.progressEnabled,
-    required this.progressStatusOverride,
+    required this.progressOverride,
     required this.onSetProgress,
     required this.onOpenPackage,
   });
 
   final _LessonPlanViewData data;
   final bool progressEnabled;
-  final LessonPlanProgressStatus? progressStatusOverride;
+  final LessonPlanProgressResolution? progressOverride;
   final Future<void> Function(
     LessonPlanPackage package,
     LessonPlanProgressStatus status,
@@ -205,6 +212,10 @@ class _LessonPlanContent extends StatelessWidget {
     final outcomeLabel = plan.outcomeCodes.isEmpty
         ? null
         : plan.outcomeCodes.join(' · ');
+    final progress =
+        progressOverride ??
+        data.progress ??
+        const LessonPlanProgressResolution.none();
 
     return AppPage(
       children: [
@@ -217,10 +228,7 @@ class _LessonPlanContent extends StatelessWidget {
         if (progressEnabled) ...[
           _PlanProgressCard(
             plan: plan,
-            status:
-                progressStatusOverride ??
-                data.progress?.status ??
-                LessonPlanProgressStatus.notStarted,
+            progress: progress,
             next: data.next,
             onSetProgress: onSetProgress,
             onOpenPackage: onOpenPackage,
@@ -326,14 +334,14 @@ class _LessonPlanContent extends StatelessWidget {
 class _PlanProgressCard extends StatelessWidget {
   const _PlanProgressCard({
     required this.plan,
-    required this.status,
+    required this.progress,
     required this.next,
     required this.onSetProgress,
     required this.onOpenPackage,
   });
 
   final LessonPlanPackage plan;
-  final LessonPlanProgressStatus status;
+  final LessonPlanProgressResolution progress;
   final LessonPlanPackage? next;
   final Future<void> Function(
     LessonPlanPackage package,
@@ -344,9 +352,15 @@ class _PlanProgressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final completed = status == LessonPlanProgressStatus.completed;
+    final status = progress.effectiveStatus;
+    final stale = progress.isStale;
+    final completed = !stale && status == LessonPlanProgressStatus.completed;
     return Card(
-      color: completed ? scheme.secondaryContainer : scheme.tertiaryContainer,
+      color: stale
+          ? scheme.errorContainer
+          : completed
+          ? scheme.secondaryContainer
+          : scheme.tertiaryContainer,
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
@@ -361,11 +375,21 @@ class _PlanProgressCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              status.teacherLabel,
+              stale ? 'Plan güncellendi' : status.teacherLabel,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w800,
               ),
             ),
+            if (stale) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Önceki “${progress.record?.status.teacherLabel ?? 'durum'}” kaydı bu paket içeriği için geçerli sayılmadı. Yeni planı gördükten sonra durumu yeniden seçin.',
+                style: TextStyle(
+                  color: scheme.onErrorContainer,
+                  height: 1.4,
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.md),
             Wrap(
               spacing: AppSpacing.sm,
@@ -373,9 +397,9 @@ class _PlanProgressCard extends StatelessWidget {
               children: [
                 for (final candidate in LessonPlanProgressStatus.values)
                   ChoiceChip(
-                    selected: status == candidate,
+                    selected: !stale && status == candidate,
                     label: Text(candidate.teacherLabel),
-                    onSelected: status == candidate
+                    onSelected: !stale && status == candidate
                         ? null
                         : (_) => onSetProgress(plan, candidate),
                   ),
@@ -613,7 +637,7 @@ class _LessonPlanViewData {
   final LessonPlanPackage current;
   final LessonPlanPackage? previous;
   final LessonPlanPackage? next;
-  final LessonPlanProgressRecord? progress;
+  final LessonPlanProgressResolution? progress;
 }
 
 List<String> _humanLines(Object? value) {
