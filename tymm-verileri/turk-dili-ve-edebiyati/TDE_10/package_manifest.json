@@ -6,6 +6,15 @@
   "data_mode": "FULL_RUNTIME",
   "textbook_status": "AVAILABLE",
   "tymm_source_repository": "knigdelioglu/tymm",
-  "tymm_source_commit": "a0389a83c62102fe9be082b887737638afe23b69",
-  "runtime_path": "runtime"
+  "tymm_source_commit": "e2e067b76c59abae6e050fd268be8cc895d7b2c7",
+  "runtime_path": "runtime",
+  "runtime_package_version": "1.3.0",
+  "runtime_schema_version": "1.2.0",
+  "runtime_canonical_content_fingerprint": "09ca2b6142e4609e30e46455cf3896f656b9bb9da1ab9109855168ebebeceb4a",
+  "runtime_validation_status": "PASS",
+  "lesson_plan_package_count": 88,
+  "lesson_plan_instruction_hours": 172,
+  "lesson_plan_validation_status": "VERIFIED",
+  "lesson_plan_content_fingerprint": "sha256:9744bfbf54a57b7b7731176d5c6cd93bb8ca2e0f67a6a97d1ee29bf5e04dd223",
+  "lesson_plan_validated_commit_sha": "075b6f6491564ad6fe51d88927fcf43a63519b19"
 }
