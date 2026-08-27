@@ -24,12 +24,12 @@ void main() {
     title: 'Okuma',
     skillDomain: 'okuma',
     learningArea: null,
-    plannedHours: 8,
+    plannedHours: 10,
     timeStatus: 'RESOLVED',
     sourceLocators: [],
   );
 
-  test('hafta sınırında doğru paket saat ofsetinden seçilir', () async {
+  test('haftalık seçim paket yerine tek ders saatleri döndürür', () async {
     final repository = _FakeRepository({
       block.id: [
         _package('BLOCK_A_P01', block.id, 1, 2),
@@ -60,9 +60,27 @@ void main() {
 
     final selections = await service.plansForWeek(annualPlan, 2);
 
+    expect(selections, hasLength(4));
     expect(
       selections.map((item) => item.package.packageId),
-      orderedEquals(['BLOCK_A_P03', 'BLOCK_A_P04']),
+      orderedEquals([
+        'BLOCK_A_P03',
+        'BLOCK_A_P03',
+        'BLOCK_A_P04',
+        'BLOCK_A_P04',
+      ]),
+    );
+    expect(
+      selections.map((item) => item.blockHour),
+      orderedEquals([5, 6, 7, 8]),
+    );
+    expect(
+      selections.map((item) => item.packageHour),
+      orderedEquals([1, 2, 1, 2]),
+    );
+    expect(
+      selections.map((item) => item.lesson?.lessonNo),
+      orderedEquals([1, 2, 1, 2]),
     );
     expect(selections.first.segmentStartHour, 5);
     expect(selections.first.segmentEndHour, 8);
@@ -70,7 +88,7 @@ void main() {
     expect(selections.first.packageEndHour, 6);
   });
 
-  test('paket hafta sınırını aşıyorsa iki haftada da görünür', () async {
+  test('5 saatlik hafta tam 5 ders gösterir ve sınırdaki paket dersi tekrarlanmaz', () async {
     final repository = _FakeRepository({
       block.id: [
         _package('BLOCK_A_P01', block.id, 1, 2),
@@ -102,16 +120,71 @@ void main() {
     final week1 = await service.plansForWeek(annualPlan, 1);
     final week2 = await service.plansForWeek(annualPlan, 2);
 
+    expect(week1, hasLength(5));
     expect(
       week1.map((item) => item.package.packageId),
-      orderedEquals(['BLOCK_A_P01', 'BLOCK_A_P02', 'BLOCK_A_P03']),
+      orderedEquals([
+        'BLOCK_A_P01',
+        'BLOCK_A_P01',
+        'BLOCK_A_P02',
+        'BLOCK_A_P02',
+        'BLOCK_A_P03',
+      ]),
     );
     expect(
-      week2.map((item) => item.package.packageId),
-      orderedEquals(['BLOCK_A_P03', 'BLOCK_A_P04']),
+      week1.map((item) => item.blockHour),
+      orderedEquals([1, 2, 3, 4, 5]),
     );
-    expect(week2.first.segmentStartHour, 6);
-    expect(week2.first.packageStartHour, 5);
+    expect(week1.last.packageHour, 1);
+    expect(week1.last.lesson?.lessonNo, 1);
+
+    expect(week2, hasLength(3));
+    expect(
+      week2.map((item) => item.package.packageId),
+      orderedEquals(['BLOCK_A_P03', 'BLOCK_A_P04', 'BLOCK_A_P04']),
+    );
+    expect(
+      week2.map((item) => item.blockHour),
+      orderedEquals([6, 7, 8]),
+    );
+    expect(week2.first.packageHour, 2);
+    expect(week2.first.lesson?.lessonNo, 2);
+    expect(week2.any((item) => item.blockHour == 5), isFalse);
+  });
+
+  test('aynı blok haftada iki segmente bölünürse saatler yinelenmez', () async {
+    final repository = _FakeRepository({
+      block.id: [
+        _package('BLOCK_A_P01', block.id, 1, 2),
+        _package('BLOCK_A_P02', block.id, 2, 2),
+        _package('BLOCK_A_P03', block.id, 3, 2),
+      ],
+    });
+    final service = LessonPlanWorkflowService(repository: repository);
+    final annualPlan = _annualPlan([
+      _week(1, const [
+        WeeklyPlanSegment(
+          type: WeeklyPlanSegmentType.block,
+          theme: theme,
+          hours: 2,
+          block: block,
+        ),
+        WeeklyPlanSegment(
+          type: WeeklyPlanSegmentType.block,
+          theme: theme,
+          hours: 3,
+          block: block,
+        ),
+      ]),
+    ]);
+
+    final selections = await service.plansForWeek(annualPlan, 1);
+
+    expect(selections, hasLength(5));
+    expect(
+      selections.map((item) => item.blockHour),
+      orderedEquals([1, 2, 3, 4, 5]),
+    );
   });
 
   test('validation dışı veya eksik paket saat kapsamı fail closed olur', () async {
@@ -188,7 +261,26 @@ LessonPlanPackage _package(
   outcomeCodes: const [],
   usedActivityIds: const [],
   usedFormIds: const [],
-  lessons: const [],
+  lessons: List<LessonPlanLesson>.generate(
+    hours,
+    (index) => LessonPlanLesson(
+      lessonNo: index + 1,
+      durationLessonHours: 1,
+      title: 'Plan $packageNo · ${index + 1}. ders',
+      objective: 'Amaç',
+      outcomeCodes: const [],
+      opening: null,
+      teacherActions: const [],
+      studentActions: const [],
+      activityIds: const [],
+      formIds: const [],
+      assessment: null,
+      closure: null,
+      materials: const [],
+      raw: const {},
+    ),
+    growable: false,
+  ),
   teacherNotes: null,
   continuation: const LessonPlanContinuation(
     plannedNowHours: 0,
