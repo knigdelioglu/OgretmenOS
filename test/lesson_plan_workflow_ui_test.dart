@@ -28,12 +28,12 @@ void main() {
     title: 'Okuma',
     skillDomain: 'okuma',
     learningArea: null,
-    plannedHours: 8,
+    plannedHours: 10,
     timeStatus: 'RESOLVED',
     sourceLocators: [],
   );
 
-  testWidgets('haftalık panel doğru saat aralığındaki plan bölümlerini gösterir', (
+  testWidgets('5 saatlik haftalık panel dersleri tek tek ve tekrarsız gösterir', (
     tester,
   ) async {
     final packages = [
@@ -41,9 +41,10 @@ void main() {
       _package('BLOCK_A_P02', 2, title: 'Yakın okuma'),
       _package('BLOCK_A_P03', 3, title: 'Metin çözümleme'),
       _package('BLOCK_A_P04', 4, title: 'Değerlendirme'),
+      _package('BLOCK_A_P05', 5, title: 'Pekiştirme'),
     ];
     final repository = _FakeRepository(packages);
-    final plan = _annualPlan(theme: theme, block: block);
+    final plan = _fiveHourAnnualPlan(theme: theme, block: block);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -61,17 +62,26 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Bu haftanın ders planı'), findsOneWidget);
-    expect(find.text('5–6. ders saatleri'), findsOneWidget);
-    expect(find.text('7–8. ders saatleri'), findsOneWidget);
+    expect(find.text('5 ders saati'), findsOneWidget);
+    expect(find.text('5. ders saati'), findsNothing);
+    for (final hour in [6, 7, 8, 9, 10]) {
+      expect(find.text('$hour. ders saati'), findsOneWidget);
+    }
+    expect(find.textContaining('ders saatleri'), findsNothing);
+    expect(find.text('Metin çözümleme · 2. ders'), findsOneWidget);
+    expect(find.text('Değerlendirme · 1. ders'), findsOneWidget);
+    expect(find.text('Değerlendirme · 2. ders'), findsOneWidget);
+    expect(find.text('Pekiştirme · 1. ders'), findsOneWidget);
+    expect(find.text('Pekiştirme · 2. ders'), findsOneWidget);
     expect(find.text('P03'), findsNothing);
     expect(find.text('P04'), findsNothing);
 
-    await tester.tap(find.text('5–6. ders saatleri'));
+    await tester.tap(find.text('6. ders saati'));
     await tester.pumpAndSettle();
 
     expect(find.text('Ders Planı'), findsOneWidget);
     expect(find.text('Metin çözümleme'), findsWidgets);
-    expect(find.text('Ana düşünceyi kanıtlarla belirler.'), findsOneWidget);
+    expect(find.text('Metin çözümleme · 2. ders'), findsOneWidget);
   });
 
   testWidgets('ders planı ekranı önceki ve sonraki plana ilerler', (
@@ -167,7 +177,7 @@ void main() {
       find.text('1 ders planı güncellendi; durumu yeniden işaretlenmeli.'),
       findsOneWidget,
     );
-    expect(find.text('Plan güncellendi · yeniden işaretle'), findsOneWidget);
+    expect(find.text('Plan güncellendi · yeniden işaretle'), findsNWidgets(2));
     expect(find.text('Bu haftanın ders planı işlendi.'), findsNothing);
   });
 }
@@ -183,6 +193,29 @@ AnnualOutcomePlan _annualPlan({required Theme theme, required Block block}) {
       courseId: 'TDE_9',
       weeklyLessonHours: 4,
       annualHours: 8,
+      weeks: weeks,
+      currentWeekNumber: 2,
+    ),
+    weeks: weeks
+        .map((week) => WeeklyOutcomeSummary(week: week, outcomes: const []))
+        .toList(growable: false),
+  );
+}
+
+AnnualOutcomePlan _fiveHourAnnualPlan({
+  required Theme theme,
+  required Block block,
+}) {
+  final weeks = [
+    _week(1, theme: theme, block: block, hours: 5),
+    _week(2, theme: theme, block: block, hours: 5),
+  ];
+  return AnnualOutcomePlan(
+    weeklyPlan: AnnualWeeklyPlan(
+      academicYear: '2026-2027',
+      courseId: 'TDE_9',
+      weeklyLessonHours: 5,
+      annualHours: 10,
       weeks: weeks,
       currentWeekNumber: 2,
     ),
@@ -228,7 +261,7 @@ LessonPlanPackage _package(
   lessonHours: 2,
   title: title,
   summary: 'Sınıf içi uygulama özeti',
-  remainingBlockHours: (4 - packageNo) * 2,
+  remainingBlockHours: (5 - packageNo) * 2,
   schemaVersion: '1.0.0',
   validationStatus: 'PASS',
   sourcePath: 'generated/$packageId.json',
@@ -236,22 +269,38 @@ LessonPlanPackage _package(
   outcomeCodes: const ['TDE9.1.1'],
   usedActivityIds: const [],
   usedFormIds: const [],
-  lessons: const [
+  lessons: [
     LessonPlanLesson(
       lessonNo: 1,
-      durationLessonHours: 2,
-      title: 'Metin üzerinde çalışma',
+      durationLessonHours: 1,
+      title: '$title · 1. ders',
       objective: 'Ana düşünceyi kanıtlarla belirler.',
-      outcomeCodes: ['TDE9.1.1'],
+      outcomeCodes: const ['TDE9.1.1'],
       opening: 'Ön bilgiyi yoklar.',
-      teacherActions: ['Soruyu yöneltir.'],
-      studentActions: ['Metinden kanıt sunar.'],
-      activityIds: [],
-      formIds: [],
+      teacherActions: const ['Soruyu yöneltir.'],
+      studentActions: const ['Metinden kanıt sunar.'],
+      activityIds: const [],
+      formIds: const [],
       assessment: 'Çıkış sorusunu değerlendirir.',
       closure: 'Dersi özetler.',
-      materials: ['Ders kitabı'],
-      raw: {},
+      materials: const ['Ders kitabı'],
+      raw: const {},
+    ),
+    LessonPlanLesson(
+      lessonNo: 2,
+      durationLessonHours: 1,
+      title: '$title · 2. ders',
+      objective: 'Metin kanıtlarını karşılaştırır.',
+      outcomeCodes: const ['TDE9.1.1'],
+      opening: 'Önceki dersi hatırlatır.',
+      teacherActions: const ['Karşılaştırma sorusunu yöneltir.'],
+      studentActions: const ['Kanıtları karşılaştırır.'],
+      activityIds: const [],
+      formIds: const [],
+      assessment: 'Karşılaştırmayı değerlendirir.',
+      closure: 'Sonucu özetler.',
+      materials: const ['Ders kitabı'],
+      raw: const {},
     ),
   ],
   teacherNotes: null,
