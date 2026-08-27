@@ -135,63 +135,56 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
         padding: const EdgeInsets.only(top: AppSpacing.md),
         child: Card(
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.lg,
+              AppSpacing.lg,
+              AppSpacing.md,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.description_outlined),
-                    const SizedBox(width: AppSpacing.md),
+                    Icon(
+                      Icons.format_list_bulleted_rounded,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Bu haftanın ders planı',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            '$totalHours ders saati',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                ),
-                          ),
-                          if (progress != null) ...[
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              staleCount > 0
-                                  ? '$staleCount ders planı güncellendi; durumu yeniden işaretlenmeli.'
-                                  : allCompleted
-                                  ? 'Bu haftanın ders planı işlendi.'
-                                  : [
-                                      if (current != null)
-                                        'Şu an ${_selectionLabel(current)}',
-                                      if (next != null)
-                                        'Sonraki ${_selectionLabel(next)}',
-                                    ].join(' · '),
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: staleCount > 0
-                                        ? Theme.of(context).colorScheme.error
-                                        : Theme.of(context).colorScheme.primary,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                            ),
-                          ],
-                        ],
+                      child: Text(
+                        'Bu haftanın ders planı',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '$totalHours ders saati',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
+                if (staleCount > 0 || allCompleted) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    staleCount > 0
+                        ? '$staleCount ders planı güncellendi; durumu yeniden işaretlenmeli.'
+                        : 'Bu haftanın ders planı işlendi.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: staleCount > 0
+                          ? Theme.of(context).colorScheme.error
+                          : Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.md),
-                for (var index = 0; index < selections.length; index++) ...[
+                for (var index = 0; index < selections.length; index++)
                   _WeeklyPlanRow(
                     selection: selections[index],
                     status: progress?.statusFor(
@@ -203,12 +196,12 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
                     isCurrent:
                         current != null &&
                         _sameSelection(current, selections[index]),
+                    isNext:
+                        next != null && _sameSelection(next, selections[index]),
+                    isLast: index == selections.length - 1,
                     onOpen: () =>
                         _openPlan(selections[index].package.packageId),
                   ),
-                  if (index != selections.length - 1)
-                    const Divider(height: AppSpacing.lg),
-                ],
               ],
             ),
           ),
@@ -296,6 +289,8 @@ class _WeeklyPlanRow extends StatelessWidget {
     required this.status,
     required this.stale,
     required this.isCurrent,
+    required this.isNext,
+    required this.isLast,
     required this.onOpen,
   });
 
@@ -303,114 +298,179 @@ class _WeeklyPlanRow extends StatelessWidget {
   final LessonPlanProgressStatus? status;
   final bool stale;
   final bool isCurrent;
+  final bool isNext;
+  final bool isLast;
   final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final plan = selection.package;
     final lessonTitle = selection.lesson?.title.trim();
     final title = lessonTitle != null && lessonTitle.isNotEmpty
         ? lessonTitle
         : plan.title;
     final hourLabel = _selectionLabel(selection);
+    final statusLabel = status?.teacherLabel ?? 'Başlanmadı';
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: onOpen,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xs,
+            if (!isLast)
+              Positioned(
+                left: 7,
+                top: 29,
+                bottom: -16,
+                child: Container(width: 1, color: scheme.outlineVariant),
               ),
-              decoration: BoxDecoration(
-                color: isCurrent
-                    ? Theme.of(context).colorScheme.primaryContainer
-                    : Theme.of(context).colorScheme.secondaryContainer,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                hourLabel,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: isCurrent
-                      ? Theme.of(context).colorScheme.onPrimaryContainer
-                      : Theme.of(context).colorScheme.onSecondaryContainer,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.xs,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Container(
+                      width: 15,
+                      height: 15,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isCurrent
+                            ? scheme.primary
+                            : isNext
+                            ? scheme.surface
+                            : scheme.surfaceContainerHighest,
+                        border: Border.all(
+                          color: isCurrent || isNext
+                              ? scheme.primary
+                              : scheme.outline,
+                          width: isNext ? 2 : 1,
                         ),
                       ),
-                      if (isCurrent)
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  SizedBox(
+                    width: 132,
+                    child: Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.xs,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
                         Text(
-                          'ŞU AN',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.6,
+                          hourLabel,
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: isCurrent
+                                ? scheme.primary
+                                : scheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    '1 ders saati',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        if (isCurrent)
+                          _TimelineBadge(label: 'ŞU AN', color: scheme.primary),
+                        if (!isCurrent && isNext)
+                          _TimelineBadge(
+                            label: 'SONRAKİ',
+                            color: scheme.secondary,
+                          ),
+                      ],
                     ),
                   ),
-                  if (stale) ...[
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Plan güncellendi · yeniden işaretle',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.error,
-                        fontWeight: FontWeight.w800,
-                      ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            height: 1.25,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Wrap(
+                          spacing: 0,
+                          runSpacing: 2,
+                          children: [
+                            Text(
+                              '1 ders saati',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Text(
+                              '  ·  ',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Text(
+                              stale
+                                  ? 'Plan güncellendi · yeniden işaretle'
+                                  : statusLabel,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: stale ? scheme.error : scheme.onSurfaceVariant,
+                                fontWeight: stale ? FontWeight.w700 : FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ] else if (status != null) ...[
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      status!.teacherLabel,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: status == LessonPlanProgressStatus.completed
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w800,
-                      ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      color: scheme.onSurfaceVariant,
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
-            const Padding(
-              padding: EdgeInsets.only(top: 4),
-              child: Icon(Icons.chevron_right),
-            ),
+            if (!isLast)
+              Positioned(
+                left: 32,
+                right: 0,
+                bottom: 0,
+                child: Divider(height: 1, color: scheme.outlineVariant),
+              ),
           ],
         ),
       ),
     );
   }
+}
+
+class _TimelineBadge extends StatelessWidget {
+  const _TimelineBadge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Text(
+      label,
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        color: color,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.4,
+      ),
+    ),
+  );
 }
 
 class _WeeklyLessonPlanPanelData {
