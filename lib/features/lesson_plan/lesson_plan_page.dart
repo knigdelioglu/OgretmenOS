@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../domain/models/course_models.dart';
+import '../../domain/models/course_models.dart' as model;
 import '../../domain/models/lesson_plan_models.dart';
 import '../../domain/models/lesson_plan_progress_models.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
@@ -61,7 +61,7 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
       current.blockId,
     );
 
-    BlockDetail? blockDetail;
+    model.BlockDetail? blockDetail;
     try {
       blockDetail = await widget.repository.getBlock(current.blockId);
     } on Object {
