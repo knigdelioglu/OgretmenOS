@@ -94,7 +94,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Başlangıç'), findsWidgets);
-    expect(find.textContaining('1–2. DERS SAATLERI'), findsWidgets);
+    expect(find.textContaining('1–2. DERS SAATLERİ'), findsWidgets);
     await tester.drag(find.byType(Scrollable).first, const Offset(0, -1200));
     await tester.pumpAndSettle();
     expect(find.text('Önceki yok'), findsOneWidget);
@@ -108,7 +108,7 @@ void main() {
     await tester.drag(find.byType(Scrollable).first, const Offset(0, 2000));
     await tester.pumpAndSettle();
     expect(find.text('Yakın okuma'), findsWidgets);
-    expect(find.textContaining('3–4. DERS SAATLERI'), findsWidgets);
+    expect(find.textContaining('3–4. DERS SAATLERİ'), findsWidgets);
   });
 
   testWidgets('haftalık panel stale completed kaydı tamamlanmış saymaz', (
