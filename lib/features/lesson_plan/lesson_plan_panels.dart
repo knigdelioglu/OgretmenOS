@@ -9,6 +9,7 @@ import '../../domain/services/lesson_plan_progress_service.dart';
 import '../../domain/services/lesson_plan_workflow_service.dart';
 import '../shared/feature_widgets.dart';
 import 'lesson_plan_page.dart';
+import 'lesson_plan_teacher_presentation.dart';
 
 class WeeklyLessonPlanPanel extends StatefulWidget {
   const WeeklyLessonPlanPanel({
@@ -61,7 +62,9 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
       repository: widget.progressRepository!,
     );
     final snapshot = await progress.snapshot(
-      orderedPackages: selections.map((item) => item.package).toList(growable: false),
+      orderedPackages: selections
+          .map((item) => item.package)
+          .toList(growable: false),
       academicYear: widget.annualPlan.academicYear,
     );
     return _WeeklyLessonPlanPanelData(
@@ -139,36 +142,39 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
                         children: [
                           Text(
                             'Bu haftanın ders planı',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(
-                            '${selections.length} paket · $totalHours paket saati',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
+                            '${selections.length} plan bölümü · $totalHours ders saati',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
                           ),
                           if (progress != null) ...[
                             const SizedBox(height: AppSpacing.xs),
                             Text(
                               staleCount > 0
-                                  ? '$staleCount paket plan güncellemesi sonrası yeniden işaretlenmeli.'
+                                  ? '$staleCount ders planı güncellendi; durumu yeniden işaretlenmeli.'
                                   : allCompleted
-                                  ? 'Bu haftanın plan paketleri işlendi.'
+                                  ? 'Bu haftanın ders planı işlendi.'
                                   : [
                                       if (current != null)
-                                        'Şu an ${_packageLabel(current.package)}',
+                                        'Şu an ${_selectionLabel(current)}',
                                       if (next != null)
-                                        'Sonraki ${_packageLabel(next.package)}',
+                                        'Sonraki ${_selectionLabel(next)}',
                                     ].join(' · '),
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: staleCount > 0
-                                    ? Theme.of(context).colorScheme.error
-                                    : Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.w800,
-                              ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: staleCount > 0
+                                        ? Theme.of(context).colorScheme.error
+                                        : Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                             ),
                           ],
                         ],
@@ -189,9 +195,8 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
                     isCurrent:
                         progress?.currentPackageId ==
                         selections[index].package.packageId,
-                    onOpen: () => _openPlan(
-                      selections[index].package.packageId,
-                    ),
+                    onOpen: () =>
+                        _openPlan(selections[index].package.packageId),
                   ),
                   if (index != selections.length - 1)
                     const Divider(height: AppSpacing.lg),
@@ -225,13 +230,27 @@ class BlockLessonPlanPanel extends StatelessWidget {
       final plans = snapshot.data ?? const <LessonPlanPackage>[];
       if (plans.isEmpty) return const SizedBox.shrink();
       final hours = plans.fold<int>(0, (sum, plan) => sum + plan.lessonHours);
+      final buttons = <Widget>[];
+      var startHour = 1;
+      for (final plan in plans) {
+        final endHour = startHour + plan.lessonHours - 1;
+        final label = teacherLessonHourRange(startHour, endHour);
+        buttons.add(
+          OutlinedButton.icon(
+            onPressed: () => _openPlan(context, repository, plan.packageId),
+            icon: const Icon(Icons.open_in_new_rounded, size: 18),
+            label: Text(label),
+          ),
+        );
+        startHour = endHour + 1;
+      }
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SectionHeading(
             'Ders planları',
-            subtitle: 'Bu blok için doğrulanmış uygulama paketleri',
+            subtitle: 'Bu bölüm için doğrulanmış sınıf akışı',
             icon: Icons.description_outlined,
           ),
           Card(
@@ -241,7 +260,7 @@ class BlockLessonPlanPanel extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${plans.length} paket · $hours ders saati',
+                    '${plans.length} plan bölümü · $hours ders saati',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -250,17 +269,7 @@ class BlockLessonPlanPanel extends StatelessWidget {
                   Wrap(
                     spacing: AppSpacing.sm,
                     runSpacing: AppSpacing.sm,
-                    children: [
-                      for (final plan in plans)
-                        OutlinedButton.icon(
-                          onPressed: () =>
-                              _openPlan(context, repository, plan.packageId),
-                          icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                          label: Text(
-                            'P${plan.packageNo.toString().padLeft(2, '0')} · ${plan.lessonHours} sa.',
-                          ),
-                        ),
-                    ],
+                    children: buttons,
                   ),
                 ],
               ),
@@ -290,10 +299,7 @@ class _WeeklyPlanRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final plan = selection.package;
-    final packageLabel = _packageLabel(plan);
-    final blockRange = selection.segmentStartHour == selection.segmentEndHour
-        ? 'blokta ${selection.segmentStartHour}. saat'
-        : 'blokta ${selection.segmentStartHour}–${selection.segmentEndHour}. saatler';
+    final hourLabel = _selectionLabel(selection);
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),
@@ -315,7 +321,7 @@ class _WeeklyPlanRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
-                packageLabel,
+                hourLabel,
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   color: isCurrent
                       ? Theme.of(context).colorScheme.onPrimaryContainer
@@ -353,7 +359,7 @@ class _WeeklyPlanRow extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    '${plan.lessonHours} ders saati · $blockRange',
+                    '${plan.lessonHours} ders saati',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -377,15 +383,6 @@ class _WeeklyPlanRow extends StatelessWidget {
                             : Theme.of(context).colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w800,
                       ),
-                    ),
-                  ],
-                  if (plan.summary.trim().isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      plan.summary,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(height: 1.35),
                     ),
                   ],
                 ],
@@ -421,8 +418,8 @@ WeeklyLessonPlanSelection? _selectionByPackageId(
   return null;
 }
 
-String _packageLabel(LessonPlanPackage plan) =>
-    'P${plan.packageNo.toString().padLeft(2, '0')}';
+String _selectionLabel(WeeklyLessonPlanSelection selection) =>
+    teacherLessonHourRange(selection.packageStartHour, selection.packageEndHour);
 
 Future<void> _openPlan(
   BuildContext context,

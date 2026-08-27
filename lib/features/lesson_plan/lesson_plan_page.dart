@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../domain/models/course_models.dart' as model;
 import '../../domain/models/lesson_plan_models.dart';
 import '../../domain/models/lesson_plan_progress_models.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
@@ -8,6 +9,7 @@ import '../../domain/repositories/lesson_plan_progress_repository.dart';
 import '../../domain/services/lesson_plan_progress_service.dart';
 import '../shared/feature_widgets.dart';
 import '../shared/interaction_polish.dart';
+import 'lesson_plan_teacher_presentation.dart';
 
 class LessonPlanPage extends StatefulWidget {
   const LessonPlanPage({
@@ -51,10 +53,25 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
   Future<_LessonPlanViewData> _load(String packageId) async {
     final current = await widget.repository.getLessonPlan(packageId);
     if (current == null) {
-      throw StateError('Ders planı paketi bulunamadı: $packageId');
+      throw StateError('Ders planı bulunamadı: $packageId');
     }
     final previous = await widget.repository.getPreviousLessonPlan(packageId);
     final next = await widget.repository.getNextLessonPlan(packageId);
+    final blockPlans = await widget.repository.getLessonPlansForBlock(
+      current.blockId,
+    );
+
+    model.BlockDetail? blockDetail;
+    try {
+      blockDetail = await widget.repository.getBlock(current.blockId);
+    } on Object {
+      blockDetail = null;
+    }
+
+    final presentation = LessonPlanTeacherPresentation(
+      blockPlans: blockPlans.isEmpty ? [current] : blockPlans,
+      blockDetail: blockDetail,
+    );
     final progressService = _progressService;
     final progress = progressService == null
         ? null
@@ -67,6 +84,7 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
       previous: previous,
       next: next,
       progress: progress,
+      presentation: presentation,
     );
   }
 
@@ -209,9 +227,8 @@ class _LessonPlanContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final plan = data.current;
-    final outcomeLabel = plan.outcomeCodes.isEmpty
-        ? null
-        : plan.outcomeCodes.join(' · ');
+    final presentation = data.presentation;
+    final outcomeLabels = presentation.outcomeLabels(plan.outcomeCodes);
     final progress =
         progressOverride ??
         data.progress ??
@@ -221,9 +238,9 @@ class _LessonPlanContent extends StatelessWidget {
       children: [
         PageHeader(
           eyebrow:
-              'P${plan.packageNo.toString().padLeft(2, '0')} · ${plan.lessonHours} ders saati',
-          title: plan.title,
-          description: plan.summary,
+              '${presentation.packageHeaderLabel(plan)} · ${plan.lessonHours} DERS SAATİ',
+          title: presentation.humanize(plan.title),
+          description: presentation.humanize(plan.summary),
         ),
         if (progressEnabled) ...[
           _PlanProgressCard(
@@ -260,11 +277,19 @@ class _LessonPlanContent extends StatelessWidget {
                                   fontWeight: FontWeight.w700,
                                 ),
                           ),
+                          if (presentation.locationLabel case final location?) ...[
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              location,
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                          ],
                           const SizedBox(height: AppSpacing.xs),
                           Text(
                             plan.remainingBlockHours == 0
-                                ? 'Bu paket bloğu tamamlıyor.'
-                                : 'Bu paketten sonra blokta ${plan.remainingBlockHours} saat kalıyor.',
+                                ? 'Bu ders planı bölümü, bu çalışma alanını tamamlıyor.'
+                                : 'Bu bölümden sonra aynı çalışma alanında ${plan.remainingBlockHours} ders saati kalıyor.',
                             style: const TextStyle(height: 1.4),
                           ),
                         ],
@@ -272,17 +297,21 @@ class _LessonPlanContent extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (outcomeLabel != null) ...[
+                if (outcomeLabels.isNotEmpty) ...[
                   const Divider(height: AppSpacing.xl),
                   Text(
-                    'Kazanımlar',
+                    'Öğrenme çıktıları',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
-                  Text(outcomeLabel),
+                  for (final label in outcomeLabels)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                      child: Text(label, style: const TextStyle(height: 1.4)),
+                    ),
                 ],
                 if (plan.continuation.nextStepHint?.trim().isNotEmpty == true) ...[
                   const Divider(height: AppSpacing.xl),
@@ -295,7 +324,7 @@ class _LessonPlanContent extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    plan.continuation.nextStepHint!,
+                    presentation.humanize(plan.continuation.nextStepHint!),
                     style: const TextStyle(height: 1.4),
                   ),
                 ],
@@ -312,11 +341,14 @@ class _LessonPlanContent extends StatelessWidget {
           const StatusPanel(
             icon: Icons.info_outline,
             title: 'Ders adımı bulunmuyor',
-            message: 'Bu pakette yapılandırılmış ders adımı yer almıyor.',
+            message: 'Bu ders planı bölümünde yapılandırılmış ders adımı yer almıyor.',
           )
         else
           for (final lesson in plan.lessons) ...[
-            _LessonStepCard(lesson: lesson),
+            _LessonStepCard(
+              lesson: lesson,
+              presentation: presentation,
+            ),
             const SizedBox(height: AppSpacing.md),
           ],
         _PlanNavigation(
@@ -325,7 +357,7 @@ class _LessonPlanContent extends StatelessWidget {
           onOpenPackage: onOpenPackage,
         ),
         const SizedBox(height: AppSpacing.md),
-        _PlanProvenance(plan: plan),
+        _PlanProvenance(plan: plan, presentation: presentation),
       ],
     );
   }
@@ -383,7 +415,7 @@ class _PlanProgressCard extends StatelessWidget {
             if (stale) ...[
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Önceki “${progress.record?.status.teacherLabel ?? 'durum'}” kaydı bu paket içeriği için geçerli sayılmadı. Yeni planı gördükten sonra durumu yeniden seçin.',
+                'Önceki “${progress.record?.status.teacherLabel ?? 'durum'}” kaydı ders planının güncel içeriği için geçerli sayılmadı. Yeni planı gördükten sonra durumu yeniden seçin.',
                 style: TextStyle(
                   color: scheme.onErrorContainer,
                   height: 1.4,
@@ -410,9 +442,7 @@ class _PlanProgressCard extends StatelessWidget {
               FilledButton.icon(
                 onPressed: () => onOpenPackage(next!.packageId),
                 icon: const Icon(Icons.arrow_forward),
-                label: Text(
-                  'Sonraki pakete geç · P${next!.packageNo.toString().padLeft(2, '0')}',
-                ),
+                label: const Text('Sonraki ders planına geç'),
               ),
             ],
           ],
@@ -423,18 +453,24 @@ class _PlanProgressCard extends StatelessWidget {
 }
 
 class _LessonStepCard extends StatelessWidget {
-  const _LessonStepCard({required this.lesson});
+  const _LessonStepCard({
+    required this.lesson,
+    required this.presentation,
+  });
 
   final LessonPlanLesson lesson;
+  final LessonPlanTeacherPresentation presentation;
 
   @override
   Widget build(BuildContext context) {
-    final opening = _humanLines(lesson.opening);
-    final teacherActions = _humanLines(lesson.teacherActions);
-    final studentActions = _humanLines(lesson.studentActions);
-    final assessment = _humanLines(lesson.assessment);
-    final closure = _humanLines(lesson.closure);
-    final materials = _humanLines(lesson.materials);
+    final opening = _presentedLines(lesson.opening, presentation);
+    final teacherActions = _presentedLines(lesson.teacherActions, presentation);
+    final studentActions = _presentedLines(lesson.studentActions, presentation);
+    final assessment = _presentedLines(lesson.assessment, presentation);
+    final closure = _presentedLines(lesson.closure, presentation);
+    final materials = _presentedLines(lesson.materials, presentation);
+    final activities = presentation.activityLabels(lesson.activityIds);
+    final forms = presentation.formLabels(lesson.formIds);
 
     return Card(
       child: Padding(
@@ -464,14 +500,19 @@ class _LessonStepCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              lesson.title.isEmpty ? 'Ders adımı' : lesson.title,
+              lesson.title.isEmpty
+                  ? 'Ders adımı'
+                  : presentation.humanize(lesson.title),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w800,
               ),
             ),
             if (lesson.objective.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.sm),
-              Text(lesson.objective, style: const TextStyle(height: 1.45)),
+              Text(
+                presentation.humanize(lesson.objective),
+                style: const TextStyle(height: 1.45),
+              ),
             ],
             if (opening.isNotEmpty)
               _PlanSection(title: 'Başlangıç', lines: opening),
@@ -479,6 +520,10 @@ class _LessonStepCard extends StatelessWidget {
               _PlanSection(title: 'Öğretmen', lines: teacherActions),
             if (studentActions.isNotEmpty)
               _PlanSection(title: 'Öğrenci', lines: studentActions),
+            if (activities.isNotEmpty)
+              _PlanSection(title: 'Ders kitabı etkinlikleri', lines: activities),
+            if (forms.isNotEmpty)
+              _PlanSection(title: 'Değerlendirme formları', lines: forms),
             if (materials.isNotEmpty)
               _PlanSection(title: 'Materyaller', lines: materials),
             if (assessment.isNotEmpty)
@@ -563,11 +608,7 @@ class _PlanNavigation extends StatelessWidget {
                       ? null
                       : () => onOpenPackage(previous!.packageId),
                   icon: const Icon(Icons.arrow_back),
-                  label: Text(
-                    previous == null
-                        ? 'Önceki yok'
-                        : 'P${previous!.packageNo.toString().padLeft(2, '0')}',
-                  ),
+                  label: Text(previous == null ? 'Önceki yok' : 'Önceki plan'),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -577,11 +618,7 @@ class _PlanNavigation extends StatelessWidget {
                       ? null
                       : () => onOpenPackage(next!.packageId),
                   icon: const Icon(Icons.arrow_forward),
-                  label: Text(
-                    next == null
-                        ? 'Son paket'
-                        : 'P${next!.packageNo.toString().padLeft(2, '0')}',
-                  ),
+                  label: Text(next == null ? 'Son plan' : 'Sonraki plan'),
                 ),
               ),
             ],
@@ -593,9 +630,10 @@ class _PlanNavigation extends StatelessWidget {
 }
 
 class _PlanProvenance extends StatelessWidget {
-  const _PlanProvenance({required this.plan});
+  const _PlanProvenance({required this.plan, required this.presentation});
 
   final LessonPlanPackage plan;
+  final LessonPlanTeacherPresentation presentation;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -606,7 +644,7 @@ class _PlanProvenance extends StatelessWidget {
         'Plan doğrulaması',
         style: TextStyle(fontWeight: FontWeight.w800),
       ),
-      subtitle: const Text('Kaynak ve runtime bilgileri'),
+      subtitle: const Text('Kaynağı doğrulanmış ders planı'),
       childrenPadding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
         0,
@@ -617,7 +655,7 @@ class _PlanProvenance extends StatelessWidget {
         Align(
           alignment: Alignment.centerLeft,
           child: Text(
-            'Durum: ${plan.validationStatus}\nŞema: ${plan.schemaVersion}\nKaynak: ${plan.sourcePath}',
+            'Durum: ${presentation.validationLabel(plan.validationStatus)}\nKaynak: TYMM ders planı veritabanı',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.5),
           ),
         ),
@@ -632,13 +670,20 @@ class _LessonPlanViewData {
     required this.previous,
     required this.next,
     required this.progress,
+    required this.presentation,
   });
 
   final LessonPlanPackage current;
   final LessonPlanPackage? previous;
   final LessonPlanPackage? next;
   final LessonPlanProgressResolution? progress;
+  final LessonPlanTeacherPresentation presentation;
 }
+
+List<String> _presentedLines(
+  Object? value,
+  LessonPlanTeacherPresentation presentation,
+) => _humanLines(value).map(presentation.humanize).toList(growable: false);
 
 List<String> _humanLines(Object? value) {
   final result = <String>[];

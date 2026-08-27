@@ -33,7 +33,7 @@ void main() {
     sourceLocators: [],
   );
 
-  testWidgets('haftalık panel doğru saat aralığındaki paketleri gösterir', (
+  testWidgets('haftalık panel doğru saat aralığındaki plan bölümlerini gösterir', (
     tester,
   ) async {
     final packages = [
@@ -61,12 +61,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Bu haftanın ders planı'), findsOneWidget);
-    expect(find.text('P03'), findsOneWidget);
-    expect(find.text('P04'), findsOneWidget);
-    expect(find.text('P02'), findsNothing);
-    expect(find.textContaining('blokta 5–8. saatler'), findsNWidgets(2));
+    expect(find.text('5–6. ders saatleri'), findsOneWidget);
+    expect(find.text('7–8. ders saatleri'), findsOneWidget);
+    expect(find.text('P03'), findsNothing);
+    expect(find.text('P04'), findsNothing);
 
-    await tester.tap(find.text('P03'));
+    await tester.tap(find.text('5–6. ders saatleri'));
     await tester.pumpAndSettle();
 
     expect(find.text('Ders Planı'), findsOneWidget);
@@ -74,7 +74,7 @@ void main() {
     expect(find.text('Ana düşünceyi kanıtlarla belirler.'), findsOneWidget);
   });
 
-  testWidgets('ders planı ekranı önceki ve sonraki pakete ilerler', (
+  testWidgets('ders planı ekranı önceki ve sonraki plana ilerler', (
     tester,
   ) async {
     final packages = [
@@ -94,21 +94,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Başlangıç'), findsWidgets);
+    expect(find.textContaining('1–2. DERS SAATLERİ'), findsWidgets);
     await tester.drag(find.byType(Scrollable).first, const Offset(0, -1200));
     await tester.pumpAndSettle();
     expect(find.text('Önceki yok'), findsOneWidget);
-    expect(find.text('P02'), findsOneWidget);
+    expect(find.text('Sonraki plan'), findsOneWidget);
 
-    await tester.tap(find.text('P02'));
+    await tester.tap(find.text('Sonraki plan'));
     await tester.pumpAndSettle();
 
-    // The list stays at the bottom after the package changes. Verify the new
-    // navigation state while it is visible, then return to the top for title.
-    expect(find.text('P01'), findsOneWidget);
-    expect(find.text('Son paket'), findsOneWidget);
+    expect(find.text('Önceki plan'), findsOneWidget);
+    expect(find.text('Son plan'), findsOneWidget);
     await tester.drag(find.byType(Scrollable).first, const Offset(0, 2000));
     await tester.pumpAndSettle();
     expect(find.text('Yakın okuma'), findsWidgets);
+    expect(find.textContaining('3–4. DERS SAATLERİ'), findsWidgets);
   });
 
   testWidgets('haftalık panel stale completed kaydı tamamlanmış saymaz', (
@@ -164,11 +164,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('1 paket plan güncellemesi sonrası yeniden işaretlenmeli.'),
+      find.text('1 ders planı güncellendi; durumu yeniden işaretlenmeli.'),
       findsOneWidget,
     );
     expect(find.text('Plan güncellendi · yeniden işaretle'), findsOneWidget);
-    expect(find.text('Bu haftanın plan paketleri işlendi.'), findsNothing);
+    expect(find.text('Bu haftanın ders planı işlendi.'), findsNothing);
   });
 }
 
@@ -260,7 +260,7 @@ LessonPlanPackage _package(
     remainingBlockHours: 0,
     coveredOutcomeCodes: ['TDE9.1.1'],
     usedActivityIds: [],
-    nextStepHint: 'Bir sonraki pakette metin kanıtları derinleştirilir.',
+    nextStepHint: 'Bir sonraki plan bölümünde metin kanıtları derinleştirilir.',
     raw: {},
   ),
   rawPayload: const {},

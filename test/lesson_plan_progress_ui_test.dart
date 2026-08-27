@@ -68,7 +68,7 @@ void main() {
       tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'İşlendi')).selected,
       isTrue,
     );
-    expect(find.text('Sonraki pakete geç · P02'), findsOneWidget);
+    expect(find.text('Sonraki ders planına geç'), findsOneWidget);
   });
 
   testWidgets('başlanmadı seçimi ilerleme kaydını temizler', (tester) async {
