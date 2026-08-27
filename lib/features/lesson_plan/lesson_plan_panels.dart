@@ -311,9 +311,7 @@ class _WeeklyPlanRow extends StatelessWidget {
         ? lessonTitle
         : plan.title;
     final hourLabel = _selectionLabel(selection);
-    final statusLabel = stale
-        ? 'Plan güncellendi · yeniden işaretle'
-        : status?.teacherLabel ?? 'Başlanmadı';
+    final statusLabel = status?.teacherLabel ?? 'Başlanmadı';
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),
@@ -321,6 +319,7 @@ class _WeeklyPlanRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Stack(
+          clipBehavior: Clip.none,
           children: [
             if (!isLast)
               Positioned(
@@ -395,20 +394,32 @@ class _WeeklyPlanRow extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xs),
-                        Text.rich(
-                          TextSpan(
-                            children: [
-                              const TextSpan(text: '1 ders saati'),
-                              const TextSpan(text: '  ·  '),
-                              TextSpan(text: statusLabel),
-                            ],
-                          ),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: stale
-                                ? scheme.error
-                                : scheme.onSurfaceVariant,
-                            fontWeight: stale ? FontWeight.w700 : FontWeight.w500,
-                          ),
+                        Wrap(
+                          spacing: 0,
+                          runSpacing: 2,
+                          children: [
+                            Text(
+                              '1 ders saati',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Text(
+                              '  ·  ',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Text(
+                              stale
+                                  ? 'Plan güncellendi · yeniden işaretle'
+                                  : statusLabel,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: stale ? scheme.error : scheme.onSurfaceVariant,
+                                fontWeight: stale ? FontWeight.w700 : FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
