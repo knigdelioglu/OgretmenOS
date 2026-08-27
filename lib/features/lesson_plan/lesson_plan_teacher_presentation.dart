@@ -26,6 +26,10 @@ class LessonPlanTeacherPresentation {
     return teacherLessonHourRange(start, end);
   }
 
+  String packageHeaderLabel(LessonPlanPackage plan) => packageLabel(plan)
+      .replaceAll('ders saatleri', 'DERS SAATLERİ')
+      .replaceAll('ders saati', 'DERS SAATİ');
+
   String? get locationLabel {
     final detail = blockDetail;
     if (detail == null) return null;
