@@ -137,29 +137,39 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
     if (changed == true && mounted) _reload();
   }
 
+  Widget _workspace() => ThisWeekPage(
+    key: ValueKey(_workspaceRevision),
+    repository: widget.repository,
+    service: widget.service,
+    lessonPlanProgress: widget.lessonPlanProgress,
+    onOutcomeViewed: _rememberViewed,
+  );
+
   @override
   Widget build(BuildContext context) => FutureBuilder<_ContinuityData>(
     future: _future,
     builder: (context, snapshot) {
       final data = snapshot.data;
-      return Column(
-        children: [
-          if (data?.item != null && data?.stored != null)
-            _ResumeCard(
-              state: data!.stored!,
-              item: data.item!,
-              onResume: () => _resume(data),
-            ),
-          Expanded(
-            child: ThisWeekPage(
-              key: ValueKey(_workspaceRevision),
-              repository: widget.repository,
-              service: widget.service,
-              lessonPlanProgress: widget.lessonPlanProgress,
-              onOutcomeViewed: _rememberViewed,
+      if (data?.item == null || data?.stored == null) return _workspace();
+
+      return NestedScrollView(
+        physics: const ClampingScrollPhysics(),
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverToBoxAdapter(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 960),
+                child: _ResumeBanner(
+                  state: data!.stored!,
+                  item: data.item!,
+                  onResume: () => _resume(data),
+                ),
+              ),
             ),
           ),
         ],
+        body: _workspace(),
       );
     },
   );
@@ -173,8 +183,8 @@ class _ContinuityData {
   final TrackedOutcome? item;
 }
 
-class _ResumeCard extends StatelessWidget {
-  const _ResumeCard({
+class _ResumeBanner extends StatelessWidget {
+  const _ResumeBanner({
     required this.state,
     required this.item,
     required this.onResume,
@@ -189,6 +199,8 @@ class _ResumeCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final block = state.blockTitle ?? item.primaryBlock?.title;
     final theme = state.themeTitle ?? item.primaryTheme?.title;
+    final contextLabel = [?theme, ?block].join(' · ');
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -197,47 +209,65 @@ class _ResumeCard extends StatelessWidget {
         0,
       ),
       child: Card(
-        color: scheme.tertiaryContainer,
+        color: scheme.tertiaryContainer.withValues(alpha: 0.58),
+        margin: EdgeInsets.zero,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                'KALDIĞIN YER',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: scheme.tertiary.withValues(alpha: 0.10),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.history_rounded,
                   color: scheme.onTertiaryContainer,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.7,
                 ),
               ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                '${state.weekNumber}. Hafta · ${state.outcomeCode}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: scheme.onTertiaryContainer,
-                  fontWeight: FontWeight.w800,
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Kaldığın yer',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: scheme.onTertiaryContainer,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      [
+                        '${state.weekNumber}. Hafta',
+                        state.outcomeCode,
+                        if (contextLabel.isNotEmpty) contextLabel,
+                      ].join(' · '),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onTertiaryContainer,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              if (block != null || theme != null) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  [?theme, ?block].join(' · '),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onTertiaryContainer,
-                  ),
-                ),
-              ],
-              const SizedBox(height: AppSpacing.sm),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: onResume,
-                  icon: const Icon(Icons.arrow_forward_rounded),
-                  label: const Text('Devam et'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: scheme.onTertiaryContainer,
-                  ),
+              const SizedBox(width: AppSpacing.md),
+              TextButton.icon(
+                onPressed: onResume,
+                icon: const Icon(Icons.arrow_forward_rounded),
+                label: const Text('Devam et'),
+                style: TextButton.styleFrom(
+                  foregroundColor: scheme.onTertiaryContainer,
                 ),
               ),
             ],
