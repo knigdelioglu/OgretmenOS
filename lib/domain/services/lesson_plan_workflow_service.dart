@@ -12,9 +12,13 @@ class WeeklyLessonPlanSelection {
     required this.segmentEndHour,
     required this.packageStartHour,
     required this.packageEndHour,
+    required this.blockHour,
+    required this.packageHour,
+    this.lesson,
   });
 
   final LessonPlanPackage package;
+  final LessonPlanLesson? lesson;
   final int weekNumber;
   final String blockId;
   final int segmentHours;
@@ -23,9 +27,15 @@ class WeeklyLessonPlanSelection {
   final int segmentStartHour;
   final int segmentEndHour;
 
-  /// 1-based inclusive hour range covered by the package inside the block.
+  /// 1-based inclusive hour range covered by the source package inside the block.
   final int packageStartHour;
   final int packageEndHour;
+
+  /// Exact 1-based lesson hour represented by this row inside the block.
+  final int blockHour;
+
+  /// Exact 1-based lesson hour represented by this row inside the source package.
+  final int packageHour;
 
   bool get beginsInSelectedWeek => packageStartHour >= segmentStartHour;
 }
@@ -46,17 +56,15 @@ class LessonPlanWorkflowService {
     if (!capability.usable) return const [];
 
     final selections = <WeeklyLessonPlanSelection>[];
-    final seenPackages = <String>{};
+    final consumedInSelectedWeek = <String, int>{};
 
     for (final segment in summary.week.segments) {
       final block = segment.block;
       if (block == null || segment.hours <= 0) continue;
 
-      final consumedBefore = _consumedBlockHoursBefore(
-        annualPlan,
-        weekNumber,
-        block.id,
-      );
+      final consumedBefore =
+          _consumedBlockHoursBefore(annualPlan, weekNumber, block.id) +
+          (consumedInSelectedWeek[block.id] ?? 0);
       final segmentEndExclusive = consumedBefore + segment.hours;
       final packages = await repository.getLessonPlansForBlock(block.id);
       if (packages.isEmpty) return const [];
@@ -67,13 +75,21 @@ class LessonPlanWorkflowService {
           return const [];
         }
         final packageEndExclusive = packageStart + package.lessonHours;
-        final overlaps =
-            packageStart < segmentEndExclusive &&
-            packageEndExclusive > consumedBefore;
-        if (overlaps && seenPackages.add(package.packageId)) {
+        final overlapStart = packageStart > consumedBefore
+            ? packageStart
+            : consumedBefore;
+        final overlapEnd = packageEndExclusive < segmentEndExclusive
+            ? packageEndExclusive
+            : segmentEndExclusive;
+
+        for (var blockHourIndex = overlapStart;
+            blockHourIndex < overlapEnd;
+            blockHourIndex++) {
+          final packageHour = blockHourIndex - packageStart + 1;
           selections.add(
             WeeklyLessonPlanSelection(
               package: package,
+              lesson: _lessonForPackageHour(package, packageHour),
               weekNumber: weekNumber,
               blockId: block.id,
               segmentHours: segment.hours,
@@ -81,6 +97,8 @@ class LessonPlanWorkflowService {
               segmentEndHour: segmentEndExclusive,
               packageStartHour: packageStart + 1,
               packageEndHour: packageEndExclusive,
+              blockHour: blockHourIndex + 1,
+              packageHour: packageHour,
             ),
           );
         }
@@ -88,8 +106,13 @@ class LessonPlanWorkflowService {
       }
 
       // The runtime may advertise lesson plans while the selected segment falls
-      // outside their validated hour coverage. Do not guess a package in that case.
+      // outside their validated hour coverage. Do not guess a lesson in that case.
       if (packageStart < segmentEndExclusive) return const [];
+      consumedInSelectedWeek.update(
+        block.id,
+        (value) => value + segment.hours,
+        ifAbsent: () => segment.hours,
+      );
     }
 
     return List<WeeklyLessonPlanSelection>.unmodifiable(selections);
@@ -101,6 +124,22 @@ class LessonPlanWorkflowService {
   ) async {
     final selections = await plansForWeek(annualPlan, weekNumber);
     return selections.isEmpty ? null : selections.first.package;
+  }
+
+  LessonPlanLesson? _lessonForPackageHour(
+    LessonPlanPackage package,
+    int packageHour,
+  ) {
+    var consumed = 0;
+    for (final lesson in package.lessons) {
+      final duration = lesson.durationLessonHours > 0
+          ? lesson.durationLessonHours
+          : 1;
+      final end = consumed + duration;
+      if (packageHour > consumed && packageHour <= end) return lesson;
+      consumed = end;
+    }
+    return null;
   }
 
   int _consumedBlockHoursBefore(
