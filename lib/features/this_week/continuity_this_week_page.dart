@@ -204,8 +204,7 @@ class _ContinuityData {
 
   final AnnualOutcomePlan plan;
   final LastFocusState? stored;
-  final TrackedOutcome item;
-  final LastFocusState? stored;
+  final TrackedOutcome? item;
 }
 
 class _ResumeBanner extends StatelessWidget {
