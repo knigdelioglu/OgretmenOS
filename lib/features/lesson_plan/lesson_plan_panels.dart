@@ -61,10 +61,15 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
     final progress = LessonPlanProgressService(
       repository: widget.progressRepository!,
     );
+    final orderedPackages = <LessonPlanPackage>[];
+    final seenPackageIds = <String>{};
+    for (final selection in selections) {
+      if (seenPackageIds.add(selection.package.packageId)) {
+        orderedPackages.add(selection.package);
+      }
+    }
     final snapshot = await progress.snapshot(
-      orderedPackages: selections
-          .map((item) => item.package)
-          .toList(growable: false),
+      orderedPackages: orderedPackages,
       academicYear: widget.annualPlan.academicYear,
     );
     return _WeeklyLessonPlanPanelData(
@@ -100,20 +105,23 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
       final selections = data?.selections ?? const <WeeklyLessonPlanSelection>[];
       if (selections.isEmpty) return const SizedBox.shrink();
 
-      final totalHours = selections
-          .map((item) => item.package.lessonHours)
-          .fold<int>(0, (sum, value) => sum + value);
+      final totalHours = selections.length;
       final progress = data?.progress;
       final current = _selectionByPackageId(
         selections,
         progress?.currentPackageId,
       );
-      final next = _selectionByPackageId(selections, progress?.nextPackageId);
-      final staleCount = progress == null
-          ? 0
+      final currentIndex = current == null ? -1 : selections.indexOf(current);
+      final next = currentIndex >= 0 && currentIndex + 1 < selections.length
+          ? selections[currentIndex + 1]
+          : _selectionByPackageId(selections, progress?.nextPackageId);
+      final stalePackageIds = progress == null
+          ? const <String>{}
           : selections
                 .where((item) => progress.isStale(item.package.packageId))
-                .length;
+                .map((item) => item.package.packageId)
+                .toSet();
+      final staleCount = stalePackageIds.length;
       final allCompleted =
           progress != null &&
           staleCount == 0 &&
@@ -147,7 +155,7 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(
-                            '${selections.length} plan bölümü · $totalHours ders saati',
+                            '$totalHours ders saati',
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
                                   color: Theme.of(
@@ -193,8 +201,8 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
                         progress?.isStale(selections[index].package.packageId) ??
                         false,
                     isCurrent:
-                        progress?.currentPackageId ==
-                        selections[index].package.packageId,
+                        current != null &&
+                        _sameSelection(current, selections[index]),
                     onOpen: () =>
                         _openPlan(selections[index].package.packageId),
                   ),
@@ -233,16 +241,17 @@ class BlockLessonPlanPanel extends StatelessWidget {
       final buttons = <Widget>[];
       var startHour = 1;
       for (final plan in plans) {
-        final endHour = startHour + plan.lessonHours - 1;
-        final label = teacherLessonHourRange(startHour, endHour);
-        buttons.add(
-          OutlinedButton.icon(
-            onPressed: () => _openPlan(context, repository, plan.packageId),
-            icon: const Icon(Icons.open_in_new_rounded, size: 18),
-            label: Text(label),
-          ),
-        );
-        startHour = endHour + 1;
+        for (var offset = 0; offset < plan.lessonHours; offset++) {
+          final hour = startHour + offset;
+          buttons.add(
+            OutlinedButton.icon(
+              onPressed: () => _openPlan(context, repository, plan.packageId),
+              icon: const Icon(Icons.open_in_new_rounded, size: 18),
+              label: Text(teacherLessonHourRange(hour, hour)),
+            ),
+          );
+        }
+        startHour += plan.lessonHours;
       }
 
       return Column(
@@ -260,7 +269,7 @@ class BlockLessonPlanPanel extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${plans.length} plan bölümü · $hours ders saati',
+                    '$hours ders saati',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -299,6 +308,10 @@ class _WeeklyPlanRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final plan = selection.package;
+    final lessonTitle = selection.lesson?.title.trim();
+    final title = lessonTitle != null && lessonTitle.isNotEmpty
+        ? lessonTitle
+        : plan.title;
     final hourLabel = _selectionLabel(selection);
 
     return InkWell(
@@ -341,7 +354,7 @@ class _WeeklyPlanRow extends StatelessWidget {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
-                        plan.title,
+                        title,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
@@ -359,7 +372,7 @@ class _WeeklyPlanRow extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    '${plan.lessonHours} ders saati',
+                    '1 ders saati',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -418,8 +431,16 @@ WeeklyLessonPlanSelection? _selectionByPackageId(
   return null;
 }
 
+bool _sameSelection(
+  WeeklyLessonPlanSelection left,
+  WeeklyLessonPlanSelection right,
+) =>
+    left.package.packageId == right.package.packageId &&
+    left.blockId == right.blockId &&
+    left.blockHour == right.blockHour;
+
 String _selectionLabel(WeeklyLessonPlanSelection selection) =>
-    teacherLessonHourRange(selection.packageStartHour, selection.packageEndHour);
+    teacherLessonHourRange(selection.blockHour, selection.blockHour);
 
 Future<void> _openPlan(
   BuildContext context,
