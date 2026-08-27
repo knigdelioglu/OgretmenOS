@@ -91,9 +91,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('KALDIĞIN YER'), findsOneWidget);
-    expect(find.text('1. Hafta · TEST.1'), findsOneWidget);
-    expect(find.text('TEST TEMA · Test Blok'), findsOneWidget);
+    expect(find.text('Kaldığın yer'), findsOneWidget);
+    expect(
+      find.text('1. Hafta · TEST.1 · TEST TEMA · Test Blok'),
+      findsOneWidget,
+    );
     expect(find.widgetWithText(TextButton, 'Devam et'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(TextButton, 'Devam et'));
@@ -198,8 +200,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('KALDIĞIN YER'), findsOneWidget);
-    expect(find.text('1. Hafta · TEST.1'), findsOneWidget);
+    expect(find.text('Kaldığın yer'), findsOneWidget);
+    expect(
+      find.text('1. Hafta · TEST.1 · TEST TEMA · Test Blok'),
+      findsOneWidget,
+    );
     expect(
       (await continuity.getLastFocus('TDE_9'))?.trackingKey,
       item.trackingKey,
@@ -239,7 +244,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('KALDIĞIN YER'), findsNothing);
+    expect(find.text('Kaldığın yer'), findsNothing);
     expect(await continuity.getLastFocus('TDE_9'), isNull);
   });
 
