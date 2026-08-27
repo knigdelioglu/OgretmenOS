@@ -317,7 +317,8 @@ void main() {
 
     expect(find.byType(NavigationRail), findsOneWidget);
     expect(find.text('Bu Hafta'), findsWidgets);
-    expect(find.text('Yıllık'), findsOneWidget);
+    expect(find.text('Plan'), findsOneWidget);
+    expect(find.text('Yıllık'), findsNothing);
     expect(find.text('Kaynaklar'), findsOneWidget);
     expect(find.text('Kazanımlar'), findsNothing);
     expect(find.text('Haftalık'), findsNothing);
