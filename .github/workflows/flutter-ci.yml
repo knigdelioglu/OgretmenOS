@@ -201,7 +201,7 @@ jobs:
 
   macos-release:
     name: macOS Release Build
-    needs: [analyze, runtime-contract, tests]
+    needs: [android-release]
     runs-on: macos-latest
     timeout-minutes: 30
 
@@ -227,11 +227,46 @@ jobs:
       - name: Build macOS release
         run: flutter build macos --release --no-pub
 
-      - name: Upload macOS application bundle
+      - name: Package macOS DMG
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="build/macos/Build/Products/Release/ogretmen_os.app"
+          DMG="build/release/OgretmenOS-macos.dmg"
+          test -d "$APP"
+          mkdir -p "$(dirname "$DMG")"
+          hdiutil create \
+            -volname "ÖğretmenOS" \
+            -srcfolder "$APP" \
+            -ov \
+            -format UDZO \
+            "$DMG"
+          test -s "$DMG"
+          shasum -a 256 "$DMG"
+
+      - name: Upload macOS DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OgretmenOS-macos
-          path: build/macos/Build/Products/Release/ogretmen_os.app
+          name: OgretmenOS-macos-dmg
+          path: build/release/OgretmenOS-macos.dmg
+
+      - name: Publish macOS DMG to GitHub Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION=$(awk '/^version:/ {print $2; exit}' pubspec.yaml)
+          VERSION="${VERSION%%+*}"
+          TAG="v${VERSION}"
+          ASSET="OgretmenOS-${VERSION}-macos.dmg"
+          DEST="$RUNNER_TEMP/$ASSET"
+          cp build/release/OgretmenOS-macos.dmg "$DEST"
+
+          gh release view "$TAG" >/dev/null
+          gh release upload "$TAG" "$DEST" --clobber
+          gh release view "$TAG" --json assets --jq '.assets[].name' | grep -Fx "$ASSET"
 
   publish-curriculum-runtimes:
     name: Publish Curriculum Runtimes
