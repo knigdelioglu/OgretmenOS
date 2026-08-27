@@ -137,20 +137,44 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
     if (changed == true && mounted) _reload();
   }
 
-  Widget _workspace() => ThisWeekPage(
-    key: ValueKey(_workspaceRevision),
-    repository: widget.repository,
-    service: widget.service,
-    lessonPlanProgress: widget.lessonPlanProgress,
-    onOutcomeViewed: _rememberViewed,
-  );
+  Widget _workspace(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dashboardTheme = theme.copyWith(
+      colorScheme: scheme.copyWith(
+        primaryContainer: scheme.surface,
+        onPrimaryContainer: scheme.onSurface,
+      ),
+      cardTheme: theme.cardTheme.copyWith(
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: scheme.outlineVariant),
+        ),
+      ),
+    );
+    return Theme(
+      data: dashboardTheme,
+      child: ThisWeekPage(
+        key: ValueKey(_workspaceRevision),
+        repository: widget.repository,
+        service: widget.service,
+        lessonPlanProgress: widget.lessonPlanProgress,
+        onOutcomeViewed: _rememberViewed,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) => FutureBuilder<_ContinuityData>(
     future: _future,
     builder: (context, snapshot) {
       final data = snapshot.data;
-      if (data?.item == null || data?.stored == null) return _workspace();
+      if (data?.item == null || data?.stored == null) {
+        return _workspace(context);
+      }
 
       return NestedScrollView(
         physics: const ClampingScrollPhysics(),
@@ -169,7 +193,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
             ),
           ),
         ],
-        body: _workspace(),
+        body: _workspace(context),
       );
     },
   );
@@ -180,7 +204,8 @@ class _ContinuityData {
 
   final AnnualOutcomePlan plan;
   final LastFocusState? stored;
-  final TrackedOutcome? item;
+  final TrackedOutcome item;
+  final LastFocusState? stored;
 }
 
 class _ResumeBanner extends StatelessWidget {
