@@ -42,21 +42,24 @@ class LessonPlanTeacherPresentation {
 
   List<String> activityLabels(List<String> ids) {
     final activities = blockDetail?.activities ?? const <Activity>[];
-    return [
-      for (final id in ids)
-        if (_activityById(activities, id) case final activity?)
-          _activityLabel(activity)
-        else
-          'Ders kitabı etkinliği',
-    ];
+    final result = <String>[];
+    for (final id in ids) {
+      final activity = _activityById(activities, id);
+      result.add(
+        activity == null ? 'Ders kitabı etkinliği' : _activityLabel(activity),
+      );
+    }
+    return List<String>.unmodifiable(result);
   }
 
   List<String> formLabels(List<String> ids) {
     final forms = blockDetail?.forms ?? const <Form>[];
-    return [
-      for (final id in ids)
-        if (_formById(forms, id) case final form?) _formLabel(form) else 'Değerlendirme formu',
-    ];
+    final result = <String>[];
+    for (final id in ids) {
+      final form = _formById(forms, id);
+      result.add(form == null ? 'Değerlendirme formu' : _formLabel(form));
+    }
+    return List<String>.unmodifiable(result);
   }
 
   String humanize(String raw) {
@@ -102,8 +105,33 @@ class LessonPlanTeacherPresentation {
       (match) => '${match.group(1)}. Sınıf Türk Dili ve Edebiyatı',
     );
     value = value.replaceAllMapped(
+      RegExp(r'\bTEMA_0*(\d+)\b'),
+      (match) => '${match.group(1)}. Tema',
+    );
+    value = value.replaceAllMapped(
       RegExp(r'\bT(\d+)\b'),
       (match) => '${match.group(1)}. Tema',
+    );
+
+    value = value.replaceAll(
+      RegExp(r'\bT\d+_ACT_[A-Z0-9_]+\b'),
+      'Ders kitabı etkinliği',
+    );
+    value = value.replaceAll(
+      RegExp(r'\bFORM_[A-Z0-9_]+\b'),
+      'Değerlendirme formu',
+    );
+    value = value.replaceAll(
+      RegExp(r'\bBLOCK_[A-Z0-9_]+\b'),
+      'Ders planı bölümü',
+    );
+    value = value.replaceAll(
+      RegExp("\\bP\\d{2}['’](?:de|da|te|ta)\\b", caseSensitive: false),
+      'ders planında',
+    );
+    value = value.replaceAll(
+      RegExp(r'\bP\d{2}\b', caseSensitive: false),
+      'ders planı',
     );
     value = value.replaceAll(RegExp(r'\bASSESS\b'), 'Ölçme ve değerlendirme');
     value = value.replaceAll(RegExp(r'\bFORM\b'), 'Değerlendirme formu');
@@ -134,7 +162,10 @@ class LessonPlanTeacherPresentation {
       '',
     );
     text = text.replaceFirst(
-      RegExp(r'^[“"][^”"]+[”"]\s+temasında ele alınan\s+', caseSensitive: false),
+      RegExp(
+        r'^[“"][^”"]+[”"]\s+temasında ele alınan\s+',
+        caseSensitive: false,
+      ),
       '',
     );
     if (text.isEmpty) return code;
@@ -147,7 +178,8 @@ class LessonPlanTeacherPresentation {
   ) {
     final result = <int, ({int start, int end})>{};
     var start = 1;
-    final ordered = [...plans]..sort((a, b) => a.packageNo.compareTo(b.packageNo));
+    final ordered = [...plans]
+      ..sort((a, b) => a.packageNo.compareTo(b.packageNo));
     for (final plan in ordered) {
       final end = start + plan.lessonHours - 1;
       result[plan.packageNo] = (start: start, end: end);
@@ -184,7 +216,10 @@ String _formLabel(Form form) {
 }
 
 String _cleanThemeTitle(String value) => value
-    .replaceFirst(RegExp(r'^\s*\d+\.\s*TEMA\s*:\s*', caseSensitive: false), '')
+    .replaceFirstMapped(
+      RegExp(r'^\s*(\d+)\.\s*TEMA\s*:\s*', caseSensitive: false),
+      (match) => '${match.group(1)}. Tema: ',
+    )
     .trim();
 
 String _cleanBlockTitle(String value) => value
