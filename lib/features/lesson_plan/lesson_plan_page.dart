@@ -238,7 +238,7 @@ class _LessonPlanContent extends StatelessWidget {
       children: [
         PageHeader(
           eyebrow:
-              '${presentation.packageLabel(plan)} · ${plan.lessonHours} ders saati',
+              '${presentation.packageHeaderLabel(plan)} · ${plan.lessonHours} DERS SAATİ',
           title: presentation.humanize(plan.title),
           description: presentation.humanize(plan.summary),
         ),
