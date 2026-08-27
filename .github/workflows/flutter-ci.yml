@@ -199,6 +199,40 @@ jobs:
 
           gh release view "$TAG" --json assets --jq '.assets[].name' | grep -Fx "$ASSET"
 
+  macos-release:
+    name: macOS Release Build
+    needs: [analyze, runtime-contract, tests]
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Rebuild TDE11/TDE12 curriculum-only runtimes
+        run: python3 tool/rebuild_curriculum_only_runtimes.py
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install app dependencies
+        run: flutter pub get
+
+      - name: Verify macOS 27 minimum deployment target
+        run: test "$(xcodebuild -project macos/Runner.xcodeproj -scheme Runner -showBuildSettings | awk -F ' = ' '/MACOSX_DEPLOYMENT_TARGET =/ {print $2; exit}')" = "27.0"
+
+      - name: Build macOS release
+        run: flutter build macos --release --no-pub
+
+      - name: Upload macOS application bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: OgretmenOS-macos
+          path: build/macos/Build/Products/Release/ogretmen_os.app
+
   publish-curriculum-runtimes:
     name: Publish Curriculum Runtimes
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

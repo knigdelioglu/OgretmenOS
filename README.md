@@ -82,7 +82,24 @@ cd tool/runtime_verifier && dart pub get && dart run bin/verify_runtime.dart
 cd ../..
 flutter test
 flutter build apk --release
+flutter build macos --release
 ```
+
+## macOS
+
+macOS desktop desteği hazırdır ve uygulama minimum macOS **27.0** olacak şekilde
+ayarlanmıştır. Yerel geliştirme veya release build için macOS 27+, Xcode 27+
+ve Flutter stable gerekir:
+
+```sh
+flutter devices
+flutter run -d macos
+flutter build macos --release
+```
+
+Release uygulaması `build/macos/Build/Products/Release/ogretmen_os.app` altında
+oluşur. Uygulama offline-first olduğu için çalışma sırasında ağ veya ek servis
+gerektirmez.
 
 GitHub Actions ayrıca TDE9–TDE12 runtime contract ve APK içi runtime assetlerini doğrular.
 
