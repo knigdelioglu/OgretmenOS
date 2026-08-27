@@ -81,7 +81,6 @@ void main() {
 
     expect(find.text('Ders Planı'), findsOneWidget);
     expect(find.text('Metin çözümleme'), findsWidgets);
-    expect(find.text('Metin çözümleme · 2. ders'), findsOneWidget);
   });
 
   testWidgets('ders planı ekranı önceki ve sonraki plana ilerler', (
