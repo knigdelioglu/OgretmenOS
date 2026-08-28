@@ -1,10 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ogretmen_os/app/resource_navigation.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart' as model;
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
 import 'package:ogretmen_os/features/block/block_detail_page.dart';
 
 void main() {
+  testWidgets('blok kaynak kataloğuna explicit tema bağlamı taşır', (
+    tester,
+  ) async {
+    ResourceNavigationContext? request;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BlockDetailPage(
+          repository: _BlockDetailRepository(),
+          blockId: _BlockDetailRepository.block.id,
+          onOpenResources: (value) => request = value,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final resources = find.text('Bu blokta kullanılan kaynaklar');
+    await tester.ensureVisible(resources);
+    await tester.tap(resources);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Temanın tüm kaynaklarını aç'));
+
+    expect(request?.themeId, _BlockDetailRepository.theme.id);
+    expect(request?.blockId, _BlockDetailRepository.block.id);
+    expect(request?.category, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('blok ayrıntısı sınıf içi bilgiyi önce gösterir', (tester) async {
     tester.view.physicalSize = const Size(412, 915);
     tester.view.devicePixelRatio = 1;
@@ -35,16 +63,15 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(more, findsOneWidget);
-    expect(find.text('Plan sırası'), findsOneWidget);
+    expect(find.text('Öğretim sırası'), findsOneWidget);
 
     await tester.tap(more);
     await tester.pumpAndSettle();
 
     expect(find.text('Program çıktıları'), findsOneWidget);
-    expect(find.text('Kitap ve etkinlik ayrıntıları'), findsOneWidget);
+    expect(find.text('Bu blokta kullanılan kaynaklar'), findsOneWidget);
     expect(find.text('Değerlendirme'), findsOneWidget);
-    expect(find.text('Materyal kararları'), findsOneWidget);
-    expect(find.text('Kaynak referansları'), findsOneWidget);
+    expect(find.text('Temanın tüm kaynaklarını aç'), findsNothing);
     expect(find.textContaining('TEST SÜREÇ BİLEŞENİ'), findsNothing);
 
     final outcomes = find.text('Program çıktıları');
@@ -53,10 +80,7 @@ void main() {
     await tester.tap(outcomes);
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('a) TEST.1.1 — TEST SÜREÇ BİLEŞENİ'),
-      findsOneWidget,
-    );
+    expect(find.text('a) TEST.1.1 — TEST SÜREÇ BİLEŞENİ'), findsOneWidget);
     expect(find.textContaining('"component_code"'), findsNothing);
     expect(tester.takeException(), isNull);
   });
@@ -165,16 +189,17 @@ class _BlockDetailRepository implements CourseKnowledgeRepository {
   Future<model.Course> getCourse() async => course;
 
   @override
-  Future<model.RuntimeManifest> getManifest() async => const model.RuntimeManifest(
-    runtimePackageVersion: '1.0.0',
-    schemaVersion: '1.0.0',
-    courseId: 'TDE_9',
-    validationStatus: 'PASS',
-    canonicalContentFingerprint: 'test',
-    rowCounts: {},
-    timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
-    timelineUnresolvedFields: {},
-  );
+  Future<model.RuntimeManifest> getManifest() async =>
+      const model.RuntimeManifest(
+        runtimePackageVersion: '1.0.0',
+        schemaVersion: '1.0.0',
+        courseId: 'TDE_9',
+        validationStatus: 'PASS',
+        canonicalContentFingerprint: 'test',
+        rowCounts: {},
+        timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
+        timelineUnresolvedFields: {},
+      );
 
   @override
   Future<List<model.Theme>> getThemes() async => const [theme];
@@ -202,8 +227,9 @@ class _BlockDetailRepository implements CourseKnowledgeRepository {
   ];
 
   @override
-  Future<List<model.ResourceDecision>> getResourceDecisions(String themeId) async =>
-      const [];
+  Future<List<model.ResourceDecision>> getResourceDecisions(
+    String themeId,
+  ) async => const [];
 
   @override
   Future<model.TeacherPackage> getTeacherPackage(String themeId) async =>

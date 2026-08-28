@@ -10,6 +10,7 @@ import '../features/annual_plan/annual_plan_page.dart';
 import '../features/resources/resource_library_page.dart';
 import '../features/shared/interaction_polish.dart';
 import '../features/this_week/continuity_this_week_page.dart';
+import 'resource_navigation.dart';
 import 'app_dependencies.dart';
 import 'theme/app_theme.dart';
 
@@ -34,6 +35,7 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
   late String _activeCourseId;
   AppDependencies? _resolvedDependencies;
   int _selectedDestinationIndex = 0;
+  ResourceNavigationContext? _resourceNavigationContext;
 
   @override
   void initState() {
@@ -52,6 +54,7 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
     setState(() {
       _activeCourseId = courseId;
       _dependenciesFuture = widget.courseLoader!(courseId);
+      _resourceNavigationContext = null;
     });
     await previous?.dispose?.call();
   }
@@ -68,7 +71,18 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
   void _selectDestination(int index) {
     if (index == _selectedDestinationIndex) return;
     FocusManager.instance.primaryFocus?.unfocus();
-    setState(() => _selectedDestinationIndex = index);
+    setState(() {
+      _selectedDestinationIndex = index;
+      _resourceNavigationContext = null;
+    });
+  }
+
+  void _openResources(ResourceNavigationContext context) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      _selectedDestinationIndex = 2;
+      _resourceNavigationContext = context;
+    });
   }
 
   @override
@@ -108,6 +122,8 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
           selectedIndex: _selectedDestinationIndex,
           onDestinationChanged: _selectDestination,
           onCourseChanged: widget.dependencies == null ? _switchCourse : null,
+          resourceNavigationContext: _resourceNavigationContext,
+          onOpenResources: _openResources,
         );
       },
     ),
@@ -201,6 +217,8 @@ class _AppShell extends StatefulWidget {
     required this.selectedIndex,
     required this.onDestinationChanged,
     required this.onCourseChanged,
+    required this.resourceNavigationContext,
+    required this.onOpenResources,
   });
 
   final AppDependencies dependencies;
@@ -208,6 +226,8 @@ class _AppShell extends StatefulWidget {
   final int selectedIndex;
   final ValueChanged<int> onDestinationChanged;
   final ValueChanged<String>? onCourseChanged;
+  final ResourceNavigationContext? resourceNavigationContext;
+  final ResourceNavigationCallback onOpenResources;
 
   @override
   State<_AppShell> createState() => _AppShellState();
@@ -298,13 +318,15 @@ class _AppShellState extends State<_AppShell> {
       courseId: widget.activeCourseId,
       outcomePlanning: _outcomePlanning,
       topTrailing: _courseSelector(context),
+      onOpenResources: widget.onOpenResources,
     );
   }
 
   Widget _resourceLibrary(BuildContext context) {
     final cached = _resourceLibraryPage;
-    if (cached != null) return cached;
-    if (widget.selectedIndex != 2) return const SizedBox.shrink();
+    if (widget.selectedIndex != 2) {
+      return cached ?? const SizedBox.shrink();
+    }
     final activeCourse = runtimeForCourse(widget.activeCourseId);
     return _resourceLibraryPage = ResourceLibraryPage(
       repository: widget.dependencies.repository,
@@ -312,6 +334,7 @@ class _AppShellState extends State<_AppShell> {
       continuity: _continuity,
       weeklyPlanning: widget.dependencies.weeklyPlanning,
       courseId: widget.activeCourseId,
+      navigationContext: widget.resourceNavigationContext,
       topTrailing: _courseSelector(context),
     );
   }
@@ -327,6 +350,7 @@ class _AppShellState extends State<_AppShell> {
         lessonPlanProgress: _lessonPlanProgress,
         courseId: widget.activeCourseId,
         topTrailing: _courseSelector(context),
+        onOpenResources: widget.onOpenResources,
       ),
       _annualPlan(context),
       _resourceLibrary(context),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/resource_navigation.dart';
 import '../../domain/models/lesson_plan_models.dart';
 import '../../domain/models/lesson_plan_progress_models.dart';
 import '../../domain/models/outcome_tracking_models.dart';
@@ -17,12 +18,14 @@ class WeeklyLessonPlanPanel extends StatefulWidget {
     required this.annualPlan,
     required this.weekNumber,
     this.progressRepository,
+    this.onOpenResources,
   });
 
   final CourseKnowledgeRepository repository;
   final AnnualOutcomePlan annualPlan;
   final int weekNumber;
   final LessonPlanProgressRepository? progressRepository;
+  final ResourceNavigationCallback? onOpenResources;
 
   @override
   State<WeeklyLessonPlanPanel> createState() => _WeeklyLessonPlanPanelState();
@@ -84,6 +87,7 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
           initialPackageHour: selection.packageHour,
           progressRepository: widget.progressRepository,
           academicYear: widget.annualPlan.academicYear,
+          onOpenResources: widget.onOpenResources,
         ),
       ),
     );
@@ -91,14 +95,17 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<_WeeklyLessonPlanPanelData>(
+  Widget build(
+    BuildContext context,
+  ) => FutureBuilder<_WeeklyLessonPlanPanelData>(
     future: _future,
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
         return const SizedBox.shrink();
       }
       final data = snapshot.data;
-      final selections = data?.selections ?? const <WeeklyLessonPlanSelection>[];
+      final selections =
+          data?.selections ?? const <WeeklyLessonPlanSelection>[];
       if (selections.isEmpty) return const SizedBox.shrink();
 
       final totalHours = selections.length;
@@ -113,7 +120,8 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
       final nextIndex = progress == null
           ? -1
           : selections.indexWhere(
-              (selection) => _lessonHourProgressId(selection) == progress.nextKey,
+              (selection) =>
+                  _lessonHourProgressId(selection) == progress.nextKey,
             );
       final next = nextIndex >= 0 ? selections[nextIndex] : null;
       final staleCount = progress == null
@@ -151,9 +159,8 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
                     Expanded(
                       child: Text(
                         'Bu haftanın ders planı',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                     ),
                     Text(
@@ -207,10 +214,12 @@ class BlockLessonPlanPanel extends StatelessWidget {
     super.key,
     required this.repository,
     required this.blockId,
+    this.onOpenResources,
   });
 
   final CourseKnowledgeRepository repository;
   final String blockId;
+  final ResourceNavigationCallback? onOpenResources;
 
   @override
   Widget build(BuildContext context) => FutureBuilder<List<LessonPlanPackage>>(
@@ -234,6 +243,7 @@ class BlockLessonPlanPanel extends StatelessWidget {
                 repository,
                 plan.packageId,
                 packageHour: offset + 1,
+                onOpenResources: onOpenResources,
               ),
               icon: const Icon(Icons.open_in_new_rounded, size: 18),
               label: Text(teacherLessonHourRange(hour, hour)),
@@ -360,12 +370,13 @@ class _WeeklyPlanRow extends StatelessWidget {
                       children: [
                         Text(
                           hourLabel,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            color: isCurrent
-                                ? scheme.primary
-                                : scheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w800,
-                          ),
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                color: isCurrent
+                                    ? scheme.primary
+                                    : scheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w800,
+                              ),
                         ),
                         if (isCurrent)
                           _TimelineBadge(label: 'ŞU AN', color: scheme.primary),
@@ -384,10 +395,11 @@ class _WeeklyPlanRow extends StatelessWidget {
                       children: [
                         Text(
                           title,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            height: 1.25,
-                          ),
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                height: 1.25,
+                              ),
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Wrap(
@@ -396,24 +408,27 @@ class _WeeklyPlanRow extends StatelessWidget {
                           children: [
                             Text(
                               '1 ders saati',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: scheme.onSurfaceVariant),
                             ),
                             Text(
                               '  ·  ',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: scheme.onSurfaceVariant),
                             ),
                             Text(
                               stale
                                   ? 'Plan güncellendi · yeniden işaretle'
                                   : statusLabel,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: stale ? scheme.error : scheme.onSurfaceVariant,
-                                fontWeight: stale ? FontWeight.w700 : FontWeight.w500,
-                              ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: stale
+                                        ? scheme.error
+                                        : scheme.onSurfaceVariant,
+                                    fontWeight: stale
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                  ),
                             ),
                           ],
                         ),
@@ -511,7 +526,9 @@ _LessonHourProgressSnapshot _buildLessonHourProgressSnapshot({
     if (record == null) continue;
     final packageHash = selection.package.payloadSha256.trim();
     final recordHash = record.payloadSha256?.trim() ?? '';
-    if (packageHash.isEmpty || recordHash.isEmpty || packageHash != recordHash) {
+    if (packageHash.isEmpty ||
+        recordHash.isEmpty ||
+        packageHash != recordHash) {
       staleKeys.add(key);
     } else {
       records[key] = record;
@@ -580,12 +597,14 @@ Future<void> _openPlan(
   CourseKnowledgeRepository repository,
   String packageId, {
   required int packageHour,
+  ResourceNavigationCallback? onOpenResources,
 }) => Navigator.of(context).push<void>(
   MaterialPageRoute<void>(
     builder: (_) => SingleLessonPlanPage(
       repository: repository,
       initialPackageId: packageId,
       initialPackageHour: packageHour,
+      onOpenResources: onOpenResources,
     ),
   ),
 );

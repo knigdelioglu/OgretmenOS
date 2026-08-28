@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../app/resource_navigation.dart';
 import '../../data/preferences/continuity_repository.dart';
 import '../../domain/models/course_models.dart' as model;
 import '../../domain/models/weekly_plan_models.dart';
@@ -18,6 +19,7 @@ class ResourceLibraryPage extends StatefulWidget {
     this.continuity,
     this.weeklyPlanning,
     this.courseId,
+    this.navigationContext,
   });
 
   final CourseKnowledgeRepository repository;
@@ -26,6 +28,7 @@ class ResourceLibraryPage extends StatefulWidget {
   final ContinuityRepository? continuity;
   final WeeklyPlanningService? weeklyPlanning;
   final String? courseId;
+  final ResourceNavigationContext? navigationContext;
 
   @override
   State<ResourceLibraryPage> createState() => _ResourceLibraryPageState();
@@ -35,6 +38,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
   late Future<_ResourceData> _future;
   _ResourceData? _resourceData;
   String? _selectedThemeId;
+  ResourceCategory? _selectedCategory;
   int _focusRevision = 0;
   bool _initialUsefulContentReported = false;
   ContinuityRepository? _observedContinuity;
@@ -43,6 +47,8 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
   @override
   void initState() {
     super.initState();
+    _selectedThemeId = widget.navigationContext?.themeId;
+    _selectedCategory = widget.navigationContext?.category;
     _subscribeToContinuityChanges();
     _future = _mainLoad();
   }
@@ -58,8 +64,10 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
         oldWidget.awaitingTextbook != widget.awaitingTextbook ||
         oldWidget.continuity != widget.continuity ||
         oldWidget.weeklyPlanning != widget.weeklyPlanning ||
-        oldWidget.courseId != widget.courseId) {
-      _selectedThemeId = null;
+        oldWidget.courseId != widget.courseId ||
+        oldWidget.navigationContext != widget.navigationContext) {
+      _selectedThemeId = widget.navigationContext?.themeId;
+      _selectedCategory = widget.navigationContext?.category;
       _resourceData = null;
       _initialUsefulContentReported = false;
       _future = _mainLoad();
@@ -157,8 +165,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
       return;
     }
 
-    if (targetThemeId == null ||
-        targetThemeId == current.package?.theme.id) {
+    if (targetThemeId == null || targetThemeId == current.package?.theme.id) {
       return;
     }
 
@@ -167,10 +174,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
       if (!mounted || revision != _focusRevision) return;
       setState(() {
         _selectedThemeId = targetThemeId;
-        _resourceData = _ResourceData(
-          themes: current.themes,
-          package: package,
-        );
+        _resourceData = _ResourceData(themes: current.themes, package: package);
       });
     } on Object {
       // Focus update is best-effort.
@@ -186,7 +190,8 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
       return data;
     }
 
-    final explicitThemeId = _selectedThemeId;
+    final explicitThemeId =
+        _selectedThemeId ?? widget.navigationContext?.themeId;
     if (explicitThemeId != null &&
         themes.any((theme) => theme.id == explicitThemeId)) {
       final package = await widget.repository.getTeacherPackage(
@@ -273,6 +278,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
     final current = _resourceData;
     if (current != null && current.package?.theme.id == themeId) return;
     _selectedThemeId = themeId;
+    _selectedCategory = null;
     if (current != null && current.themes.any((t) => t.id == themeId)) {
       try {
         final package = await widget.repository.getTeacherPackage(themeId);
@@ -343,56 +349,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
       return const Center(child: Text('Gösterilebilir kaynak bulunmuyor.'));
     }
 
-      if (widget.awaitingTextbook) {
-        return AppPage(
-          topTrailing: _topActions(data, loading),
-          children: [
-            if (loading) ...[
-              const SizedBox(height: AppSpacing.sm),
-              const LinearProgressIndicator(),
-            ],
-            const SizedBox(height: AppSpacing.lg),
-            StatusPanel(
-              icon: Icons.menu_book_outlined,
-              title: 'Ders kitabı bekleniyor',
-              message:
-                  '${package.theme.title} için öğretim programı hazır. Kitap yayımlandığında kitap, etkinlik, form ve değerlendirme araçları burada açılacak.',
-            ),
-            if (package.sourceReferences.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.lg),
-              const SectionHeading(
-                'Şimdilik kullanabileceğin kaynak',
-                subtitle: 'Seçili temanın program dayanakları',
-                icon: Icons.verified_outlined,
-              ),
-              _ResourceSection(
-                key: ValueKey('${package.theme.id}:sources'),
-                icon: Icons.source_outlined,
-                title: 'Program dayanakları',
-                countLabel: '${package.sourceReferences.length} kaynak',
-                initiallyExpanded: true,
-                child: _Sources(sources: package.sourceReferences),
-              ),
-            ],
-          ],
-        );
-      }
-
-      final hasBook = package.textbookSections.isNotEmpty;
-      final hasActivities = package.activities.isNotEmpty;
-      final hasForms = package.forms.isNotEmpty;
-      final hasAssessment =
-          package.assessmentArtifacts.isNotEmpty ||
-          package.assessmentTaskBindings.isNotEmpty;
-      final hasSources = package.sourceReferences.isNotEmpty;
-      final primary = _primaryResource(
-        hasBook: hasBook,
-        hasActivities: hasActivities,
-        hasForms: hasForms,
-        hasAssessment: hasAssessment,
-        hasSources: hasSources,
-      );
-
+    if (widget.awaitingTextbook) {
       return AppPage(
         topTrailing: _topActions(data, loading),
         children: [
@@ -401,68 +358,126 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
             const LinearProgressIndicator(),
           ],
           const SizedBox(height: AppSpacing.lg),
-          const SectionHeading(
-            'Kaynaklar',
-            subtitle: 'İlk yararlı bölüm açık; diğerlerini gerektiğinde aç',
-            icon: Icons.folder_open_outlined,
+          StatusPanel(
+            icon: Icons.menu_book_outlined,
+            title: 'Ders kitabı bekleniyor',
+            message:
+                '${package.theme.title} için öğretim programı hazır. Kitap yayımlandığında kitap, etkinlik, form ve değerlendirme araçları burada açılacak.',
           ),
-          if (hasBook)
-            _ResourceSection(
-              key: ValueKey('${package.theme.id}:book'),
-              icon: Icons.menu_book_outlined,
-              title: 'Ders kitabı',
-              countLabel: '${package.textbookSections.length} bölüm',
-              initiallyExpanded: primary == _ResourceKind.book,
-              child: _Textbook(sections: package.textbookSections),
+          if (package.sourceReferences.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            const SectionHeading(
+              'Şimdilik kullanabileceğin kaynak',
+              subtitle: 'Seçili temanın program dayanakları',
+              icon: Icons.verified_outlined,
             ),
-          if (hasBook &&
-              (hasActivities || hasForms || hasAssessment || hasSources))
-            const SizedBox(height: AppSpacing.sm),
-          if (hasActivities)
-            _ResourceSection(
-              key: ValueKey('${package.theme.id}:activities'),
-              icon: Icons.task_alt_outlined,
-              title: 'Etkinlikler',
-              countLabel: '${package.activities.length} etkinlik',
-              initiallyExpanded: primary == _ResourceKind.activities,
-              child: _Activities(activities: package.activities),
-            ),
-          if (hasActivities && (hasForms || hasAssessment || hasSources))
-            const SizedBox(height: AppSpacing.sm),
-          if (hasForms)
-            _ResourceSection(
-              key: ValueKey('${package.theme.id}:forms'),
-              icon: Icons.assignment_outlined,
-              title: 'Formlar',
-              countLabel: '${package.forms.length} form',
-              initiallyExpanded: primary == _ResourceKind.forms,
-              child: _Forms(forms: package.forms),
-            ),
-          if (hasForms && (hasAssessment || hasSources))
-            const SizedBox(height: AppSpacing.sm),
-          if (hasAssessment)
-            _ResourceSection(
-              key: ValueKey('${package.theme.id}:assessment'),
-              icon: Icons.fact_check_outlined,
-              title: 'Değerlendirme',
-              countLabel:
-                  '${package.assessmentArtifacts.length + package.assessmentTaskBindings.length} araç/görev',
-              initiallyExpanded: primary == _ResourceKind.assessment,
-              child: _Assessments(package: package),
-            ),
-          if (hasAssessment && hasSources)
-            const SizedBox(height: AppSpacing.sm),
-          if (hasSources)
             _ResourceSection(
               key: ValueKey('${package.theme.id}:sources'),
               icon: Icons.source_outlined,
-              title: 'Kaynak dayanakları',
+              title: 'Program dayanakları',
               countLabel: '${package.sourceReferences.length} kaynak',
-              initiallyExpanded: primary == _ResourceKind.sources,
+              initiallyExpanded: true,
               child: _Sources(sources: package.sourceReferences),
             ),
+          ],
         ],
       );
+    }
+
+    final hasBook = package.textbookSections.isNotEmpty;
+    final hasActivities = package.activities.isNotEmpty;
+    final hasForms = package.forms.isNotEmpty;
+    final hasAssessment =
+        package.assessmentArtifacts.isNotEmpty ||
+        package.assessmentTaskBindings.isNotEmpty;
+    final hasSources = package.sourceReferences.isNotEmpty;
+    final primary = _primaryResource(
+      hasBook: hasBook,
+      hasActivities: hasActivities,
+      hasForms: hasForms,
+      hasAssessment: hasAssessment,
+      hasSources: hasSources,
+    );
+
+    return AppPage(
+      topTrailing: _topActions(data, loading),
+      children: [
+        if (loading) ...[
+          const SizedBox(height: AppSpacing.sm),
+          const LinearProgressIndicator(),
+        ],
+        const SizedBox(height: AppSpacing.lg),
+        const SectionHeading(
+          'Kaynaklar',
+          subtitle: 'Seçili temanın kaynakları',
+          icon: Icons.folder_open_outlined,
+        ),
+        if (hasBook)
+          _ResourceSection(
+            key: ValueKey('${package.theme.id}:book'),
+            icon: Icons.menu_book_outlined,
+            title: 'Ders kitabı',
+            countLabel: '${package.textbookSections.length} bölüm',
+            initiallyExpanded:
+                primary == _ResourceKind.book ||
+                _selectedCategory == ResourceCategory.textbook,
+            child: _Textbook(sections: package.textbookSections),
+          ),
+        if (hasBook &&
+            (hasActivities || hasForms || hasAssessment || hasSources))
+          const SizedBox(height: AppSpacing.sm),
+        if (hasActivities)
+          _ResourceSection(
+            key: ValueKey('${package.theme.id}:activities'),
+            icon: Icons.task_alt_outlined,
+            title: 'Etkinlikler',
+            countLabel: '${package.activities.length} etkinlik',
+            initiallyExpanded:
+                primary == _ResourceKind.activities ||
+                _selectedCategory == ResourceCategory.activities,
+            child: _Activities(activities: package.activities),
+          ),
+        if (hasActivities && (hasForms || hasAssessment || hasSources))
+          const SizedBox(height: AppSpacing.sm),
+        if (hasForms)
+          _ResourceSection(
+            key: ValueKey('${package.theme.id}:forms'),
+            icon: Icons.assignment_outlined,
+            title: 'Formlar',
+            countLabel: '${package.forms.length} form',
+            initiallyExpanded:
+                primary == _ResourceKind.forms ||
+                _selectedCategory == ResourceCategory.forms,
+            child: _Forms(forms: package.forms),
+          ),
+        if (hasForms && (hasAssessment || hasSources))
+          const SizedBox(height: AppSpacing.sm),
+        if (hasAssessment)
+          _ResourceSection(
+            key: ValueKey('${package.theme.id}:assessment'),
+            icon: Icons.fact_check_outlined,
+            title: 'Değerlendirme',
+            countLabel:
+                '${package.assessmentArtifacts.length + package.assessmentTaskBindings.length} araç/görev',
+            initiallyExpanded:
+                primary == _ResourceKind.assessment ||
+                _selectedCategory == ResourceCategory.assessment,
+            child: _Assessments(package: package),
+          ),
+        if (hasAssessment && hasSources) const SizedBox(height: AppSpacing.sm),
+        if (hasSources)
+          _ResourceSection(
+            key: ValueKey('${package.theme.id}:sources'),
+            icon: Icons.source_outlined,
+            title: 'Kaynak dayanakları',
+            countLabel: '${package.sourceReferences.length} kaynak',
+            initiallyExpanded:
+                primary == _ResourceKind.sources ||
+                _selectedCategory == ResourceCategory.sources,
+            child: _Sources(sources: package.sourceReferences),
+          ),
+      ],
+    );
   }
 
   Widget _topActions(_ResourceData data, bool loading) => Wrap(

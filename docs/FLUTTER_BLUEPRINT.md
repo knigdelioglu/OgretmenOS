@@ -43,7 +43,7 @@ Continuity ve annual manual marker SharedPreferences tabanlı convenience state'
 2 Kaynaklar
 ```
 
-`IndexedStack` ekran state'ini korur. Resource destination inactive→active geçişinde lesson context yeniden çözülür.
+`IndexedStack` ekran state'ini korur. Normal Resource destination girişinde continuity resolver çalışır; blok veya ders planı bağlantıları ise yalnızca açık navigation context taşır.
 
 `LessonPlanPage` supporting routed detail'dir; destination sayısını artırmaz.
 
@@ -282,7 +282,7 @@ else last viewed block
 Position presentation:
 
 ```text
-Öğretim sırası: N. blok / total
+Öğretim sırası: N / total. blok
 ```
 
 Position-derived `LinearProgressIndicator` yasaktır.

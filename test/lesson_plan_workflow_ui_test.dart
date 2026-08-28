@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' hide Theme;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ogretmen_os/app/resource_navigation.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart';
 import 'package:ogretmen_os/domain/models/lesson_plan_models.dart';
 import 'package:ogretmen_os/domain/models/lesson_plan_progress_models.dart';
@@ -183,6 +184,33 @@ void main() {
     expect(find.textContaining('3–4. DERS SAATLERİ'), findsNothing);
   });
 
+  testWidgets('ders planı kaynağa explicit tema ve kaynak bağlamı taşır', (
+    tester,
+  ) async {
+    ResourceNavigationContext? request;
+    final repository = _ResourceLessonPlanRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonPlanPage(
+          repository: repository,
+          initialPackageId: 'BLOCK_A_P01',
+          onOpenResources: (value) => request = value,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final resourceLink = find.text('Kaynaklarda aç');
+    await tester.ensureVisible(resourceLink);
+    await tester.pumpAndSettle();
+    await tester.tap(resourceLink.first);
+    expect(request?.themeId, theme.id);
+    expect(request?.resourceId, 'ACTIVITY_A');
+    expect(request?.category, ResourceCategory.activities);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('haftalık panel stale tekil ders kaydını tamamlanmış saymaz', (
     tester,
   ) async {
@@ -314,6 +342,8 @@ LessonPlanPackage _package(
   String packageId,
   int packageNo, {
   required String title,
+  List<String> activityIds = const [],
+  List<String> formIds = const [],
 }) => LessonPlanPackage(
   packageId: packageId,
   courseId: 'TDE_9',
@@ -329,8 +359,8 @@ LessonPlanPackage _package(
   sourcePath: 'generated/$packageId.json',
   payloadSha256: 'sha256-$packageId',
   outcomeCodes: const ['TDE9.1.1'],
-  usedActivityIds: const [],
-  usedFormIds: const [],
+  usedActivityIds: activityIds,
+  usedFormIds: formIds,
   lessons: [
     LessonPlanLesson(
       lessonNo: 1,
@@ -341,8 +371,8 @@ LessonPlanPackage _package(
       opening: 'Ön bilgiyi yoklar.',
       teacherActions: const ['Soruyu yöneltir.'],
       studentActions: const ['Metinden kanıt sunar.'],
-      activityIds: const [],
-      formIds: const [],
+      activityIds: activityIds,
+      formIds: formIds,
       assessment: 'Çıkış sorusunu değerlendirir.',
       closure: 'Dersi özetler.',
       materials: const ['Ders kitabı'],
@@ -357,8 +387,8 @@ LessonPlanPackage _package(
       opening: 'Önceki dersi hatırlatır.',
       teacherActions: const ['Karşılaştırma sorusunu yöneltir.'],
       studentActions: const ['Kanıtları karşılaştırır.'],
-      activityIds: const [],
-      formIds: const [],
+      activityIds: activityIds,
+      formIds: formIds,
       assessment: 'Karşılaştırmayı değerlendirir.',
       closure: 'Sonucu özetler.',
       materials: const ['Ders kitabı'],
@@ -454,4 +484,69 @@ class _FakeRepository
   @override
   Future<TeacherPackage> getTeacherPackage(String themeId) async =>
       throw UnimplementedError();
+}
+
+class _ResourceLessonPlanRepository extends _FakeRepository {
+  _ResourceLessonPlanRepository()
+    : super([
+        _package(
+          'BLOCK_A_P01',
+          1,
+          title: 'Başlangıç',
+          activityIds: ['ACTIVITY_A'],
+        ),
+      ]);
+
+  static const activity = Activity(
+    id: 'ACTIVITY_A',
+    sectionId: 'SECTION_A',
+    themeId: 'TEMA_01',
+    title: 'Metni Yorumlayalım',
+    activityType: 'okuma',
+    studentAction: null,
+    expectedEvidence: null,
+    printedPage: '34',
+    pdfPage: null,
+    verificationStatus: 'PASS',
+  );
+
+  static const resourceTheme = Theme(
+    id: 'TEMA_01',
+    order: 1,
+    title: 'Sözün İnceliği',
+    pageRange: null,
+    plannedHours: 43,
+    anlamaHours: null,
+    anlatmaHours: null,
+    sourceLocator: null,
+  );
+
+  static const resourceBlock = Block(
+    id: 'BLOCK_A',
+    themeId: 'TEMA_01',
+    order: 1,
+    title: 'Okuma',
+    skillDomain: 'okuma',
+    learningArea: null,
+    plannedHours: 10,
+    timeStatus: 'RESOLVED',
+    sourceLocators: [],
+  );
+
+  @override
+  Future<BlockDetail> getBlock(String blockId) async => const BlockDetail(
+    theme: resourceTheme,
+    block: resourceBlock,
+    outcomes: [],
+    textbookSections: [],
+    activities: [activity],
+    forms: [],
+    assessmentArtifacts: [],
+    assessmentGaps: [],
+    assessmentTaskBindings: [],
+    resourceDecisions: [],
+    sourceReferences: [],
+    previousBlock: null,
+    nextBlock: null,
+  );
 }

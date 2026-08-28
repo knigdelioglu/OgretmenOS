@@ -290,10 +290,13 @@ void main() {
     await _tapNavigation(tester, Icons.view_timeline_outlined);
     await tester.pumpAndSettle();
 
-    expect(find.text('ŞU AN BURADASIN'), findsOneWidget);
-    expect(find.text('Öğretim sırası: 1. blok / 1'), findsOneWidget);
+    expect(find.text('ŞU AN BURADASIN'), findsNothing);
+    expect(find.text('Öğretim sırası: 1 / 1. blok'), findsOneWidget);
+    expect(find.text('Mevcut öğretim konumu · Sıra 1 / 1'), findsOneWidget);
     expect(
-      find.text('Bu konum bir ilerleme veya tamamlanma yüzdesi değildir.'),
+      find.text(
+        'Bu konum öğretim sırasıdır; ilerleme veya tamamlanma yüzdesi değildir.',
+      ),
       findsOneWidget,
     );
     expect(find.byType(LinearProgressIndicator), findsNothing);

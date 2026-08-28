@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../app/resource_navigation.dart';
 import '../../domain/models/course_models.dart' as model;
 import '../../domain/models/lesson_plan_models.dart';
 import '../../domain/models/lesson_plan_progress_models.dart';
@@ -18,12 +19,14 @@ class LessonPlanPage extends StatefulWidget {
     required this.initialPackageId,
     this.progressRepository,
     this.academicYear,
+    this.onOpenResources,
   });
 
   final CourseKnowledgeRepository repository;
   final String initialPackageId;
   final LessonPlanProgressRepository? progressRepository;
   final String? academicYear;
+  final ResourceNavigationCallback? onOpenResources;
 
   @override
   State<LessonPlanPage> createState() => _LessonPlanPageState();
@@ -200,6 +203,14 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
           progressOverride: _localProgressResolution,
           onSetProgress: _setProgress,
           onOpenPackage: _openPackage,
+          onOpenResources: widget.onOpenResources == null
+              ? null
+              : (request) {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  }
+                  widget.onOpenResources!(request);
+                },
         );
       },
     ),
@@ -213,6 +224,7 @@ class _LessonPlanContent extends StatelessWidget {
     required this.progressOverride,
     required this.onSetProgress,
     required this.onOpenPackage,
+    this.onOpenResources,
   });
 
   final _LessonPlanViewData data;
@@ -224,6 +236,7 @@ class _LessonPlanContent extends StatelessWidget {
   )
   onSetProgress;
   final ValueChanged<String> onOpenPackage;
+  final ResourceNavigationCallback? onOpenResources;
 
   @override
   Widget build(BuildContext context) {
@@ -263,7 +276,7 @@ class _LessonPlanContent extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Plan konumu',
+                            'Ders planı konumu',
                             style: Theme.of(context).textTheme.labelMedium
                                 ?.copyWith(
                                   color: Theme.of(
@@ -343,7 +356,12 @@ class _LessonPlanContent extends StatelessWidget {
           )
         else
           for (final lesson in plan.lessons) ...[
-            _LessonStepCard(lesson: lesson, presentation: presentation),
+            _LessonStepCard(
+              lesson: lesson,
+              presentation: presentation,
+              themeId: plan.themeId,
+              onOpenResources: onOpenResources,
+            ),
             const SizedBox(height: AppSpacing.md),
           ],
         _PlanNavigation(
@@ -446,10 +464,17 @@ class _PlanProgressCard extends StatelessWidget {
 }
 
 class _LessonStepCard extends StatelessWidget {
-  const _LessonStepCard({required this.lesson, required this.presentation});
+  const _LessonStepCard({
+    required this.lesson,
+    required this.presentation,
+    required this.themeId,
+    this.onOpenResources,
+  });
 
   final LessonPlanLesson lesson;
   final LessonPlanTeacherPresentation presentation;
+  final String themeId;
+  final ResourceNavigationCallback? onOpenResources;
 
   @override
   Widget build(BuildContext context) {
@@ -511,12 +536,23 @@ class _LessonStepCard extends StatelessWidget {
             if (studentActions.isNotEmpty)
               _PlanSection(title: 'Öğrenci', lines: studentActions),
             if (activities.isNotEmpty)
-              _PlanSection(
+              _PlanResourceSection(
                 title: 'Ders kitabı etkinlikleri',
                 lines: activities,
+                themeId: themeId,
+                resourceIds: lesson.activityIds,
+                category: ResourceCategory.activities,
+                onOpenResources: onOpenResources,
               ),
             if (forms.isNotEmpty)
-              _PlanSection(title: 'Değerlendirme formları', lines: forms),
+              _PlanResourceSection(
+                title: 'Değerlendirme formları',
+                lines: forms,
+                themeId: themeId,
+                resourceIds: lesson.formIds,
+                category: ResourceCategory.forms,
+                onOpenResources: onOpenResources,
+              ),
             if (materials.isNotEmpty)
               _PlanSection(title: 'Materyaller', lines: materials),
             if (assessment.isNotEmpty)
@@ -528,6 +564,62 @@ class _LessonStepCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _PlanResourceSection extends StatelessWidget {
+  const _PlanResourceSection({
+    required this.title,
+    required this.lines,
+    required this.themeId,
+    required this.resourceIds,
+    required this.category,
+    this.onOpenResources,
+  });
+
+  final String title;
+  final List<String> lines;
+  final String themeId;
+  final List<String> resourceIds;
+  final ResourceCategory category;
+  final ResourceNavigationCallback? onOpenResources;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: AppSpacing.lg),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        for (var index = 0; index < lines.length; index++)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            leading: const Icon(Icons.link_outlined, size: 18),
+            title: Text(lines[index]),
+            trailing: onOpenResources == null
+                ? null
+                : TextButton(
+                    onPressed: () => onOpenResources!(
+                      ResourceNavigationContext(
+                        themeId: themeId,
+                        resourceId: index < resourceIds.length
+                            ? resourceIds[index]
+                            : null,
+                        category: category,
+                      ),
+                    ),
+                    child: const Text('Kaynaklarda aç'),
+                  ),
+          ),
+      ],
+    ),
+  );
 }
 
 class _PlanSection extends StatelessWidget {
@@ -587,7 +679,7 @@ class _PlanNavigation extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Plan sırası',
+            'Ders planı sırası',
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),

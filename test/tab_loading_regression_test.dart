@@ -135,7 +135,7 @@ void main() {
   });
 
   testWidgets(
-    'Bu Hafta ekranında başka bloktaki ders açıldığında Plan sekmesinde ŞU AN BURADASIN güncellenir ve buildPlan tekrar çağrılmaz',
+    'Bu Hafta ekranında başka bloktaki ders açıldığında Plan yıllık listedeki konumu günceller ve buildPlan tekrar çağrılmaz',
     (tester) async {
       _phone(tester);
       final repository = _TwoBlockTabRepository('TDE_9');
@@ -167,9 +167,7 @@ void main() {
         continuity: continuity,
       );
 
-      await tester.pumpWidget(
-        TeacherOsApp(dependencies: dependencies),
-      );
+      await tester.pumpWidget(TeacherOsApp(dependencies: dependencies));
       await tester.pumpAndSettle();
 
       // 1. Plan sekmesine git
@@ -177,7 +175,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Plan B1'i göstermeli
-      expect(find.textContaining('TDE_9 Tema · TDE_9 Blok 1'), findsOneWidget);
+      expect(find.text('TDE_9 Blok 1'), findsOneWidget);
       expect(repository.annualSequenceCalls, 1);
       final buildPlanCallsAfterPlan = service.buildPlanCalls;
 
@@ -204,7 +202,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Plan artık B2'yi göstermeli!
-      expect(find.textContaining('TDE_9 Tema · TDE_9 Blok 2'), findsOneWidget);
+      expect(find.text('TDE_9 Blok 2'), findsOneWidget);
 
       // Annual sequence ve OutcomePlanning buildPlan ekstra çağrılmamış olmalı!
       expect(repository.annualSequenceCalls, 1);
@@ -280,6 +278,110 @@ void main() {
   });
 
   testWidgets(
+    'Bu Hafta geçmiş hafta incelemesi normal Kaynaklar resolverını değiştirmez',
+    (tester) async {
+      _phone(tester);
+      final repository = _TwoThemeTabRepository('TDE_9');
+      final plan = _twoThemePlanFor(repository, includeReviewWeek: true);
+      final service = _CountingOutcomePlanningService(
+        repository: repository,
+        plan: plan,
+      );
+      final continuity = MemoryContinuityRepository();
+      await continuity.setLastFocus(
+        LastFocusState(
+          courseId: 'TDE_9',
+          academicYear: '2026-2027',
+          weekNumber: 1,
+          trackingKey: '2026-2027:TDE_9-T1-O1:1',
+          outcomeCode: 'TDE_9.1',
+          themeTitle: 'TDE_9 Tema 1',
+          themeId: 'TDE_9-T1',
+          blockId: 'TDE_9-B1',
+          blockTitle: 'TDE_9 Blok 1',
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      await tester.pumpWidget(
+        TeacherOsApp(
+          dependencies: AppDependencies(
+            repository: repository,
+            preferences: _Preferences(),
+            weeklyPlanning: _FixedWeeklyPlanning(plan.weeklyPlan),
+            outcomePlanning: service,
+            continuity: continuity,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Hafta değiştir'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('2. Hafta'));
+      await tester.pumpAndSettle();
+      await _tapDestination(tester, Icons.library_books_outlined);
+      await tester.pumpAndSettle();
+
+      expect(find.text('TDE_9 Tema 1 kaynak'), findsOneWidget);
+      expect(find.text('TDE_9 Tema 2 kaynak'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Bloktan tema kaynaklarına geçiş doğru temayı açar', (
+    tester,
+  ) async {
+    _phone(tester);
+    final repository = _TwoThemeTabRepository('TDE_9');
+    final plan = _twoThemePlanFor(repository);
+    final service = _CountingOutcomePlanningService(
+      repository: repository,
+      plan: plan,
+    );
+    final continuity = MemoryContinuityRepository();
+    await continuity.setLastFocus(
+      LastFocusState(
+        courseId: 'TDE_9',
+        academicYear: '2026-2027',
+        weekNumber: 1,
+        trackingKey: '2026-2027:TDE_9-T1-O1:1',
+        outcomeCode: 'TDE_9.1',
+        themeTitle: 'TDE_9 Tema 1',
+        themeId: 'TDE_9-T1',
+        blockId: 'TDE_9-B1',
+        blockTitle: 'TDE_9 Blok 1',
+        updatedAt: DateTime.now(),
+      ),
+    );
+
+    await tester.pumpWidget(
+      TeacherOsApp(
+        dependencies: AppDependencies(
+          repository: repository,
+          preferences: _Preferences(),
+          weeklyPlanning: _FixedWeeklyPlanning(plan.weeklyPlan),
+          outcomePlanning: service,
+          continuity: continuity,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _tapDestination(tester, Icons.view_timeline_outlined);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('TDE_9 Blok 1'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bu blokta kullanılan kaynaklar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Temanın tüm kaynaklarını aç'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('TDE_9 Tema 1 kaynak'), findsOneWidget);
+    expect(find.text('TDE_9 Tema 2 kaynak'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
     'Kaynaklar sekmesi açıldıktan sonra Bu Hafta sekmesinde farklı temadaki ders açıldığında Kaynaklar yeni temayı gösterir',
     (tester) async {
       _phone(tester);
@@ -313,9 +415,7 @@ void main() {
         continuity: continuity,
       );
 
-      await tester.pumpWidget(
-        TeacherOsApp(dependencies: dependencies),
-      );
+      await tester.pumpWidget(TeacherOsApp(dependencies: dependencies));
       await tester.pumpAndSettle();
 
       // 1. Kaynaklar sekmesine git
@@ -399,7 +499,7 @@ void main() {
       await _tapDestination(tester, Icons.view_timeline_outlined);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('TDE_9 Tema · TDE_9 Blok 1'), findsOneWidget);
+      expect(find.text('TDE_9 Blok 1'), findsOneWidget);
       expect(repository.annualSequenceCalls, 1);
       final buildPlanCalls = service.buildPlanCalls;
 
@@ -420,7 +520,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Plan anında B2'yi göstermeli
-      expect(find.textContaining('TDE_9 Tema · TDE_9 Blok 2'), findsOneWidget);
+      expect(find.text('TDE_9 Blok 2'), findsOneWidget);
 
       // getAnnualSequence ve buildPlan ekstra çağrılmamış olmalı (cheap update)
       expect(repository.annualSequenceCalls, 1);
@@ -520,58 +620,57 @@ void main() {
     },
   );
 
-  testWidgets(
-    'eski academicYear focus\'u Resources tarafından kullanılmaz',
-    (tester) async {
-      _phone(tester);
-      final repository = _TwoThemeTabRepository('TDE_9');
-      final plan = _twoThemePlanFor(repository);
-      final service = _CountingOutcomePlanningService(
-        repository: repository,
-        plan: plan,
-      );
-      final continuity = MemoryContinuityRepository();
+  testWidgets('eski academicYear focus\'u Resources tarafından kullanılmaz', (
+    tester,
+  ) async {
+    _phone(tester);
+    final repository = _TwoThemeTabRepository('TDE_9');
+    final plan = _twoThemePlanFor(repository);
+    final service = _CountingOutcomePlanningService(
+      repository: repository,
+      plan: plan,
+    );
+    final continuity = MemoryContinuityRepository();
 
-      // 2025-2026 eski akademik yıla ait Tema 2 odağı kaydedilmiş
-      await continuity.setLastFocus(
-        LastFocusState(
-          courseId: 'TDE_9',
-          academicYear: '2025-2026',
-          weekNumber: 36,
-          trackingKey: '2025-2026:TDE_9-T2-O2:36',
-          outcomeCode: 'TDE_9.2',
-          themeTitle: 'TDE_9 Tema 2',
-          themeId: 'TDE_9-T2',
-          blockId: 'TDE_9-B2',
-          blockTitle: 'TDE_9 Blok 2',
-          updatedAt: DateTime(2026, 6, 15),
-        ),
-      );
+    // 2025-2026 eski akademik yıla ait Tema 2 odağı kaydedilmiş
+    await continuity.setLastFocus(
+      LastFocusState(
+        courseId: 'TDE_9',
+        academicYear: '2025-2026',
+        weekNumber: 36,
+        trackingKey: '2025-2026:TDE_9-T2-O2:36',
+        outcomeCode: 'TDE_9.2',
+        themeTitle: 'TDE_9 Tema 2',
+        themeId: 'TDE_9-T2',
+        blockId: 'TDE_9-B2',
+        blockTitle: 'TDE_9 Blok 2',
+        updatedAt: DateTime(2026, 6, 15),
+      ),
+    );
 
-      final dependencies = AppDependencies(
-        repository: repository,
-        preferences: _Preferences(),
-        weeklyPlanning: _FixedWeeklyPlanning(plan.weeklyPlan),
-        outcomePlanning: service,
-        continuity: continuity,
-      );
+    final dependencies = AppDependencies(
+      repository: repository,
+      preferences: _Preferences(),
+      weeklyPlanning: _FixedWeeklyPlanning(plan.weeklyPlan),
+      outcomePlanning: service,
+      continuity: continuity,
+    );
 
-      await tester.pumpWidget(TeacherOsApp(dependencies: dependencies));
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(TeacherOsApp(dependencies: dependencies));
+    await tester.pumpAndSettle();
 
-      // Kaynaklar sekmesine git
-      await _tapDestination(tester, Icons.library_books_outlined);
-      await tester.pumpAndSettle();
+    // Kaynaklar sekmesine git
+    await _tapDestination(tester, Icons.library_books_outlined);
+    await tester.pumpAndSettle();
 
-      // 2026-2027 mevcut haftasının teması (Tema 1) açılmalı, eski yılın Tema 2'si açılmamalı
-      expect(find.text('TDE_9 Tema 1 kaynak'), findsOneWidget);
-      expect(find.text('TDE_9 Tema 2 kaynak'), findsNothing);
+    // 2026-2027 mevcut haftasının teması (Tema 1) açılmalı, eski yılın Tema 2'si açılmamalı
+    expect(find.text('TDE_9 Tema 1 kaynak'), findsOneWidget);
+    expect(find.text('TDE_9 Tema 2 kaynak'), findsNothing);
 
-      // Stale focus continuity'den temizlenmiş olmalı
-      expect(await continuity.getLastFocus('TDE_9'), isNull);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    // Stale focus continuity'den temizlenmiş olmalı
+    expect(await continuity.getLastFocus('TDE_9'), isNull);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'uygulama Bu Hafta ile açıldığında Plan ve Kaynaklar lazy kalır',
@@ -1257,7 +1356,10 @@ class _TwoBlockTabRepository implements CourseKnowledgeRepository {
   }
 }
 
-AnnualOutcomePlan _twoThemePlanFor(_TwoThemeTabRepository repository) {
+AnnualOutcomePlan _twoThemePlanFor(
+  _TwoThemeTabRepository repository, {
+  bool includeReviewWeek = false,
+}) {
   final planningBlock1 = PlanningBlock(
     theme: repository.theme1,
     block: repository.block1,
@@ -1293,38 +1395,80 @@ AnnualOutcomePlan _twoThemePlanFor(_TwoThemeTabRepository repository) {
     ],
     outcomes: [repository.outcome1, repository.outcome2],
   );
+  final weeks = <AcademicWeekPlan>[week];
+  if (includeReviewWeek) {
+    weeks.add(
+      AcademicWeekPlan(
+        weekNumber: 2,
+        start: DateTime(2026, 9, 21),
+        end: DateTime(2026, 9, 25),
+        type: AcademicWeekType.instruction,
+        label: '2. Hafta',
+        plannedLessonHours: 5,
+        segments: [
+          WeeklyPlanSegment(
+            type: WeeklyPlanSegmentType.block,
+            theme: repository.theme2,
+            hours: 5,
+            block: repository.block2,
+            planningBlock: planningBlock2,
+          ),
+        ],
+        outcomes: [repository.outcome2],
+      ),
+    );
+  }
   final weeklyPlan = AnnualWeeklyPlan(
     academicYear: '2026-2027',
     courseId: repository.courseId,
     weeklyLessonHours: 5,
     annualHours: 45,
     currentWeekNumber: 1,
-    weeks: [week],
+    weeks: weeks,
   );
-  return AnnualOutcomePlan(
-    weeklyPlan: weeklyPlan,
-    weeks: [
+  final summaries = <WeeklyOutcomeSummary>[
+    WeeklyOutcomeSummary(
+      week: week,
+      outcomes: [
+        TrackedOutcome(
+          outcome: repository.outcome1,
+          academicYear: '2026-2027',
+          plannedWeekNumber: 1,
+          displayWeekNumber: 1,
+          status: OutcomeTrackingStatus.planned,
+          contexts: [
+            OutcomeBlockContext.lightweight(
+              theme: repository.theme1,
+              block: repository.block1,
+            ),
+          ],
+        ),
+        TrackedOutcome(
+          outcome: repository.outcome2,
+          academicYear: '2026-2027',
+          plannedWeekNumber: 1,
+          displayWeekNumber: 1,
+          status: OutcomeTrackingStatus.planned,
+          contexts: [
+            OutcomeBlockContext.lightweight(
+              theme: repository.theme2,
+              block: repository.block2,
+            ),
+          ],
+        ),
+      ],
+    ),
+  ];
+  if (includeReviewWeek) {
+    summaries.add(
       WeeklyOutcomeSummary(
-        week: week,
+        week: weeks[1],
         outcomes: [
-          TrackedOutcome(
-            outcome: repository.outcome1,
-            academicYear: '2026-2027',
-            plannedWeekNumber: 1,
-            displayWeekNumber: 1,
-            status: OutcomeTrackingStatus.planned,
-            contexts: [
-              OutcomeBlockContext.lightweight(
-                theme: repository.theme1,
-                block: repository.block1,
-              ),
-            ],
-          ),
           TrackedOutcome(
             outcome: repository.outcome2,
             academicYear: '2026-2027',
-            plannedWeekNumber: 1,
-            displayWeekNumber: 1,
+            plannedWeekNumber: 2,
+            displayWeekNumber: 2,
             status: OutcomeTrackingStatus.planned,
             contexts: [
               OutcomeBlockContext.lightweight(
@@ -1335,8 +1479,9 @@ AnnualOutcomePlan _twoThemePlanFor(_TwoThemeTabRepository repository) {
           ),
         ],
       ),
-    ],
-  );
+    );
+  }
+  return AnnualOutcomePlan(weeklyPlan: weeklyPlan, weeks: summaries);
 }
 
 class _TwoThemeTabRepository implements CourseKnowledgeRepository {

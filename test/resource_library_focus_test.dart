@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ogretmen_os/app/resource_navigation.dart';
 import 'package:ogretmen_os/data/preferences/continuity_repository.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart' as model;
 import 'package:ogretmen_os/domain/models/outcome_tracking_models.dart';
@@ -11,6 +12,36 @@ import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart
 import 'package:ogretmen_os/features/resources/resource_library_page.dart';
 
 void main() {
+  testWidgets('explicit kaynak context doğru tema ve kategoriyi açar', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      _contextApp(
+        repository: _ResourceRepository(),
+        continuity: MemoryContinuityRepository(),
+        weeklyPlanning: _StaticWeeklyPlanning(
+          _contextPlan(currentWeekNumber: 1).weeklyPlan,
+        ),
+        navigationContext: const ResourceNavigationContext(
+          themeId: 'T2',
+          resourceId: 'SRC2',
+          category: ResourceCategory.sources,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('TEMA 2'), findsWidgets);
+    expect(find.text('Kaynak 2'), findsOneWidget);
+    expect(find.text('Kaynak 1'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('kaynaklar ilk yararlı kaynağı açık gösterir', (tester) async {
     tester.view.physicalSize = const Size(412, 915);
     tester.view.devicePixelRatio = 1;
@@ -343,6 +374,7 @@ Widget _contextApp({
   required _ResourceRepository repository,
   required ContinuityRepository continuity,
   required WeeklyPlanningService weeklyPlanning,
+  ResourceNavigationContext? navigationContext,
 }) => MaterialApp(
   home: Scaffold(
     body: ResourceLibraryPage(
@@ -351,6 +383,7 @@ Widget _contextApp({
       continuity: continuity,
       weeklyPlanning: weeklyPlanning,
       courseId: 'TDE_9',
+      navigationContext: navigationContext,
     ),
   ),
 );

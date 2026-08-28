@@ -439,6 +439,22 @@ class CourseDatabaseDataSource {
     final forms = await getFormsForActivities(
       activities.map((activity) => activity.id).toList(growable: false),
     );
+    final assessmentTaskBindings = await getAssessmentTaskBindings(
+      themeId: theme.id,
+      blockId: block.id,
+    );
+    final blockArtifactIds = assessmentTaskBindings
+        .map((binding) => binding.artifactId)
+        .toSet();
+    final blockGapIds = assessmentTaskBindings
+        .map((binding) => binding.gapInstanceId)
+        .toSet();
+    final assessmentArtifacts = (await getAssessmentArtifacts(theme.id))
+        .where((artifact) => blockArtifactIds.contains(artifact.id))
+        .toList(growable: false);
+    final assessmentGaps = (await getAssessmentGaps(
+      theme.id,
+    )).where((gap) => blockGapIds.contains(gap.id)).toList(growable: false);
     return BlockDetail(
       theme: theme,
       block: block,
@@ -446,12 +462,9 @@ class CourseDatabaseDataSource {
       textbookSections: textbookSections,
       activities: activities,
       forms: forms,
-      assessmentArtifacts: await getAssessmentArtifacts(theme.id),
-      assessmentGaps: await getAssessmentGaps(theme.id),
-      assessmentTaskBindings: await getAssessmentTaskBindings(
-        themeId: theme.id,
-        blockId: block.id,
-      ),
+      assessmentArtifacts: assessmentArtifacts,
+      assessmentGaps: assessmentGaps,
+      assessmentTaskBindings: assessmentTaskBindings,
       resourceDecisions: await getResourceDecisions(theme.id),
       sourceReferences: await getSourceReferencesForTheme(theme.id),
       previousBlock: previousBlockInSequence(sequence, block.id),

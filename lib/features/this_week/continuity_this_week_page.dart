@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/resource_navigation.dart';
 import '../../data/preferences/continuity_repository.dart';
 import '../../domain/models/outcome_tracking_models.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
@@ -18,6 +19,7 @@ class ContinuityThisWeekPage extends StatefulWidget {
     required this.courseId,
     this.topTrailing,
     this.lessonPlanProgress,
+    this.onOpenResources,
   });
 
   final CourseKnowledgeRepository repository;
@@ -26,6 +28,7 @@ class ContinuityThisWeekPage extends StatefulWidget {
   final LessonPlanProgressRepository? lessonPlanProgress;
   final String courseId;
   final Widget? topTrailing;
+  final ResourceNavigationCallback? onOpenResources;
 
   @override
   State<ContinuityThisWeekPage> createState() => _ContinuityThisWeekPageState();
@@ -181,6 +184,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
         onOutcomeViewed: _rememberViewed,
         initialPlanFuture: _planFuture,
         topTrailing: widget.topTrailing,
+        onOpenResources: widget.onOpenResources,
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../app/resource_navigation.dart';
 import '../../domain/models/course_models.dart' as model;
 import '../../domain/models/lesson_plan_models.dart';
 import '../../domain/models/lesson_plan_progress_models.dart';
@@ -18,6 +19,7 @@ class SingleLessonPlanPage extends StatefulWidget {
     required this.initialPackageHour,
     this.progressRepository,
     this.academicYear,
+    this.onOpenResources,
   });
 
   final CourseKnowledgeRepository repository;
@@ -25,6 +27,7 @@ class SingleLessonPlanPage extends StatefulWidget {
   final int initialPackageHour;
   final LessonPlanProgressRepository? progressRepository;
   final String? academicYear;
+  final ResourceNavigationCallback? onOpenResources;
 
   @override
   State<SingleLessonPlanPage> createState() => _SingleLessonPlanPageState();
@@ -174,8 +177,9 @@ class _SingleLessonPlanPageState extends State<SingleLessonPlanPage> {
           throw StateError('Ders planı özeti doğrulanamadı.');
         }
         final now = DateTime.now();
-        final previousCurrent =
-            _resolveProgress(package, previous).isCurrent ? previous : null;
+        final previousCurrent = _resolveProgress(package, previous).isCurrent
+            ? previous
+            : null;
         saved = LessonPlanProgressRecord(
           courseId: package.courseId,
           academicYear: academicYear,
@@ -183,7 +187,9 @@ class _SingleLessonPlanPageState extends State<SingleLessonPlanPage> {
           payloadSha256: hash,
           status: status,
           startedAt: previousCurrent?.startedAt ?? now,
-          completedAt: status == LessonPlanProgressStatus.completed ? now : null,
+          completedAt: status == LessonPlanProgressStatus.completed
+              ? now
+              : null,
           updatedAt: now,
         );
         await repository.save(saved);
@@ -209,7 +215,8 @@ class _SingleLessonPlanPageState extends State<SingleLessonPlanPage> {
               await repository.save(previous);
             }
             if (!mounted) return;
-            if (_packageId == package.packageId && _packageHour == packageHour) {
+            if (_packageId == package.packageId &&
+                _packageHour == packageHour) {
               setState(
                 () => _localProgress = _resolveProgress(package, previous),
               );
@@ -257,6 +264,14 @@ class _SingleLessonPlanPageState extends State<SingleLessonPlanPage> {
           progressOverride: _localProgress,
           onSetProgress: _setProgress,
           onOpenLesson: _openLesson,
+          onOpenResources: widget.onOpenResources == null
+              ? null
+              : (request) {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  }
+                  widget.onOpenResources!(request);
+                },
         );
       },
     ),
@@ -270,6 +285,7 @@ class _SingleLessonContent extends StatelessWidget {
     required this.progressOverride,
     required this.onSetProgress,
     required this.onOpenLesson,
+    this.onOpenResources,
   });
 
   final _SingleLessonViewData data;
@@ -279,8 +295,10 @@ class _SingleLessonContent extends StatelessWidget {
     LessonPlanPackage package,
     int packageHour,
     LessonPlanProgressStatus status,
-  ) onSetProgress;
+  )
+  onSetProgress;
   final ValueChanged<_LessonTarget> onOpenLesson;
+  final ResourceNavigationCallback? onOpenResources;
 
   @override
   Widget build(BuildContext context) {
@@ -343,7 +361,8 @@ class _SingleLessonContent extends StatelessWidget {
                                   fontWeight: FontWeight.w700,
                                 ),
                           ),
-                          if (presentation.locationLabel case final location?) ...[
+                          if (presentation.locationLabel
+                              case final location?) ...[
                             const SizedBox(height: AppSpacing.xs),
                             Text(
                               location,
@@ -393,6 +412,7 @@ class _SingleLessonContent extends StatelessWidget {
           package: plan,
           displayHour: data.blockHour,
           presentation: presentation,
+          onOpenResources: onOpenResources,
         ),
         const SizedBox(height: AppSpacing.md),
         _LessonNavigation(
@@ -461,7 +481,10 @@ class _CollapsibleLessonHeaderState extends State<_CollapsibleLessonHeader> {
                       child: Text(
                         widget.title,
                         style: Theme.of(context).textTheme.headlineMedium
-                            ?.copyWith(fontWeight: FontWeight.w900, height: 1.08),
+                            ?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              height: 1.08,
+                            ),
                       ),
                     ),
                     if (widget.summary.isNotEmpty) ...[
@@ -523,7 +546,8 @@ class _HourProgressCard extends StatelessWidget {
     LessonPlanPackage package,
     int packageHour,
     LessonPlanProgressStatus status,
-  ) onSetProgress;
+  )
+  onSetProgress;
   final ValueChanged<_LessonTarget> onOpenLesson;
 
   @override
@@ -553,18 +577,15 @@ class _HourProgressCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               stale ? 'Plan güncellendi' : status.teacherLabel,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
             ),
             if (stale) ...[
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Bu ders saati için önceki durum kaydı güncel planla eşleşmiyor. Dersi gördükten sonra durumu yeniden seçin.',
-                style: TextStyle(
-                  color: scheme.onErrorContainer,
-                  height: 1.4,
-                ),
+                style: TextStyle(color: scheme.onErrorContainer, height: 1.4),
               ),
             ],
             const SizedBox(height: AppSpacing.md),
@@ -603,12 +624,14 @@ class _SingleLessonStepCard extends StatelessWidget {
     required this.package,
     required this.displayHour,
     required this.presentation,
+    this.onOpenResources,
   });
 
   final LessonPlanLesson lesson;
   final LessonPlanPackage package;
   final int displayHour;
   final LessonPlanTeacherPresentation presentation;
+  final ResourceNavigationCallback? onOpenResources;
 
   @override
   Widget build(BuildContext context) {
@@ -645,9 +668,23 @@ class _SingleLessonStepCard extends StatelessWidget {
             if (studentActions.isNotEmpty)
               _PlanSection(title: 'Öğrenci', lines: studentActions),
             if (activities.isNotEmpty)
-              _PlanSection(title: 'Ders kitabı etkinlikleri', lines: activities),
+              _SinglePlanResourceSection(
+                title: 'Ders kitabı etkinlikleri',
+                lines: activities,
+                themeId: package.themeId,
+                resourceIds: lesson.activityIds,
+                category: ResourceCategory.activities,
+                onOpenResources: onOpenResources,
+              ),
             if (forms.isNotEmpty)
-              _PlanSection(title: 'Değerlendirme formları', lines: forms),
+              _SinglePlanResourceSection(
+                title: 'Değerlendirme formları',
+                lines: forms,
+                themeId: package.themeId,
+                resourceIds: lesson.formIds,
+                category: ResourceCategory.forms,
+                onOpenResources: onOpenResources,
+              ),
             if (materials.isNotEmpty)
               _PlanSection(title: 'Materyaller', lines: materials),
             if (assessment.isNotEmpty)
@@ -659,6 +696,62 @@ class _SingleLessonStepCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SinglePlanResourceSection extends StatelessWidget {
+  const _SinglePlanResourceSection({
+    required this.title,
+    required this.lines,
+    required this.themeId,
+    required this.resourceIds,
+    required this.category,
+    this.onOpenResources,
+  });
+
+  final String title;
+  final List<String> lines;
+  final String themeId;
+  final List<String> resourceIds;
+  final ResourceCategory category;
+  final ResourceNavigationCallback? onOpenResources;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: AppSpacing.lg),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        for (var index = 0; index < lines.length; index++)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            leading: const Icon(Icons.link_outlined, size: 18),
+            title: Text(lines[index]),
+            trailing: onOpenResources == null
+                ? null
+                : TextButton(
+                    onPressed: () => onOpenResources!(
+                      ResourceNavigationContext(
+                        themeId: themeId,
+                        resourceId: index < resourceIds.length
+                            ? resourceIds[index]
+                            : null,
+                        category: category,
+                      ),
+                    ),
+                    child: const Text('Kaynaklarda aç'),
+                  ),
+          ),
+      ],
+    ),
+  );
 }
 
 class _PlanSection extends StatelessWidget {
@@ -675,9 +768,9 @@ class _PlanSection extends StatelessWidget {
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: AppSpacing.sm),
         for (final line in lines) ...[
@@ -718,7 +811,9 @@ class _LessonNavigation extends StatelessWidget {
         children: [
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: previous == null ? null : () => onOpenLesson(previous!),
+              onPressed: previous == null
+                  ? null
+                  : () => onOpenLesson(previous!),
               icon: const Icon(Icons.arrow_back),
               label: Text(previous == null ? 'Önceki ders yok' : 'Önceki ders'),
             ),

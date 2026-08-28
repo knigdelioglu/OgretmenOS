@@ -51,9 +51,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Test Tema · İkinci Blok'), findsOneWidget);
-      expect(find.text('Son görüntülenen ders odağı'), findsOneWidget);
-      expect(find.textContaining('Elle işaretlendi'), findsNothing);
+      expect(find.text('İkinci Blok'), findsOneWidget);
+      expect(find.text('Öğretim sırası: 2 / 2. blok'), findsOneWidget);
       expect(
         await preferences.getManualPositionOverrideForCourse('TDE_9'),
         isNull,
@@ -103,8 +102,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Test Tema · Birinci Blok'), findsOneWidget);
-    expect(find.textContaining('Elle işaretlendi'), findsOneWidget);
+    expect(find.text('Birinci Blok'), findsOneWidget);
+    expect(find.byTooltip('Geçici konum işaretini temizle'), findsOneWidget);
     expect(
       (await preferences.getManualPositionOverrideForCourse('TDE_9'))?.blockId,
       'B1',
@@ -141,7 +140,7 @@ void main() {
   });
 
   testWidgets(
-    'mounted AnnualPlanPage continuity değiştiğinde ŞU AN BURADASIN konumunu günceller',
+    'mounted AnnualPlanPage continuity değiştiğinde yıllık listedeki konumu günceller',
     (tester) async {
       tester.view.physicalSize = const Size(412, 915);
       tester.view.devicePixelRatio = 1;
@@ -181,7 +180,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Test Tema · Birinci Blok'), findsOneWidget);
+      expect(find.text('Birinci Blok'), findsOneWidget);
 
       await continuity.setLastFocus(
         LastFocusState(
@@ -198,7 +197,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Test Tema · İkinci Blok'), findsOneWidget);
+      expect(find.text('İkinci Blok'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -234,7 +233,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.textContaining('Test Tema · Birinci Blok'), findsOneWidget);
+      expect(find.text('Birinci Blok'), findsOneWidget);
 
       final refreshA = continuity.holdNextRead();
       await continuity.setLastFocus(focusB2);
@@ -246,13 +245,14 @@ void main() {
       refreshB.complete(focusB3);
       await tester.pump();
       await tester.pump();
-      expect(find.textContaining('Test Tema · Üçüncü Blok'), findsOneWidget);
+      expect(find.text('Üçüncü Blok'), findsOneWidget);
 
       refreshA.complete(focusB2);
       await tester.pump();
       await tester.pump();
-      expect(find.textContaining('Test Tema · Üçüncü Blok'), findsOneWidget);
-      expect(find.textContaining('Test Tema · İkinci Blok'), findsNothing);
+      expect(find.text('Üçüncü Blok'), findsOneWidget);
+      expect(find.text('İkinci Blok'), findsOneWidget);
+      expect(find.text('Mevcut öğretim konumu · Sıra 3 / 3'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

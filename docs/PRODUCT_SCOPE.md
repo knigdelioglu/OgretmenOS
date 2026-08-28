@@ -151,7 +151,14 @@ TDE_11/TDE_12 curriculum-only runtime için lesson-plan CTA gösterilmez ve bu e
 
 ## 8. Kaynaklar
 
-Kaynak ekranı tema 1'e körlemesine sıfırlanmaz. Bağlam önceliği:
+`Kaynaklar` canonical tema kaynak kataloğudur. Seçili temanın ders kitabı,
+etkinlik, form, değerlendirme ve program/dayanak kaynakları burada tam envanter
+olarak gösterilir; program çıktıları veya öğretim blokları kataloğu değildir.
+
+Blok ve ders planı ekranları bu kataloğun kopyası değildir. Görev bağlamında
+gerekli kaynakları kısa ve filtrelenmiş projeksiyon olarak gösterebilir.
+
+Normal `Kaynaklar` sekmesi açılışında bağlam önceliği:
 
 ```text
 1. son görüntülenen ders
@@ -159,11 +166,26 @@ Kaynak ekranı tema 1'e körlemesine sıfırlanmaz. Bağlam önceliği:
 3. güvenli ilk-tema fallback
 ```
 
-Bağlam convenience state'tir; okunamazsa kaynak erişimi yine çalışır. Manuel tema seçimi ekranda kalındığı sürece korunur; sekmeye yeniden girişte güncel ders bağlamı tekrar çözülür.
+Bağlam convenience state'tir; okunamazsa kaynak erişimi yine çalışır. Manuel
+tema seçimi ekranda kalındığı sürece korunur; sekmeye yeniden girişte güncel
+ders bağlamı tekrar çözülür.
+
+Bloktan `Temanın tüm kaynaklarını aç` veya ders planındaki `Kaynaklarda aç`
+aksiyonları açık navigation context taşır (`themeId`, gerektiğinde `blockId`,
+kategori ve kaynak kimliği). Bu explicit context doğru temayı açar ve kaynak
+kategorisini görünür hale getirir.
+
+`Bu Hafta` üzerinde yalnızca inceleme amacıyla seçilen geçmiş hafta geçici UI
+state'tir; global kaynak context'i değildir. Bu seçim normal `Kaynaklar`
+resolver'ını otomatik olarak değiştirmez.
 
 ## 9. Yıllık plan
 
-Yıllık plan canonical öğretim sırasını gösterir. `ŞU AN BURADASIN` konumu:
+Yıllık plan canonical öğretim sırasını gösterir. Aktif konum yıllık blok listesi
+içinde sade biçimde işaretlenir; gerekirse summary alanında yalnızca kısa bir
+öğretim sırası satırı görünür. `ŞU AN BURADASIN` dili `Bu Hafta` ekranına aittir.
+
+Aktif konum:
 
 ```text
 son görüntülenen ders

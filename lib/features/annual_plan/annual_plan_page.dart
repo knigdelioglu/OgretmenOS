@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../app/resource_navigation.dart';
 import '../../data/preferences/continuity_repository.dart';
 import '../../data/preferences/user_preferences_repository.dart';
 import '../../domain/models/course_models.dart' as model;
@@ -22,6 +23,7 @@ class AnnualPlanPage extends StatefulWidget {
     required this.courseId,
     this.topTrailing,
     this.outcomePlanning,
+    this.onOpenResources,
   });
 
   final CourseKnowledgeRepository repository;
@@ -30,6 +32,7 @@ class AnnualPlanPage extends StatefulWidget {
   final String courseId;
   final Widget? topTrailing;
   final OutcomePlanningService? outcomePlanning;
+  final ResourceNavigationCallback? onOpenResources;
 
   @override
   State<AnnualPlanPage> createState() => _AnnualPlanPageState();
@@ -169,10 +172,7 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
       await _clearPositionPreferenceBestEffort();
     }
 
-    return (
-      manualBlockId: manualBlockId,
-      automaticBlockId: automaticBlockId,
-    );
+    return (manualBlockId: manualBlockId, automaticBlockId: automaticBlockId);
   }
 
   Future<_PlanData> _load() async {
@@ -372,9 +372,7 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
     final activeBlockId = data.manualBlockId ?? data.automaticBlockId;
     final activeEntry = activeBlockId == null
         ? null
-        : data.sequence.firstWhere(
-            (entry) => entry.block.id == activeBlockId,
-          );
+        : data.sequence.firstWhere((entry) => entry.block.id == activeBlockId);
     final isManualPosition =
         activeEntry != null && data.manualBlockId == activeEntry.block.id;
 
@@ -408,6 +406,7 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
                 builder: (_) => BlockDetailPage(
                   repository: widget.repository,
                   blockId: blockId,
+                  onOpenResources: widget.onOpenResources,
                 ),
               ),
             ),
@@ -468,12 +467,6 @@ class _AnnualSummary extends StatelessWidget {
                   ),
                 ),
               ),
-              if (isManualPosition)
-                IconButton(
-                  tooltip: 'Geçici konum işaretini temizle',
-                  onPressed: onClear,
-                  icon: const Icon(Icons.restart_alt),
-                ),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -484,53 +477,36 @@ class _AnnualSummary extends StatelessWidget {
             ),
           ),
           if (activeEntry != null) ...[
-            const SizedBox(height: AppSpacing.lg),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.secondaryContainer,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'ŞU AN BURADASIN',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.7,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    '${activeEntry!.theme.title} · ${activeEntry!.block.title}',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    isManualPosition
-                        ? 'Elle işaretlendi · yeni bir ders açtığında otomatik güncellenir'
-                        : 'Son görüntülenen ders odağı',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    'Öğretim sırası: ${activeEntry!.sequencePosition}. blok / $blockCount',
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Öğretim sırası: ${activeEntry!.sequencePosition} / $blockCount. blok',
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    'Bu konum bir ilerleme veya tamamlanma yüzdesi değildir.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                ),
+                if (isManualPosition)
+                  IconButton(
+                    tooltip: 'Geçici konum işaretini temizle',
+                    onPressed: onClear,
+                    icon: const Icon(Icons.restart_alt),
                   ),
-                ],
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Bu konum öğretim sırasıdır; ilerleme veya tamamlanma yüzdesi değildir.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -685,22 +661,31 @@ class _ThemePlanCard extends StatelessWidget {
           for (var i = 0; i < entries.length; i++) ...[
             ListTile(
               contentPadding: const EdgeInsets.only(left: 20, right: 8),
-              leading: SizedBox(
-                width: 32,
-                child: Text(
-                  '${entries[i].sequencePosition}',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: entries[i].block.id == activeBlockId
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+              selected: entries[i].block.id == activeBlockId,
+              selectedTileColor: Theme.of(
+                context,
+              ).colorScheme.primaryContainer.withValues(alpha: 0.45),
+              leading: CircleAvatar(
+                backgroundColor: entries[i].block.id == activeBlockId
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.surfaceContainerHighest,
+                foregroundColor: entries[i].block.id == activeBlockId
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                child: Text('${entries[i].sequencePosition}'),
+              ),
+              title: Text(
+                entries[i].block.title,
+                style: TextStyle(
+                  fontWeight: entries[i].block.id == activeBlockId
+                      ? FontWeight.w800
+                      : FontWeight.w500,
                 ),
               ),
-              title: Text(entries[i].block.title),
               subtitle: Text(
-                'Sıra ${entries[i].sequencePosition} / $totalBlocks',
+                entries[i].block.id == activeBlockId
+                    ? 'Mevcut öğretim konumu · Sıra ${entries[i].sequencePosition} / $totalBlocks'
+                    : 'Sıra ${entries[i].sequencePosition} / $totalBlocks',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               trailing: IconButton(
