@@ -7,6 +7,7 @@ import 'package:ogretmen_os/app/app_dependencies.dart';
 import 'package:ogretmen_os/data/preferences/continuity_repository.dart';
 import 'package:ogretmen_os/data/preferences/user_preferences_repository.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart' as model;
+import 'package:ogretmen_os/domain/models/lesson_plan_models.dart';
 import 'package:ogretmen_os/domain/models/outcome_tracking_models.dart';
 import 'package:ogretmen_os/domain/models/planning_models.dart';
 import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
@@ -14,6 +15,7 @@ import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart
 import 'package:ogretmen_os/domain/repositories/outcome_tracking_repository.dart';
 import 'package:ogretmen_os/domain/services/outcome_planning_service.dart';
 import 'package:ogretmen_os/features/annual_plan/annual_plan_page.dart';
+import 'package:ogretmen_os/features/block/block_detail_page.dart';
 import 'package:ogretmen_os/features/resources/resource_library_page.dart';
 
 void main() {
@@ -380,6 +382,124 @@ void main() {
     expect(find.text('TDE_9 Tema 2 kaynak'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'Plan blok ders planı kaynak bağlantısı üst route zincirini kapatır',
+    (tester) async {
+      _phone(tester);
+      final repository = _StackLessonPlanRepository('TDE_9');
+      final plan = _twoThemePlanFor(repository);
+      final service = _CountingOutcomePlanningService(
+        repository: repository,
+        plan: plan,
+      );
+      final continuity = MemoryContinuityRepository();
+      await continuity.setLastFocus(
+        LastFocusState(
+          courseId: 'TDE_9',
+          academicYear: '2026-2027',
+          weekNumber: 1,
+          trackingKey: '2026-2027:TDE_9-T1-O1:1',
+          outcomeCode: 'TDE_9.1',
+          themeTitle: 'TDE_9 Tema 1',
+          themeId: 'TDE_9-T1',
+          blockId: 'TDE_9-B1',
+          blockTitle: 'TDE_9 Blok 1',
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      await tester.pumpWidget(
+        TeacherOsApp(
+          dependencies: AppDependencies(
+            repository: repository,
+            preferences: _Preferences(),
+            weeklyPlanning: _FixedWeeklyPlanning(plan.weeklyPlan),
+            outcomePlanning: service,
+            continuity: continuity,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await _tapDestination(tester, Icons.view_timeline_outlined);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('TDE_9 Blok 1'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('1. ders saati'));
+      await tester.pumpAndSettle();
+
+      final resourceLink = find.text('Kaynaklarda aç');
+      await tester.ensureVisible(resourceLink);
+      await tester.pumpAndSettle();
+      await tester.tap(resourceLink.first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ders Planı'), findsNothing);
+      expect(find.byType(BlockDetailPage), findsNothing);
+      expect(find.text('Kaynaklar'), findsWidgets);
+      expect(find.text('TDE_9 Tema 1 kaynak'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Kaynaklar sekmesine yeniden giriş mevcut resolver ile manuel temayı yeniler',
+    (tester) async {
+      _phone(tester);
+      final repository = _TwoThemeTabRepository('TDE_9');
+      final plan = _twoThemePlanFor(repository);
+      final service = _CountingOutcomePlanningService(
+        repository: repository,
+        plan: plan,
+      );
+      final continuity = MemoryContinuityRepository();
+      await continuity.setLastFocus(
+        LastFocusState(
+          courseId: 'TDE_9',
+          academicYear: '2026-2027',
+          weekNumber: 1,
+          trackingKey: '2026-2027:TDE_9-T1-O1:1',
+          outcomeCode: 'TDE_9.1',
+          themeTitle: 'TDE_9 Tema 1',
+          themeId: 'TDE_9-T1',
+          blockId: 'TDE_9-B1',
+          blockTitle: 'TDE_9 Blok 1',
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      await tester.pumpWidget(
+        TeacherOsApp(
+          dependencies: AppDependencies(
+            repository: repository,
+            preferences: _Preferences(),
+            weeklyPlanning: _FixedWeeklyPlanning(plan.weeklyPlan),
+            outcomePlanning: service,
+            continuity: continuity,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await _tapDestination(tester, Icons.library_books_outlined);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('TDE_9 Tema 2').last);
+      await tester.pumpAndSettle();
+      expect(find.text('TDE_9 Tema 2 kaynak'), findsOneWidget);
+
+      await _tapDestination(tester, Icons.today_outlined);
+      await tester.pumpAndSettle();
+      await _tapDestination(tester, Icons.library_books_outlined);
+      await tester.pumpAndSettle();
+
+      expect(find.text('TDE_9 Tema 1 kaynak'), findsOneWidget);
+      expect(find.text('TDE_9 Tema 2 kaynak'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'Kaynaklar sekmesi açıldıktan sonra Bu Hafta sekmesinde farklı temadaki ders açıldığında Kaynaklar yeni temayı gösterir',
@@ -1482,6 +1602,87 @@ AnnualOutcomePlan _twoThemePlanFor(
     );
   }
   return AnnualOutcomePlan(weeklyPlan: weeklyPlan, weeks: summaries);
+}
+
+class _StackLessonPlanRepository extends _TwoThemeTabRepository
+    implements LessonPlanKnowledgeRepository {
+  _StackLessonPlanRepository(super.courseId)
+    : package = LessonPlanPackage(
+        packageId: '$courseId-B1-P1',
+        courseId: courseId,
+        themeId: '$courseId-T1',
+        blockId: '$courseId-B1',
+        packageNo: 1,
+        lessonHours: 1,
+        title: 'Blok dersi',
+        summary: 'Tek derslik akış',
+        remainingBlockHours: 0,
+        schemaVersion: '1.0.0',
+        validationStatus: 'PASS',
+        sourcePath: 'test/lesson_plan.json',
+        payloadSha256: 'test-lesson-plan',
+        outcomeCodes: const ['TDE_9.1'],
+        usedActivityIds: const ['ACTIVITY_A'],
+        usedFormIds: const [],
+        lessons: const [
+          LessonPlanLesson(
+            lessonNo: 1,
+            durationLessonHours: 1,
+            title: 'Metni yorumlayalım',
+            objective: 'Metni yorumlar.',
+            outcomeCodes: ['TDE_9.1'],
+            opening: 'Başlangıç',
+            teacherActions: ['Yönlendirir'],
+            studentActions: ['Yorumlar'],
+            activityIds: ['ACTIVITY_A'],
+            formIds: [],
+            assessment: 'Kontrol eder.',
+            closure: 'Özetler.',
+            materials: ['Ders kitabı'],
+            raw: {},
+          ),
+        ],
+        teacherNotes: null,
+        continuation: LessonPlanContinuation(
+          plannedNowHours: 1,
+          remainingBlockHours: 0,
+          coveredOutcomeCodes: const ['TDE_9.1'],
+          usedActivityIds: const ['ACTIVITY_A'],
+          nextStepHint: null,
+          raw: const {},
+        ),
+        rawPayload: const {},
+      );
+
+  final LessonPlanPackage package;
+
+  @override
+  Future<LessonPlanCapability> getLessonPlanCapability() async =>
+      const LessonPlanCapability(
+        available: true,
+        manifestAdvertised: true,
+        tableAvailable: true,
+        packageCount: 1,
+        instructionHours: 1,
+        schemaVersion: '1.0.0',
+        validationStatus: 'PASS',
+      );
+
+  @override
+  Future<List<LessonPlanPackage>> getLessonPlansForBlock(
+    String blockId,
+  ) async => blockId == package.blockId ? [package] : const [];
+
+  @override
+  Future<LessonPlanPackage?> getLessonPlan(String packageId) async =>
+      packageId == package.packageId ? package : null;
+
+  @override
+  Future<LessonPlanPackage?> getPreviousLessonPlan(String packageId) async =>
+      null;
+
+  @override
+  Future<LessonPlanPackage?> getNextLessonPlan(String packageId) async => null;
 }
 
 class _TwoThemeTabRepository implements CourseKnowledgeRepository {

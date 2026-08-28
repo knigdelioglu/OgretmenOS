@@ -324,13 +324,14 @@ class _AppShellState extends State<_AppShell> {
 
   Widget _resourceLibrary(BuildContext context) {
     final cached = _resourceLibraryPage;
-    if (widget.selectedIndex != 2) {
-      return cached ?? const SizedBox.shrink();
+    if (cached == null && widget.selectedIndex != 2) {
+      return const SizedBox.shrink();
     }
     final activeCourse = runtimeForCourse(widget.activeCourseId);
     return _resourceLibraryPage = ResourceLibraryPage(
       repository: widget.dependencies.repository,
       awaitingTextbook: activeCourse.isAwaitingTextbook,
+      isActive: widget.selectedIndex == 2,
       continuity: _continuity,
       weeklyPlanning: widget.dependencies.weeklyPlanning,
       courseId: widget.activeCourseId,

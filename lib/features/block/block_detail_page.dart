@@ -94,7 +94,16 @@ class _BlockDetailContent extends StatelessWidget {
       BlockLessonPlanPanel(
         repository: repository,
         blockId: detail.block.id,
-        onOpenResources: onOpenResources,
+        onOpenResources: onOpenResources == null
+            ? null
+            : (request) {
+                // The single lesson route already popped itself. Close this
+                // block route too before handing control back to AppShell.
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                }
+                onOpenResources!(request);
+              },
       ),
       const SectionHeading(
         'Öğretim sırası',

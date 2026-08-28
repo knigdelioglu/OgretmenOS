@@ -15,6 +15,7 @@ class ResourceLibraryPage extends StatefulWidget {
     super.key,
     required this.repository,
     required this.awaitingTextbook,
+    this.isActive = true,
     this.topTrailing,
     this.continuity,
     this.weeklyPlanning,
@@ -24,6 +25,7 @@ class ResourceLibraryPage extends StatefulWidget {
 
   final CourseKnowledgeRepository repository;
   final bool awaitingTextbook;
+  final bool isActive;
   final Widget? topTrailing;
   final ContinuityRepository? continuity;
   final WeeklyPlanningService? weeklyPlanning;
@@ -39,6 +41,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
   _ResourceData? _resourceData;
   String? _selectedThemeId;
   ResourceCategory? _selectedCategory;
+  int _sectionRevision = 0;
   int _focusRevision = 0;
   bool _initialUsefulContentReported = false;
   ContinuityRepository? _observedContinuity;
@@ -68,9 +71,23 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
         oldWidget.navigationContext != widget.navigationContext) {
       _selectedThemeId = widget.navigationContext?.themeId;
       _selectedCategory = widget.navigationContext?.category;
-      _resourceData = null;
-      _initialUsefulContentReported = false;
-      _future = _mainLoad();
+      _sectionRevision++;
+      if (widget.navigationContext != null ||
+          oldWidget.repository != widget.repository ||
+          oldWidget.awaitingTextbook != widget.awaitingTextbook ||
+          oldWidget.continuity != widget.continuity ||
+          oldWidget.weeklyPlanning != widget.weeklyPlanning ||
+          oldWidget.courseId != widget.courseId) {
+        _resourceData = null;
+        _initialUsefulContentReported = false;
+        _future = _mainLoad();
+      }
+    }
+    if (!oldWidget.isActive &&
+        widget.isActive &&
+        widget.navigationContext == null) {
+      _sectionRevision++;
+      unawaited(_refreshOnActivation());
     }
   }
 
@@ -215,6 +232,38 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
 
   Future<_ResourceData> _mainLoad() =>
       RuntimePerformanceTrace.measure('ResourceLibraryPage.mainLoad', _load);
+
+  Future<void> _refreshOnActivation() async {
+    final revision = ++_focusRevision;
+    final current = _resourceData;
+    if (!mounted || current == null || current.themes.isEmpty) return;
+
+    String? resolvedThemeId;
+    try {
+      resolvedThemeId = await _resolveThemeId(current.themes);
+    } on Object {
+      return;
+    }
+    if (!mounted || revision != _focusRevision) return;
+
+    final targetThemeId = resolvedThemeId ?? current.themes.first.id;
+    if (targetThemeId == current.package?.theme.id) {
+      setState(() => _selectedCategory = null);
+      return;
+    }
+
+    try {
+      final package = await widget.repository.getTeacherPackage(targetThemeId);
+      if (!mounted || revision != _focusRevision) return;
+      setState(() {
+        _selectedThemeId = targetThemeId;
+        _selectedCategory = null;
+        _resourceData = _ResourceData(themes: current.themes, package: package);
+      });
+    } on Object {
+      // The current package remains usable when a lightweight refresh fails.
+    }
+  }
 
   Future<String?> _resolveThemeId(List<model.Theme> themes) async {
     AnnualWeeklyPlan? weeklyPlan;
@@ -414,7 +463,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
         ),
         if (hasBook)
           _ResourceSection(
-            key: ValueKey('${package.theme.id}:book'),
+            key: ValueKey('${package.theme.id}:book:$_sectionRevision'),
             icon: Icons.menu_book_outlined,
             title: 'Ders kitabı',
             countLabel: '${package.textbookSections.length} bölüm',
@@ -428,7 +477,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
           const SizedBox(height: AppSpacing.sm),
         if (hasActivities)
           _ResourceSection(
-            key: ValueKey('${package.theme.id}:activities'),
+            key: ValueKey('${package.theme.id}:activities:$_sectionRevision'),
             icon: Icons.task_alt_outlined,
             title: 'Etkinlikler',
             countLabel: '${package.activities.length} etkinlik',
@@ -441,7 +490,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
           const SizedBox(height: AppSpacing.sm),
         if (hasForms)
           _ResourceSection(
-            key: ValueKey('${package.theme.id}:forms'),
+            key: ValueKey('${package.theme.id}:forms:$_sectionRevision'),
             icon: Icons.assignment_outlined,
             title: 'Formlar',
             countLabel: '${package.forms.length} form',
@@ -454,7 +503,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
           const SizedBox(height: AppSpacing.sm),
         if (hasAssessment)
           _ResourceSection(
-            key: ValueKey('${package.theme.id}:assessment'),
+            key: ValueKey('${package.theme.id}:assessment:$_sectionRevision'),
             icon: Icons.fact_check_outlined,
             title: 'Değerlendirme',
             countLabel:
@@ -467,7 +516,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
         if (hasAssessment && hasSources) const SizedBox(height: AppSpacing.sm),
         if (hasSources)
           _ResourceSection(
-            key: ValueKey('${package.theme.id}:sources'),
+            key: ValueKey('${package.theme.id}:sources:$_sectionRevision'),
             icon: Icons.source_outlined,
             title: 'Kaynak dayanakları',
             countLabel: '${package.sourceReferences.length} kaynak',

@@ -42,6 +42,53 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'aynı tema için explicit kategori değişimi ilgili bölümü yeniden açar',
+    (tester) async {
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repository = _ResourceRepository();
+      final continuity = MemoryContinuityRepository();
+      final weeklyPlanning = _StaticWeeklyPlanning(
+        _contextPlan(currentWeekNumber: 1).weeklyPlan,
+      );
+      await tester.pumpWidget(
+        _contextApp(
+          repository: repository,
+          continuity: continuity,
+          weeklyPlanning: weeklyPlanning,
+          navigationContext: const ResourceNavigationContext(
+            themeId: 'T1',
+            category: ResourceCategory.sources,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Kaynak 1'), findsOneWidget);
+
+      await tester.pumpWidget(
+        _contextApp(
+          repository: repository,
+          continuity: continuity,
+          weeklyPlanning: weeklyPlanning,
+          navigationContext: const ResourceNavigationContext(
+            themeId: 'T1',
+            resourceId: 'A1',
+            category: ResourceCategory.activities,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Etkinlik 1'), findsOneWidget);
+      expect(tester.getSize(find.text('Etkinlik 1')).height, greaterThan(0));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('kaynaklar ilk yararlı kaynağı açık gösterir', (tester) async {
     tester.view.physicalSize = const Size(412, 915);
     tester.view.devicePixelRatio = 1;
