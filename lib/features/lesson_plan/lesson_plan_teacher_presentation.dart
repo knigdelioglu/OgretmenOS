@@ -307,7 +307,7 @@ class LessonPlanTeacherPresentation {
       for (final action in lesson.teacherActions) {
         final text = _textValue(action);
         final arrow = RegExp(
-          r"['‘’\"]([^'‘’\"]*→[^'‘’\"]+)['‘’\"]\s+biçiminde\s+(?:en az\s+)?[^.]*?çözümleme",
+          r'''['‘’"]([^'‘’"]*→[^'‘’"]+)['‘’"]\s+biçiminde\s+(?:en az\s+)?[^.]*?çözümleme''',
           caseSensitive: false,
         ).firstMatch(text);
         if (arrow != null) {
@@ -342,9 +342,9 @@ class LessonPlanTeacherPresentation {
   String _compactEvidenceLabel(String assessment) {
     var text = assessment.trim();
     if (text.isEmpty) return '';
-    final sentenceEnd = RegExp(r'(?<=[.!?])\s+').firstMatch(text);
+    final sentenceEnd = RegExp(r'[.!?](?:\s|$)').firstMatch(text);
     if (sentenceEnd != null) {
-      text = text.substring(0, sentenceEnd.start).trim();
+      text = text.substring(0, sentenceEnd.start + 1).trim();
     }
     text = text.replaceFirst(
       RegExp(r'^(Ana kanıt|Ana ürün)\s+', caseSensitive: false),
