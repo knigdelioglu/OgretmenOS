@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../app/resource_navigation.dart';
 import '../../data/preferences/continuity_repository.dart';
+import '../../domain/models/instruction_context_models.dart';
 import '../../domain/models/outcome_tracking_models.dart';
 import '../../domain/repositories/assignment_lesson_progress_repository.dart';
+import '../../domain/repositories/assignment_outcome_tracking_adapter.dart';
+import '../../domain/repositories/assignment_outcome_tracking_repository.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../../domain/repositories/instruction_context_repository.dart';
 import '../../domain/repositories/lesson_plan_progress_repository.dart';
+import '../../domain/repositories/selected_assignment_instruction_context_repository.dart';
 import '../../domain/services/assignment_lesson_timeline_service.dart';
 import '../../domain/services/outcome_planning_service.dart';
 import '../outcomes/outcome_detail_page.dart';
@@ -24,6 +28,7 @@ class ContinuityThisWeekPage extends StatefulWidget {
     this.lessonPlanProgress,
     this.instructionContext,
     this.assignmentLessonProgress,
+    this.assignmentOutcomeTracking,
     this.assignmentTimeline,
     this.onConfigureSchedule,
     this.onOpenResources,
@@ -35,6 +40,7 @@ class ContinuityThisWeekPage extends StatefulWidget {
   final LessonPlanProgressRepository? lessonPlanProgress;
   final InstructionContextRepository? instructionContext;
   final AssignmentLessonProgressRepository? assignmentLessonProgress;
+  final AssignmentOutcomeTrackingRepository? assignmentOutcomeTracking;
   final AssignmentLessonTimelineService? assignmentTimeline;
   final String courseId;
   final Widget? topTrailing;
@@ -47,13 +53,13 @@ class ContinuityThisWeekPage extends StatefulWidget {
 
 class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
   late Future<_ContinuityData> _future;
-  late Future<AnnualOutcomePlan> _planFuture;
   int _workspaceRevision = 0;
+  String? _selectedAssignmentId;
 
   @override
   void initState() {
     super.initState();
-    _startLoad();
+    _future = _load();
   }
 
   @override
@@ -65,46 +71,166 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
         oldWidget.lessonPlanProgress != widget.lessonPlanProgress ||
         oldWidget.instructionContext != widget.instructionContext ||
         oldWidget.assignmentLessonProgress != widget.assignmentLessonProgress ||
+        oldWidget.assignmentOutcomeTracking != widget.assignmentOutcomeTracking ||
         oldWidget.assignmentTimeline != widget.assignmentTimeline ||
         oldWidget.courseId != widget.courseId) {
       _workspaceRevision++;
-      _startLoad();
+      _selectedAssignmentId = null;
+      _future = _load();
     }
   }
 
-  void _startLoad() {
-    _planFuture = widget.service.buildPlan();
-    _future = _load(_planFuture);
-  }
+  Future<_ContinuityData> _load() async {
+    final basePlan = await widget.service.buildPlan();
+    var activeService = widget.service;
+    var activePlan = basePlan;
+    var selectedContext = widget.instructionContext;
+    var continuityScopeId = widget.courseId;
+    var choices = const <_AssignmentChoice>[];
 
-  Future<_ContinuityData> _load(Future<AnnualOutcomePlan> planFuture) async {
-    final plan = await planFuture;
-    final stored = await _readLastFocusBestEffort();
-    if (stored == null) return _ContinuityData(plan: plan);
-    if (stored.academicYear != plan.academicYear) {
-      await _clearLastFocusBestEffort();
-      return _ContinuityData(plan: plan);
+    final instructionContext = widget.instructionContext;
+    final timeline = widget.assignmentTimeline;
+    if (instructionContext != null && timeline != null) {
+      final assignments = await instructionContext.getAssignments(
+        academicYear: basePlan.academicYear,
+        courseId: widget.courseId,
+      );
+      if (assignments.isNotEmpty) {
+        final classes = await instructionContext.getClasses(basePlan.academicYear);
+        final snapshot = await timeline.resolve(
+          academicYear: basePlan.academicYear,
+          courseId: widget.courseId,
+        );
+        final selectedId = _resolveAssignmentId(assignments, snapshot);
+        _selectedAssignmentId = selectedId;
+        if (selectedId != null) {
+          selectedContext = SelectedAssignmentInstructionContextRepository(
+            delegate: instructionContext,
+            assignmentId: selectedId,
+          );
+          continuityScopeId = '${widget.courseId}::$selectedId';
+          final assignmentTracking = widget.assignmentOutcomeTracking;
+          if (assignmentTracking != null) {
+            activeService = OutcomePlanningService(
+              repository: widget.repository,
+              weeklyPlanning: widget.service.weeklyPlanning,
+              trackingRepository: AssignmentOutcomeTrackingAdapter(
+                repository: assignmentTracking,
+                assignmentId: selectedId,
+                academicYear: basePlan.academicYear,
+              ),
+              onInteraction: widget.service.onInteraction,
+            );
+            activePlan = await activeService.buildPlan();
+          }
+        }
+        choices = [
+          for (final assignment in assignments)
+            _AssignmentChoice(
+              assignmentId: assignment.id,
+              label: _className(classes, assignment.classId),
+            ),
+        ];
+      }
     }
 
-    final item = _resolveFocus(plan, stored);
+    final stored = await _readLastFocusBestEffort(continuityScopeId);
+    if (stored == null) {
+      return _ContinuityData(
+        plan: activePlan,
+        service: activeService,
+        instructionContext: selectedContext,
+        continuityScopeId: continuityScopeId,
+        choices: choices,
+        selectedAssignmentId: _selectedAssignmentId,
+      );
+    }
+    if (stored.academicYear != activePlan.academicYear) {
+      await _clearLastFocusBestEffort(continuityScopeId);
+      return _ContinuityData(
+        plan: activePlan,
+        service: activeService,
+        instructionContext: selectedContext,
+        continuityScopeId: continuityScopeId,
+        choices: choices,
+        selectedAssignmentId: _selectedAssignmentId,
+      );
+    }
+
+    final item = _resolveFocus(activePlan, stored);
     if (item == null) {
-      await _clearLastFocusBestEffort();
-      return _ContinuityData(plan: plan);
+      await _clearLastFocusBestEffort(continuityScopeId);
+      return _ContinuityData(
+        plan: activePlan,
+        service: activeService,
+        instructionContext: selectedContext,
+        continuityScopeId: continuityScopeId,
+        choices: choices,
+        selectedAssignmentId: _selectedAssignmentId,
+      );
     }
-    return _ContinuityData(plan: plan, stored: stored, item: item);
+    return _ContinuityData(
+      plan: activePlan,
+      service: activeService,
+      instructionContext: selectedContext,
+      continuityScopeId: continuityScopeId,
+      choices: choices,
+      selectedAssignmentId: _selectedAssignmentId,
+      stored: stored,
+      item: item,
+    );
   }
 
-  Future<LastFocusState?> _readLastFocusBestEffort() async {
+  String? _resolveAssignmentId(
+    List<TeachingAssignment> assignments,
+    dynamic snapshot,
+  ) {
+    final selected = _selectedAssignmentId;
+    if (selected != null && assignments.any((item) => item.id == selected)) {
+      return selected;
+    }
+
+    final currentId = snapshot.currentOccurrence?.assignmentId as String?;
+    if (currentId != null && assignments.any((item) => item.id == currentId)) {
+      return currentId;
+    }
+
+    final nextId = snapshot.nextOccurrence?.assignmentId as String?;
+    if (nextId != null && assignments.any((item) => item.id == nextId)) {
+      return nextId;
+    }
+
+    DateTime? latestAt;
+    String? latestId;
+    for (final assignment in assignments) {
+      final previous = snapshot.positionFor(assignment.id)?.previousOccurrence;
+      if (previous == null) continue;
+      if (latestAt == null || previous.startsAt.isAfter(latestAt)) {
+        latestAt = previous.startsAt;
+        latestId = assignment.id;
+      }
+    }
+    return latestId ?? assignments.first.id;
+  }
+
+  String _className(List<SchoolClass> classes, String classId) {
+    for (final item in classes) {
+      if (item.id == classId) return item.displayName;
+    }
+    return classId;
+  }
+
+  Future<LastFocusState?> _readLastFocusBestEffort(String scopeId) async {
     try {
-      return await widget.continuity.getLastFocus(widget.courseId);
+      return await widget.continuity.getLastFocus(scopeId);
     } on Object {
       return null;
     }
   }
 
-  Future<void> _clearLastFocusBestEffort() async {
+  Future<void> _clearLastFocusBestEffort(String scopeId) async {
     try {
-      await widget.continuity.clearLastFocus(widget.courseId);
+      await widget.continuity.clearLastFocus(scopeId);
     } on Object {
       // Stale continuity cleanup must never block the weekly workspace.
     }
@@ -128,31 +254,42 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
   void _reload() {
     setState(() {
       _workspaceRevision += 1;
-      _startLoad();
+      _future = _load();
     });
   }
 
-  Future<void> _rememberViewed(TrackedOutcome item) =>
-      widget.continuity.setLastFocus(
-        LastFocusState(
-          courseId: widget.courseId,
-          academicYear: item.academicYear,
-          weekNumber: item.displayWeekNumber,
-          trackingKey: item.trackingKey,
-          outcomeCode: item.outcome.code,
-          themeTitle: item.primaryTheme?.title,
-          themeId: item.primaryTheme?.id,
-          blockId: item.primaryBlock?.id,
-          blockTitle: item.primaryBlock?.title,
-          updatedAt: DateTime.now(),
-        ),
-      );
+  void _selectAssignment(String assignmentId) {
+    if (_selectedAssignmentId == assignmentId) return;
+    setState(() {
+      _selectedAssignmentId = assignmentId;
+      _workspaceRevision += 1;
+      _future = _load();
+    });
+  }
+
+  Future<void> _rememberViewed(
+    TrackedOutcome item,
+    String continuityScopeId,
+  ) => widget.continuity.setLastFocus(
+    LastFocusState(
+      courseId: continuityScopeId,
+      academicYear: item.academicYear,
+      weekNumber: item.displayWeekNumber,
+      trackingKey: item.trackingKey,
+      outcomeCode: item.outcome.code,
+      themeTitle: item.primaryTheme?.title,
+      themeId: item.primaryTheme?.id,
+      blockId: item.primaryBlock?.id,
+      blockTitle: item.primaryBlock?.title,
+      updatedAt: DateTime.now(),
+    ),
+  );
 
   Future<void> _resume(_ContinuityData data) async {
     final item = data.item;
     if (item == null) return;
     try {
-      await _rememberViewed(item);
+      await _rememberViewed(item, data.continuityScopeId);
     } on Object {
       // Resume must remain available even if preference persistence fails.
     }
@@ -161,7 +298,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
       MaterialPageRoute<bool>(
         builder: (_) => OutcomeDetailPage(
           repository: widget.repository,
-          service: widget.service,
+          service: data.service,
           initialPlan: data.plan,
           initialItem: item,
         ),
@@ -170,7 +307,65 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
     if (changed == true && mounted) _reload();
   }
 
-  Widget _workspace(BuildContext context) {
+  Widget _assignmentSelector(_ContinuityData data) {
+    if (data.choices.isEmpty) return const SizedBox.shrink();
+    final selected = data.selectedAssignmentId;
+    var selectedLabel = data.choices.first.label;
+    for (final choice in data.choices) {
+      if (choice.assignmentId == selected) selectedLabel = choice.label;
+    }
+    if (data.choices.length == 1) {
+      return Chip(
+        avatar: const Icon(Icons.class_outlined, size: 18),
+        label: Text(selectedLabel),
+      );
+    }
+    return PopupMenuButton<String>(
+      tooltip: 'Sınıf/şube seç',
+      initialValue: selected,
+      onSelected: _selectAssignment,
+      itemBuilder: (context) => [
+        for (final choice in data.choices)
+          PopupMenuItem<String>(
+            value: choice.assignmentId,
+            child: Row(
+              children: [
+                if (choice.assignmentId == selected)
+                  const Icon(Icons.check, size: 18)
+                else
+                  const SizedBox(width: 18),
+                const SizedBox(width: 8),
+                Text(choice.label),
+              ],
+            ),
+          ),
+      ],
+      child: Chip(
+        avatar: const Icon(Icons.class_outlined, size: 18),
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(selectedLabel),
+            const SizedBox(width: 2),
+            const Icon(Icons.arrow_drop_down, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _topTrailing(_ContinuityData data) => Wrap(
+    alignment: WrapAlignment.end,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    spacing: AppSpacing.sm,
+    runSpacing: AppSpacing.xs,
+    children: [
+      _assignmentSelector(data),
+      if (widget.topTrailing != null) widget.topTrailing!,
+    ],
+  );
+
+  Widget _workspace(BuildContext context, _ContinuityData data) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final dashboardTheme = theme.copyWith(
@@ -191,18 +386,19 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
     return Theme(
       data: dashboardTheme,
       child: ThisWeekPage(
-        key: ValueKey(_workspaceRevision),
+        key: ValueKey('$_workspaceRevision:${data.selectedAssignmentId}'),
         repository: widget.repository,
-        service: widget.service,
+        service: data.service,
         lessonPlanProgress: widget.lessonPlanProgress,
-        instructionContext: widget.instructionContext,
+        instructionContext: data.instructionContext,
         assignmentLessonProgress: widget.assignmentLessonProgress,
         assignmentTimeline: widget.assignmentTimeline,
         courseId: widget.courseId,
         onConfigureSchedule: widget.onConfigureSchedule,
-        onOutcomeViewed: _rememberViewed,
-        initialPlanFuture: _planFuture,
-        topTrailing: widget.topTrailing,
+        onOutcomeViewed: (item) =>
+            _rememberViewed(item, data.continuityScopeId),
+        initialPlanFuture: Future.value(data.plan),
+        topTrailing: _topTrailing(data),
         onOpenResources: widget.onOpenResources,
       ),
     );
@@ -212,9 +408,12 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
   Widget build(BuildContext context) => FutureBuilder<_ContinuityData>(
     future: _future,
     builder: (context, snapshot) {
-      final data = snapshot.data;
-      if (data?.item == null || data?.stored == null) {
-        return _workspace(context);
+      if (!snapshot.hasData) {
+        return const LoadingView(label: 'Bu hafta hazırlanıyor…');
+      }
+      final data = snapshot.data!;
+      if (data.item == null || data.stored == null) {
+        return _workspace(context, data);
       }
 
       return NestedScrollView(
@@ -226,7 +425,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 960),
                 child: _ResumeBanner(
-                  state: data!.stored!,
+                  state: data.stored!,
                   item: data.item!,
                   onResume: () => _resume(data),
                 ),
@@ -234,18 +433,39 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
             ),
           ),
         ],
-        body: _workspace(context),
+        body: _workspace(context, data),
       );
     },
   );
 }
 
 class _ContinuityData {
-  const _ContinuityData({required this.plan, this.stored, this.item});
+  const _ContinuityData({
+    required this.plan,
+    required this.service,
+    required this.instructionContext,
+    required this.continuityScopeId,
+    required this.choices,
+    required this.selectedAssignmentId,
+    this.stored,
+    this.item,
+  });
 
   final AnnualOutcomePlan plan;
+  final OutcomePlanningService service;
+  final InstructionContextRepository? instructionContext;
+  final String continuityScopeId;
+  final List<_AssignmentChoice> choices;
+  final String? selectedAssignmentId;
   final LastFocusState? stored;
   final TrackedOutcome? item;
+}
+
+class _AssignmentChoice {
+  const _AssignmentChoice({required this.assignmentId, required this.label});
+
+  final String assignmentId;
+  final String label;
 }
 
 class _ResumeBanner extends StatelessWidget {
