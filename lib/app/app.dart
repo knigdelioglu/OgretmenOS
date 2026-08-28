@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../data/preferences/continuity_repository.dart';
 import '../domain/repositories/assignment_lesson_progress_repository.dart';
+import '../domain/repositories/assignment_outcome_tracking_repository.dart';
 import '../domain/repositories/instruction_context_repository.dart';
 import '../domain/repositories/lesson_plan_progress_repository.dart';
 import '../domain/repositories/outcome_tracking_repository.dart';
@@ -243,6 +244,7 @@ class _AppShellState extends State<_AppShell> {
   late final LessonPlanProgressRepository _lessonPlanProgress;
   late final InstructionContextRepository _instructionContext;
   late final AssignmentLessonProgressRepository _assignmentLessonProgress;
+  late final AssignmentOutcomeTrackingRepository _assignmentOutcomeTracking;
   late final AssignmentLessonTimelineService _assignmentTimeline;
   AnnualPlanPage? _annualPlanPage;
   ResourceLibraryPage? _resourceLibraryPage;
@@ -261,6 +263,9 @@ class _AppShellState extends State<_AppShell> {
     _assignmentLessonProgress =
         widget.dependencies.assignmentLessonProgress ??
         MemoryAssignmentLessonProgressRepository();
+    _assignmentOutcomeTracking =
+        widget.dependencies.assignmentOutcomeTracking ??
+        MemoryAssignmentOutcomeTrackingRepository();
     _assignmentTimeline =
         widget.dependencies.assignmentTimeline ??
         AssignmentLessonTimelineService(
@@ -401,6 +406,7 @@ class _AppShellState extends State<_AppShell> {
         lessonPlanProgress: _lessonPlanProgress,
         instructionContext: _instructionContext,
         assignmentLessonProgress: _assignmentLessonProgress,
+        assignmentOutcomeTracking: _assignmentOutcomeTracking,
         assignmentTimeline: _assignmentTimeline,
         courseId: widget.activeCourseId,
         topTrailing: _topTrailing(context),
