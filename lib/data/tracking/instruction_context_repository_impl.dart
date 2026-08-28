@@ -33,11 +33,20 @@ class SqfliteInstructionContextRepository
 
   @override
   Future<void> saveClass(SchoolClass schoolClass) async {
-    await _database.insert(
+    final values = _classToRow(schoolClass);
+    final updated = await _database.update(
       'school_classes',
-      _classToRow(schoolClass),
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      values,
+      where: 'class_id = ?',
+      whereArgs: [schoolClass.id],
     );
+    if (updated == 0) {
+      await _database.insert(
+        'school_classes',
+        values,
+        conflictAlgorithm: ConflictAlgorithm.abort,
+      );
+    }
   }
 
   @override
@@ -86,11 +95,20 @@ class SqfliteInstructionContextRepository
 
   @override
   Future<void> saveAssignment(TeachingAssignment assignment) async {
-    await _database.insert(
+    final values = _assignmentToRow(assignment);
+    final updated = await _database.update(
       'teaching_assignments',
-      _assignmentToRow(assignment),
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      values,
+      where: 'assignment_id = ?',
+      whereArgs: [assignment.id],
     );
+    if (updated == 0) {
+      await _database.insert(
+        'teaching_assignments',
+        values,
+        conflictAlgorithm: ConflictAlgorithm.abort,
+      );
+    }
   }
 
   @override
@@ -117,11 +135,20 @@ class SqfliteInstructionContextRepository
     await _database.transaction((txn) async {
       final desired = periods.map((period) => period.periodNumber).toSet();
       for (final period in periods) {
-        await txn.insert(
+        final values = _periodToRow(period);
+        final updated = await txn.update(
           'bell_periods',
-          _periodToRow(period),
-          conflictAlgorithm: ConflictAlgorithm.replace,
+          values,
+          where: 'period_number = ?',
+          whereArgs: [period.periodNumber],
         );
+        if (updated == 0) {
+          await txn.insert(
+            'bell_periods',
+            values,
+            conflictAlgorithm: ConflictAlgorithm.abort,
+          );
+        }
       }
       final existing = await txn.query(
         'bell_periods',
