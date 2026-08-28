@@ -2,16 +2,20 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../data/preferences/continuity_repository.dart';
+import '../domain/repositories/assignment_lesson_progress_repository.dart';
+import '../domain/repositories/instruction_context_repository.dart';
 import '../domain/repositories/lesson_plan_progress_repository.dart';
 import '../domain/repositories/outcome_tracking_repository.dart';
 import '../domain/runtime/course_runtime_registry.dart';
+import '../domain/services/assignment_lesson_timeline_service.dart';
 import '../domain/services/outcome_planning_service.dart';
 import '../features/annual_plan/annual_plan_page.dart';
 import '../features/resources/resource_library_page.dart';
+import '../features/settings/teaching_schedule_page.dart';
 import '../features/shared/interaction_polish.dart';
 import '../features/this_week/continuity_this_week_page.dart';
-import 'resource_navigation.dart';
 import 'app_dependencies.dart';
+import 'resource_navigation.dart';
 import 'theme/app_theme.dart';
 
 class TeacherOsApp extends StatefulWidget {
@@ -237,6 +241,9 @@ class _AppShellState extends State<_AppShell> {
   late final OutcomePlanningService _outcomePlanning;
   late final ContinuityRepository _continuity;
   late final LessonPlanProgressRepository _lessonPlanProgress;
+  late final InstructionContextRepository _instructionContext;
+  late final AssignmentLessonProgressRepository _assignmentLessonProgress;
+  late final AssignmentLessonTimelineService _assignmentTimeline;
   AnnualPlanPage? _annualPlanPage;
   ResourceLibraryPage? _resourceLibraryPage;
 
@@ -248,6 +255,18 @@ class _AppShellState extends State<_AppShell> {
     _lessonPlanProgress =
         widget.dependencies.lessonPlanProgress ??
         MemoryLessonPlanProgressRepository();
+    _instructionContext =
+        widget.dependencies.instructionContext ??
+        MemoryInstructionContextRepository();
+    _assignmentLessonProgress =
+        widget.dependencies.assignmentLessonProgress ??
+        MemoryAssignmentLessonProgressRepository();
+    _assignmentTimeline =
+        widget.dependencies.assignmentTimeline ??
+        AssignmentLessonTimelineService(
+          instructionContext: _instructionContext,
+          weeklyPlanning: widget.dependencies.weeklyPlanning,
+        );
     _outcomePlanning =
         widget.dependencies.outcomePlanning ??
         OutcomePlanningService(
@@ -261,7 +280,7 @@ class _AppShellState extends State<_AppShell> {
     final activeCourse = runtimeForCourse(widget.activeCourseId);
     if (widget.onCourseChanged == null) return const SizedBox.shrink();
     return PopupMenuButton<String>(
-      tooltip: 'Sınıf seç',
+      tooltip: 'Sınıf düzeyi seç',
       initialValue: widget.activeCourseId,
       onSelected: widget.onCourseChanged,
       itemBuilder: (context) => [
@@ -307,6 +326,36 @@ class _AppShellState extends State<_AppShell> {
     );
   }
 
+  Future<void> _openTeachingSchedule() async {
+    final activeCourse = runtimeForCourse(widget.activeCourseId);
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => TeachingSchedulePage(
+          repository: _instructionContext,
+          weeklyPlanning: widget.dependencies.weeklyPlanning,
+          timeline: _assignmentTimeline,
+          courseId: widget.activeCourseId,
+          grade: activeCourse.grade,
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+  Widget _topTrailing(BuildContext context) => Wrap(
+    alignment: WrapAlignment.end,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    spacing: 4,
+    children: [
+      _courseSelector(context),
+      IconButton(
+        tooltip: 'Sınıflar ve ders programı',
+        onPressed: _openTeachingSchedule,
+        icon: const Icon(Icons.edit_calendar_outlined),
+      ),
+    ],
+  );
+
   Widget _annualPlan(BuildContext context) {
     final cached = _annualPlanPage;
     if (cached != null) return cached;
@@ -318,7 +367,7 @@ class _AppShellState extends State<_AppShell> {
       courseId: widget.activeCourseId,
       outcomePlanning: _outcomePlanning,
       weeklyPlanning: widget.dependencies.weeklyPlanning,
-      topTrailing: _courseSelector(context),
+      topTrailing: _topTrailing(context),
       onOpenResources: widget.onOpenResources,
     );
   }
@@ -337,7 +386,7 @@ class _AppShellState extends State<_AppShell> {
       weeklyPlanning: widget.dependencies.weeklyPlanning,
       courseId: widget.activeCourseId,
       navigationContext: widget.resourceNavigationContext,
-      topTrailing: _courseSelector(context),
+      topTrailing: _topTrailing(context),
     );
   }
 
@@ -350,8 +399,12 @@ class _AppShellState extends State<_AppShell> {
         service: _outcomePlanning,
         continuity: _continuity,
         lessonPlanProgress: _lessonPlanProgress,
+        instructionContext: _instructionContext,
+        assignmentLessonProgress: _assignmentLessonProgress,
+        assignmentTimeline: _assignmentTimeline,
         courseId: widget.activeCourseId,
-        topTrailing: _courseSelector(context),
+        topTrailing: _topTrailing(context),
+        onConfigureSchedule: _openTeachingSchedule,
         onOpenResources: widget.onOpenResources,
       ),
       _annualPlan(context),
