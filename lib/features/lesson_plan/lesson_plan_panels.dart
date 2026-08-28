@@ -5,11 +5,10 @@ import '../../domain/models/lesson_plan_progress_models.dart';
 import '../../domain/models/outcome_tracking_models.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../../domain/repositories/lesson_plan_progress_repository.dart';
-import '../../domain/services/lesson_plan_progress_service.dart';
 import '../../domain/services/lesson_plan_workflow_service.dart';
 import '../shared/feature_widgets.dart';
-import 'lesson_plan_page.dart';
 import 'lesson_plan_teacher_presentation.dart';
+import 'single_lesson_plan_page.dart';
 
 class WeeklyLessonPlanPanel extends StatefulWidget {
   const WeeklyLessonPlanPanel({
@@ -58,34 +57,31 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
     if (selections.isEmpty || widget.progressRepository == null) {
       return _WeeklyLessonPlanPanelData(selections: selections);
     }
-    final progress = LessonPlanProgressService(
-      repository: widget.progressRepository!,
-    );
-    final orderedPackages = <LessonPlanPackage>[];
-    final seenPackageIds = <String>{};
-    for (final selection in selections) {
-      if (seenPackageIds.add(selection.package.packageId)) {
-        orderedPackages.add(selection.package);
-      }
-    }
-    final snapshot = await progress.snapshot(
-      orderedPackages: orderedPackages,
-      academicYear: widget.annualPlan.academicYear,
+
+    final allRecords = await widget.progressRepository!
+        .getForCourseAcademicYear(
+          courseId: selections.first.package.courseId,
+          academicYear: widget.annualPlan.academicYear,
+        );
+    final progress = _buildLessonHourProgressSnapshot(
+      selections: selections,
+      allRecords: allRecords,
     );
     return _WeeklyLessonPlanPanelData(
       selections: selections,
-      progress: snapshot,
+      progress: progress,
     );
   }
 
   void _reload() => setState(() => _future = _load());
 
-  Future<void> _openPlan(String packageId) async {
+  Future<void> _openPlan(WeeklyLessonPlanSelection selection) async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => LessonPlanPage(
+        builder: (_) => SingleLessonPlanPage(
           repository: widget.repository,
-          initialPackageId: packageId,
+          initialPackageId: selection.package.packageId,
+          initialPackageHour: selection.packageHour,
           progressRepository: widget.progressRepository,
           academicYear: widget.annualPlan.academicYear,
         ),
@@ -107,28 +103,28 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
 
       final totalHours = selections.length;
       final progress = data?.progress;
-      final current = _selectionByPackageId(
-        selections,
-        progress?.currentPackageId,
-      );
-      final currentIndex = current == null ? -1 : selections.indexOf(current);
-      final next = currentIndex >= 0 && currentIndex + 1 < selections.length
-          ? selections[currentIndex + 1]
-          : _selectionByPackageId(selections, progress?.nextPackageId);
-      final stalePackageIds = progress == null
-          ? const <String>{}
-          : selections
-                .where((item) => progress.isStale(item.package.packageId))
-                .map((item) => item.package.packageId)
-                .toSet();
-      final staleCount = stalePackageIds.length;
+      final currentIndex = progress == null
+          ? -1
+          : selections.indexWhere(
+              (selection) =>
+                  _lessonHourProgressId(selection) == progress.currentKey,
+            );
+      final current = currentIndex >= 0 ? selections[currentIndex] : null;
+      final nextIndex = progress == null
+          ? -1
+          : selections.indexWhere(
+              (selection) => _lessonHourProgressId(selection) == progress.nextKey,
+            );
+      final next = nextIndex >= 0 ? selections[nextIndex] : null;
+      final staleCount = progress == null
+          ? 0
+          : selections.where(progress.isStale).length;
       final allCompleted =
           progress != null &&
           staleCount == 0 &&
           selections.every(
             (item) =>
-                progress.statusFor(item.package.packageId) ==
-                LessonPlanProgressStatus.completed,
+                progress.statusFor(item) == LessonPlanProgressStatus.completed,
           );
 
       return Padding(
@@ -173,8 +169,8 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     staleCount > 0
-                        ? '$staleCount ders planı güncellendi; durumu yeniden işaretlenmeli.'
-                        : 'Bu haftanın ders planı işlendi.',
+                        ? '$staleCount ders güncellendi; durumu yeniden işaretlenmeli.'
+                        : 'Bu haftanın dersleri işlendi.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: staleCount > 0
                           ? Theme.of(context).colorScheme.error
@@ -187,20 +183,15 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
                 for (var index = 0; index < selections.length; index++)
                   _WeeklyPlanRow(
                     selection: selections[index],
-                    status: progress?.statusFor(
-                      selections[index].package.packageId,
-                    ),
-                    stale:
-                        progress?.isStale(selections[index].package.packageId) ??
-                        false,
+                    status: progress?.statusFor(selections[index]),
+                    stale: progress?.isStale(selections[index]) ?? false,
                     isCurrent:
                         current != null &&
                         _sameSelection(current, selections[index]),
                     isNext:
                         next != null && _sameSelection(next, selections[index]),
                     isLast: index == selections.length - 1,
-                    onOpen: () =>
-                        _openPlan(selections[index].package.packageId),
+                    onOpen: () => _openPlan(selections[index]),
                   ),
               ],
             ),
@@ -238,7 +229,12 @@ class BlockLessonPlanPanel extends StatelessWidget {
           final hour = startHour + offset;
           buttons.add(
             OutlinedButton.icon(
-              onPressed: () => _openPlan(context, repository, plan.packageId),
+              onPressed: () => _openPlan(
+                context,
+                repository,
+                plan.packageId,
+                packageHour: offset + 1,
+              ),
               icon: const Icon(Icons.open_in_new_rounded, size: 18),
               label: Text(teacherLessonHourRange(hour, hour)),
             ),
@@ -477,19 +473,96 @@ class _WeeklyLessonPlanPanelData {
   const _WeeklyLessonPlanPanelData({required this.selections, this.progress});
 
   final List<WeeklyLessonPlanSelection> selections;
-  final LessonPlanProgressSnapshot? progress;
+  final _LessonHourProgressSnapshot? progress;
 }
 
-WeeklyLessonPlanSelection? _selectionByPackageId(
-  List<WeeklyLessonPlanSelection> selections,
-  String? packageId,
-) {
-  if (packageId == null) return null;
+class _LessonHourProgressSnapshot {
+  const _LessonHourProgressSnapshot({
+    required this.records,
+    required this.staleKeys,
+    required this.currentKey,
+    required this.nextKey,
+  });
+
+  final Map<String, LessonPlanProgressRecord> records;
+  final Set<String> staleKeys;
+  final String? currentKey;
+  final String? nextKey;
+
+  LessonPlanProgressStatus statusFor(WeeklyLessonPlanSelection selection) =>
+      records[_lessonHourProgressId(selection)]?.status ??
+      LessonPlanProgressStatus.notStarted;
+
+  bool isStale(WeeklyLessonPlanSelection selection) =>
+      staleKeys.contains(_lessonHourProgressId(selection));
+}
+
+_LessonHourProgressSnapshot _buildLessonHourProgressSnapshot({
+  required List<WeeklyLessonPlanSelection> selections,
+  required List<LessonPlanProgressRecord> allRecords,
+}) {
+  final byId = {for (final record in allRecords) record.packageId: record};
+  final records = <String, LessonPlanProgressRecord>{};
+  final staleKeys = <String>{};
+
   for (final selection in selections) {
-    if (selection.package.packageId == packageId) return selection;
+    final key = _lessonHourProgressId(selection);
+    final record = byId[key];
+    if (record == null) continue;
+    final packageHash = selection.package.payloadSha256.trim();
+    final recordHash = record.payloadSha256?.trim() ?? '';
+    if (packageHash.isEmpty || recordHash.isEmpty || packageHash != recordHash) {
+      staleKeys.add(key);
+    } else {
+      records[key] = record;
+    }
+  }
+
+  String? currentKey;
+  for (final selection in selections) {
+    final key = _lessonHourProgressId(selection);
+    if (records[key]?.status == LessonPlanProgressStatus.inProgress) {
+      currentKey = key;
+      break;
+    }
+  }
+  currentKey ??= _firstOpenLessonKey(selections, records);
+
+  String? nextKey;
+  if (currentKey != null) {
+    final currentIndex = selections.indexWhere(
+      (selection) => _lessonHourProgressId(selection) == currentKey,
+    );
+    for (var index = currentIndex + 1; index < selections.length; index++) {
+      final key = _lessonHourProgressId(selections[index]);
+      if (records[key]?.status != LessonPlanProgressStatus.completed) {
+        nextKey = key;
+        break;
+      }
+    }
+  }
+
+  return _LessonHourProgressSnapshot(
+    records: Map<String, LessonPlanProgressRecord>.unmodifiable(records),
+    staleKeys: Set<String>.unmodifiable(staleKeys),
+    currentKey: currentKey,
+    nextKey: nextKey,
+  );
+}
+
+String? _firstOpenLessonKey(
+  List<WeeklyLessonPlanSelection> selections,
+  Map<String, LessonPlanProgressRecord> records,
+) {
+  for (final selection in selections) {
+    final key = _lessonHourProgressId(selection);
+    if (records[key]?.status != LessonPlanProgressStatus.completed) return key;
   }
   return null;
 }
+
+String _lessonHourProgressId(WeeklyLessonPlanSelection selection) =>
+    '${selection.package.packageId}::lesson-hour:${selection.packageHour}';
 
 bool _sameSelection(
   WeeklyLessonPlanSelection left,
@@ -505,12 +578,14 @@ String _selectionLabel(WeeklyLessonPlanSelection selection) =>
 Future<void> _openPlan(
   BuildContext context,
   CourseKnowledgeRepository repository,
-  String packageId,
-) => Navigator.of(context).push<void>(
+  String packageId, {
+  required int packageHour,
+}) => Navigator.of(context).push<void>(
   MaterialPageRoute<void>(
-    builder: (_) => LessonPlanPage(
+    builder: (_) => SingleLessonPlanPage(
       repository: repository,
       initialPackageId: packageId,
+      initialPackageHour: packageHour,
     ),
   ),
 );
