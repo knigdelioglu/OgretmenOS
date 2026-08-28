@@ -179,6 +179,74 @@ get_apk_package_name() {
     | head -n 1
 }
 
+# Yerel tablet dağıtımı için release imzasını hazırla. Bu anahtar yalnızca
+# geliştirme/kurum içi dağıtım içindir; mağaza yayınında kendi kalıcı anahtarını
+# android/key.properties üzerinden sağlamalısın.
+ensure_release_signing() {
+  local properties_file="android/key.properties"
+  local keystore_file="android/ogretmenos-local-release.jks"
+  local required_key
+
+  if [ -f "$properties_file" ]; then
+    for required_key in storeFile storePassword keyAlias keyPassword; do
+      if ! grep -Eq "^${required_key}=[^[:space:]].*$" "$properties_file"; then
+        echo -e "${RED}❌ android/key.properties içinde '${required_key}' eksik veya boş.${NC}" >&2
+        return 1
+      fi
+    done
+
+    local configured_store
+    configured_store=$(sed -n 's/^storeFile=//p' "$properties_file" | head -n 1)
+    if [[ "$configured_store" != /* ]]; then
+      configured_store="android/$configured_store"
+    fi
+    if [ ! -f "$configured_store" ]; then
+      echo -e "${RED}❌ Release keystore bulunamadı: ${configured_store}${NC}" >&2
+      return 1
+    fi
+    return 0
+  fi
+
+  if ! command -v keytool >/dev/null 2>&1; then
+    echo -e "${RED}❌ keytool bulunamadı; release APK imzalanamıyor.${NC}" >&2
+    return 1
+  fi
+
+  if [ -f "$keystore_file" ]; then
+    echo -e "${RED}❌ Yerel keystore mevcut ancak android/key.properties yok.${NC}" >&2
+    echo -e "${YELLOW}Keystore parolası bilinmeden yapılandırma yeniden oluşturulamaz; yedekten key.properties dosyasını geri yükleyin.${NC}" >&2
+    return 1
+  fi
+
+  echo -e "${YELLOW}🔐 Yerel tablet dağıtımı için release keystore oluşturuluyor...${NC}"
+  local store_password
+  store_password=$(openssl rand -hex 24 2>/dev/null || true)
+  if [ -z "$store_password" ]; then
+    store_password="ogretmenos-local-$(date +%s)"
+  fi
+
+  if [ ! -f "$keystore_file" ]; then
+    if ! keytool -genkeypair -v \
+      -keystore "$keystore_file" \
+      -storepass "$store_password" \
+      -keypass "$store_password" \
+      -alias ogretmenos-local \
+      -keyalg RSA -keysize 2048 -validity 10000 \
+      -dname "CN=OgretmenOS Local, OU=Development, O=OgretmenOS, C=TR" \
+      -noprompt >/dev/null 2>&1; then
+      echo -e "${RED}❌ Yerel release keystore oluşturulamadı.${NC}" >&2
+      return 1
+    fi
+  fi
+
+  printf '%s\n' \
+    "storeFile=ogretmenos-local-release.jks" \
+    "storePassword=$store_password" \
+    "keyAlias=ogretmenos-local" \
+    "keyPassword=$store_password" > "$properties_file"
+  echo -e "${GREEN}✅ Yerel release imzası hazırlandı (dosyalar Git'e alınmaz).${NC}"
+}
+
 echo -e "${CYAN}🔍 Tablet otomatik aranıyor...${NC}"
 
 # 1. Adım: USB bağlı cihaz varsa önce kablosuza geçir.
@@ -284,9 +352,64 @@ echo ""
 echo -e "${GREEN}🚀 Hedef Cihaz: ${BOLD}${DEVICE_TARGET}${NC}"
 echo ""
 
+while true; do
+  read -r -p "Çalıştırma modu: [D]ebug (hot reload) / [R]elease (mevcut akış) [R]: " BUILD_MODE
+  BUILD_MODE="${BUILD_MODE:-R}"
+  BUILD_MODE_UPPER=$(printf '%s' "$BUILD_MODE" | tr '[:lower:]' '[:upper:]')
+  case "$BUILD_MODE_UPPER" in
+    D|DEBUG)
+      ANDROID_PACKAGE_NAME=$(sed -n \
+        's/.*applicationId[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' \
+        android/app/build.gradle.kts | head -n 1)
+      if [ -z "$ANDROID_PACKAGE_NAME" ]; then
+        echo -e "${RED}❌ Android applicationId okunamadı; debug modu başlatılamıyor.${NC}"
+        read -p "Çıkmak için [Enter] tuşuna basın..." _
+        exit 1
+      fi
+
+      # Release ve debug imzaları farklıysa Android güncelleme yerine kurulumun
+      # yapılabilmesi için mevcut uygulama kaldırılır; -k uygulama verisini korur.
+      if adb -s "$DEVICE_TARGET" shell pm path "$ANDROID_PACKAGE_NAME" >/dev/null 2>&1; then
+        echo -e "${YELLOW}⚠️ Mevcut uygulama debug imzasıyla uyumlu hale getiriliyor (veriler korunur).${NC}"
+        if ! adb -s "$DEVICE_TARGET" uninstall -k "$ANDROID_PACKAGE_NAME" >/dev/null; then
+          echo -e "${RED}❌ Mevcut uygulama kaldırılamadı; debug modu başlatılamıyor.${NC}"
+          read -p "Çıkmak için [Enter] tuşuna basın..." _
+          exit 1
+        fi
+      fi
+
+      echo -e "${BLUE}🐛 Debug sürümü başlatılıyor; hot reload için bu pencereyi açık bırakın.${NC}"
+      if flutter run --debug -d "$DEVICE_TARGET"; then
+        echo -e "${GREEN}✅ Debug oturumu sona erdi.${NC}"
+      else
+        echo -e "${RED}❌ Debug oturumu başlatılamadı.${NC}"
+        read -p "Çıkmak için [Enter] tuşuna basın..." _
+        exit 1
+      fi
+      read -p "Çıkmak için [Enter] tuşuna basın..." _
+      exit 0
+      ;;
+    R|RELEASE)
+      break
+      ;;
+    *)
+      echo -e "${YELLOW}Lütfen D (Debug) veya R (Release) girin.${NC}"
+      ;;
+  esac
+done
+
 # 4. Flutter Release Build
+if ! ensure_release_signing; then
+  read -p "Çıkmak için [Enter] tuşuna basın..." _
+  exit 1
+fi
+
 echo -e "${BLUE}📦 Release APK derleniyor (flutter build apk --release)...${NC}"
-flutter build apk --release
+if ! flutter build apk --release; then
+  echo -e "${RED}❌ Release APK derlenemedi.${NC}"
+  read -p "Çıkmak için [Enter] tuşuna basın..." _
+  exit 1
+fi
 
 APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
 if [ ! -f "$APK_PATH" ]; then
@@ -298,12 +421,44 @@ fi
 echo -e "${GREEN}✅ Derleme tamamlandı.${NC}"
 echo ""
 
+APK_SIGNER="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}/build-tools"
+APK_SIGNER=$(find "$APK_SIGNER" -type f -name apksigner -perm -111 2>/dev/null | sort -V | tail -n 1)
+if [ -z "$APK_SIGNER" ] || ! "$APK_SIGNER" verify "$APK_PATH" >/dev/null 2>&1; then
+  echo -e "${RED}❌ APK imza doğrulamasından geçemedi; tablete gönderilmedi.${NC}"
+  echo -e "${YELLOW}android/key.properties ve keystore yapılandırmasını kontrol edin.${NC}"
+  read -p "Çıkmak için [Enter] tuşuna basın..." _
+  exit 1
+fi
+
+PACKAGE_NAME=$(get_apk_package_name "$APK_PATH" || true)
+if [ -z "$PACKAGE_NAME" ]; then
+  PACKAGE_NAME=$(sed -n \
+    's/.*applicationId[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' \
+    android/app/build.gradle.kts | head -n 1)
+fi
+
 # 5. Tablete Yükleme
 echo -e "${BLUE}📲 Tablet üzerine yükleniyor (${DEVICE_TARGET})...${NC}"
-adb -s "$DEVICE_TARGET" install -r "$APK_PATH"
+INSTALL_OUTPUT=$(adb -s "$DEVICE_TARGET" install -r "$APK_PATH" 2>&1)
+INSTALL_STATUS=$?
+if [ "$INSTALL_STATUS" -ne 0 ]; then
+  if printf '%s' "$INSTALL_OUTPUT" | grep -Eq 'INSTALL_FAILED_UPDATE_INCOMPATIBLE|signatures do not match'; then
+    echo -e "${YELLOW}⚠️ Mevcut uygulamanın imzası farklı; uygulama verileri korunarak yeniden kuruluyor...${NC}"
+    if ! adb -s "$DEVICE_TARGET" uninstall -k "$PACKAGE_NAME" >/dev/null 2>&1 || \
+       ! adb -s "$DEVICE_TARGET" install -r "$APK_PATH"; then
+      echo -e "${RED}❌ İmza çakışması çözülemedi; APK tablete yüklenemedi.${NC}"
+      read -p "Çıkmak için [Enter] tuşuna basın..." _
+      exit 1
+    fi
+  else
+    echo "$INSTALL_OUTPUT"
+    echo -e "${RED}❌ APK tablete yüklenemedi.${NC}"
+    read -p "Çıkmak için [Enter] tuşuna basın..." _
+    exit 1
+  fi
+fi
 
 # 6. Uygulamayı Başlat
-PACKAGE_NAME=$(get_apk_package_name "$APK_PATH" || true)
 if [ -n "$PACKAGE_NAME" ]; then
   echo -e "${BLUE}🚀 Uygulama tablet üzerinde başlatılıyor (${PACKAGE_NAME})...${NC}"
   adb -s "$DEVICE_TARGET" shell monkey -p "$PACKAGE_NAME" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || true
