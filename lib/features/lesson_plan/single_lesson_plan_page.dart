@@ -60,7 +60,11 @@ class _SingleLessonPlanPageState extends State<SingleLessonPlanPage> {
       throw StateError('Bu ders planında tekil ders verisi bulunamadı.');
     }
 
-    final effectiveHour = packageHour.clamp(1, current.lessonHours);
+    final effectiveHour = packageHour < 1
+        ? 1
+        : packageHour > current.lessonHours
+        ? current.lessonHours
+        : packageHour;
     final lesson = _lessonForPackageHour(current, effectiveHour);
     if (lesson == null) {
       throw StateError('Ders saati plan verisiyle eşleştirilemedi.');
@@ -81,12 +85,13 @@ class _SingleLessonPlanPageState extends State<SingleLessonPlanPage> {
       blockDetail = null;
     }
 
+    final plansForPresentation = blockPlans.isEmpty ? [current] : blockPlans;
     final presentation = LessonPlanTeacherPresentation(
-      blockPlans: blockPlans.isEmpty ? [current] : blockPlans,
+      blockPlans: plansForPresentation,
       blockDetail: blockDetail,
     );
     final blockHour = _blockHourFor(
-      blockPlans.isEmpty ? [current] : blockPlans,
+      plansForPresentation,
       current,
       effectiveHour,
     );
@@ -246,9 +251,8 @@ class _SingleLessonPlanPageState extends State<SingleLessonPlanPage> {
             onRetry: _reload,
           );
         }
-        final data = snapshot.data!;
         return _SingleLessonContent(
-          data: data,
+          data: snapshot.data!,
           progressEnabled: _progressEnabled,
           progressOverride: _localProgress,
           onSetProgress: _setProgress,
@@ -439,7 +443,6 @@ class _CollapsibleLessonHeaderState extends State<_CollapsibleLessonHeader> {
           const SizedBox(height: AppSpacing.sm),
           Semantics(
             button: true,
-            expanded: _expanded,
             label: _expanded ? 'Ders özetini gizle' : 'Ders özetini göster',
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
