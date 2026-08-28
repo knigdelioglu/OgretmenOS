@@ -6,6 +6,7 @@ class WeeklyLessonPlanSelection {
   const WeeklyLessonPlanSelection({
     required this.package,
     required this.weekNumber,
+    required this.weekHour,
     required this.blockId,
     required this.segmentHours,
     required this.segmentStartHour,
@@ -20,6 +21,10 @@ class WeeklyLessonPlanSelection {
   final LessonPlanPackage package;
   final LessonPlanLesson? lesson;
   final int weekNumber;
+
+  /// Exact 1-based course hour represented by this row inside the week.
+  final int weekHour;
+
   final String blockId;
   final int segmentHours;
 
@@ -57,10 +62,14 @@ class LessonPlanWorkflowService {
 
     final selections = <WeeklyLessonPlanSelection>[];
     final consumedInSelectedWeek = <String, int>{};
+    var weekHourCursor = 0;
 
     for (final segment in summary.week.segments) {
       final block = segment.block;
-      if (block == null || segment.hours <= 0) continue;
+      if (block == null || segment.hours <= 0) {
+        weekHourCursor += segment.hours;
+        continue;
+      }
 
       final consumedBefore =
           _consumedBlockHoursBefore(annualPlan, weekNumber, block.id) +
@@ -86,11 +95,13 @@ class LessonPlanWorkflowService {
             blockHourIndex < overlapEnd;
             blockHourIndex++) {
           final packageHour = blockHourIndex - packageStart + 1;
+          final weekHour = weekHourCursor + (blockHourIndex - consumedBefore) + 1;
           selections.add(
             WeeklyLessonPlanSelection(
               package: package,
               lesson: _lessonForPackageHour(package, packageHour),
               weekNumber: weekNumber,
+              weekHour: weekHour,
               blockId: block.id,
               segmentHours: segment.hours,
               segmentStartHour: consumedBefore + 1,
@@ -113,9 +124,35 @@ class LessonPlanWorkflowService {
         (value) => value + segment.hours,
         ifAbsent: () => segment.hours,
       );
+      weekHourCursor += segment.hours;
     }
 
     return List<WeeklyLessonPlanSelection>.unmodifiable(selections);
+  }
+
+  Future<WeeklyLessonPlanSelection?> selectionForInstructionOrdinal(
+    AnnualOutcomePlan annualPlan,
+    int instructionOrdinal,
+  ) async {
+    if (instructionOrdinal < 1) return null;
+    var remaining = instructionOrdinal;
+    for (final summary in annualPlan.weeks) {
+      if (summary.week.isEventWeek) continue;
+      final hours = summary.week.plannedLessonHours;
+      if (remaining > hours) {
+        remaining -= hours;
+        continue;
+      }
+      final selections = await plansForWeek(
+        annualPlan,
+        summary.week.weekNumber,
+      );
+      for (final selection in selections) {
+        if (selection.weekHour == remaining) return selection;
+      }
+      return null;
+    }
+    return null;
   }
 
   Future<LessonPlanPackage?> primaryPlanForWeek(
