@@ -48,7 +48,9 @@ class AppPage extends StatelessWidget {
       final scrollable = onRefresh == null
           ? content
           : RefreshIndicator(onRefresh: onRefresh!, child: content);
-      final width = constraints.maxWidth < maxWidth ? constraints.maxWidth : maxWidth;
+      final width = constraints.maxWidth < maxWidth
+          ? constraints.maxWidth
+          : maxWidth;
       return Align(
         alignment: Alignment.topCenter,
         child: SizedBox(
@@ -58,73 +60,6 @@ class AppPage extends StatelessWidget {
         ),
       );
     },
-  );
-}
-
-class PageHeader extends StatelessWidget {
-  const PageHeader({
-    super.key,
-    required this.title,
-    this.eyebrow,
-    this.description,
-    this.trailing,
-  });
-
-  final String title;
-  final String? eyebrow;
-  final String? description;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (eyebrow != null) ...[
-                Text(
-                  eyebrow!.toUpperCase(),
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.7,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-              ],
-              Text(
-                title,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  height: 1.15,
-                ),
-              ),
-              if (description != null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 680),
-                  child: Text(
-                    description!,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      height: 1.45,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        if (trailing != null) ...[
-          const SizedBox(width: AppSpacing.lg),
-          trailing!,
-        ],
-      ],
-    ),
   );
 }
 
@@ -227,7 +162,10 @@ class SectionHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: AppSpacing.section, bottom: AppSpacing.md),
+    padding: const EdgeInsets.only(
+      top: AppSpacing.section,
+      bottom: AppSpacing.md,
+    ),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -254,9 +192,9 @@ class SectionHeading extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
               if (subtitle != null) ...[
                 const SizedBox(height: AppSpacing.xs),
@@ -271,10 +209,7 @@ class SectionHeading extends StatelessWidget {
             ],
           ),
         ),
-        if (action != null) ...[
-          const SizedBox(width: AppSpacing.md),
-          action!,
-        ],
+        if (action != null) ...[const SizedBox(width: AppSpacing.md), action!],
       ],
     ),
   );
@@ -381,8 +316,14 @@ class StatusPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final (background, foreground) = switch (tone) {
-      StatusTone.positive => (scheme.primaryContainer, scheme.onPrimaryContainer),
-      StatusTone.attention => (scheme.tertiaryContainer, scheme.onTertiaryContainer),
+      StatusTone.positive => (
+        scheme.primaryContainer,
+        scheme.onPrimaryContainer,
+      ),
+      StatusTone.attention => (
+        scheme.tertiaryContainer,
+        scheme.onTertiaryContainer,
+      ),
       StatusTone.error => (scheme.errorContainer, scheme.onErrorContainer),
       StatusTone.neutral => (scheme.surfaceContainerHigh, scheme.onSurface),
     };
@@ -460,9 +401,9 @@ class MetricChip extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Text(
           '$value $label',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
         ),
       ],
     ),
@@ -506,9 +447,9 @@ class LabeledValue extends StatelessWidget {
       Expanded(
         child: Text(
           value,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
       ),
     ],
@@ -579,7 +520,8 @@ class ResourceDecisionCard extends StatelessWidget {
               const StatusPanel(
                 icon: Icons.visibility_outlined,
                 title: 'Öğretmen incelemesi',
-                message: 'Bu karar kullanımdan önce öğretmen kontrolü gerektiriyor.',
+                message:
+                    'Bu karar kullanımdan önce öğretmen kontrolü gerektiriyor.',
                 tone: StatusTone.attention,
               ),
             ],

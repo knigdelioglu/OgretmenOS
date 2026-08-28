@@ -221,7 +221,8 @@ class _LessonPlanContent extends StatelessWidget {
   final Future<void> Function(
     LessonPlanPackage package,
     LessonPlanProgressStatus status,
-  ) onSetProgress;
+  )
+  onSetProgress;
   final ValueChanged<String> onOpenPackage;
 
   @override
@@ -236,12 +237,6 @@ class _LessonPlanContent extends StatelessWidget {
 
     return AppPage(
       children: [
-        PageHeader(
-          eyebrow:
-              '${presentation.packageHeaderLabel(plan)} · ${plan.lessonHours} DERS SAATİ',
-          title: presentation.humanize(plan.title),
-          description: presentation.humanize(plan.summary),
-        ),
         if (progressEnabled) ...[
           _PlanProgressCard(
             plan: plan,
@@ -277,7 +272,8 @@ class _LessonPlanContent extends StatelessWidget {
                                   fontWeight: FontWeight.w700,
                                 ),
                           ),
-                          if (presentation.locationLabel case final location?) ...[
+                          if (presentation.locationLabel
+                              case final location?) ...[
                             const SizedBox(height: AppSpacing.xs),
                             Text(
                               location,
@@ -313,7 +309,8 @@ class _LessonPlanContent extends StatelessWidget {
                       child: Text(label, style: const TextStyle(height: 1.4)),
                     ),
                 ],
-                if (plan.continuation.nextStepHint?.trim().isNotEmpty == true) ...[
+                if (plan.continuation.nextStepHint?.trim().isNotEmpty ==
+                    true) ...[
                   const Divider(height: AppSpacing.xl),
                   Text(
                     'Sonraki adım',
@@ -341,14 +338,12 @@ class _LessonPlanContent extends StatelessWidget {
           const StatusPanel(
             icon: Icons.info_outline,
             title: 'Ders adımı bulunmuyor',
-            message: 'Bu ders planı bölümünde yapılandırılmış ders adımı yer almıyor.',
+            message:
+                'Bu ders planı bölümünde yapılandırılmış ders adımı yer almıyor.',
           )
         else
           for (final lesson in plan.lessons) ...[
-            _LessonStepCard(
-              lesson: lesson,
-              presentation: presentation,
-            ),
+            _LessonStepCard(lesson: lesson, presentation: presentation),
             const SizedBox(height: AppSpacing.md),
           ],
         _PlanNavigation(
@@ -378,7 +373,8 @@ class _PlanProgressCard extends StatelessWidget {
   final Future<void> Function(
     LessonPlanPackage package,
     LessonPlanProgressStatus status,
-  ) onSetProgress;
+  )
+  onSetProgress;
   final ValueChanged<String> onOpenPackage;
 
   @override
@@ -408,18 +404,15 @@ class _PlanProgressCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               stale ? 'Plan güncellendi' : status.teacherLabel,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
             ),
             if (stale) ...[
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Önceki “${progress.record?.status.teacherLabel ?? 'durum'}” kaydı ders planının güncel içeriği için geçerli sayılmadı. Yeni planı gördükten sonra durumu yeniden seçin.',
-                style: TextStyle(
-                  color: scheme.onErrorContainer,
-                  height: 1.4,
-                ),
+                style: TextStyle(color: scheme.onErrorContainer, height: 1.4),
               ),
             ],
             const SizedBox(height: AppSpacing.md),
@@ -453,10 +446,7 @@ class _PlanProgressCard extends StatelessWidget {
 }
 
 class _LessonStepCard extends StatelessWidget {
-  const _LessonStepCard({
-    required this.lesson,
-    required this.presentation,
-  });
+  const _LessonStepCard({required this.lesson, required this.presentation});
 
   final LessonPlanLesson lesson;
   final LessonPlanTeacherPresentation presentation;
@@ -503,9 +493,9 @@ class _LessonStepCard extends StatelessWidget {
               lesson.title.isEmpty
                   ? 'Ders adımı'
                   : presentation.humanize(lesson.title),
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
             ),
             if (lesson.objective.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.sm),
@@ -521,7 +511,10 @@ class _LessonStepCard extends StatelessWidget {
             if (studentActions.isNotEmpty)
               _PlanSection(title: 'Öğrenci', lines: studentActions),
             if (activities.isNotEmpty)
-              _PlanSection(title: 'Ders kitabı etkinlikleri', lines: activities),
+              _PlanSection(
+                title: 'Ders kitabı etkinlikleri',
+                lines: activities,
+              ),
             if (forms.isNotEmpty)
               _PlanSection(title: 'Değerlendirme formları', lines: forms),
             if (materials.isNotEmpty)
@@ -551,9 +544,9 @@ class _PlanSection extends StatelessWidget {
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: AppSpacing.sm),
         for (final line in lines) ...[
@@ -595,9 +588,9 @@ class _PlanNavigation extends StatelessWidget {
         children: [
           Text(
             'Plan sırası',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: AppSpacing.md),
           Row(

@@ -425,11 +425,6 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
         body: AppPage(
           maxWidth: 900,
           children: [
-            PageHeader(
-              eyebrow: 'Kazanım',
-              title: outcome.code,
-              description: outcome.officialText,
-            ),
             if (_item.isCarriedIn)
               StatusPanel(
                 icon: Icons.redo_outlined,

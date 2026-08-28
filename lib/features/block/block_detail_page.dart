@@ -69,12 +69,6 @@ class _BlockDetailContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AppPage(
     children: [
-      PageHeader(
-        eyebrow: detail.theme.title,
-        title: detail.block.title,
-        description:
-            'Önce derste gereken özeti görün; ayrıntıları ihtiyaç duyduğunuzda açın.',
-      ),
       _BlockSummary(detail: detail),
       const SectionHeading(
         'Derste lazım',
@@ -82,10 +76,7 @@ class _BlockDetailContent extends StatelessWidget {
         icon: Icons.play_lesson_outlined,
       ),
       _LessonReadyBlockCard(detail: detail),
-      BlockLessonPlanPanel(
-        repository: repository,
-        blockId: detail.block.id,
-      ),
+      BlockLessonPlanPanel(repository: repository, blockId: detail.block.id),
       const SectionHeading(
         'Plan sırası',
         subtitle: 'Önceki veya sonraki öğretim bloğuna geçin',
@@ -109,9 +100,12 @@ class _LessonReadyBlockCard extends StatelessWidget {
     final firstBook = detail.textbookSections.isEmpty
         ? null
         : detail.textbookSections.first;
-    final firstActivity = detail.activities.isEmpty ? null : detail.activities.first;
+    final firstActivity = detail.activities.isEmpty
+        ? null
+        : detail.activities.first;
     final assessmentCount =
-        detail.assessmentArtifacts.length + detail.assessmentTaskBindings.length;
+        detail.assessmentArtifacts.length +
+        detail.assessmentTaskBindings.length;
 
     return Card(
       child: Padding(
@@ -216,9 +210,9 @@ class _LessonReadyItem extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               title,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
             if (detail?.isNotEmpty == true) ...[
               const SizedBox(height: AppSpacing.xs),
@@ -384,17 +378,22 @@ class _BlockSummary extends StatelessWidget {
                       Text(
                         'Tema içindeki ${detail.block.order}. blok',
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer,
                         ),
                       ),
                       if (skill != null) ...[
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           skill,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onPrimaryContainer,
+                                fontWeight: FontWeight.w700,
+                              ),
                         ),
                       ],
                     ],
@@ -445,7 +444,8 @@ class _OutcomesSection extends StatelessWidget {
                   outcomes[index].officialText,
                   style: const TextStyle(height: 1.45),
                 ),
-                if (outcomes[index].processComponents?.trim().isNotEmpty == true) ...[
+                if (outcomes[index].processComponents?.trim().isNotEmpty ==
+                    true) ...[
                   const SizedBox(height: AppSpacing.md),
                   LabeledValue(
                     label: 'Süreç bileşenleri',
@@ -470,18 +470,21 @@ String _formatProcessComponents(String raw) {
   final components = model.jsonObjectList(raw);
   if (components.isEmpty) return raw;
 
-  final lines = components.map((component) {
-    final code = _firstNonEmptyProcessComponent(component, const [
-      'component_code',
-      'component_code_normalized',
-    ]);
-    final text = _firstNonEmptyProcessComponent(component, const [
-      'component_verbatim',
-      'component_title',
-      'component_title_verbatim',
-    ]);
-    return [?code, ?text].join(' — ');
-  }).where((line) => line.isNotEmpty).toList(growable: false);
+  final lines = components
+      .map((component) {
+        final code = _firstNonEmptyProcessComponent(component, const [
+          'component_code',
+          'component_code_normalized',
+        ]);
+        final text = _firstNonEmptyProcessComponent(component, const [
+          'component_verbatim',
+          'component_title',
+          'component_title_verbatim',
+        ]);
+        return [?code, ?text].join(' — ');
+      })
+      .where((line) => line.isNotEmpty)
+      .toList(growable: false);
 
   return lines.isEmpty ? raw : lines.join('\n\n');
 }
@@ -679,9 +682,12 @@ class _AssessmentSection extends StatelessWidget {
                     title: Text(detail.assessmentArtifacts[index].title),
                     subtitle: Text(
                       [
-                        if (detail.assessmentArtifacts[index].skillDomain != null)
+                        if (detail.assessmentArtifacts[index].skillDomain !=
+                            null)
                           detail.assessmentArtifacts[index].skillDomain!,
-                        if (detail.assessmentArtifacts[index].teacherReviewRequired)
+                        if (detail
+                            .assessmentArtifacts[index]
+                            .teacherReviewRequired)
                           'Kullanmadan önce öğretmen incelemesi gerekli',
                       ].join(' · '),
                     ),
@@ -740,7 +746,8 @@ class _AssessmentSection extends StatelessWidget {
                           'Değerlendirme ihtiyacı',
                     ),
                     children: [
-                      if (detail.assessmentGaps[index].exactRemainingGap != null)
+                      if (detail.assessmentGaps[index].exactRemainingGap !=
+                          null)
                         Text(
                           detail.assessmentGaps[index].exactRemainingGap!,
                           style: const TextStyle(height: 1.45),

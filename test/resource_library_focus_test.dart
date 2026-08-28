@@ -19,7 +19,6 @@ void main() {
     await tester.pumpWidget(_app(awaitingTextbook: false));
     await tester.pumpAndSettle();
 
-    expect(find.text('BU TEMADA HAZIR'), findsOneWidget);
     expect(find.text('TEMA 1'), findsWidgets);
     expect(find.text('1 bölüm'), findsWidgets);
     expect(find.text('1 etkinlik'), findsWidgets);
@@ -67,9 +66,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('ŞU ANKİ DERS'), findsOneWidget);
-    expect(find.text('Son görüntülenen ders'), findsOneWidget);
-    expect(find.text('Blok 2 · T2.1'), findsOneWidget);
     expect(find.text('TEMA 2'), findsWidgets);
     expect(find.text('Kaynak 2'), findsOneWidget);
     expect(find.text('Kaynak 1'), findsNothing);
@@ -96,9 +92,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('ŞU ANKİ DERS'), findsOneWidget);
-    expect(find.text('2. hafta planı'), findsOneWidget);
-    expect(find.text('Blok 2 · T2.1'), findsOneWidget);
     expect(find.text('TEMA 2'), findsWidgets);
     expect(find.text('Kaynak 2'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -148,7 +141,6 @@ void main() {
     await tester.pumpWidget(_app(awaitingTextbook: false));
     await tester.pumpAndSettle();
 
-    expect(find.text('BU TEMADA HAZIR'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     final textbook = find.text('Kitap Bölümü 1');

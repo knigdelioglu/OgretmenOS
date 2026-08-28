@@ -120,3 +120,5 @@ app.*.symbols
 .idea/
 *.iml
 
+# Local tablet deployment state
+/.tablet_ip

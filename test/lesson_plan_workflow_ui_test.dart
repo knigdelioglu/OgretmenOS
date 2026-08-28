@@ -33,64 +33,65 @@ void main() {
     sourceLocators: [],
   );
 
-  testWidgets('5 saatlik haftalık panel dersleri tek tek ve tekrarsız gösterir', (
-    tester,
-  ) async {
-    final packages = [
-      _package('BLOCK_A_P01', 1, title: 'Başlangıç'),
-      _package('BLOCK_A_P02', 2, title: 'Yakın okuma'),
-      _package('BLOCK_A_P03', 3, title: 'Metin çözümleme'),
-      _package('BLOCK_A_P04', 4, title: 'Değerlendirme'),
-      _package('BLOCK_A_P05', 5, title: 'Pekiştirme'),
-    ];
-    final repository = _FakeRepository(packages);
-    final plan = _fiveHourAnnualPlan(theme: theme, block: block);
+  testWidgets(
+    '5 saatlik haftalık panel dersleri tek tek ve tekrarsız gösterir',
+    (tester) async {
+      final packages = [
+        _package('BLOCK_A_P01', 1, title: 'Başlangıç'),
+        _package('BLOCK_A_P02', 2, title: 'Yakın okuma'),
+        _package('BLOCK_A_P03', 3, title: 'Metin çözümleme'),
+        _package('BLOCK_A_P04', 4, title: 'Değerlendirme'),
+        _package('BLOCK_A_P05', 5, title: 'Pekiştirme'),
+      ];
+      final repository = _FakeRepository(packages);
+      final plan = _fiveHourAnnualPlan(theme: theme, block: block);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: WeeklyLessonPlanPanel(
-              repository: repository,
-              annualPlan: plan,
-              weekNumber: 2,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: WeeklyLessonPlanPanel(
+                repository: repository,
+                annualPlan: plan,
+                weekNumber: 2,
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Bu haftanın ders planı'), findsOneWidget);
-    expect(find.text('5 ders saati'), findsOneWidget);
-    expect(find.text('5. ders saati'), findsNothing);
-    for (final hour in [6, 7, 8, 9, 10]) {
-      expect(find.text('$hour. ders saati'), findsOneWidget);
-    }
-    expect(find.textContaining('ders saatleri'), findsNothing);
-    expect(find.text('Metin çözümleme · 2. ders'), findsOneWidget);
-    expect(find.text('Değerlendirme · 1. ders'), findsOneWidget);
-    expect(find.text('Değerlendirme · 2. ders'), findsOneWidget);
-    expect(find.text('Pekiştirme · 1. ders'), findsOneWidget);
-    expect(find.text('Pekiştirme · 2. ders'), findsOneWidget);
-    expect(find.text('P03'), findsNothing);
-    expect(find.text('P04'), findsNothing);
+      expect(find.text('Bu haftanın ders planı'), findsOneWidget);
+      expect(find.text('5 ders saati'), findsOneWidget);
+      expect(find.text('5. ders saati'), findsNothing);
+      for (final hour in [6, 7, 8, 9, 10]) {
+        expect(find.text('$hour. ders saati'), findsOneWidget);
+      }
+      expect(find.textContaining('ders saatleri'), findsNothing);
+      expect(find.text('Metin çözümleme · 2. ders'), findsOneWidget);
+      expect(find.text('Değerlendirme · 1. ders'), findsOneWidget);
+      expect(find.text('Değerlendirme · 2. ders'), findsOneWidget);
+      expect(find.text('Pekiştirme · 1. ders'), findsOneWidget);
+      expect(find.text('Pekiştirme · 2. ders'), findsOneWidget);
+      expect(find.text('P03'), findsNothing);
+      expect(find.text('P04'), findsNothing);
 
-    await tester.tap(find.text('6. ders saati'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('6. ders saati'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Ders Planı'), findsOneWidget);
-    expect(find.text('6. DERS SAATİ'), findsOneWidget);
-    expect(find.textContaining('DERS SAATLERİ'), findsNothing);
-    expect(find.textContaining('2 DERS SAATİ'), findsNothing);
-    expect(find.text('Metin çözümleme · 2. ders'), findsOneWidget);
-    expect(find.text('Metin kanıtlarını karşılaştırır.'), findsNothing);
+      expect(find.text('Ders Planı'), findsOneWidget);
+      expect(find.text('6. DERS SAATİ'), findsOneWidget);
+      expect(find.textContaining('DERS SAATLERİ'), findsNothing);
+      expect(find.textContaining('2 DERS SAATİ'), findsNothing);
+      expect(find.text('Metin çözümleme · 2. ders'), findsOneWidget);
+      expect(find.text('Metin kanıtlarını karşılaştırır.'), findsNothing);
 
-    await tester.tap(find.text('Metin çözümleme · 2. ders'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Metin çözümleme · 2. ders'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Metin kanıtlarını karşılaştırır.'), findsOneWidget);
-  });
+      expect(find.text('Metin kanıtlarını karşılaştırır.'), findsOneWidget);
+    },
+  );
 
   testWidgets('tekil ders durumu komşu saati otomatik tamamlamaz', (
     tester,
@@ -165,7 +166,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Başlangıç'), findsWidgets);
-    expect(find.textContaining('1–2. DERS SAATLERİ'), findsWidgets);
+    expect(find.textContaining('1–2. DERS SAATLERİ'), findsNothing);
     await tester.drag(find.byType(Scrollable).first, const Offset(0, -1200));
     await tester.pumpAndSettle();
     expect(find.text('Önceki yok'), findsOneWidget);
@@ -178,8 +179,8 @@ void main() {
     expect(find.text('Son plan'), findsOneWidget);
     await tester.drag(find.byType(Scrollable).first, const Offset(0, 2000));
     await tester.pumpAndSettle();
-    expect(find.text('Yakın okuma'), findsWidgets);
-    expect(find.textContaining('3–4. DERS SAATLERİ'), findsWidgets);
+    expect(find.text('Yakın okuma'), findsNothing);
+    expect(find.textContaining('3–4. DERS SAATLERİ'), findsNothing);
   });
 
   testWidgets('haftalık panel stale tekil ders kaydını tamamlanmış saymaz', (
@@ -395,7 +396,9 @@ class _FakeRepository
       );
 
   @override
-  Future<List<LessonPlanPackage>> getLessonPlansForBlock(String blockId) async =>
+  Future<List<LessonPlanPackage>> getLessonPlansForBlock(
+    String blockId,
+  ) async =>
       packages.where((plan) => plan.blockId == blockId).toList(growable: false);
 
   @override
@@ -415,7 +418,9 @@ class _FakeRepository
   @override
   Future<LessonPlanPackage?> getNextLessonPlan(String packageId) async {
     final index = packages.indexWhere((plan) => plan.packageId == packageId);
-    return index < 0 || index >= packages.length - 1 ? null : packages[index + 1];
+    return index < 0 || index >= packages.length - 1
+        ? null
+        : packages[index + 1];
   }
 
   @override
@@ -431,13 +436,16 @@ class _FakeRepository
   Future<Theme> getTheme(String themeId) async => throw UnimplementedError();
 
   @override
-  Future<List<Block>> getBlocks(String themeId) async => throw UnimplementedError();
+  Future<List<Block>> getBlocks(String themeId) async =>
+      throw UnimplementedError();
 
   @override
-  Future<BlockDetail> getBlock(String blockId) async => throw UnimplementedError();
+  Future<BlockDetail> getBlock(String blockId) async =>
+      throw UnimplementedError();
 
   @override
-  Future<List<TimelineEntry>> getAnnualSequence() async => throw UnimplementedError();
+  Future<List<TimelineEntry>> getAnnualSequence() async =>
+      throw UnimplementedError();
 
   @override
   Future<List<ResourceDecision>> getResourceDecisions(String themeId) async =>

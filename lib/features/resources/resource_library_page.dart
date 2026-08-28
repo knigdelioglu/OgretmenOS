@@ -58,31 +58,13 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
       final package = await widget.repository.getTeacherPackage(
         explicitThemeId,
       );
-      return _ResourceData(
-        themes: themes,
-        package: package,
-        context: _LessonResourceContext(
-          kind: _ResourceContextKind.manual,
-          themeId: package.theme.id,
-          themeTitle: package.theme.title,
-        ),
-      );
+      return _ResourceData(themes: themes, package: package);
     }
 
     final resolvedContext = await _resolveLessonContext(themes);
     final selectedThemeId = resolvedContext?.themeId ?? themes.first.id;
     final package = await widget.repository.getTeacherPackage(selectedThemeId);
-    return _ResourceData(
-      themes: themes,
-      package: package,
-      context:
-          resolvedContext ??
-          _LessonResourceContext(
-            kind: _ResourceContextKind.fallback,
-            themeId: package.theme.id,
-            themeTitle: package.theme.title,
-          ),
-    );
+    return _ResourceData(themes: themes, package: package);
   }
 
   Future<_LessonResourceContext?> _resolveLessonContext(
@@ -110,14 +92,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
         if (item != null &&
             theme != null &&
             themes.any((candidate) => candidate.id == theme.id)) {
-          return _LessonResourceContext(
-            kind: _ResourceContextKind.lastViewed,
-            themeId: theme.id,
-            themeTitle: theme.title,
-            blockTitle: item.primaryBlock?.title ?? stored.blockTitle,
-            outcomeCode: item.outcome.code,
-            weekNumber: item.displayWeekNumber,
-          );
+          return _LessonResourceContext(themeId: theme.id);
         }
       }
 
@@ -128,26 +103,13 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
         final theme = item.primaryTheme;
         if (theme != null &&
             themes.any((candidate) => candidate.id == theme.id)) {
-          return _LessonResourceContext(
-            kind: _ResourceContextKind.currentWeek,
-            themeId: theme.id,
-            themeTitle: theme.title,
-            blockTitle: item.primaryBlock?.title,
-            outcomeCode: item.outcome.code,
-            weekNumber: currentWeek.week.weekNumber,
-          );
+          return _LessonResourceContext(themeId: theme.id);
         }
       }
 
       for (final segment in currentWeek.week.segments) {
         if (themes.any((candidate) => candidate.id == segment.theme.id)) {
-          return _LessonResourceContext(
-            kind: _ResourceContextKind.currentWeek,
-            themeId: segment.theme.id,
-            themeTitle: segment.theme.title,
-            blockTitle: segment.block?.title,
-            weekNumber: currentWeek.week.weekNumber,
-          );
+          return _LessonResourceContext(themeId: segment.theme.id);
         }
       }
     } on Object {
@@ -201,14 +163,6 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
       if (widget.awaitingTextbook) {
         return AppPage(
           children: [
-            _ThemeResourceFocus(
-              package: package,
-              primary: package.sourceReferences.isNotEmpty
-                  ? _ResourceKind.sources
-                  : null,
-              context: data.context!,
-            ),
-            const SizedBox(height: AppSpacing.md),
             _ThemeSelector(
               themes: data.themes,
               selectedThemeId: package.theme.id,
@@ -263,12 +217,6 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
 
       return AppPage(
         children: [
-          _ThemeResourceFocus(
-            package: package,
-            primary: primary,
-            context: data.context!,
-          ),
-          const SizedBox(height: AppSpacing.md),
           _ThemeSelector(
             themes: data.themes,
             selectedThemeId: package.theme.id,
@@ -363,58 +311,17 @@ _ResourceKind? _primaryResource({
   return null;
 }
 
-enum _ResourceContextKind { lastViewed, currentWeek, manual, fallback }
-
 class _LessonResourceContext {
-  const _LessonResourceContext({
-    required this.kind,
-    required this.themeId,
-    required this.themeTitle,
-    this.blockTitle,
-    this.outcomeCode,
-    this.weekNumber,
-  });
+  const _LessonResourceContext({required this.themeId});
 
-  final _ResourceContextKind kind;
   final String themeId;
-  final String themeTitle;
-  final String? blockTitle;
-  final String? outcomeCode;
-  final int? weekNumber;
-
-  String get eyebrow => switch (kind) {
-    _ResourceContextKind.lastViewed ||
-    _ResourceContextKind.currentWeek => 'ŞU ANKİ DERS',
-    _ResourceContextKind.manual => 'SEÇİLİ TEMA',
-    _ResourceContextKind.fallback => 'BU TEMADA HAZIR',
-  };
-
-  String? get detailLine {
-    final parts = <String>[
-      if (blockTitle?.trim().isNotEmpty == true) blockTitle!.trim(),
-      if (outcomeCode?.trim().isNotEmpty == true) outcomeCode!.trim(),
-    ];
-    return parts.isEmpty ? null : parts.join(' · ');
-  }
-
-  String? get sourceLabel => switch (kind) {
-    _ResourceContextKind.lastViewed => 'Son görüntülenen ders',
-    _ResourceContextKind.currentWeek =>
-      weekNumber == null ? 'Bu haftanın planı' : '$weekNumber. hafta planı',
-    _ResourceContextKind.manual || _ResourceContextKind.fallback => null,
-  };
 }
 
 class _ResourceData {
-  const _ResourceData({
-    required this.themes,
-    required this.package,
-    this.context,
-  });
+  const _ResourceData({required this.themes, required this.package});
 
   final List<model.Theme> themes;
   final model.TeacherPackage? package;
-  final _LessonResourceContext? context;
 }
 
 class _ThemeSelector extends StatelessWidget {
@@ -450,164 +357,6 @@ class _ThemeSelector extends StatelessWidget {
         : (value) {
             if (value != null && value != selectedThemeId) onChanged(value);
           },
-  );
-}
-
-class _ThemeResourceFocus extends StatelessWidget {
-  const _ThemeResourceFocus({
-    required this.package,
-    required this.primary,
-    required this.context,
-  });
-
-  final model.TeacherPackage package;
-  final _ResourceKind? primary;
-  final _LessonResourceContext context;
-
-  @override
-  Widget build(BuildContext context) {
-    final assessmentCount =
-        package.assessmentArtifacts.length +
-        package.assessmentTaskBindings.length;
-    final counts = <Widget>[
-      if (package.textbookSections.isNotEmpty)
-        _ResourceCount(
-          icon: Icons.menu_book_outlined,
-          label: '${package.textbookSections.length} bölüm',
-        ),
-      if (package.activities.isNotEmpty)
-        _ResourceCount(
-          icon: Icons.task_alt_outlined,
-          label: '${package.activities.length} etkinlik',
-        ),
-      if (package.forms.isNotEmpty)
-        _ResourceCount(
-          icon: Icons.assignment_outlined,
-          label: '${package.forms.length} form',
-        ),
-      if (assessmentCount > 0)
-        _ResourceCount(
-          icon: Icons.fact_check_outlined,
-          label: '$assessmentCount değerlendirme',
-        ),
-    ];
-
-    return Card(
-      color: Theme.of(context).colorScheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              this.context.eyebrow,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              package.theme.title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            if (this.context.detailLine != null) ...[
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                this.context.detailLine!,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-            if (this.context.sourceLabel != null) ...[
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                this.context.sourceLabel!,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              _focusMessage(primary),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-                height: 1.4,
-              ),
-            ),
-            if (counts.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.lg),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (var index = 0; index < counts.length; index++) ...[
-                    counts[index],
-                    if (index != counts.length - 1)
-                      const SizedBox(height: AppSpacing.sm),
-                  ],
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _focusMessage(_ResourceKind? kind) => switch (kind) {
-    _ResourceKind.book =>
-      'Önce ders kitabına bak. Kitap bölümü aşağıda açık; diğer kaynakları yalnız gerektiğinde aç.',
-    _ResourceKind.activities =>
-      'Kitap bölümü yok. İlk kullanılabilir kaynak olan etkinlikler aşağıda açık.',
-    _ResourceKind.forms =>
-      'Kitap ve etkinlik yok. İlk kullanılabilir kaynak olan formlar aşağıda açık.',
-    _ResourceKind.assessment =>
-      'İlk kullanılabilir kaynak değerlendirme araçları; ilgili bölüm aşağıda açık.',
-    _ResourceKind.sources =>
-      'Sınıf içi ek kaynak görünmüyor. Doğrulanmış kaynak dayanakları aşağıda açık.',
-    null => 'Bu tema için gösterilebilir ek kaynak bulunmuyor.',
-  };
-}
-
-class _ResourceCount extends StatelessWidget {
-  const _ResourceCount({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(
-      horizontal: AppSpacing.md,
-      vertical: AppSpacing.sm,
-    ),
-    decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.surface,
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Icon(icon, size: 18),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-        ),
-      ],
-    ),
   );
 }
 
