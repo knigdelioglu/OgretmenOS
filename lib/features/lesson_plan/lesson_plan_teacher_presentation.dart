@@ -181,10 +181,10 @@ class LessonPlanTeacherPresentation {
     value = value.replaceAllMapped(bareRange, (match) {
       final range = _resolvedPackageRange(match);
       if (range == null) return 'ilgili ders planlarına ait';
-      final label = teacherLessonHourRange(range.start, range.end)
-          .replaceFirst('ders saati', 'ders saatine')
-          .replaceFirst('ders saatleri', 'ders saatlerine');
-      return '$label ait';
+      final label = range.start == range.end
+          ? '${range.start}. ders saatine ait'
+          : '${range.start}–${range.end}. ders saatlerine ait';
+      return label;
     });
 
     return value;
