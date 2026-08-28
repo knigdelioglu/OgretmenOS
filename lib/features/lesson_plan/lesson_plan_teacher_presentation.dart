@@ -17,6 +17,11 @@ class LessonPlanTeacherPresentation {
   final BlockDetail? blockDetail;
   final Map<int, ({int start, int end})> _packageRanges;
 
+  static final RegExp _workProductRange = RegExp(
+    r'\bP(\d{1,2})\s*[-–—/]\s*P(\d{1,2})\s+(?:öğrenci\s+)?çalışma\s+ürünler(i|inden|ine|ini|inin|inde)\b',
+    caseSensitive: false,
+  );
+
   String packageLabel(LessonPlanPackage plan) {
     final range = _packageRanges[plan.packageNo];
     if (range != null) return teacherLessonHourRange(range.start, range.end);
@@ -63,6 +68,61 @@ class LessonPlanTeacherPresentation {
       final form = _formById(forms, id);
       result.add(form == null ? 'Değerlendirme formu' : _formLabel(form));
     }
+    return List<String>.unmodifiable(result);
+  }
+
+  /// Teacher-facing material list. Generic package-range references such as
+  /// "P01-P06 öğrenci çalışma ürünleri" are expanded to concrete assessment
+  /// evidence already defined in the referenced lessons.
+  List<String> materialLabels(
+    List<Object?> materials, {
+    required int currentPackageNo,
+    required int currentLessonNo,
+  }) {
+    final result = <String>[];
+
+    void addValue(Object? item) {
+      if (item == null) return;
+      if (item is Iterable) {
+        for (final child in item) {
+          addValue(child);
+        }
+        return;
+      }
+      if (item is Map) {
+        for (final child in item.values) {
+          addValue(child);
+        }
+        return;
+      }
+
+      final raw = item.toString().trim();
+      if (raw.isEmpty) return;
+      final match = _workProductRange.firstMatch(raw);
+      if (match != null && match.start == 0 && match.end == raw.length) {
+        final first = int.tryParse(match.group(1) ?? '');
+        final last = int.tryParse(match.group(2) ?? '');
+        if (first != null && last != null) {
+          final evidence = _evidenceLabelsForPackageRange(
+            first,
+            last,
+            currentPackageNo: currentPackageNo,
+            currentLessonNo: currentLessonNo,
+          );
+          if (evidence.isNotEmpty) {
+            for (final label in evidence) {
+              if (!result.contains(label)) result.add(label);
+            }
+            return;
+          }
+        }
+      }
+
+      final label = humanize(raw).trim();
+      if (label.isNotEmpty && !result.contains(label)) result.add(label);
+    }
+
+    addValue(materials);
     return List<String>.unmodifiable(result);
   }
 
@@ -149,18 +209,21 @@ class LessonPlanTeacherPresentation {
   String _humanizePackageRangeReferences(String input) {
     var value = input;
 
-    final priorWorkProducts = RegExp(
-      r'\bP\d{1,2}\s*[-–—/]\s*P\d{1,2}\s+(?:(öğrenci)\s+)?(çalışma\s+ürünler(?:i|inden|ine|ini|inin|inde))\b',
-      caseSensitive: false,
-    );
-    value = value.replaceAllMapped(priorWorkProducts, (match) {
-      final before = value.substring(0, match.start).trimRight();
+    value = value.replaceAllMapped(_workProductRange, (match) {
+      final suffix = (match.group(3) ?? 'i').toLowerCase();
+      final replacement = switch (suffix) {
+        'inden' => 'önceki ölçme kanıtlarından',
+        'ine' => 'önceki ölçme kanıtlarına',
+        'ini' => 'önceki ölçme kanıtlarını',
+        'inin' => 'önceki ölçme kanıtlarının',
+        'inde' => 'önceki ölçme kanıtlarında',
+        _ => 'önceki ölçme kanıtları',
+      };
+      final before = input.substring(0, match.start).trimRight();
       final atSentenceStart =
           before.isEmpty || RegExp(r'[.!?]\s*$').hasMatch(before);
-      final prefix = atSentenceStart ? 'Önceki' : 'önceki';
-      final student = match.group(1) == null ? '' : 'öğrenci ';
-      final workProducts = match.group(2) ?? 'çalışma ürünleri';
-      return '$prefix derslerde oluşturulan $student$workProducts';
+      if (!atSentenceStart) return replacement;
+      return '${replacement[0].toUpperCase()}${replacement.substring(1)}';
     });
 
     final connectiveRange = RegExp(
@@ -181,13 +244,128 @@ class LessonPlanTeacherPresentation {
     value = value.replaceAllMapped(bareRange, (match) {
       final range = _resolvedPackageRange(match);
       if (range == null) return 'ilgili ders planlarına ait';
-      final label = range.start == range.end
+      return range.start == range.end
           ? '${range.start}. ders saatine ait'
           : '${range.start}–${range.end}. ders saatlerine ait';
-      return label;
     });
 
     return value;
+  }
+
+  List<String> _evidenceLabelsForPackageRange(
+    int firstPackage,
+    int lastPackage, {
+    required int currentPackageNo,
+    required int currentLessonNo,
+  }) {
+    if (firstPackage > lastPackage) return const [];
+    final ordered = [...blockPlans]
+      ..sort((a, b) => a.packageNo.compareTo(b.packageNo));
+    final result = <String>[];
+
+    for (final plan in ordered) {
+      if (plan.packageNo < firstPackage || plan.packageNo > lastPackage) {
+        continue;
+      }
+      final maxLessonNo = plan.packageNo == currentPackageNo
+          ? currentLessonNo - 1
+          : null;
+      if (maxLessonNo != null && maxLessonNo <= 0) continue;
+      final label = _preferredEvidenceLabel(plan, maxLessonNo: maxLessonNo);
+      if (label != null && !result.contains(label)) result.add(label);
+    }
+    return List<String>.unmodifiable(result);
+  }
+
+  String? _preferredEvidenceLabel(
+    LessonPlanPackage plan, {
+    int? maxLessonNo,
+  }) {
+    ({int score, int lessonNo, String label})? best;
+
+    for (final lesson in plan.lessons) {
+      if (maxLessonNo != null && lesson.lessonNo > maxLessonNo) continue;
+      final assessment = _textValue(lesson.assessment);
+      if (assessment.isEmpty) continue;
+      final label = _compactEvidenceLabel(assessment);
+      if (label.isEmpty) continue;
+      final score = _evidenceScore(assessment);
+      final candidate = (score: score, lessonNo: lesson.lessonNo, label: label);
+      if (best == null ||
+          candidate.score > best.score ||
+          (candidate.score == best.score && candidate.lessonNo > best.lessonNo)) {
+        best = candidate;
+      }
+    }
+
+    if (best != null && best.score >= 30) return best.label;
+
+    // Some plans define the concrete product in the teacher action and keep the
+    // assessment sentence intentionally terse (for example "iki çözümleme").
+    for (final lesson in plan.lessons) {
+      if (maxLessonNo != null && lesson.lessonNo > maxLessonNo) continue;
+      for (final action in lesson.teacherActions) {
+        final text = _textValue(action);
+        final arrow = RegExp(
+          r"['‘’\"]([^'‘’\"]*→[^'‘’\"]+)['‘’\"]\s+biçiminde\s+(?:en az\s+)?[^.]*?çözümleme",
+          caseSensitive: false,
+        ).firstMatch(text);
+        if (arrow != null) {
+          final structure = arrow.group(1)?.trim();
+          if (structure != null && structure.isNotEmpty) {
+            return '$structure çözümleme kaydı';
+          }
+        }
+      }
+    }
+
+    return best?.label;
+  }
+
+  int _evidenceScore(String text) {
+    final lower = text.toLowerCase();
+    var score = 10;
+    if (lower.startsWith('ana kanıt') || lower.startsWith('ana ürün')) {
+      score += 120;
+    }
+    if (lower.contains('çözümleme kayd')) score += 110;
+    if (lower.contains('uygulama tablos')) score += 105;
+    if (lower.contains('zihin haritas')) score += 100;
+    if (lower.contains('kontrol noktası')) score += 95;
+    if (lower.contains('düzeltme kayd')) score += 90;
+    if (lower.contains('çıkış kart')) score += 80;
+    if (lower.startsWith('çıkış görevi')) score += 70;
+    if (lower.contains('cevap')) score += 40;
+    return score;
+  }
+
+  String _compactEvidenceLabel(String assessment) {
+    var text = assessment.trim();
+    if (text.isEmpty) return '';
+    final sentenceEnd = RegExp(r'(?<=[.!?])\s+').firstMatch(text);
+    if (sentenceEnd != null) {
+      text = text.substring(0, sentenceEnd.start).trim();
+    }
+    text = text.replaceFirst(
+      RegExp(r'^(Ana kanıt|Ana ürün)\s+', caseSensitive: false),
+      '',
+    );
+    text = text.replaceFirst(
+      RegExp(r'^Öğrencinin ürettiği\s+', caseSensitive: false),
+      '',
+    );
+    text = text.replaceFirst(
+      RegExp(r'\s+değerlendirilir\.?$', caseSensitive: false),
+      '',
+    );
+    text = text.replaceFirst(RegExp(r'[.!?]+$'), '');
+    text = text.replaceFirst(
+      RegExp(r'(dır|dir|dur|dür|tır|tir|tur|tür)$', caseSensitive: false),
+      '',
+    );
+    text = text.trim();
+    if (text.isEmpty) return '';
+    return '${text[0].toUpperCase()}${text.substring(1)}';
   }
 
   ({int start, int end})? _resolvedPackageRange(Match match) {
@@ -247,6 +425,18 @@ class LessonPlanTeacherPresentation {
     }
     return result;
   }
+}
+
+String _textValue(Object? value) {
+  if (value == null) return '';
+  if (value is String) return value.trim();
+  if (value is Iterable) {
+    return value.map(_textValue).where((item) => item.isNotEmpty).join(' ');
+  }
+  if (value is Map) {
+    return value.values.map(_textValue).where((item) => item.isNotEmpty).join(' ');
+  }
+  return value.toString().trim();
 }
 
 Activity? _activityById(List<Activity> activities, String id) {
