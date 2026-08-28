@@ -28,27 +28,45 @@ void main() {
     expect(plan.week(1)!.plannedCount, 1);
   });
 
-  test('status and teacher note persist through repository projection', () async {
-    var plan = await service.buildPlan();
-    var item = plan.week(1)!.outcomes.single;
+  test(
+    'tracking mutations notify dependent summaries without tab changes',
+    () async {
+      var changes = 0;
+      service.addChangeListener(() => changes++);
+      final item = (await service.buildPlan()).week(1)!.outcomes.single;
 
-    await service.setStatus(item, OutcomeTrackingStatus.inProgress);
-    plan = await service.buildPlan();
-    item = plan.week(1)!.outcomes.single;
-    expect(item.status, OutcomeTrackingStatus.inProgress);
+      await service.setStatus(item, OutcomeTrackingStatus.completed);
+      expect(changes, 1);
 
-    await service.saveTeacherNote(item, 'Son etkinlik sonraki derste.');
-    plan = await service.buildPlan();
-    item = plan.week(1)!.outcomes.single;
-    expect(item.teacherNote, 'Son etkinlik sonraki derste.');
+      await service.resetTracking(item);
+      expect(changes, 2);
+    },
+  );
 
-    await service.setStatus(item, OutcomeTrackingStatus.completed);
-    plan = await service.buildPlan();
-    item = plan.week(1)!.outcomes.single;
-    expect(item.status, OutcomeTrackingStatus.completed);
-    expect(item.completedAt, isNotNull);
-    expect(plan.week(1)!.completedCount, 1);
-  });
+  test(
+    'status and teacher note persist through repository projection',
+    () async {
+      var plan = await service.buildPlan();
+      var item = plan.week(1)!.outcomes.single;
+
+      await service.setStatus(item, OutcomeTrackingStatus.inProgress);
+      plan = await service.buildPlan();
+      item = plan.week(1)!.outcomes.single;
+      expect(item.status, OutcomeTrackingStatus.inProgress);
+
+      await service.saveTeacherNote(item, 'Son etkinlik sonraki derste.');
+      plan = await service.buildPlan();
+      item = plan.week(1)!.outcomes.single;
+      expect(item.teacherNote, 'Son etkinlik sonraki derste.');
+
+      await service.setStatus(item, OutcomeTrackingStatus.completed);
+      plan = await service.buildPlan();
+      item = plan.week(1)!.outcomes.single;
+      expect(item.status, OutcomeTrackingStatus.completed);
+      expect(item.completedAt, isNotNull);
+      expect(plan.week(1)!.completedCount, 1);
+    },
+  );
 
   test('stale status mutation preserves the latest autosaved note', () async {
     var plan = await service.buildPlan();
@@ -63,21 +81,24 @@ void main() {
     expect(current.teacherNote, 'Yeni otomatik not');
   });
 
-  test('status undo preserves a note written after the status change', () async {
-    var plan = await service.buildPlan();
-    final item = plan.week(1)!.outcomes.single;
-    final before = await service.captureTracking(item);
+  test(
+    'status undo preserves a note written after the status change',
+    () async {
+      var plan = await service.buildPlan();
+      final item = plan.week(1)!.outcomes.single;
+      final before = await service.captureTracking(item);
 
-    await service.setStatus(item, OutcomeTrackingStatus.completed);
-    await service.saveTeacherNote(item, 'İşlemden sonra yazılan not');
-    await service.restoreTrackingStatus(item, before);
+      await service.setStatus(item, OutcomeTrackingStatus.completed);
+      await service.saveTeacherNote(item, 'İşlemden sonra yazılan not');
+      await service.restoreTrackingStatus(item, before);
 
-    plan = await service.buildPlan();
-    final restored = plan.week(1)!.outcomes.single;
-    expect(restored.status, OutcomeTrackingStatus.planned);
-    expect(restored.teacherNote, 'İşlemden sonra yazılan not');
-    expect(restored.completedAt, isNull);
-  });
+      plan = await service.buildPlan();
+      final restored = plan.week(1)!.outcomes.single;
+      expect(restored.status, OutcomeTrackingStatus.planned);
+      expect(restored.teacherNote, 'İşlemden sonra yazılan not');
+      expect(restored.completedAt, isNull);
+    },
+  );
 
   test('full snapshot restore can undo a teacher note replacement', () async {
     var plan = await service.buildPlan();
@@ -94,51 +115,57 @@ void main() {
     expect(plan.week(1)!.outcomes.single.teacherNote, 'İlk not');
   });
 
-  test('carry-over preserves source plan and projects into target week', () async {
-    var plan = await service.buildPlan();
-    final source = plan.week(1)!.outcomes.single;
+  test(
+    'carry-over preserves source plan and projects into target week',
+    () async {
+      var plan = await service.buildPlan();
+      final source = plan.week(1)!.outcomes.single;
 
-    await service.carryToWeek(
-      item: source,
-      targetWeekNumber: 2,
-      plan: plan,
-    );
+      await service.carryToWeek(item: source, targetWeekNumber: 2, plan: plan);
 
-    plan = await service.buildPlan();
-    final sourceAfter = plan.week(1)!.outcomes.single;
-    final carried = plan.week(2)!.outcomes.firstWhere(
-      (item) => item.outcome.id == _Repository.outcome1.id && item.isCarriedIn,
-    );
+      plan = await service.buildPlan();
+      final sourceAfter = plan.week(1)!.outcomes.single;
+      final carried = plan
+          .week(2)!
+          .outcomes
+          .firstWhere(
+            (item) =>
+                item.outcome.id == _Repository.outcome1.id && item.isCarriedIn,
+          );
 
-    expect(sourceAfter.plannedWeekNumber, 1);
-    expect(sourceAfter.carriedToWeekNumber, 2);
-    expect(sourceAfter.presentationStatus, OutcomeTrackingStatus.carriedOver);
-    expect(carried.displayWeekNumber, 2);
-    expect(carried.carriedFromWeekNumber, 1);
-    expect(carried.isCarriedIn, isTrue);
+      expect(sourceAfter.plannedWeekNumber, 1);
+      expect(sourceAfter.carriedToWeekNumber, 2);
+      expect(sourceAfter.presentationStatus, OutcomeTrackingStatus.carriedOver);
+      expect(carried.displayWeekNumber, 2);
+      expect(carried.carriedFromWeekNumber, 1);
+      expect(carried.isCarriedIn, isTrue);
 
-    await service.setStatus(carried, OutcomeTrackingStatus.completed);
-    plan = await service.buildPlan();
-    final completedCarry = plan.week(2)!.outcomes.firstWhere(
-      (item) => item.outcome.id == _Repository.outcome1.id && item.isCarriedIn,
-    );
-    final original = plan.week(1)!.outcomes.single;
+      await service.setStatus(carried, OutcomeTrackingStatus.completed);
+      plan = await service.buildPlan();
+      final completedCarry = plan
+          .week(2)!
+          .outcomes
+          .firstWhere(
+            (item) =>
+                item.outcome.id == _Repository.outcome1.id && item.isCarriedIn,
+          );
+      final original = plan.week(1)!.outcomes.single;
 
-    expect(completedCarry.presentationStatus, OutcomeTrackingStatus.completed);
-    expect(original.presentationStatus, OutcomeTrackingStatus.carriedOver);
-    expect(plan.week(2)!.completedCount, 1);
-  });
+      expect(
+        completedCarry.presentationStatus,
+        OutcomeTrackingStatus.completed,
+      );
+      expect(original.presentationStatus, OutcomeTrackingStatus.carriedOver);
+      expect(plan.week(2)!.completedCount, 1);
+    },
+  );
 
   test('event week cannot be a carry target', () async {
     final plan = await service.buildPlan();
     final source = plan.week(1)!.outcomes.single;
 
     expect(
-      () => service.carryToWeek(
-        item: source,
-        targetWeekNumber: 3,
-        plan: plan,
-      ),
+      () => service.carryToWeek(item: source, targetWeekNumber: 3, plan: plan),
       throwsStateError,
     );
   });
@@ -230,16 +257,17 @@ class _Repository implements CourseKnowledgeRepository {
   );
 
   @override
-  Future<model.RuntimeManifest> getManifest() async => const model.RuntimeManifest(
-    runtimePackageVersion: '1.0.0',
-    schemaVersion: '1.0.0',
-    courseId: 'TDE_9',
-    validationStatus: 'PASS',
-    canonicalContentFingerprint: 'fixture',
-    rowCounts: {},
-    timelineResolution: 'THEME_TIME_RESOLVED',
-    timelineUnresolvedFields: {},
-  );
+  Future<model.RuntimeManifest> getManifest() async =>
+      const model.RuntimeManifest(
+        runtimePackageVersion: '1.0.0',
+        schemaVersion: '1.0.0',
+        courseId: 'TDE_9',
+        validationStatus: 'PASS',
+        canonicalContentFingerprint: 'fixture',
+        rowCounts: {},
+        timelineResolution: 'THEME_TIME_RESOLVED',
+        timelineUnresolvedFields: {},
+      );
 
   @override
   Future<List<model.Theme>> getThemes() async => const [theme];
@@ -267,8 +295,9 @@ class _Repository implements CourseKnowledgeRepository {
   ];
 
   @override
-  Future<List<model.ResourceDecision>> getResourceDecisions(String themeId) async =>
-      const [];
+  Future<List<model.ResourceDecision>> getResourceDecisions(
+    String themeId,
+  ) async => const [];
 
   @override
   Future<model.TeacherPackage> getTeacherPackage(String themeId) async =>
@@ -289,57 +318,58 @@ class _Repository implements CourseKnowledgeRepository {
 
 class _WeeklyPlanning implements WeeklyPlanningService {
   @override
-  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async => AnnualWeeklyPlan(
-    academicYear: '2026-2027',
-    courseId: 'TDE_9',
-    weeklyLessonHours: 5,
-    annualHours: 180,
-    currentWeekNumber: 1,
-    weeks: [
-      AcademicWeekPlan(
-        weekNumber: 1,
-        start: DateTime(2026, 9, 14),
-        end: DateTime(2026, 9, 18),
-        type: AcademicWeekType.instruction,
-        label: '1. Hafta',
-        plannedLessonHours: 5,
-        segments: const [
-          WeeklyPlanSegment(
-            type: WeeklyPlanSegmentType.block,
-            theme: _Repository.theme,
-            block: _Repository.block,
-            hours: 5,
+  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async =>
+      AnnualWeeklyPlan(
+        academicYear: '2026-2027',
+        courseId: 'TDE_9',
+        weeklyLessonHours: 5,
+        annualHours: 180,
+        currentWeekNumber: 1,
+        weeks: [
+          AcademicWeekPlan(
+            weekNumber: 1,
+            start: DateTime(2026, 9, 14),
+            end: DateTime(2026, 9, 18),
+            type: AcademicWeekType.instruction,
+            label: '1. Hafta',
+            plannedLessonHours: 5,
+            segments: const [
+              WeeklyPlanSegment(
+                type: WeeklyPlanSegmentType.block,
+                theme: _Repository.theme,
+                block: _Repository.block,
+                hours: 5,
+              ),
+            ],
+            outcomes: const [_Repository.outcome1],
+          ),
+          AcademicWeekPlan(
+            weekNumber: 2,
+            start: DateTime(2026, 9, 21),
+            end: DateTime(2026, 9, 25),
+            type: AcademicWeekType.instruction,
+            label: '2. Hafta',
+            plannedLessonHours: 5,
+            segments: const [
+              WeeklyPlanSegment(
+                type: WeeklyPlanSegmentType.block,
+                theme: _Repository.theme,
+                block: _Repository.block,
+                hours: 5,
+              ),
+            ],
+            outcomes: const [_Repository.outcome2],
+          ),
+          AcademicWeekPlan(
+            weekNumber: 3,
+            start: DateTime(2027, 6, 21),
+            end: DateTime(2027, 6, 25),
+            type: AcademicWeekType.event,
+            label: 'Etkinlik Haftası',
+            plannedLessonHours: 0,
+            segments: const [],
+            outcomes: const [],
           ),
         ],
-        outcomes: const [_Repository.outcome1],
-      ),
-      AcademicWeekPlan(
-        weekNumber: 2,
-        start: DateTime(2026, 9, 21),
-        end: DateTime(2026, 9, 25),
-        type: AcademicWeekType.instruction,
-        label: '2. Hafta',
-        plannedLessonHours: 5,
-        segments: const [
-          WeeklyPlanSegment(
-            type: WeeklyPlanSegmentType.block,
-            theme: _Repository.theme,
-            block: _Repository.block,
-            hours: 5,
-          ),
-        ],
-        outcomes: const [_Repository.outcome2],
-      ),
-      AcademicWeekPlan(
-        weekNumber: 3,
-        start: DateTime(2027, 6, 21),
-        end: DateTime(2027, 6, 25),
-        type: AcademicWeekType.event,
-        label: 'Etkinlik Haftası',
-        plannedLessonHours: 0,
-        segments: const [],
-        outcomes: const [],
-      ),
-    ],
-  );
+      );
 }

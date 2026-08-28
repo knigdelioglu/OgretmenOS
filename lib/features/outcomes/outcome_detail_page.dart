@@ -35,6 +35,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
     with WidgetsBindingObserver {
   late AnnualOutcomePlan _plan;
   late TrackedOutcome _item;
+  late Future<List<model.BlockDetail>> _detailsFuture;
   late final TextEditingController _noteController;
   late String _lastSavedNote;
   Timer? _noteSaveDebounce;
@@ -52,6 +53,7 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
     WidgetsBinding.instance.addObserver(this);
     _plan = widget.initialPlan;
     _item = widget.initialItem;
+    _detailsFuture = _loadDetails(_item);
     _lastSavedNote = _item.teacherNote ?? '';
     _noteController = TextEditingController(text: _lastSavedNote);
     _noteController.addListener(_handleNoteChanged);
@@ -96,10 +98,38 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
     super.dispose();
   }
 
+  Future<List<model.BlockDetail>> _loadDetails(TrackedOutcome item) {
+    final futures = <Future<model.BlockDetail>>[
+      for (final context in item.contexts)
+        context.detail == null
+            ? widget.repository.getBlock(context.block.id)
+            : Future.value(context.detail!),
+    ];
+    return Future.wait(futures);
+  }
+
+  void _reloadDetails() {
+    setState(() => _detailsFuture = _loadDetails(_item));
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => FutureBuilder<List<model.BlockDetail>>(
+    future: _detailsFuture,
+    builder: (context, snapshot) => _buildContent(
+      context,
+      snapshot.data ?? const <model.BlockDetail>[],
+      detailsLoading: snapshot.connectionState != ConnectionState.done,
+      detailsFailed: snapshot.hasError,
+    ),
+  );
+
+  Widget _buildContent(
+    BuildContext context,
+    List<model.BlockDetail> details, {
+    required bool detailsLoading,
+    required bool detailsFailed,
+  }) {
     final outcome = _item.outcome;
-    final details = _item.contexts.map((item) => item.detail).toList();
     final textbook = _uniqueBy<model.TextbookSection>(
       details.expand((item) => item.textbookSections),
       (item) => item.id,
@@ -441,6 +471,21 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
                     'Planlanan konum korunuyor; gerçekleşen takip ${_item.carriedToWeekNumber}. haftada devam ediyor.',
                 tone: StatusTone.attention,
               ),
+            if (detailsLoading)
+              const LinearProgressIndicator()
+            else if (detailsFailed)
+              StatusPanel(
+                icon: Icons.info_outline,
+                title: 'Ek blok ayrıntıları yüklenemedi',
+                message:
+                    'Dersin temel görünümü hazır; kitap ve değerlendirme ayrıntıları için tekrar deneyin.',
+                tone: StatusTone.attention,
+                action: TextButton.icon(
+                  onPressed: _reloadDetails,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Tekrar dene'),
+                ),
+              ),
             const SectionHeading(
               'Derste lazım',
               subtitle: 'Derse girerken ihtiyaç duyulan kısa görünüm',
@@ -724,10 +769,12 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
         }
         next ??= summary.findByKey(_item.trackingKey);
       }
+      final nextItem = next ?? _item;
       if (!mounted) return false;
       setState(() {
         _plan = refreshed;
-        if (next != null) _item = next;
+        _item = nextItem;
+        _detailsFuture = _loadDetails(nextItem);
         _lastSavedNote = _item.teacherNote ?? '';
         _noteDirty = _noteController.text != _lastSavedNote;
         _noteSaveFailed = false;

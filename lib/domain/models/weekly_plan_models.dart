@@ -1,4 +1,5 @@
 import 'course_models.dart';
+import 'planning_models.dart';
 
 enum AcademicWeekType { instruction, event }
 
@@ -10,12 +11,14 @@ class WeeklyPlanSegment {
     required this.theme,
     required this.hours,
     this.block,
+    this.planningBlock,
   });
 
   final WeeklyPlanSegmentType type;
   final Theme theme;
   final int hours;
   final Block? block;
+  final PlanningBlock? planningBlock;
 }
 
 class AcademicWeekPlan {

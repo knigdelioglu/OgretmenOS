@@ -1,12 +1,17 @@
 import '../../domain/models/course_models.dart';
 import '../../domain/models/lesson_plan_models.dart';
+import '../../domain/models/planning_models.dart';
+import '../../domain/performance_instrumentation.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
 import 'course_database_data_source.dart';
 import 'lesson_plan_database_data_source.dart';
 
 class CourseKnowledgeRepositoryImpl
-    implements CourseKnowledgeRepository, LessonPlanKnowledgeRepository {
-  const CourseKnowledgeRepositoryImpl({
+    implements
+        CourseKnowledgeRepository,
+        CoursePlanningKnowledgeRepository,
+        LessonPlanKnowledgeRepository {
+  CourseKnowledgeRepositoryImpl({
     required this.dataSource,
     required this.manifest,
     this.lessonPlanDataSource,
@@ -15,6 +20,8 @@ class CourseKnowledgeRepositoryImpl
   final CourseDatabaseDataSource dataSource;
   final RuntimeManifest manifest;
   final LessonPlanDatabaseDataSource? lessonPlanDataSource;
+  Future<PlanningDataset>? _planningDatasetFuture;
+  String? _planningDatasetCacheKey;
 
   @override
   Future<Course> getCourse() => dataSource.getCourse();
@@ -33,12 +40,43 @@ class CourseKnowledgeRepositoryImpl
       dataSource.getBlocks(themeId);
 
   @override
-  Future<BlockDetail> getBlock(String blockId) =>
-      dataSource.getBlockDetail(blockId);
+  Future<BlockDetail> getBlock(String blockId) {
+    RuntimePerformanceTrace.count('CourseKnowledgeRepository.getBlock');
+    return dataSource.getBlockDetail(blockId);
+  }
 
   @override
-  Future<List<TimelineEntry>> getAnnualSequence() =>
-      dataSource.getAnnualSequence();
+  Future<List<TimelineEntry>> getAnnualSequence() {
+    RuntimePerformanceTrace.count(
+      'CourseKnowledgeRepository.getAnnualSequence',
+    );
+    return dataSource.getAnnualSequence();
+  }
+
+  @override
+  Future<PlanningDataset> getPlanningDataset() {
+    RuntimePerformanceTrace.count(
+      'CourseKnowledgeRepository.getPlanningDataset',
+    );
+    final cacheKey = [
+      manifest.courseId,
+      manifest.runtimePackageVersion,
+      manifest.schemaVersion,
+      manifest.canonicalContentFingerprint,
+    ].join('|');
+    if (_planningDatasetFuture == null ||
+        _planningDatasetCacheKey != cacheKey) {
+      _planningDatasetCacheKey = cacheKey;
+      _planningDatasetFuture = dataSource.getPlanningDataset(
+        courseId: manifest.courseId,
+      );
+    }
+    return _planningDatasetFuture!;
+  }
+
+  @override
+  Future<String?> getThemeIdForBlock(String blockId) =>
+      dataSource.getThemeIdForBlock(blockId);
 
   @override
   Future<List<ResourceDecision>> getResourceDecisions(String themeId) =>
@@ -46,7 +84,14 @@ class CourseKnowledgeRepositoryImpl
 
   @override
   Future<TeacherPackage> getTeacherPackage(String themeId) =>
-      dataSource.getTeacherPackage(themeId);
+      _getTeacherPackage(themeId);
+
+  Future<TeacherPackage> _getTeacherPackage(String themeId) {
+    RuntimePerformanceTrace.count(
+      'CourseKnowledgeRepository.getTeacherPackage',
+    );
+    return dataSource.getTeacherPackage(themeId);
+  }
 
   @override
   Future<LessonPlanCapability> getLessonPlanCapability() =>
@@ -93,7 +138,9 @@ class CourseKnowledgeRepositoryImpl
     return lessonPlans.getNextLessonPlan(packageId);
   }
 
-  Future<bool> _lessonPlansUsable(LessonPlanDatabaseDataSource lessonPlans) async {
+  Future<bool> _lessonPlansUsable(
+    LessonPlanDatabaseDataSource lessonPlans,
+  ) async {
     final capability = await lessonPlans.getCapability(manifest);
     return capability.usable;
   }

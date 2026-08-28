@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ogretmen_os/data/course/course_database_data_source.dart';
+import 'package:ogretmen_os/data/course/course_knowledge_repository_impl.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart';
 import 'package:ogretmen_os/domain/runtime/course_runtime_registry.dart';
 import 'package:ogretmen_os/domain/runtime/runtime_manifest_policy.dart';
@@ -46,67 +47,124 @@ void main() {
     if (opened != null) await opened.close();
   });
 
-  test('bundled canonical runtime manifest ve course kaydı birbiriyle uyumludur', () async {
-    final course = await dataSource.getCourse();
+  test(
+    'bundled canonical runtime manifest ve course kaydı birbiriyle uyumludur',
+    () async {
+      final course = await dataSource.getCourse();
 
-    expect(course.courseId, manifest['course_id']);
-    expect(course.schemaVersion, manifest['schema_version']);
-    expect(
-      course.sourceManifestFingerprint,
-      manifest['canonical_content_fingerprint'],
-    );
-  });
+      expect(course.courseId, manifest['course_id']);
+      expect(course.schemaVersion, manifest['schema_version']);
+      expect(
+        course.sourceManifestFingerprint,
+        manifest['canonical_content_fingerprint'],
+      );
+    },
+  );
 
-  test('bundled canonical runtime 4 tema ve 16 blokluk yıllık sırayı taşır', () async {
-    final themes = await dataSource.getThemes();
-    final sequence = await dataSource.getAnnualSequence();
-    final rowCounts = Map<String, dynamic>.from(manifest['row_counts'] as Map);
+  test(
+    'bundled canonical runtime 4 tema ve 16 blokluk yıllık sırayı taşır',
+    () async {
+      final themes = await dataSource.getThemes();
+      final sequence = await dataSource.getAnnualSequence();
+      final rowCounts = Map<String, dynamic>.from(
+        manifest['row_counts'] as Map,
+      );
 
-    expect(themes.length, rowCounts['themes']);
-    expect(sequence.length, rowCounts['timeline_blocks']);
-    expect(themes, hasLength(4));
-    expect(sequence, hasLength(16));
-    expect(
-      sequence.map((entry) => entry.sequencePosition),
-      orderedEquals(List<int>.generate(16, (index) => index + 1)),
-    );
-  });
+      expect(themes.length, rowCounts['themes']);
+      expect(sequence.length, rowCounts['timeline_blocks']);
+      expect(themes, hasLength(4));
+      expect(sequence, hasLength(16));
+      expect(
+        sequence.map((entry) => entry.sequencePosition),
+        orderedEquals(List<int>.generate(16, (index) => index + 1)),
+      );
+    },
+  );
 
-  test('bundled canonical runtime gerçek block ilişkilerini repository girdisi olarak sağlar', () async {
-    final sequence = await dataSource.getAnnualSequence();
-    BlockDetail? candidate;
+  test(
+    'planning projection tüm blok kazanımlarını tek bulk okumada taşır',
+    () async {
+      final projection = await dataSource.getPlanningDataset(courseId: 'TDE_9');
 
-    for (final entry in sequence) {
-      final detail = await dataSource.getBlockDetail(entry.block.id);
-      if (detail.outcomes.isNotEmpty && detail.activities.isNotEmpty) {
-        candidate = detail;
-        break;
+      expect(projection.courseId, 'TDE_9');
+      expect(projection.sequence, hasLength(16));
+      expect(projection.blocksById, hasLength(16));
+
+      final first = projection.sequence.first;
+      final projectedBlock = projection.blockFor(first.block.id);
+      expect(projectedBlock, isNotNull);
+      expect(projectedBlock!.theme.id, first.theme.id);
+      expect(projectedBlock.block.id, first.block.id);
+
+      final hydrated = await dataSource.getBlockDetail(first.block.id);
+      expect(
+        projectedBlock.outcomes.map((outcome) => outcome.id),
+        orderedEquals(hydrated.outcomes.map((outcome) => outcome.id)),
+      );
+      expect(
+        await dataSource.getThemeIdForBlock(first.block.id),
+        first.theme.id,
+      );
+    },
+  );
+
+  test(
+    'course repository planning projectionı runtime anahtarıyla önbellekler',
+    () async {
+      final repository = CourseKnowledgeRepositoryImpl(
+        dataSource: dataSource,
+        manifest: RuntimeManifest.fromJson(manifest),
+      );
+
+      final first = await repository.getPlanningDataset();
+      final second = await repository.getPlanningDataset();
+
+      expect(identical(first, second), isTrue);
+      expect(first.courseId, 'TDE_9');
+    },
+  );
+
+  test(
+    'bundled canonical runtime gerçek block ilişkilerini repository girdisi olarak sağlar',
+    () async {
+      final sequence = await dataSource.getAnnualSequence();
+      BlockDetail? candidate;
+
+      for (final entry in sequence) {
+        final detail = await dataSource.getBlockDetail(entry.block.id);
+        if (detail.outcomes.isNotEmpty && detail.activities.isNotEmpty) {
+          candidate = detail;
+          break;
+        }
       }
-    }
 
-    expect(candidate, isNotNull);
-    final detail = candidate!;
-    expect(detail.outcomes, isNotEmpty);
-    expect(detail.activities, isNotEmpty);
-    expect(detail.theme.id, detail.block.themeId);
-  });
+      expect(candidate, isNotNull);
+      final detail = candidate!;
+      expect(detail.outcomes, isNotEmpty);
+      expect(detail.activities, isNotEmpty);
+      expect(detail.theme.id, detail.block.themeId);
+    },
+  );
 
-  test('bundled canonical runtime en az bir dolu gerçek öğretmen paketi üretir', () async {
-    final themes = await dataSource.getThemes();
-    expect(themes, isNotEmpty);
+  test(
+    'bundled canonical runtime en az bir dolu gerçek öğretmen paketi üretir',
+    () async {
+      final themes = await dataSource.getThemes();
+      expect(themes, isNotEmpty);
 
-    TeacherPackage? candidate;
-    for (final theme in themes) {
-      final package = await dataSource.getTeacherPackage(theme.id);
-      if (package.blocks.isNotEmpty &&
-          package.outcomes.isNotEmpty &&
-          package.activities.isNotEmpty &&
-          package.resourceDecisions.isNotEmpty) {
-        candidate = package;
-        break;
+      TeacherPackage? candidate;
+      for (final theme in themes) {
+        final package = await dataSource.getTeacherPackage(theme.id);
+        if (package.blocks.isNotEmpty &&
+            package.outcomes.isNotEmpty &&
+            package.activities.isNotEmpty &&
+            package.resourceDecisions.isNotEmpty) {
+          candidate = package;
+          break;
+        }
       }
-    }
 
-    expect(candidate, isNotNull);
-  });
+      expect(candidate, isNotNull);
+    },
+  );
 }

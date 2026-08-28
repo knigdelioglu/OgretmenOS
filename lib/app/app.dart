@@ -217,6 +217,8 @@ class _AppShellState extends State<_AppShell> {
   late final OutcomePlanningService _outcomePlanning;
   late final ContinuityRepository _continuity;
   late final LessonPlanProgressRepository _lessonPlanProgress;
+  AnnualPlanPage? _annualPlanPage;
+  ResourceLibraryPage? _resourceLibraryPage;
 
   @override
   void initState() {
@@ -285,10 +287,38 @@ class _AppShellState extends State<_AppShell> {
     );
   }
 
+  Widget _annualPlan(BuildContext context) {
+    final cached = _annualPlanPage;
+    if (cached != null) return cached;
+    if (widget.selectedIndex != 1) return const SizedBox.shrink();
+    return _annualPlanPage = AnnualPlanPage(
+      repository: widget.dependencies.repository,
+      preferences: widget.dependencies.preferences,
+      continuity: _continuity,
+      courseId: widget.activeCourseId,
+      outcomePlanning: _outcomePlanning,
+      topTrailing: _courseSelector(context),
+    );
+  }
+
+  Widget _resourceLibrary(BuildContext context) {
+    final cached = _resourceLibraryPage;
+    if (cached != null) return cached;
+    if (widget.selectedIndex != 2) return const SizedBox.shrink();
+    final activeCourse = runtimeForCourse(widget.activeCourseId);
+    return _resourceLibraryPage = ResourceLibraryPage(
+      repository: widget.dependencies.repository,
+      awaitingTextbook: activeCourse.isAwaitingTextbook,
+      continuity: _continuity,
+      weeklyPlanning: widget.dependencies.weeklyPlanning,
+      courseId: widget.activeCourseId,
+      topTrailing: _courseSelector(context),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final repository = widget.dependencies.repository;
-    final activeCourse = runtimeForCourse(widget.activeCourseId);
     final pages = <Widget>[
       ContinuityThisWeekPage(
         repository: repository,
@@ -298,24 +328,8 @@ class _AppShellState extends State<_AppShell> {
         courseId: widget.activeCourseId,
         topTrailing: _courseSelector(context),
       ),
-      AnnualPlanPage(
-        repository: repository,
-        preferences: widget.dependencies.preferences,
-        continuity: _continuity,
-        courseId: widget.activeCourseId,
-        active: widget.selectedIndex == 1,
-        outcomePlanning: _outcomePlanning,
-        topTrailing: _courseSelector(context),
-      ),
-      ResourceLibraryPage(
-        repository: repository,
-        awaitingTextbook: activeCourse.isAwaitingTextbook,
-        continuity: _continuity,
-        outcomePlanning: _outcomePlanning,
-        courseId: widget.activeCourseId,
-        active: widget.selectedIndex == 2,
-        topTrailing: _courseSelector(context),
-      ),
+      _annualPlan(context),
+      _resourceLibrary(context),
     ];
 
     return LayoutBuilder(

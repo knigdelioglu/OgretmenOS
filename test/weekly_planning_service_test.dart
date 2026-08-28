@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ogretmen_os/data/calendar/asset_weekly_planning_service.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart' as model;
+import 'package:ogretmen_os/domain/models/planning_models.dart';
 import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
 
@@ -15,69 +16,89 @@ void main() {
     service = AssetWeeklyPlanningService(repository: repository);
   });
 
-  test('2026-2027 takvimi 37 aktif okul haftası ve 36 ders haftası üretir', () async {
-    final plan = await service.buildPlan(today: DateTime(2026, 9, 14));
+  test(
+    '2026-2027 takvimi 37 aktif okul haftası ve 36 ders haftası üretir',
+    () async {
+      final plan = await service.buildPlan(today: DateTime(2026, 9, 14));
 
-    expect(plan.academicYear, '2026-2027');
-    expect(plan.weeklyLessonHours, 5);
-    expect(plan.annualHours, 180);
-    expect(plan.weeks, hasLength(37));
-    expect(plan.weeks.where((week) => !week.isEventWeek), hasLength(36));
-    expect(plan.weeks.where((week) => week.isEventWeek), hasLength(1));
-    expect(plan.currentWeekNumber, 1);
-  });
+      expect(plan.academicYear, '2026-2027');
+      expect(plan.weeklyLessonHours, 5);
+      expect(plan.annualHours, 180);
+      expect(plan.weeks, hasLength(37));
+      expect(plan.weeks.where((week) => !week.isEventWeek), hasLength(36));
+      expect(plan.weeks.where((week) => week.isEventWeek), hasLength(1));
+      expect(plan.currentWeekNumber, 1);
+      expect(repository.getPlanningDatasetCalls, 1);
+      expect(repository.getBlockCalls, 0);
+    },
+  );
 
-  test('3. hafta blok sınırını 2 saat + 3 saat olarak taşır ve iki bloğun kazanımlarını gösterir', () async {
-    final plan = await service.buildPlan(today: DateTime(2026, 9, 30));
-    final week = plan.week(3)!;
+  test(
+    '3. hafta blok sınırını 2 saat + 3 saat olarak taşır ve iki bloğun kazanımlarını gösterir',
+    () async {
+      final plan = await service.buildPlan(today: DateTime(2026, 9, 30));
+      final week = plan.week(3)!;
 
-    expect(week.start, DateTime(2026, 9, 28));
-    expect(week.end, DateTime(2026, 10, 2));
-    expect(week.plannedLessonHours, 5);
-    expect(week.segments, hasLength(2));
-    expect(week.segments[0].block?.id, 'T1_B1');
-    expect(week.segments[0].hours, 2);
-    expect(week.segments[1].block?.id, 'T1_B2');
-    expect(week.segments[1].hours, 3);
-    expect(week.outcomes.map((outcome) => outcome.code), containsAll(['T1.B1', 'T1.B2']));
-  });
+      expect(week.start, DateTime(2026, 9, 28));
+      expect(week.end, DateTime(2026, 10, 2));
+      expect(week.plannedLessonHours, 5);
+      expect(week.segments, hasLength(2));
+      expect(week.segments[0].block?.id, 'T1_B1');
+      expect(week.segments[0].hours, 2);
+      expect(week.segments[1].block?.id, 'T1_B2');
+      expect(week.segments[1].hours, 3);
+      expect(
+        week.outcomes.map((outcome) => outcome.code),
+        containsAll(['T1.B1', 'T1.B2']),
+      );
+    },
+  );
 
-  test('9. hafta temayı 3 saat son blok + 2 saat okul temelli planlama ile kapatır', () async {
-    final plan = await service.buildPlan();
-    final week = plan.week(9)!;
+  test(
+    '9. hafta temayı 3 saat son blok + 2 saat okul temelli planlama ile kapatır',
+    () async {
+      final plan = await service.buildPlan();
+      final week = plan.week(9)!;
 
-    expect(week.start, DateTime(2026, 11, 9));
-    expect(week.end, DateTime(2026, 11, 13));
-    expect(week.segments, hasLength(2));
-    expect(week.segments[0].block?.id, 'T1_B4');
-    expect(week.segments[0].hours, 3);
-    expect(week.segments[1].type, WeeklyPlanSegmentType.schoolBasedPlanning);
-    expect(week.segments[1].block, isNull);
-    expect(week.segments[1].hours, 2);
-  });
+      expect(week.start, DateTime(2026, 11, 9));
+      expect(week.end, DateTime(2026, 11, 13));
+      expect(week.segments, hasLength(2));
+      expect(week.segments[0].block?.id, 'T1_B4');
+      expect(week.segments[0].hours, 3);
+      expect(week.segments[1].type, WeeklyPlanSegmentType.schoolBasedPlanning);
+      expect(week.segments[1].block, isNull);
+      expect(week.segments[1].hours, 2);
+    },
+  );
 
-  test('ara tatil ders bütçesi tüketmez; 10. aktif hafta 23 Kasımda başlar', () async {
-    final plan = await service.buildPlan();
-    final week = plan.week(10)!;
+  test(
+    'ara tatil ders bütçesi tüketmez; 10. aktif hafta 23 Kasımda başlar',
+    () async {
+      final plan = await service.buildPlan();
+      final week = plan.week(10)!;
 
-    expect(week.start, DateTime(2026, 11, 23));
-    expect(week.end, DateTime(2026, 11, 27));
-    expect(week.segments.first.block?.id, 'T2_B1');
-  });
+      expect(week.start, DateTime(2026, 11, 23));
+      expect(week.end, DateTime(2026, 11, 27));
+      expect(week.segments.first.block?.id, 'T2_B1');
+    },
+  );
 
-  test('37. aktif hafta Etkinlik Haftasıdır ve yeni ders/kazanım atanmaz', () async {
-    final plan = await service.buildPlan(today: DateTime(2027, 6, 23));
-    final week = plan.week(37)!;
+  test(
+    '37. aktif hafta Etkinlik Haftasıdır ve yeni ders/kazanım atanmaz',
+    () async {
+      final plan = await service.buildPlan(today: DateTime(2027, 6, 23));
+      final week = plan.week(37)!;
 
-    expect(week.start, DateTime(2027, 6, 21));
-    expect(week.end, DateTime(2027, 6, 25));
-    expect(week.type, AcademicWeekType.event);
-    expect(week.label, 'Etkinlik Haftası');
-    expect(week.plannedLessonHours, 0);
-    expect(week.segments, isEmpty);
-    expect(week.outcomes, isEmpty);
-    expect(plan.currentWeekNumber, 37);
-  });
+      expect(week.start, DateTime(2027, 6, 21));
+      expect(week.end, DateTime(2027, 6, 25));
+      expect(week.type, AcademicWeekType.event);
+      expect(week.label, 'Etkinlik Haftası');
+      expect(week.plannedLessonHours, 0);
+      expect(week.segments, isEmpty);
+      expect(week.outcomes, isEmpty);
+      expect(plan.currentWeekNumber, 37);
+    },
+  );
 
   test('180 saatlik course budget ilk 36 haftada tam korunur', () async {
     final plan = await service.buildPlan();
@@ -87,7 +108,10 @@ void main() {
     );
     final schoolBased = plan.weeks
         .expand((week) => week.segments)
-        .where((segment) => segment.type == WeeklyPlanSegmentType.schoolBasedPlanning)
+        .where(
+          (segment) =>
+              segment.type == WeeklyPlanSegmentType.schoolBasedPlanning,
+        )
         .fold<int>(0, (sum, segment) => sum + segment.hours);
 
     expect(total, 180);
@@ -95,7 +119,8 @@ void main() {
   });
 }
 
-class _CalendarFakeRepository implements CourseKnowledgeRepository {
+class _CalendarFakeRepository
+    implements CourseKnowledgeRepository, CoursePlanningKnowledgeRepository {
   _CalendarFakeRepository() {
     for (var themeIndex = 1; themeIndex <= 4; themeIndex++) {
       final theme = model.Theme(
@@ -166,6 +191,8 @@ class _CalendarFakeRepository implements CourseKnowledgeRepository {
   final Map<String, model.Block> _blocks = {};
   final List<model.TimelineEntry> _sequence = [];
   final Map<String, model.BlockDetail> _details = {};
+  int getPlanningDatasetCalls = 0;
+  int getBlockCalls = 0;
 
   @override
   Future<model.Course> getCourse() async => const model.Course(
@@ -177,16 +204,17 @@ class _CalendarFakeRepository implements CourseKnowledgeRepository {
   );
 
   @override
-  Future<model.RuntimeManifest> getManifest() async => const model.RuntimeManifest(
-    runtimePackageVersion: '1.0.0',
-    schemaVersion: '1.0.0',
-    courseId: 'TDE_9',
-    validationStatus: 'PASS',
-    canonicalContentFingerprint: 'fixture',
-    rowCounts: {},
-    timelineResolution: 'THEME_TIME_RESOLVED',
-    timelineUnresolvedFields: {},
-  );
+  Future<model.RuntimeManifest> getManifest() async =>
+      const model.RuntimeManifest(
+        runtimePackageVersion: '1.0.0',
+        schemaVersion: '1.0.0',
+        courseId: 'TDE_9',
+        validationStatus: 'PASS',
+        canonicalContentFingerprint: 'fixture',
+        rowCounts: {},
+        timelineResolution: 'THEME_TIME_RESOLVED',
+        timelineUnresolvedFields: {},
+      );
 
   @override
   Future<List<model.Theme>> getThemes() async => List.unmodifiable(_themes);
@@ -201,15 +229,40 @@ class _CalendarFakeRepository implements CourseKnowledgeRepository {
       .toList(growable: false);
 
   @override
-  Future<model.BlockDetail> getBlock(String blockId) async => _details[blockId]!;
+  Future<model.BlockDetail> getBlock(String blockId) async {
+    getBlockCalls++;
+    return _details[blockId]!;
+  }
 
   @override
   Future<List<model.TimelineEntry>> getAnnualSequence() async =>
       List.unmodifiable(_sequence);
 
   @override
-  Future<List<model.ResourceDecision>> getResourceDecisions(String themeId) async =>
-      const [];
+  Future<List<model.ResourceDecision>> getResourceDecisions(
+    String themeId,
+  ) async => const [];
+
+  @override
+  Future<PlanningDataset> getPlanningDataset() async {
+    getPlanningDatasetCalls++;
+    return PlanningDataset(
+      courseId: 'TDE_9',
+      sequence: _sequence,
+      blocksById: {
+        for (final detail in _details.values)
+          detail.block.id: PlanningBlock(
+            theme: detail.theme,
+            block: detail.block,
+            outcomes: detail.outcomes,
+          ),
+      },
+    );
+  }
+
+  @override
+  Future<String?> getThemeIdForBlock(String blockId) async =>
+      _blocks[blockId]?.themeId;
 
   @override
   Future<model.TeacherPackage> getTeacherPackage(String themeId) async =>

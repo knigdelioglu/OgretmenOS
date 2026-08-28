@@ -33,22 +33,35 @@ class ContinuityThisWeekPage extends StatefulWidget {
 
 class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
   late Future<_ContinuityData> _future;
+  late Future<AnnualOutcomePlan> _planFuture;
   int _workspaceRevision = 0;
 
   @override
   void initState() {
     super.initState();
-    _future = _load();
+    _startLoad();
   }
 
   @override
   void didUpdateWidget(covariant ContinuityThisWeekPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _future = _load();
+    if (oldWidget.repository != widget.repository ||
+        oldWidget.service != widget.service ||
+        oldWidget.continuity != widget.continuity ||
+        oldWidget.lessonPlanProgress != widget.lessonPlanProgress ||
+        oldWidget.courseId != widget.courseId) {
+      _workspaceRevision++;
+      _startLoad();
+    }
   }
 
-  Future<_ContinuityData> _load() async {
-    final plan = await widget.service.buildPlan();
+  void _startLoad() {
+    _planFuture = widget.service.buildPlan();
+    _future = _load(_planFuture);
+  }
+
+  Future<_ContinuityData> _load(Future<AnnualOutcomePlan> planFuture) async {
+    final plan = await planFuture;
     final stored = await _readLastFocusBestEffort();
     if (stored == null) return _ContinuityData(plan: plan);
     if (stored.academicYear != plan.academicYear) {
@@ -98,7 +111,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
   void _reload() {
     setState(() {
       _workspaceRevision += 1;
-      _future = _load();
+      _startLoad();
     });
   }
 
@@ -111,6 +124,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
           trackingKey: item.trackingKey,
           outcomeCode: item.outcome.code,
           themeTitle: item.primaryTheme?.title,
+          themeId: item.primaryTheme?.id,
           blockId: item.primaryBlock?.id,
           blockTitle: item.primaryBlock?.title,
           updatedAt: DateTime.now(),
@@ -165,6 +179,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
         service: widget.service,
         lessonPlanProgress: widget.lessonPlanProgress,
         onOutcomeViewed: _rememberViewed,
+        initialPlanFuture: _planFuture,
         topTrailing: widget.topTrailing,
       ),
     );

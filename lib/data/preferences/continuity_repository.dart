@@ -11,6 +11,7 @@ class LastFocusState {
     required this.outcomeCode,
     required this.updatedAt,
     this.themeTitle,
+    this.themeId,
     this.blockId,
     this.blockTitle,
   });
@@ -21,6 +22,7 @@ class LastFocusState {
   final String trackingKey;
   final String outcomeCode;
   final String? themeTitle;
+  final String? themeId;
   final String? blockId;
   final String? blockTitle;
   final DateTime updatedAt;
@@ -32,6 +34,7 @@ class LastFocusState {
     'tracking_key': trackingKey,
     'outcome_code': outcomeCode,
     'theme_title': themeTitle,
+    'theme_id': themeId,
     'block_id': blockId,
     'block_title': blockTitle,
     'updated_at': updatedAt.toIso8601String(),
@@ -45,6 +48,7 @@ class LastFocusState {
     final outcomeCode = json['outcome_code'];
     final updatedAt = json['updated_at'];
     final themeTitle = json['theme_title'];
+    final themeId = json['theme_id'];
     final blockId = json['block_id'];
     final blockTitle = json['block_title'];
     if (courseId is! String ||
@@ -54,6 +58,7 @@ class LastFocusState {
         outcomeCode is! String ||
         updatedAt is! String ||
         (themeTitle != null && themeTitle is! String) ||
+        (themeId != null && themeId is! String) ||
         (blockId != null && blockId is! String) ||
         (blockTitle != null && blockTitle is! String)) {
       return null;
@@ -67,6 +72,7 @@ class LastFocusState {
       trackingKey: trackingKey,
       outcomeCode: outcomeCode,
       themeTitle: themeTitle as String?,
+      themeId: themeId as String?,
       blockId: blockId as String?,
       blockTitle: blockTitle as String?,
       updatedAt: parsedUpdatedAt,

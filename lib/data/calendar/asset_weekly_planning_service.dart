@@ -1,11 +1,14 @@
 // ignore_for_file: prefer_initializing_formals
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
 
 import '../../domain/models/course_models.dart';
+import '../../domain/models/planning_models.dart';
 import '../../domain/models/weekly_plan_models.dart';
+import '../../domain/performance_instrumentation.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
 
 class AssetWeeklyPlanningService implements WeeklyPlanningService {
@@ -19,9 +22,36 @@ class AssetWeeklyPlanningService implements WeeklyPlanningService {
 
   final CourseKnowledgeRepository _repository;
   final AssetBundle _bundle;
+  Future<AnnualWeeklyPlan>? _planFuture;
+  DateTime? _planDate;
 
   @override
-  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async {
+  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) {
+    RuntimePerformanceTrace.count('AssetWeeklyPlanningService.buildPlan');
+    final resolvedToday = _dateOnly(today ?? DateTime.now());
+    if (_planFuture == null || _planDate != resolvedToday) {
+      _planDate = resolvedToday;
+      final future = RuntimePerformanceTrace.measure(
+        'AssetWeeklyPlanningService.buildPlan',
+        () => _buildPlan(today: resolvedToday),
+      );
+      _planFuture = future;
+      unawaited(
+        future.then<void>(
+          (_) {},
+          onError: (Object error, StackTrace stack) {
+            if (identical(_planFuture, future)) {
+              _planFuture = null;
+              _planDate = null;
+            }
+          },
+        ),
+      );
+    }
+    return _planFuture!;
+  }
+
+  Future<AnnualWeeklyPlan> _buildPlan({DateTime? today}) async {
     final course = await _repository.getCourse();
     final calendar = await _loadActiveCalendar();
     final profile = _CourseScheduleProfile.fromJson(
@@ -30,7 +60,9 @@ class AssetWeeklyPlanningService implements WeeklyPlanningService {
         'course_profiles.${course.courseId}',
       ),
     );
-    final sequence = await _repository.getAnnualSequence();
+    final planningDataset = await _repository.getPlanningDatasetIfAvailable();
+    final sequence =
+        planningDataset?.sequence ?? await _repository.getAnnualSequence();
     if (sequence.isEmpty) {
       throw StateError('Yıllık öğretim sırası boş.');
     }
@@ -84,6 +116,9 @@ class AssetWeeklyPlanningService implements WeeklyPlanningService {
             theme: allocation.theme,
             block: allocation.block,
             hours: consumed,
+            planningBlock: allocation.block == null
+                ? null
+                : planningDataset?.blockFor(allocation.block!.id),
           ),
         );
         allocation.remainingHours -= consumed;
@@ -91,14 +126,41 @@ class AssetWeeklyPlanningService implements WeeklyPlanningService {
         if (allocation.remainingHours == 0) allocationIndex++;
       }
 
+      final resolvedSegments = <WeeklyPlanSegment>[];
       final outcomesById = <String, Outcome>{};
       for (final segment in segments) {
         final block = segment.block;
-        if (block == null) continue;
-        final detail = detailCache[block.id] ??
-            await _repository.getBlock(block.id);
-        detailCache[block.id] = detail;
-        for (final outcome in detail.outcomes) {
+        if (block == null) {
+          resolvedSegments.add(segment);
+          continue;
+        }
+
+        var planningBlock = segment.planningBlock;
+        if (planningBlock == null) {
+          if (planningDataset != null) {
+            throw StateError(
+              'Planning dataset blok sırasını eksik içeriyor: ${block.id}',
+            );
+          }
+          final detail =
+              detailCache[block.id] ?? await _repository.getBlock(block.id);
+          detailCache[block.id] = detail;
+          planningBlock = PlanningBlock(
+            theme: detail.theme,
+            block: detail.block,
+            outcomes: detail.outcomes,
+          );
+        }
+        resolvedSegments.add(
+          WeeklyPlanSegment(
+            type: segment.type,
+            theme: segment.theme,
+            block: block,
+            hours: segment.hours,
+            planningBlock: planningBlock,
+          ),
+        );
+        for (final outcome in planningBlock.outcomes) {
           outcomesById.putIfAbsent(outcome.id, () => outcome);
         }
       }
@@ -111,7 +173,7 @@ class AssetWeeklyPlanningService implements WeeklyPlanningService {
           type: AcademicWeekType.instruction,
           label: '$weekNumber. Hafta',
           plannedLessonHours: profile.weeklyLessonHours,
-          segments: List.unmodifiable(segments),
+          segments: List.unmodifiable(resolvedSegments),
           outcomes: List.unmodifiable(outcomesById.values),
         ),
       );
@@ -119,7 +181,9 @@ class AssetWeeklyPlanningService implements WeeklyPlanningService {
 
     if (allocationIndex != allocations.length ||
         allocations.any((allocation) => allocation.remainingHours != 0)) {
-      throw StateError('Annual course-hour budgeti haftalara tam dağıtılamadı.');
+      throw StateError(
+        'Annual course-hour budgeti haftalara tam dağıtılamadı.',
+      );
     }
 
     final resolvedToday = _dateOnly(today ?? DateTime.now());
@@ -162,7 +226,9 @@ class AssetWeeklyPlanningService implements WeeklyPlanningService {
       }
     }
     if (selected == null) {
-      throw StateError('Aktif akademik yıl için takvim asset kaydı bulunamadı.');
+      throw StateError(
+        'Aktif akademik yıl için takvim asset kaydı bulunamadı.',
+      );
     }
     final asset = _requiredString(selected['asset'], 'calendars[].asset');
     final calendarJson = _decodeMap(await _bundle.loadString(asset), asset);
@@ -194,7 +260,9 @@ class AssetWeeklyPlanningService implements WeeklyPlanningService {
               )
               .toList(growable: false);
           if (special.length > 1) {
-            throw StateError('Bir okul haftasına birden fazla special week bağlı.');
+            throw StateError(
+              'Bir okul haftasına birden fazla special week bağlı.',
+            );
           }
           final specialWeek = special.isEmpty ? null : special.first;
           weeks.add(
@@ -228,14 +296,15 @@ class AssetWeeklyPlanningService implements WeeklyPlanningService {
         profile.schoolBasedHoursPerTheme < 0) {
       throw StateError('Course scheduling profile saat değerleri geçersiz.');
     }
-    if (profile.structuredHoursPerTheme +
-            profile.schoolBasedHoursPerTheme !=
+    if (profile.structuredHoursPerTheme + profile.schoolBasedHoursPerTheme !=
         profile.themeHours) {
       throw StateError('43+2 benzeri theme-hour conservation bozuk.');
     }
     if (profile.instructionalWeekCount * profile.weeklyLessonHours !=
         profile.annualHours) {
-      throw StateError('Instructional week × weekly hour annual total ile eşleşmiyor.');
+      throw StateError(
+        'Instructional week × weekly hour annual total ile eşleşmiyor.',
+      );
     }
 
     final instructionWeeks = activeWeeks
@@ -262,7 +331,9 @@ class AssetWeeklyPlanningService implements WeeklyPlanningService {
     }
     if (profile.blockHourAllocation.fold<int>(0, (sum, value) => sum + value) !=
         profile.structuredHoursPerTheme) {
-      throw StateError('Block planning allocation structured theme hours ile eşleşmiyor.');
+      throw StateError(
+        'Block planning allocation structured theme hours ile eşleşmiyor.',
+      );
     }
     if (calendar.terms.isEmpty) {
       throw StateError('Academic calendar dönem bilgisi içermiyor.');
@@ -335,12 +406,14 @@ class _AcademicCalendarDefinition {
             .toList(growable: false),
         specialWeeks: _requiredList(json['special_weeks'], 'special_weeks')
             .map(
-              (item) => _SpecialWeek.fromJson(
-                _requiredMap(item, 'special_weeks[]'),
-              ),
+              (item) =>
+                  _SpecialWeek.fromJson(_requiredMap(item, 'special_weeks[]')),
             )
             .toList(growable: false),
-        courseProfiles: _requiredMap(json['course_profiles'], 'course_profiles'),
+        courseProfiles: _requiredMap(
+          json['course_profiles'],
+          'course_profiles',
+        ),
       );
 
   final String academicYear;
@@ -397,37 +470,33 @@ class _CourseScheduleProfile {
     required this.blockHourAllocation,
   });
 
-  factory _CourseScheduleProfile.fromJson(Map<String, dynamic> json) =>
-      _CourseScheduleProfile(
-        weeklyLessonHours: _requiredInt(
-          json['weekly_lesson_hours'],
-          'weekly_lesson_hours',
-        ),
-        annualHours: _requiredInt(json['annual_hours'], 'annual_hours'),
-        themeHours: _requiredInt(json['theme_hours'], 'theme_hours'),
-        structuredHoursPerTheme: _requiredInt(
-          json['structured_hours_per_theme'],
-          'structured_hours_per_theme',
-        ),
-        schoolBasedHoursPerTheme: _requiredInt(
-          json['school_based_hours_per_theme'],
-          'school_based_hours_per_theme',
-        ),
-        instructionalWeekCount: _requiredInt(
-          json['instructional_week_count'],
-          'instructional_week_count',
-        ),
-        eventWeekCount: _requiredInt(
-          json['event_week_count'],
-          'event_week_count',
-        ),
-        blockHourAllocation: _requiredList(
-          json['block_hour_allocation'],
-          'block_hour_allocation',
-        ).map((value) => _requiredInt(value, 'block_hour_allocation[]')).toList(
-          growable: false,
-        ),
-      );
+  factory _CourseScheduleProfile.fromJson(
+    Map<String, dynamic> json,
+  ) => _CourseScheduleProfile(
+    weeklyLessonHours: _requiredInt(
+      json['weekly_lesson_hours'],
+      'weekly_lesson_hours',
+    ),
+    annualHours: _requiredInt(json['annual_hours'], 'annual_hours'),
+    themeHours: _requiredInt(json['theme_hours'], 'theme_hours'),
+    structuredHoursPerTheme: _requiredInt(
+      json['structured_hours_per_theme'],
+      'structured_hours_per_theme',
+    ),
+    schoolBasedHoursPerTheme: _requiredInt(
+      json['school_based_hours_per_theme'],
+      'school_based_hours_per_theme',
+    ),
+    instructionalWeekCount: _requiredInt(
+      json['instructional_week_count'],
+      'instructional_week_count',
+    ),
+    eventWeekCount: _requiredInt(json['event_week_count'], 'event_week_count'),
+    blockHourAllocation:
+        _requiredList(json['block_hour_allocation'], 'block_hour_allocation')
+            .map((value) => _requiredInt(value, 'block_hour_allocation[]'))
+            .toList(growable: false),
+  );
 
   final int weeklyLessonHours;
   final int annualHours;
@@ -505,10 +574,15 @@ DateTime _parseDate(Object? value, String field) {
   return _dateOnly(parsed);
 }
 
-DateTime _dateOnly(DateTime value) => DateTime(value.year, value.month, value.day);
+DateTime _dateOnly(DateTime value) =>
+    DateTime(value.year, value.month, value.day);
 
 bool _isBefore(DateTime a, DateTime b) => a.compareTo(b) < 0;
 bool _isAfter(DateTime a, DateTime b) => a.compareTo(b) > 0;
 
-bool _rangesOverlap(DateTime aStart, DateTime aEnd, DateTime bStart, DateTime bEnd) =>
-    !_isAfter(aStart, bEnd) && !_isBefore(aEnd, bStart);
+bool _rangesOverlap(
+  DateTime aStart,
+  DateTime aEnd,
+  DateTime bStart,
+  DateTime bEnd,
+) => !_isAfter(aStart, bEnd) && !_isBefore(aEnd, bStart);

@@ -1,12 +1,16 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../domain/models/course_models.dart';
+import '../../domain/models/planning_models.dart';
+import '../../domain/performance_instrumentation.dart';
 import '../../domain/services/sequence_navigation.dart';
 
 class CourseDatabaseDataSource {
-  const CourseDatabaseDataSource(this._database);
+  CourseDatabaseDataSource(this._database);
 
   final Database _database;
+  final Map<String, Future<bool>> _columnPresence = {};
+  Future<List<TimelineEntry>>? _annualSequenceFuture;
 
   Future<Course> getCourse() async {
     final rows = await _database.rawQuery('''
@@ -55,6 +59,7 @@ class CourseDatabaseDataSource {
   }
 
   Future<Block> getBlock(String blockId) async {
+    RuntimePerformanceTrace.count('CourseDatabaseDataSource.getBlock');
     final rows = await _database.rawQuery(
       '''
       SELECT block_id, theme_id, block_order, title, skill_domain,
@@ -65,6 +70,66 @@ class CourseDatabaseDataSource {
       [blockId],
     );
     return Block.fromRow(_first(rows, 'block $blockId'));
+  }
+
+  Future<String?> getThemeIdForBlock(String blockId) async {
+    final rows = await _database.rawQuery(
+      '''
+      SELECT theme_id
+      FROM blocks
+      WHERE block_id = ?
+      LIMIT 1
+    ''',
+      [blockId],
+    );
+    return rows.isEmpty ? null : nullableString(rows.first['theme_id']);
+  }
+
+  Future<PlanningDataset> getPlanningDataset({required String courseId}) =>
+      RuntimePerformanceTrace.measure(
+        'CourseDatabaseDataSource.getPlanningDataset',
+        () => _readPlanningDataset(courseId: courseId),
+      );
+
+  Future<PlanningDataset> _readPlanningDataset({
+    required String courseId,
+  }) async {
+    final sequence = await getAnnualSequence();
+    final hasProcessOrigin = await _hasColumn(
+      'outcomes',
+      'process_component_origin',
+    );
+    final processOriginColumn = hasProcessOrigin
+        ? 'o.process_component_origin'
+        : 'NULL AS process_component_origin';
+    final outcomeRows = await _database.rawQuery('''
+      SELECT bo.block_id, o.outcome_id, o.theme_id, o.outcome_code,
+             o.official_text, o.process_components, $processOriginColumn,
+             o.source_locator, o.verification_status
+      FROM block_outcomes bo
+      INNER JOIN outcomes o ON o.outcome_id = bo.outcome_id
+      ORDER BY bo.block_id, o.outcome_code
+    ''');
+    final outcomesByBlock = <String, List<Outcome>>{};
+    for (final row in outcomeRows) {
+      final blockId = row['block_id'];
+      if (blockId is! String) continue;
+      outcomesByBlock.putIfAbsent(blockId, () => []).add(Outcome.fromRow(row));
+    }
+
+    final blocksById = <String, PlanningBlock>{};
+    for (final entry in sequence) {
+      blocksById[entry.block.id] = PlanningBlock(
+        theme: entry.theme,
+        block: entry.block,
+        outcomes: outcomesByBlock[entry.block.id] ?? const [],
+      );
+    }
+    return PlanningDataset(
+      courseId: courseId,
+      sequence: sequence,
+      blocksById: blocksById,
+    );
   }
 
   Future<List<Outcome>> getOutcomesForBlock(String blockId) async {
@@ -198,14 +263,18 @@ class CourseDatabaseDataSource {
     final payloadColumns = hasPayload
         ? 'level_model_json, criteria_json, provenance_json'
         : "'{}' AS level_model_json, '[]' AS criteria_json, '{}' AS provenance_json";
-    final rows = await _database.rawQuery('''
+    final rows = await _database.rawQuery(
+      '''
       SELECT artifact_id, title, skill_domain, scope, assessment_family,
              reuse_policy, generation_priority, generation_status,
              teacher_review_required, covered_themes_json,
              covered_gap_instances_json, $payloadColumns
       FROM assessment_artifacts
+      WHERE covered_themes_json LIKE ?
       ORDER BY artifact_id
-    ''');
+    ''',
+      ['%"$themeId"%'],
+    );
     return rows
         .map(AssessmentArtifact.fromRow)
         .where((artifact) => artifact.coveredThemes.contains(themeId))
@@ -271,7 +340,15 @@ class CourseDatabaseDataSource {
     return rows.map(SourceReference.fromRow).toList(growable: false);
   }
 
-  Future<List<TimelineEntry>> getAnnualSequence() async {
+  Future<List<TimelineEntry>> getAnnualSequence() {
+    RuntimePerformanceTrace.count('CourseDatabaseDataSource.getAnnualSequence');
+    return _annualSequenceFuture ??= RuntimePerformanceTrace.measure(
+      'CourseDatabaseDataSource.getAnnualSequence',
+      _readAnnualSequence,
+    );
+  }
+
+  Future<List<TimelineEntry>> _readAnnualSequence() async {
     final rows = await _database.rawQuery('''
       SELECT t.theme_id, t.theme_order, t.title AS theme_title,
              t.page_range AS theme_page_range,
@@ -291,7 +368,7 @@ class CourseDatabaseDataSource {
       LEFT JOIN timeline_themes tt ON tt.theme_id = tb.theme_id
       ORDER BY t.theme_order, tb.block_order
     ''');
-    return [
+    return List.unmodifiable([
       for (var index = 0; index < rows.length; index++)
         TimelineEntry(
           sequencePosition: index + 1,
@@ -327,7 +404,7 @@ class CourseDatabaseDataSource {
             rows[index]['school_based_hours_status'],
           ),
         ),
-    ];
+    ]);
   }
 
   Future<Block?> getPreviousBlock(Block current) async =>
@@ -337,7 +414,9 @@ class CourseDatabaseDataSource {
       nextBlockInSequence(await getAnnualSequence(), current.id);
 
   Future<BlockDetail> getBlockDetail(String blockId) async {
+    RuntimePerformanceTrace.count('CourseDatabaseDataSource.getBlockDetail');
     final block = await getBlock(blockId);
+    final sequence = await getAnnualSequence();
     final theme = await getTheme(block.themeId);
     final outcomes = await getOutcomesForBlock(blockId);
     final activities = await getActivitiesForBlock(blockId);
@@ -367,12 +446,18 @@ class CourseDatabaseDataSource {
       ),
       resourceDecisions: await getResourceDecisions(theme.id),
       sourceReferences: await getSourceReferencesForTheme(theme.id),
-      previousBlock: await getPreviousBlock(block),
-      nextBlock: await getNextBlock(block),
+      previousBlock: previousBlockInSequence(sequence, block.id),
+      nextBlock: nextBlockInSequence(sequence, block.id),
     );
   }
 
-  Future<TeacherPackage> getTeacherPackage(String themeId) async {
+  Future<TeacherPackage> getTeacherPackage(String themeId) =>
+      RuntimePerformanceTrace.measure(
+        'CourseDatabaseDataSource.getTeacherPackage',
+        () => _readTeacherPackage(themeId),
+      );
+
+  Future<TeacherPackage> _readTeacherPackage(String themeId) async {
     final theme = await getTheme(themeId);
     final blocks = await getBlocks(themeId);
     final activities = await getActivitiesForTheme(themeId);
@@ -394,8 +479,11 @@ class CourseDatabaseDataSource {
   }
 
   Future<bool> _hasColumn(String table, String column) async {
-    final rows = await _database.rawQuery('PRAGMA table_info($table)');
-    return rows.any((row) => row['name']?.toString() == column);
+    final key = '$table.$column';
+    return _columnPresence[key] ??= () async {
+      final rows = await _database.rawQuery('PRAGMA table_info($table)');
+      return rows.any((row) => row['name']?.toString() == column);
+    }();
   }
 
   Row _first(List<Row> rows, String entity) {

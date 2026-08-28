@@ -3,10 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ogretmen_os/data/preferences/continuity_repository.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart' as model;
 import 'package:ogretmen_os/domain/models/outcome_tracking_models.dart';
+import 'package:ogretmen_os/domain/models/planning_models.dart';
 import 'package:ogretmen_os/domain/models/weekly_plan_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
-import 'package:ogretmen_os/domain/repositories/outcome_tracking_repository.dart';
-import 'package:ogretmen_os/domain/services/outcome_planning_service.dart';
 import 'package:ogretmen_os/features/resources/resource_library_page.dart';
 
 void main() {
@@ -41,7 +40,6 @@ void main() {
 
     final repository = _ResourceRepository();
     final plan = _contextPlan(currentWeekNumber: 1);
-    final service = _StaticOutcomePlanningService(repository, plan);
     final continuity = MemoryContinuityRepository();
     await continuity.setLastFocus(
       LastFocusState(
@@ -61,7 +59,7 @@ void main() {
       _contextApp(
         repository: repository,
         continuity: continuity,
-        service: service,
+        weeklyPlanning: _StaticWeeklyPlanning(plan.weeklyPlan),
       ),
     );
     await tester.pumpAndSettle();
@@ -87,7 +85,7 @@ void main() {
       _contextApp(
         repository: repository,
         continuity: MemoryContinuityRepository(),
-        service: _StaticOutcomePlanningService(repository, plan),
+        weeklyPlanning: _StaticWeeklyPlanning(plan.weeklyPlan),
       ),
     );
     await tester.pumpAndSettle();
@@ -168,14 +166,14 @@ Widget _app({required bool awaitingTextbook}) => MaterialApp(
 Widget _contextApp({
   required _ResourceRepository repository,
   required ContinuityRepository continuity,
-  required OutcomePlanningService service,
+  required WeeklyPlanningService weeklyPlanning,
 }) => MaterialApp(
   home: Scaffold(
     body: ResourceLibraryPage(
       repository: repository,
       awaitingTextbook: false,
       continuity: continuity,
-      outcomePlanning: service,
+      weeklyPlanning: weeklyPlanning,
       courseId: 'TDE_9',
     ),
   ),
@@ -260,27 +258,17 @@ AnnualOutcomePlan _contextPlan({required int currentWeekNumber}) {
   );
 }
 
-class _StaticOutcomePlanningService extends OutcomePlanningService {
-  _StaticOutcomePlanningService(CourseKnowledgeRepository repository, this.plan)
-    : super(
-        repository: repository,
-        weeklyPlanning: _UnusedWeeklyPlanning(),
-        trackingRepository: MemoryOutcomeTrackingRepository(),
-      );
+class _StaticWeeklyPlanning implements WeeklyPlanningService {
+  const _StaticWeeklyPlanning(this.plan);
 
-  final AnnualOutcomePlan plan;
+  final AnnualWeeklyPlan plan;
 
   @override
-  Future<AnnualOutcomePlan> buildPlan({DateTime? today}) async => plan;
+  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async => plan;
 }
 
-class _UnusedWeeklyPlanning implements WeeklyPlanningService {
-  @override
-  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) =>
-      throw UnimplementedError();
-}
-
-class _ResourceRepository implements CourseKnowledgeRepository {
+class _ResourceRepository
+    implements CourseKnowledgeRepository, CoursePlanningKnowledgeRepository {
   static const course = model.Course(
     courseId: 'TDE_9',
     grade: 9,
@@ -512,4 +500,11 @@ class _ResourceRepository implements CourseKnowledgeRepository {
   @override
   Future<model.TeacherPackage> getTeacherPackage(String themeId) async =>
       themeId == theme2.id ? package2 : package1;
+
+  @override
+  Future<PlanningDataset> getPlanningDataset() => throw UnimplementedError();
+
+  @override
+  Future<String?> getThemeIdForBlock(String blockId) async =>
+      blockId == block2.id ? theme2.id : theme1.id;
 }

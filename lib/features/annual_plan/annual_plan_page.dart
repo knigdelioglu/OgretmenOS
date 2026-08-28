@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../data/preferences/continuity_repository.dart';
 import '../../data/preferences/user_preferences_repository.dart';
 import '../../domain/models/course_models.dart' as model;
 import '../../domain/models/outcome_tracking_models.dart';
+import '../../domain/performance_instrumentation.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../../domain/services/outcome_planning_service.dart';
 import '../block/block_detail_page.dart';
@@ -17,7 +20,6 @@ class AnnualPlanPage extends StatefulWidget {
     required this.preferences,
     required this.continuity,
     required this.courseId,
-    this.active = true,
     this.topTrailing,
     this.outcomePlanning,
   });
@@ -26,7 +28,6 @@ class AnnualPlanPage extends StatefulWidget {
   final UserPreferencesRepository preferences;
   final ContinuityRepository continuity;
   final String courseId;
-  final bool active;
   final Widget? topTrailing;
   final OutcomePlanningService? outcomePlanning;
 
@@ -36,31 +37,84 @@ class AnnualPlanPage extends StatefulWidget {
 
 class _AnnualPlanPageState extends State<AnnualPlanPage> {
   late Future<_PlanData> _future;
+  _OptionalTrackingSummary? _trackingSummary;
+  int _loadRevision = 0;
+  bool _initialUsefulContentReported = false;
+  OutcomePlanningService? _observedOutcomePlanning;
+  OutcomePlanChangeListener? _trackingChangeListener;
 
   @override
   void initState() {
     super.initState();
-    _future = _load();
+    _subscribeToTrackingChanges();
+    _future = _mainLoad();
+    unawaited(_refreshTrackingSummary(_loadRevision));
   }
 
   @override
   void didUpdateWidget(covariant AnnualPlanPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.outcomePlanning != widget.outcomePlanning) {
+      _unsubscribeFromTrackingChanges();
+      _subscribeToTrackingChanges();
+    }
     if (oldWidget.repository != widget.repository ||
         oldWidget.preferences != widget.preferences ||
         oldWidget.continuity != widget.continuity ||
         oldWidget.courseId != widget.courseId ||
-        oldWidget.outcomePlanning != widget.outcomePlanning ||
-        (!oldWidget.active && widget.active)) {
-      _future = _load();
+        oldWidget.outcomePlanning != widget.outcomePlanning) {
+      _beginLoad();
     }
+  }
+
+  @override
+  void dispose() {
+    _unsubscribeFromTrackingChanges();
+    super.dispose();
+  }
+
+  void _beginLoad() {
+    _loadRevision++;
+    _trackingSummary = null;
+    _future = _mainLoad();
+    unawaited(_refreshTrackingSummary(_loadRevision));
+  }
+
+  Future<void> _refreshTrackingSummary(int revision) async {
+    final summary = await _loadTrackingSummary();
+    if (!mounted || revision != _loadRevision) return;
+    setState(() => _trackingSummary = summary);
+  }
+
+  void _subscribeToTrackingChanges() {
+    final service = widget.outcomePlanning;
+    if (service == null) return;
+    final listener = _handleTrackingChanged;
+    _observedOutcomePlanning = service;
+    _trackingChangeListener = listener;
+    service.addChangeListener(listener);
+  }
+
+  void _unsubscribeFromTrackingChanges() {
+    final service = _observedOutcomePlanning;
+    final listener = _trackingChangeListener;
+    if (service != null && listener != null) {
+      service.removeChangeListener(listener);
+    }
+    _observedOutcomePlanning = null;
+    _trackingChangeListener = null;
+  }
+
+  void _handleTrackingChanged() {
+    if (!mounted) return;
+    final revision = ++_loadRevision;
+    unawaited(_refreshTrackingSummary(revision));
   }
 
   Future<_PlanData> _load() async {
     final sequence = await widget.repository.getAnnualSequence();
     final manual = await _getManualPositionBestEffort();
     final lastFocus = await _getLastFocusBestEffort();
-    final trackingSummary = await _loadTrackingSummary();
     var manualBlockId =
         sequence.any((entry) => entry.block.id == manual?.blockId)
         ? manual?.blockId
@@ -84,35 +138,37 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
       sequence: sequence,
       manualBlockId: manualBlockId,
       automaticBlockId: automaticBlockId,
-      trackingSummary: trackingSummary,
     );
   }
 
-  Future<_OptionalTrackingSummary?> _loadTrackingSummary() async {
+  Future<_PlanData> _mainLoad() =>
+      RuntimePerformanceTrace.measure('AnnualPlanPage.mainLoad', _load);
+
+  Future<_OptionalTrackingSummary?> _loadTrackingSummary() {
     final service = widget.outcomePlanning;
-    if (service == null) return null;
-    try {
-      // Tracking is supplementary information. It must never keep the
-      // annual teaching sequence behind a slow or stalled Android query.
-      final plan = await service.buildPlan().timeout(
-        const Duration(seconds: 4),
-      );
-      final courseTrackingKeys = <String>{
-        for (final week in plan.weeks)
-          for (final item in week.outcomes) item.trackingKey,
-      };
-      final records = await service.trackingRepository.getForAcademicYear(
-        plan.academicYear,
-      );
-      final scopedRecords = records
-          .where((record) => courseTrackingKeys.contains(record.trackingKey))
-          .toList();
-      final summary = _OptionalTrackingSummary.fromRecords(scopedRecords);
-      return summary.hasExplicitStatus ? summary : null;
-    } on Object {
-      // Optional tracking summary must never block the annual lesson sequence.
-      return null;
-    }
+    if (service == null) return Future.value(null);
+    return RuntimePerformanceTrace.measure(
+      'AnnualPlanPage.trackingSummaryLoad',
+      () async {
+        try {
+          // This is supplementary work. Its timeout is isolated from the
+          // annual sequence Future and can never block the main plan UI.
+          final plan = await service.buildPlan().timeout(
+            const Duration(seconds: 4),
+          );
+          final summary = _OptionalTrackingSummary.fromTrackedOutcomes(
+            plan.weeks
+                .expand((week) => week.outcomes)
+                .where((item) => !item.isCarriedIn),
+          );
+          return summary.hasExplicitStatus ? summary : null;
+        } on Object {
+          // Optional tracking summary must never block the annual lesson
+          // sequence or turn an otherwise usable page into an error state.
+          return null;
+        }
+      },
+    );
   }
 
   Future<ManualPositionOverrideState?> _getManualPositionBestEffort() async {
@@ -170,7 +226,7 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
     }
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(_beginLoad);
 
   Future<void> _setPosition(String blockId) async {
     try {
@@ -209,6 +265,10 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
       }
 
       final data = snapshot.data!;
+      if (!_initialUsefulContentReported) {
+        _initialUsefulContentReported = true;
+        RuntimePerformanceTrace.instant('AnnualPlanPage.initialUsefulContent');
+      }
       if (data.sequence.isEmpty) {
         return const Center(
           child: Text('Gösterilebilir yıllık plan bulunmuyor.'),
@@ -240,7 +300,7 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
             annualHours: annualHours,
             activeEntry: activeEntry,
             isManualPosition: isManualPosition,
-            trackingSummary: data.trackingSummary,
+            trackingSummary: _trackingSummary,
             onClear: _clearPosition,
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -279,13 +339,11 @@ class _PlanData {
     required this.sequence,
     required this.manualBlockId,
     required this.automaticBlockId,
-    required this.trackingSummary,
   });
 
   final List<model.TimelineEntry> sequence;
   final String? manualBlockId;
   final String? automaticBlockId;
-  final _OptionalTrackingSummary? trackingSummary;
 }
 
 class _AnnualSummary extends StatelessWidget {
@@ -408,15 +466,15 @@ class _OptionalTrackingSummary {
     required this.carriedOver,
   });
 
-  factory _OptionalTrackingSummary.fromRecords(
-    List<LearningOutcomeTrackingRecord> records,
+  factory _OptionalTrackingSummary.fromTrackedOutcomes(
+    Iterable<TrackedOutcome> items,
   ) {
     var completed = 0;
     var inProgress = 0;
     var partiallyCompleted = 0;
     var carriedOver = 0;
-    for (final record in records) {
-      switch (record.status) {
+    for (final item in items) {
+      switch (item.status) {
         case OutcomeTrackingStatus.completed:
           completed++;
         case OutcomeTrackingStatus.inProgress:

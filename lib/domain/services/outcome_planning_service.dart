@@ -1,6 +1,7 @@
 import '../models/course_models.dart';
 import '../models/outcome_tracking_models.dart';
 import '../models/weekly_plan_models.dart';
+import '../performance_instrumentation.dart';
 import '../repositories/course_knowledge_repository.dart';
 import '../repositories/outcome_tracking_repository.dart';
 
@@ -10,9 +11,10 @@ typedef OutcomeInteractionObserver =
       OutcomeTrackingStatus resultingStatus,
       int displayWeekNumber,
     );
+typedef OutcomePlanChangeListener = void Function();
 
 class OutcomePlanningService {
-  const OutcomePlanningService({
+  OutcomePlanningService({
     required this.repository,
     required this.weeklyPlanning,
     required this.trackingRepository,
@@ -23,8 +25,23 @@ class OutcomePlanningService {
   final WeeklyPlanningService weeklyPlanning;
   final OutcomeTrackingRepository trackingRepository;
   final OutcomeInteractionObserver? onInteraction;
+  final List<OutcomePlanChangeListener> _changeListeners = [];
 
-  Future<AnnualOutcomePlan> buildPlan({DateTime? today}) async {
+  void addChangeListener(OutcomePlanChangeListener listener) {
+    _changeListeners.add(listener);
+  }
+
+  void removeChangeListener(OutcomePlanChangeListener listener) {
+    _changeListeners.remove(listener);
+  }
+
+  Future<AnnualOutcomePlan> buildPlan({DateTime? today}) =>
+      RuntimePerformanceTrace.measure(
+        'OutcomePlanningService.buildPlan',
+        () => _buildPlan(today: today),
+      );
+
+  Future<AnnualOutcomePlan> _buildPlan({DateTime? today}) async {
     final weeklyPlan = await weeklyPlanning.buildPlan(today: today);
     final records = await trackingRepository.getForAcademicYear(
       weeklyPlan.academicYear,
@@ -38,26 +55,48 @@ class OutcomePlanningService {
     final baseByKey = <String, TrackedOutcome>{};
 
     for (final week in weeklyPlan.weeks) {
-      final blockDetails = <BlockDetail>[];
+      final contextsByOutcome = <String, Map<String, OutcomeBlockContext>>{};
       for (final segment in week.segments) {
         final block = segment.block;
         if (block == null) continue;
+
+        final planningBlock = segment.planningBlock;
+        if (planningBlock != null) {
+          for (final outcome in planningBlock.outcomes) {
+            contextsByOutcome
+                .putIfAbsent(outcome.id, () => {})
+                .putIfAbsent(
+                  planningBlock.block.id,
+                  () => OutcomeBlockContext.lightweight(
+                    theme: planningBlock.theme,
+                    block: planningBlock.block,
+                  ),
+                );
+          }
+          continue;
+        }
+
+        // Legacy/custom weekly planning implementations may not carry the
+        // shared projection yet. Keep them functional, while the production
+        // AssetWeeklyPlanningService path remains detail-free.
         final detail =
             detailCache[block.id] ?? await repository.getBlock(block.id);
         detailCache[block.id] = detail;
-        if (!blockDetails.any((item) => item.block.id == detail.block.id)) {
-          blockDetails.add(detail);
+        for (final outcome in detail.outcomes) {
+          contextsByOutcome
+              .putIfAbsent(outcome.id, () => {})
+              .putIfAbsent(
+                detail.block.id,
+                () => OutcomeBlockContext(detail: detail),
+              );
         }
       }
 
       final items = <TrackedOutcome>[];
       for (final outcome in week.outcomes) {
-        final contexts = blockDetails
-            .where(
-              (detail) => detail.outcomes.any((item) => item.id == outcome.id),
-            )
-            .map((detail) => OutcomeBlockContext(detail: detail))
-            .toList(growable: false);
+        final contexts =
+            contextsByOutcome[outcome.id]?.values.toList() ??
+            const <OutcomeBlockContext>[];
         final key = outcomeTrackingKey(
           academicYear: weeklyPlan.academicYear,
           outcomeId: outcome.id,
@@ -154,6 +193,7 @@ class OutcomePlanningService {
       record?.status ?? OutcomeTrackingStatus.planned,
       displayWeekNumber ?? item.displayWeekNumber,
     );
+    _notifyPlanChanged();
   }
 
   Future<void> restoreTrackingStatus(
@@ -205,6 +245,7 @@ class OutcomePlanningService {
       record?.status ?? OutcomeTrackingStatus.planned,
       displayWeekNumber ?? item.displayWeekNumber,
     );
+    _notifyPlanChanged();
   }
 
   Future<void> setStatus(
@@ -231,6 +272,7 @@ class OutcomePlanningService {
       ),
     );
     await _notifyInteraction(item, status, item.displayWeekNumber);
+    _notifyPlanChanged();
   }
 
   Future<void> saveTeacherNote(TrackedOutcome item, String? note) async {
@@ -255,6 +297,7 @@ class OutcomePlanningService {
       current?.status ?? item.status,
       item.displayWeekNumber,
     );
+    _notifyPlanChanged();
   }
 
   Future<void> saveActualHours(TrackedOutcome item, int? hours) async {
@@ -282,6 +325,7 @@ class OutcomePlanningService {
       current?.status ?? item.status,
       item.displayWeekNumber,
     );
+    _notifyPlanChanged();
   }
 
   Future<void> carryToWeek({
@@ -325,13 +369,17 @@ class OutcomePlanningService {
       OutcomeTrackingStatus.carriedOver,
       targetWeekNumber,
     );
+    _notifyPlanChanged();
   }
 
-  Future<void> resetTracking(TrackedOutcome item) => trackingRepository.delete(
-    academicYear: item.academicYear,
-    outcomeId: item.outcome.id,
-    plannedWeekNumber: item.plannedWeekNumber,
-  );
+  Future<void> resetTracking(TrackedOutcome item) async {
+    await trackingRepository.delete(
+      academicYear: item.academicYear,
+      outcomeId: item.outcome.id,
+      plannedWeekNumber: item.plannedWeekNumber,
+    );
+    _notifyPlanChanged();
+  }
 
   Future<LearningOutcomeTrackingRecord?> _findCurrentRecord(
     TrackedOutcome item,
@@ -347,6 +395,19 @@ class OutcomePlanningService {
 
   bool _hasAuxiliaryState(LearningOutcomeTrackingRecord record) =>
       record.actualHours != null || record.teacherNote != null;
+
+  void _notifyPlanChanged() {
+    for (final listener in List<OutcomePlanChangeListener>.of(
+      _changeListeners,
+    )) {
+      try {
+        listener();
+      } on Object {
+        // A view refresh listener must never turn a completed data mutation
+        // into a failed teacher action.
+      }
+    }
+  }
 
   Future<void> _notifyInteraction(
     TrackedOutcome item,

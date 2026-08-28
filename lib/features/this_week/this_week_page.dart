@@ -19,6 +19,7 @@ class ThisWeekPage extends StatefulWidget {
     this.topTrailing,
     this.lessonPlanProgress,
     this.onOutcomeViewed,
+    this.initialPlanFuture,
   });
 
   final CourseKnowledgeRepository repository;
@@ -26,6 +27,7 @@ class ThisWeekPage extends StatefulWidget {
   final Widget? topTrailing;
   final LessonPlanProgressRepository? lessonPlanProgress;
   final Future<void> Function(TrackedOutcome item)? onOutcomeViewed;
+  final Future<AnnualOutcomePlan>? initialPlanFuture;
 
   @override
   State<ThisWeekPage> createState() => _ThisWeekPageState();
@@ -38,7 +40,16 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
   @override
   void initState() {
     super.initState();
-    _future = widget.service.buildPlan();
+    _future = widget.initialPlanFuture ?? widget.service.buildPlan();
+  }
+
+  @override
+  void didUpdateWidget(covariant ThisWeekPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.service != widget.service ||
+        oldWidget.initialPlanFuture != widget.initialPlanFuture) {
+      _future = widget.initialPlanFuture ?? widget.service.buildPlan();
+    }
   }
 
   void _reload() {

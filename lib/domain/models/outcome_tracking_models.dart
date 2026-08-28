@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_initializing_formals
+
 import 'course_models.dart';
 import 'weekly_plan_models.dart';
 
@@ -87,12 +89,29 @@ class LearningOutcomeTrackingRecord {
 }
 
 class OutcomeBlockContext {
-  const OutcomeBlockContext({required this.detail});
+  const OutcomeBlockContext({required BlockDetail detail})
+    : _detail = detail,
+      _theme = null,
+      _block = null;
 
-  final BlockDetail detail;
+  const OutcomeBlockContext.lightweight({
+    required Theme theme,
+    required Block block,
+  }) : _detail = null,
+       _theme = theme,
+       _block = block;
 
-  Theme get theme => detail.theme;
-  Block get block => detail.block;
+  final BlockDetail? _detail;
+  final Theme? _theme;
+  final Block? _block;
+
+  /// Present when this context was created from an already hydrated detail.
+  /// Lightweight planning contexts intentionally leave it null; detail pages
+  /// hydrate that block only after the user opens the detail view.
+  BlockDetail? get detail => _detail;
+
+  Theme get theme => _theme ?? _detail!.theme;
+  Block get block => _block ?? _detail!.block;
 }
 
 class TrackedOutcome {
