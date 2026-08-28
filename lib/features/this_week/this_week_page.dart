@@ -4,9 +4,13 @@ import 'package:flutter/services.dart';
 import '../../app/resource_navigation.dart';
 import '../../domain/models/outcome_tracking_models.dart';
 import '../../domain/models/weekly_plan_models.dart';
+import '../../domain/repositories/assignment_lesson_progress_repository.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
+import '../../domain/repositories/instruction_context_repository.dart';
 import '../../domain/repositories/lesson_plan_progress_repository.dart';
+import '../../domain/services/assignment_lesson_timeline_service.dart';
 import '../../domain/services/outcome_planning_service.dart';
+import '../lesson_plan/assignment_weekly_lesson_plan_panel.dart';
 import '../lesson_plan/lesson_plan_panels.dart';
 import '../outcomes/outcome_detail_page.dart';
 import '../shared/feature_widgets.dart';
@@ -20,6 +24,11 @@ class ThisWeekPage extends StatefulWidget {
     required this.service,
     this.topTrailing,
     this.lessonPlanProgress,
+    this.instructionContext,
+    this.assignmentLessonProgress,
+    this.assignmentTimeline,
+    this.courseId,
+    this.onConfigureSchedule,
     this.onOutcomeViewed,
     this.initialPlanFuture,
     this.onOpenResources,
@@ -29,6 +38,11 @@ class ThisWeekPage extends StatefulWidget {
   final OutcomePlanningService service;
   final Widget? topTrailing;
   final LessonPlanProgressRepository? lessonPlanProgress;
+  final InstructionContextRepository? instructionContext;
+  final AssignmentLessonProgressRepository? assignmentLessonProgress;
+  final AssignmentLessonTimelineService? assignmentTimeline;
+  final String? courseId;
+  final VoidCallback? onConfigureSchedule;
   final Future<void> Function(TrackedOutcome item)? onOutcomeViewed;
   final Future<AnnualOutcomePlan>? initialPlanFuture;
   final ResourceNavigationCallback? onOpenResources;
@@ -40,6 +54,12 @@ class ThisWeekPage extends StatefulWidget {
 class _ThisWeekPageState extends State<ThisWeekPage> {
   late Future<AnnualOutcomePlan> _future;
   int? _selectedWeekNumber;
+
+  bool get _assignmentScheduleEnabled =>
+      widget.courseId != null &&
+      widget.instructionContext != null &&
+      widget.assignmentLessonProgress != null &&
+      widget.assignmentTimeline != null;
 
   @override
   void initState() {
@@ -244,7 +264,7 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
       }
       if (!mounted) return;
       _reload();
-      showTeacherFeedback(context, 'Toplu işlem geri alındı.');
+      showTeacherFeedback(context, 'Değişiklik geri alındı.');
     } on Object {
       _showError();
     }
@@ -393,13 +413,26 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
                 ? null
                 : (action) => _handleOutcomeAction(plan, focus, action),
           ),
-          WeeklyLessonPlanPanel(
-            repository: widget.repository,
-            annualPlan: plan,
-            weekNumber: summary.week.weekNumber,
-            progressRepository: widget.lessonPlanProgress,
-            onOpenResources: widget.onOpenResources,
-          ),
+          if (_assignmentScheduleEnabled)
+            AssignmentAwareWeeklyLessonPlanSection(
+              repository: widget.repository,
+              annualPlan: plan,
+              weekNumber: summary.week.weekNumber,
+              courseId: widget.courseId!,
+              instructionContext: widget.instructionContext!,
+              timeline: widget.assignmentTimeline!,
+              progressRepository: widget.assignmentLessonProgress!,
+              onConfigureSchedule: widget.onConfigureSchedule,
+              onOpenResources: widget.onOpenResources,
+            )
+          else
+            WeeklyLessonPlanPanel(
+              repository: widget.repository,
+              annualPlan: plan,
+              weekNumber: summary.week.weekNumber,
+              progressRepository: widget.lessonPlanProgress,
+              onOpenResources: widget.onOpenResources,
+            ),
           if (summary.week.isEventWeek) ...[
             const SizedBox(height: AppSpacing.lg),
             const StatusPanel(
