@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ogretmen_os/data/preferences/continuity_repository.dart';
@@ -200,7 +202,78 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'yıllık plan continuity refresh latest focus tamamlanma sırasını korur',
+    (tester) async {
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      SharedPreferences.setMockInitialValues({});
+      final raw = await SharedPreferences.getInstance();
+      final preferences = SharedPreferencesUserPreferences(raw);
+      final continuity = _ControlledAnnualContinuity();
+      final repository = _AnnualRaceRepository();
+      final focusB1 = _annualFocus('B1');
+      final focusB2 = _annualFocus('B2');
+      final focusB3 = _annualFocus('B3');
+      await continuity.setLastFocus(focusB1);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnnualPlanPage(
+              repository: repository,
+              preferences: preferences,
+              continuity: continuity,
+              courseId: 'TDE_9',
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Test Tema · Birinci Blok'), findsOneWidget);
+
+      final refreshA = continuity.holdNextRead();
+      await continuity.setLastFocus(focusB2);
+      await tester.pump();
+      final refreshB = continuity.holdNextRead();
+      await continuity.setLastFocus(focusB3);
+      await tester.pump();
+
+      refreshB.complete(focusB3);
+      await tester.pump();
+      await tester.pump();
+      expect(find.textContaining('Test Tema · Üçüncü Blok'), findsOneWidget);
+
+      refreshA.complete(focusB2);
+      await tester.pump();
+      await tester.pump();
+      expect(find.textContaining('Test Tema · Üçüncü Blok'), findsOneWidget);
+      expect(find.textContaining('Test Tema · İkinci Blok'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
+
+LastFocusState _annualFocus(String blockId) => LastFocusState(
+  courseId: 'TDE_9',
+  academicYear: '2026-2027',
+  weekNumber: int.parse(blockId.substring(1)),
+  trackingKey: 'TDE_9|$blockId',
+  outcomeCode: 'TEST.$blockId',
+  themeTitle: 'Test Tema',
+  blockId: blockId,
+  blockTitle:
+      '${switch (blockId) {
+        'B1' => 'Birinci',
+        'B2' => 'İkinci',
+        _ => 'Üçüncü',
+      }} Blok',
+  updatedAt: DateTime.now(),
+);
 
 final _oldFocusTime = DateTime.utc(2020, 1, 1);
 
@@ -337,6 +410,51 @@ class _Repository implements CourseKnowledgeRepository {
       );
 }
 
+class _AnnualRaceRepository extends _Repository {
+  static const block3 = model.Block(
+    id: 'B3',
+    themeId: 'T1',
+    order: 3,
+    title: 'Üçüncü Blok',
+    skillDomain: 'Okuma',
+    learningArea: null,
+    plannedHours: null,
+    timeStatus: 'ORDER_ONLY',
+    sourceLocators: [],
+  );
+
+  @override
+  Future<List<model.TimelineEntry>> getAnnualSequence() async => const [
+    model.TimelineEntry(
+      sequencePosition: 1,
+      theme: _Repository.theme,
+      block: _Repository.block1,
+      officialTotalHours: 45,
+      coreInstructionHours: 43,
+      schoolBasedHours: 2,
+      schoolBasedHoursStatus: 'CONFIRMED',
+    ),
+    model.TimelineEntry(
+      sequencePosition: 2,
+      theme: _Repository.theme,
+      block: _Repository.block2,
+      officialTotalHours: 45,
+      coreInstructionHours: 43,
+      schoolBasedHours: 2,
+      schoolBasedHoursStatus: 'CONFIRMED',
+    ),
+    model.TimelineEntry(
+      sequencePosition: 3,
+      theme: _Repository.theme,
+      block: block3,
+      officialTotalHours: 45,
+      coreInstructionHours: 43,
+      schoolBasedHours: 2,
+      schoolBasedHoursStatus: 'CONFIRMED',
+    ),
+  ];
+}
+
 class _FailingPreferences implements UserPreferencesRepository {
   const _FailingPreferences();
 
@@ -373,4 +491,48 @@ class _FailingAnnualContinuity implements ContinuityRepository {
 
   @override
   void removeChangeListener(ContinuityChangeListener listener) {}
+}
+
+class _ControlledAnnualContinuity implements ContinuityRepository {
+  final Map<String, LastFocusState> _states = {};
+  final List<ContinuityChangeListener> _listeners = [];
+  final List<Completer<LastFocusState?>> _heldReads = [];
+
+  Completer<LastFocusState?> holdNextRead() {
+    final completer = Completer<LastFocusState?>();
+    _heldReads.add(completer);
+    return completer;
+  }
+
+  @override
+  Future<LastFocusState?> getLastFocus(String courseId) {
+    if (_heldReads.isNotEmpty) return _heldReads.removeAt(0).future;
+    return Future.value(_states[courseId]);
+  }
+
+  @override
+  Future<void> setLastFocus(LastFocusState state) async {
+    _states[state.courseId] = state;
+    for (final listener in List<ContinuityChangeListener>.of(_listeners)) {
+      listener(state.courseId);
+    }
+  }
+
+  @override
+  Future<void> clearLastFocus(String courseId) async {
+    _states.remove(courseId);
+    for (final listener in List<ContinuityChangeListener>.of(_listeners)) {
+      listener(courseId);
+    }
+  }
+
+  @override
+  void addChangeListener(ContinuityChangeListener listener) {
+    _listeners.add(listener);
+  }
+
+  @override
+  void removeChangeListener(ContinuityChangeListener listener) {
+    _listeners.remove(listener);
+  }
 }

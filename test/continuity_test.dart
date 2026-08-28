@@ -122,6 +122,42 @@ void main() {
     expect(events, ['TDE_9', 'TDE_9']);
   });
 
+  test('listener failures do not fail continuity persistence', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final sharedPreferencesRepository = SharedPreferencesContinuityRepository(
+      preferences,
+    );
+    final memoryRepository = MemoryContinuityRepository();
+    final state = LastFocusState(
+      courseId: 'TDE_9',
+      academicYear: '2026-2027',
+      weekNumber: 1,
+      trackingKey: 'key',
+      outcomeCode: 'TDE1.1',
+      updatedAt: DateTime.now(),
+    );
+
+    void throwingListener(String courseId) {
+      throw StateError('observer failed');
+    }
+
+    sharedPreferencesRepository.addChangeListener(throwingListener);
+    memoryRepository.addChangeListener(throwingListener);
+
+    await sharedPreferencesRepository.setLastFocus(state);
+    await memoryRepository.setLastFocus(state);
+
+    expect(
+      (await sharedPreferencesRepository.getLastFocus('TDE_9'))?.trackingKey,
+      state.trackingKey,
+    );
+    expect(
+      (await memoryRepository.getLastFocus('TDE_9'))?.trackingKey,
+      state.trackingKey,
+    );
+  });
+
   testWidgets('saved focus is offered as a direct resume path', (tester) async {
     tester.view.physicalSize = const Size(412, 915);
     tester.view.devicePixelRatio = 1;

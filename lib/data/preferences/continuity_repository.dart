@@ -116,7 +116,12 @@ class SharedPreferencesContinuityRepository implements ContinuityRepository {
 
   void _notify(String courseId) {
     for (final listener in List<ContinuityChangeListener>.of(_listeners)) {
-      listener(courseId);
+      try {
+        listener(courseId);
+      } on Object {
+        // Observer failures must never turn a completed preference write into
+        // a failed continuity mutation.
+      }
     }
   }
 
@@ -186,7 +191,12 @@ class MemoryContinuityRepository implements ContinuityRepository {
 
   void _notify(String courseId) {
     for (final listener in List<ContinuityChangeListener>.of(_listeners)) {
-      listener(courseId);
+      try {
+        listener(courseId);
+      } on Object {
+        // Observer failures must never turn a completed in-memory write into
+        // a failed continuity mutation.
+      }
     }
   }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ogretmen_os/data/preferences/continuity_repository.dart';
@@ -217,6 +219,53 @@ void main() {
   );
 
   testWidgets(
+    'kaynak continuity refresh latest focus tamamlanma sırasını korur',
+    (tester) async {
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repository = _ControlledResourceRepository();
+      final continuity = MemoryContinuityRepository();
+      await continuity.setLastFocus(
+        _resourceFocus(themeId: 'T1', blockId: 'B1'),
+      );
+
+      await tester.pumpWidget(
+        _contextApp(
+          repository: repository,
+          continuity: continuity,
+          weeklyPlanning: _StaticWeeklyPlanning(
+            _contextPlan(currentWeekNumber: 1).weeklyPlan,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('TEMA 1'), findsWidgets);
+
+      final focusT2 = _resourceFocus(themeId: 'T2', blockId: 'B2');
+      final focusT3 = _resourceFocus(themeId: 'T3', blockId: 'B3');
+      await continuity.setLastFocus(focusT2);
+      await tester.pump();
+      await continuity.setLastFocus(focusT3);
+      await tester.pump();
+
+      repository.t3Package.complete(_ControlledResourceRepository.package3);
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('TEMA 3'), findsWidgets);
+
+      repository.t2Package.complete(_ResourceRepository.package2);
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('TEMA 3'), findsWidgets);
+      expect(find.text('TEMA 2'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'eski akademik yıla ait focus yok sayılır ve mevcut haftanın teması açılır',
     (tester) async {
       tester.view.physicalSize = const Size(412, 915);
@@ -264,6 +313,22 @@ void main() {
     },
   );
 }
+
+LastFocusState _resourceFocus({
+  required String themeId,
+  required String blockId,
+}) => LastFocusState(
+  courseId: 'TDE_9',
+  academicYear: '2026-2027',
+  weekNumber: int.parse(themeId.substring(1)),
+  trackingKey: '2026-2027:$themeId',
+  outcomeCode: '$themeId.1',
+  themeTitle: 'TEMA ${themeId.substring(1)}',
+  themeId: themeId,
+  blockId: blockId,
+  blockTitle: 'Blok ${themeId.substring(1)}',
+  updatedAt: DateTime(2026, 9, int.parse(themeId.substring(1)) + 13, 10),
+);
 
 Widget _app({required bool awaitingTextbook}) => MaterialApp(
   home: Scaffold(
@@ -618,4 +683,48 @@ class _ResourceRepository
   @override
   Future<String?> getThemeIdForBlock(String blockId) async =>
       blockId == block2.id ? theme2.id : theme1.id;
+}
+
+class _ControlledResourceRepository extends _ResourceRepository {
+  final t2Package = Completer<model.TeacherPackage>();
+  final t3Package = Completer<model.TeacherPackage>();
+
+  static const theme3 = model.Theme(
+    id: 'T3',
+    order: 3,
+    title: 'TEMA 3',
+    pageRange: null,
+    plannedHours: 45,
+    anlamaHours: null,
+    anlatmaHours: null,
+    sourceLocator: null,
+  );
+
+  static const package3 = model.TeacherPackage(
+    theme: theme3,
+    blocks: [],
+    outcomes: [],
+    textbookSections: [],
+    activities: [],
+    forms: [],
+    assessmentArtifacts: [],
+    assessmentGaps: [],
+    assessmentTaskBindings: [],
+    resourceDecisions: [],
+    sourceReferences: [],
+  );
+
+  @override
+  Future<model.TeacherPackage> getTeacherPackage(String themeId) {
+    if (themeId == 'T2') return t2Package.future;
+    if (themeId == 'T3') return t3Package.future;
+    return super.getTeacherPackage(themeId);
+  }
+
+  @override
+  Future<List<model.Theme>> getThemes() async => const [
+    _ResourceRepository.theme1,
+    _ResourceRepository.theme2,
+    theme3,
+  ];
 }

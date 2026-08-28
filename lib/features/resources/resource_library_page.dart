@@ -93,8 +93,8 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
 
   void _handleContinuityChanged(String courseId) {
     if (courseId != widget.courseId || !mounted) return;
-    _focusRevision++;
-    unawaited(_refreshFocusTheme());
+    final revision = ++_focusRevision;
+    unawaited(_refreshFocusTheme(revision));
   }
 
   Future<void> _clearStaleFocusBestEffort() async {
@@ -109,7 +109,8 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
     }
   }
 
-  Future<void> _refreshFocusTheme() async {
+  Future<void> _refreshFocusTheme(int revision) async {
+    if (!mounted || revision != _focusRevision) return;
     final current = _resourceData;
     if (current == null || current.themes.isEmpty) return;
     final continuity = widget.continuity;
@@ -120,15 +121,18 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
     if (widget.weeklyPlanning != null) {
       try {
         final plan = await widget.weeklyPlanning!.buildPlan();
+        if (!mounted || revision != _focusRevision) return;
         currentAcademicYear = plan.academicYear;
       } on Object {
         // Weekly planning context is optional.
       }
     }
+    if (!mounted || revision != _focusRevision) return;
 
     String? targetThemeId;
     try {
       final stored = await continuity.getLastFocus(courseId);
+      if (!mounted || revision != _focusRevision) return;
       if (stored != null) {
         if (currentAcademicYear != null &&
             stored.academicYear != currentAcademicYear) {
@@ -142,6 +146,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
         } else if (stored.blockId != null) {
           final blockThemeId = await widget.repository
               .getThemeIdForBlockIfAvailable(stored.blockId!);
+          if (!mounted || revision != _focusRevision) return;
           if (blockThemeId != null &&
               current.themes.any((theme) => theme.id == blockThemeId)) {
             targetThemeId = blockThemeId;
@@ -159,7 +164,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
 
     try {
       final package = await widget.repository.getTeacherPackage(targetThemeId);
-      if (!mounted) return;
+      if (!mounted || revision != _focusRevision) return;
       setState(() {
         _selectedThemeId = targetThemeId;
         _resourceData = _ResourceData(
@@ -198,7 +203,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
     final data = _ResourceData(themes: themes, package: package);
     _resourceData = data;
     if (_focusRevision != focusRevision) {
-      unawaited(_refreshFocusTheme());
+      unawaited(_refreshFocusTheme(_focusRevision));
     }
     return data;
   }

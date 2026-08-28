@@ -142,8 +142,8 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
 
   void _handleContinuityChanged(String courseId) {
     if (courseId != widget.courseId || !mounted) return;
-    _focusRevision++;
-    unawaited(_refreshFocusState());
+    final revision = ++_focusRevision;
+    unawaited(_refreshFocusState(revision));
   }
 
   Future<({String? manualBlockId, String? automaticBlockId})>
@@ -186,7 +186,7 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
     );
     _planData = data;
     if (_focusRevision != focusRevision) {
-      unawaited(_refreshFocusState());
+      unawaited(_refreshFocusState(_focusRevision));
     }
     return data;
   }
@@ -194,11 +194,12 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
   Future<_PlanData> _mainLoad() =>
       RuntimePerformanceTrace.measure('AnnualPlanPage.mainLoad', _load);
 
-  Future<void> _refreshFocusState() async {
+  Future<void> _refreshFocusState(int revision) async {
+    if (!mounted || revision != _focusRevision) return;
     final current = _planData;
     if (current == null) return;
     final position = await _resolvePositionBlockIds(current.sequence);
-    if (!mounted) return;
+    if (!mounted || revision != _focusRevision) return;
     if (position.manualBlockId == current.manualBlockId &&
         position.automaticBlockId == current.automaticBlockId) {
       return;
@@ -299,7 +300,10 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
   Future<void> _setPosition(String blockId) async {
     try {
       await _setPositionPreference(blockId);
-      if (mounted) unawaited(_refreshFocusState());
+      if (mounted) {
+        final revision = ++_focusRevision;
+        unawaited(_refreshFocusState(revision));
+      }
     } on Object {
       if (mounted) {
         showTeacherFeedback(context, 'Geçici konum işareti kaydedilemedi.');
@@ -310,7 +314,10 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
   Future<void> _clearPosition() async {
     try {
       await _clearPositionPreference();
-      if (mounted) unawaited(_refreshFocusState());
+      if (mounted) {
+        final revision = ++_focusRevision;
+        unawaited(_refreshFocusState(revision));
+      }
     } on Object {
       if (mounted) {
         showTeacherFeedback(context, 'Geçici konum işareti temizlenemedi.');
