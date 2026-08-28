@@ -247,6 +247,37 @@ ensure_release_signing() {
   echo -e "${GREEN}✅ Yerel release imzası hazırlandı (dosyalar Git'e alınmaz).${NC}"
 }
 
+# Wi-Fi ADB bağlantısı uzun süre açık kaldığında cihaz, IP'si erişilebilir olsa
+# bile eski ADB transport kaydı nedeniyle offline görünebilir.
+ensure_adb_online() {
+  local state
+  state=$(adb -s "$DEVICE_TARGET" get-state 2>/dev/null | tr -d '[:space:]')
+  if [ "$state" = "device" ]; then
+    return 0
+  fi
+
+  echo -e "${YELLOW}🔄 ADB bağlantısı yenileniyor (${DEVICE_TARGET})...${NC}"
+  adb reconnect offline >/dev/null 2>&1 || true
+  adb connect "$DEVICE_TARGET" >/dev/null 2>&1 || true
+  sleep 1
+  state=$(adb -s "$DEVICE_TARGET" get-state 2>/dev/null | tr -d '[:space:]')
+  if [ "$state" = "device" ]; then
+    return 0
+  fi
+
+  # Eski ADB sunucusu transport'u tutuyorsa yalnızca yerel daemon'u yenile.
+  adb kill-server >/dev/null 2>&1 || true
+  adb start-server >/dev/null 2>&1 || true
+  adb connect "$DEVICE_TARGET" >/dev/null 2>&1 || true
+  sleep 1
+  state=$(adb -s "$DEVICE_TARGET" get-state 2>/dev/null | tr -d '[:space:]')
+  if [ "$state" != "device" ]; then
+    echo -e "${RED}❌ Tablet ADB üzerinden çevrimiçi duruma getirilemedi.${NC}"
+    echo -e "${YELLOW}Tablette Kablosuz Hata Ayıklama'yı kapatıp açın veya IP:Port değerini kontrol edin.${NC}"
+    return 1
+  fi
+}
+
 echo -e "${CYAN}🔍 Tablet otomatik aranıyor...${NC}"
 
 # 1. Adım: USB bağlı cihaz varsa önce kablosuza geçir.
@@ -352,51 +383,10 @@ echo ""
 echo -e "${GREEN}🚀 Hedef Cihaz: ${BOLD}${DEVICE_TARGET}${NC}"
 echo ""
 
-while true; do
-  read -r -p "Çalıştırma modu: [D]ebug (hot reload) / [R]elease (mevcut akış) [R]: " BUILD_MODE
-  BUILD_MODE="${BUILD_MODE:-R}"
-  BUILD_MODE_UPPER=$(printf '%s' "$BUILD_MODE" | tr '[:lower:]' '[:upper:]')
-  case "$BUILD_MODE_UPPER" in
-    D|DEBUG)
-      ANDROID_PACKAGE_NAME=$(sed -n \
-        's/.*applicationId[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' \
-        android/app/build.gradle.kts | head -n 1)
-      if [ -z "$ANDROID_PACKAGE_NAME" ]; then
-        echo -e "${RED}❌ Android applicationId okunamadı; debug modu başlatılamıyor.${NC}"
-        read -p "Çıkmak için [Enter] tuşuna basın..." _
-        exit 1
-      fi
-
-      # Release ve debug imzaları farklıysa Android güncelleme yerine kurulumun
-      # yapılabilmesi için mevcut uygulama kaldırılır; -k uygulama verisini korur.
-      if adb -s "$DEVICE_TARGET" shell pm path "$ANDROID_PACKAGE_NAME" >/dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️ Mevcut uygulama debug imzasıyla uyumlu hale getiriliyor (veriler korunur).${NC}"
-        if ! adb -s "$DEVICE_TARGET" uninstall -k "$ANDROID_PACKAGE_NAME" >/dev/null; then
-          echo -e "${RED}❌ Mevcut uygulama kaldırılamadı; debug modu başlatılamıyor.${NC}"
-          read -p "Çıkmak için [Enter] tuşuna basın..." _
-          exit 1
-        fi
-      fi
-
-      echo -e "${BLUE}🐛 Debug sürümü başlatılıyor; hot reload için bu pencereyi açık bırakın.${NC}"
-      if flutter run --debug -d "$DEVICE_TARGET"; then
-        echo -e "${GREEN}✅ Debug oturumu sona erdi.${NC}"
-      else
-        echo -e "${RED}❌ Debug oturumu başlatılamadı.${NC}"
-        read -p "Çıkmak için [Enter] tuşuna basın..." _
-        exit 1
-      fi
-      read -p "Çıkmak için [Enter] tuşuna basın..." _
-      exit 0
-      ;;
-    R|RELEASE)
-      break
-      ;;
-    *)
-      echo -e "${YELLOW}Lütfen D (Debug) veya R (Release) girin.${NC}"
-      ;;
-  esac
-done
+if ! ensure_adb_online; then
+  read -p "Çıkmak için [Enter] tuşuna basın..." _
+  exit 1
+fi
 
 # 4. Flutter Release Build
 if ! ensure_release_signing; then
@@ -439,16 +429,48 @@ fi
 
 # 5. Tablete Yükleme
 echo -e "${BLUE}📲 Tablet üzerine yükleniyor (${DEVICE_TARGET})...${NC}"
+if ! ensure_adb_online; then
+  read -p "Çıkmak için [Enter] tuşuna basın..." _
+  exit 1
+fi
 INSTALL_OUTPUT=$(adb -s "$DEVICE_TARGET" install -r "$APK_PATH" 2>&1)
 INSTALL_STATUS=$?
 if [ "$INSTALL_STATUS" -ne 0 ]; then
   if printf '%s' "$INSTALL_OUTPUT" | grep -Eq 'INSTALL_FAILED_UPDATE_INCOMPATIBLE|signatures do not match'; then
     echo -e "${YELLOW}⚠️ Mevcut uygulamanın imzası farklı; uygulama verileri korunarak yeniden kuruluyor...${NC}"
-    if ! adb -s "$DEVICE_TARGET" uninstall -k "$PACKAGE_NAME" >/dev/null 2>&1 || \
-       ! adb -s "$DEVICE_TARGET" install -r "$APK_PATH"; then
-      echo -e "${RED}❌ İmza çakışması çözülemedi; APK tablete yüklenemedi.${NC}"
+    # Yeni ADB istemcileri `adb uninstall -k` seçeneğini reddediyor; Android
+    # tarafındaki package manager komutu aynı işlemi veri koruyarak yapıyor.
+    UNINSTALL_OUTPUT=$(adb -s "$DEVICE_TARGET" shell cmd package uninstall -k "$PACKAGE_NAME" 2>&1)
+    UNINSTALL_STATUS=$?
+    if [ "$UNINSTALL_STATUS" -ne 0 ]; then
+      echo "$UNINSTALL_OUTPUT"
+      echo -e "${RED}❌ Mevcut uygulama kaldırılarak yeniden kurulamadı.${NC}"
+      echo -e "${YELLOW}Tablet yönetici politikası veya uygulama koruması kaldırmayı engelliyor olabilir.${NC}"
       read -p "Çıkmak için [Enter] tuşuna basın..." _
       exit 1
+    fi
+
+    REINSTALL_OUTPUT=$(adb -s "$DEVICE_TARGET" install "$APK_PATH" 2>&1)
+    REINSTALL_STATUS=$?
+    if [ "$REINSTALL_STATUS" -ne 0 ]; then
+      if printf '%s' "$REINSTALL_OUTPUT" | grep -Eq 'INSTALL_FAILED_UPDATE_INCOMPATIBLE|signatures do not match'; then
+        echo -e "${YELLOW}⚠️ İmzalar farklı; eski uygulama ve verileri otomatik olarak siliniyor.${NC}"
+        FULL_UNINSTALL_OUTPUT=$(adb -s "$DEVICE_TARGET" uninstall "$PACKAGE_NAME" 2>&1)
+        FULL_UNINSTALL_STATUS=$?
+        if [ "$FULL_UNINSTALL_STATUS" -eq 0 ]; then
+          REINSTALL_OUTPUT=$(adb -s "$DEVICE_TARGET" install "$APK_PATH" 2>&1)
+          REINSTALL_STATUS=$?
+        else
+          echo "$FULL_UNINSTALL_OUTPUT"
+        fi
+      fi
+
+      if [ "$REINSTALL_STATUS" -ne 0 ]; then
+        echo "$REINSTALL_OUTPUT"
+        echo -e "${RED}❌ APK tablete yüklenemedi.${NC}"
+        read -p "Çıkmak için [Enter] tuşuna basın..." _
+        exit 1
+      fi
     fi
   else
     echo "$INSTALL_OUTPUT"
