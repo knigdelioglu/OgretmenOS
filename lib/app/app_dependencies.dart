@@ -7,10 +7,12 @@ import '../data/course/lesson_plan_database_data_source.dart';
 import '../data/preferences/continuity_repository.dart';
 import '../data/preferences/user_preferences_repository.dart';
 import '../data/tracking/assignment_lesson_progress_repository_impl.dart';
+import '../data/tracking/assignment_outcome_tracking_repository_impl.dart';
 import '../data/tracking/instruction_context_repository_impl.dart';
 import '../data/tracking/outcome_tracking_database.dart';
 import '../domain/models/weekly_plan_models.dart';
 import '../domain/repositories/assignment_lesson_progress_repository.dart';
+import '../domain/repositories/assignment_outcome_tracking_repository.dart';
 import '../domain/repositories/course_knowledge_repository.dart';
 import '../domain/repositories/instruction_context_repository.dart';
 import '../domain/repositories/lesson_plan_progress_repository.dart';
@@ -27,6 +29,7 @@ class AppDependencies {
     this.lessonPlanProgress,
     this.instructionContext,
     this.assignmentLessonProgress,
+    this.assignmentOutcomeTracking,
     this.assignmentTimeline,
     this.dispose,
   });
@@ -39,6 +42,7 @@ class AppDependencies {
   final LessonPlanProgressRepository? lessonPlanProgress;
   final InstructionContextRepository? instructionContext;
   final AssignmentLessonProgressRepository? assignmentLessonProgress;
+  final AssignmentOutcomeTrackingRepository? assignmentOutcomeTracking;
   final AssignmentLessonTimelineService? assignmentTimeline;
   final Future<void> Function()? dispose;
 }
@@ -71,6 +75,8 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
     );
     final assignmentLessonProgress =
         SqfliteAssignmentLessonProgressRepository(trackingDatabase.database);
+    final assignmentOutcomeTracking =
+        SqfliteAssignmentOutcomeTrackingRepository(trackingDatabase.database);
     final assignmentTimeline = AssignmentLessonTimelineService(
       instructionContext: instructionContext,
       weeklyPlanning: weeklyPlanning,
@@ -91,6 +97,7 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
       lessonPlanProgress: lessonPlanProgress,
       instructionContext: instructionContext,
       assignmentLessonProgress: assignmentLessonProgress,
+      assignmentOutcomeTracking: assignmentOutcomeTracking,
       assignmentTimeline: assignmentTimeline,
       dispose: () async {
         await trackingDatabase?.close();
