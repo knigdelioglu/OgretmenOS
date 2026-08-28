@@ -102,6 +102,76 @@ void main() {
     expect(text, isNot(contains('T1_ACT_04')));
   });
 
+  test('çalışma ürünleri ifadesini ölçme kanıtı olarak adlandırır', () {
+    final text = presentation.humanize(
+      'Öğrenciler P01-P02 çalışma ürünlerinden birer kanıt seçer.',
+    );
+
+    expect(text, 'Öğrenciler önceki ölçme kanıtlarından birer kanıt seçer.');
+    expect(text, isNot(contains('çalışma ürün')));
+    expect(text, isNot(contains('P01')));
+  });
+
+  test('genel çalışma ürünü materyalini somut ölçme kanıtlarına açar', () {
+    final evidencePlans = [
+      _evidencePackage(
+        1,
+        lessons: [
+          _evidenceLesson(
+            1,
+            assessment:
+                "Ana ürün ders kitabı s. 18-20'deki anlama/çözümleme cevapları ve zihin haritasıdır.",
+          ),
+        ],
+      ),
+      _evidencePackage(
+        2,
+        lessons: [
+          _evidenceLesson(
+            1,
+            assessment: 'Ana kanıt tamamlanmış ses bilgisi uygulama tablosudur.',
+          ),
+        ],
+      ),
+      _evidencePackage(
+        3,
+        lessons: [
+          _evidenceLesson(
+            1,
+            assessment: 'Öğrencinin en az iki çözümlemesi değerlendirilir.',
+            teacherActions: const [
+              "Ders sonunda 'metin parçası → kullanılan yol → işlev → ana düşünceyle ilişki' biçiminde en az iki satırlık çözümleme oluşturmasını sağla.",
+            ],
+          ),
+          _evidenceLesson(
+            2,
+            assessment: 'Ana kanıt henüz üretilmemiş karşılaştırma tablosudur.',
+          ),
+        ],
+      ),
+    ];
+    final evidencePresentation = LessonPlanTeacherPresentation(
+      blockPlans: evidencePlans,
+    );
+
+    final labels = evidencePresentation.materialLabels(
+      const ['P01-P03 öğrenci çalışma ürünleri'],
+      currentPackageNo: 3,
+      currentLessonNo: 2,
+    );
+
+    expect(labels, hasLength(3));
+    expect(labels[0], contains('anlama/çözümleme cevapları ve zihin haritası'));
+    expect(labels[1], 'Tamamlanmış ses bilgisi uygulama tablosu');
+    expect(
+      labels[2],
+      'metin parçası → kullanılan yol → işlev → ana düşünceyle ilişki çözümleme kaydı',
+    );
+    expect(labels.join(' '), isNot(contains('henüz üretilmemiş')));
+    expect(labels.join(' '), isNot(contains('çalışma ürün')));
+    expect(labels.join(' '), isNot(contains('P01')));
+  });
+
   test('öğrenme çıktısında açıklamayı öne, resmî kodu ikincil gösterir', () {
     expect(
       presentation.outcomeLabels(['TDE2.2']).single,
@@ -149,4 +219,58 @@ LessonPlanPackage _package(String id, int number) => LessonPlanPackage(
     raw: {},
   ),
   rawPayload: const {},
+);
+
+LessonPlanPackage _evidencePackage(
+  int number, {
+  required List<LessonPlanLesson> lessons,
+}) => LessonPlanPackage(
+  packageId: 'BLOCK_T1_01_OKUMA_P${number.toString().padLeft(2, '0')}',
+  courseId: 'TDE_9',
+  themeId: 'TEMA_01',
+  blockId: 'BLOCK_T1_01_OKUMA',
+  packageNo: number,
+  lessonHours: lessons.fold(0, (sum, item) => sum + item.durationLessonHours),
+  title: 'Plan $number',
+  summary: '',
+  remainingBlockHours: 0,
+  schemaVersion: '1.0.0',
+  validationStatus: 'PASS',
+  sourcePath: '',
+  payloadSha256: 'sha-$number',
+  outcomeCodes: const ['TDE2.2'],
+  usedActivityIds: const [],
+  usedFormIds: const [],
+  lessons: lessons,
+  teacherNotes: null,
+  continuation: const LessonPlanContinuation(
+    plannedNowHours: 2,
+    remainingBlockHours: 0,
+    coveredOutcomeCodes: ['TDE2.2'],
+    usedActivityIds: [],
+    nextStepHint: null,
+    raw: {},
+  ),
+  rawPayload: const {},
+);
+
+LessonPlanLesson _evidenceLesson(
+  int lessonNo, {
+  required String assessment,
+  List<Object?> teacherActions = const [],
+}) => LessonPlanLesson(
+  lessonNo: lessonNo,
+  durationLessonHours: 1,
+  title: 'Ders $lessonNo',
+  objective: 'Hedef',
+  outcomeCodes: const ['TDE2.2'],
+  opening: '',
+  teacherActions: teacherActions,
+  studentActions: const [],
+  activityIds: const [],
+  formIds: const [],
+  assessment: assessment,
+  closure: '',
+  materials: const [],
+  raw: const {},
 );
