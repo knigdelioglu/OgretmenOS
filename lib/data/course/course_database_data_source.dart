@@ -340,12 +340,20 @@ class CourseDatabaseDataSource {
     return rows.map(SourceReference.fromRow).toList(growable: false);
   }
 
-  Future<List<TimelineEntry>> getAnnualSequence() {
+  Future<List<TimelineEntry>> getAnnualSequence() async {
     RuntimePerformanceTrace.count('CourseDatabaseDataSource.getAnnualSequence');
-    return _annualSequenceFuture ??= RuntimePerformanceTrace.measure(
+    final future = _annualSequenceFuture ??= RuntimePerformanceTrace.measure(
       'CourseDatabaseDataSource.getAnnualSequence',
       _readAnnualSequence,
     );
+    try {
+      return await future;
+    } catch (_) {
+      if (identical(_annualSequenceFuture, future)) {
+        _annualSequenceFuture = null;
+      }
+      rethrow;
+    }
   }
 
   Future<List<TimelineEntry>> _readAnnualSequence() async {
@@ -480,10 +488,18 @@ class CourseDatabaseDataSource {
 
   Future<bool> _hasColumn(String table, String column) async {
     final key = '$table.$column';
-    return _columnPresence[key] ??= () async {
+    final future = _columnPresence[key] ??= () async {
       final rows = await _database.rawQuery('PRAGMA table_info($table)');
       return rows.any((row) => row['name']?.toString() == column);
     }();
+    try {
+      return await future;
+    } catch (_) {
+      if (identical(_columnPresence[key], future)) {
+        _columnPresence.remove(key);
+      }
+      rethrow;
+    }
   }
 
   Row _first(List<Row> rows, String entity) {

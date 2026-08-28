@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ogretmen_os/app/app.dart';
@@ -20,10 +22,15 @@ void main() {
     (tester) async {
       _phone(tester);
       final repository = _TabRepository('TDE_9');
+      final plan = _planFor(
+        repository,
+        status: OutcomeTrackingStatus.completed,
+      );
+      final completer = Completer<AnnualOutcomePlan>();
       final service = _CountingOutcomePlanningService(
         repository: repository,
-        plan: _planFor(repository),
-        delay: const Duration(seconds: 5),
+        plan: plan,
+        completer: completer,
       );
 
       await tester.pumpWidget(
@@ -39,15 +46,27 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
 
+      // Ana yükleme tamamlanır; completer henüz resolve edilmedi
+      await tester.pump();
+      await tester.pump();
+
+      // Completer unresolved iken ana yıllık plan içeriği görünür
       expect(find.text('1 tema · 45 saat · 1 blok'), findsOneWidget);
+      expect(find.text('TDE_9 Tema'), findsOneWidget);
       expect(find.text('Yıllık plan hazırlanıyor…'), findsNothing);
+      // Tracking summary henüz yüklenmediği için görünmemeli
+      expect(find.text('İSTEĞE BAĞLI TAKİP'), findsNothing);
+      expect(find.text('İşlendi 1'), findsNothing);
 
-      await tester.pump(const Duration(seconds: 5));
+      // Tracking buildPlan tamamlanıyor
+      completer.complete(plan);
       await tester.pumpAndSettle();
 
+      // Artık tracking summary de görünür
       expect(find.text('1 tema · 45 saat · 1 blok'), findsOneWidget);
+      expect(find.text('İSTEĞE BAĞLI TAKİP'), findsOneWidget);
+      expect(find.text('İşlendi 1'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -115,6 +134,85 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'Bu Hafta ekranında başka bloktaki ders açıldığında Plan sekmesinde ŞU AN BURADASIN güncellenir ve buildPlan tekrar çağrılmaz',
+    (tester) async {
+      _phone(tester);
+      final repository = _TwoBlockTabRepository('TDE_9');
+      final plan = _twoBlockPlanFor(repository);
+      final service = _CountingOutcomePlanningService(
+        repository: repository,
+        plan: plan,
+      );
+      final continuity = MemoryContinuityRepository();
+      await continuity.setLastFocus(
+        LastFocusState(
+          courseId: 'TDE_9',
+          academicYear: '2026-2027',
+          weekNumber: 1,
+          trackingKey: '2026-2027:TDE_9-O1:1',
+          outcomeCode: 'TDE_9.1',
+          themeTitle: 'TDE_9 Tema',
+          blockId: 'TDE_9-B1',
+          blockTitle: 'TDE_9 Blok 1',
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      final dependencies = AppDependencies(
+        repository: repository,
+        preferences: _Preferences(),
+        weeklyPlanning: _FixedWeeklyPlanning(plan.weeklyPlan),
+        outcomePlanning: service,
+        continuity: continuity,
+      );
+
+      await tester.pumpWidget(
+        TeacherOsApp(dependencies: dependencies),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. Plan sekmesine git
+      await _tapDestination(tester, Icons.view_timeline_outlined);
+      await tester.pumpAndSettle();
+
+      // Plan B1'i göstermeli
+      expect(find.textContaining('TDE_9 Tema · TDE_9 Blok 1'), findsOneWidget);
+      expect(repository.annualSequenceCalls, 1);
+      final buildPlanCallsAfterPlan = service.buildPlanCalls;
+
+      // 2. Bu Hafta sekmesine geri dön
+      await _tapDestination(tester, Icons.today_outlined);
+      await tester.pumpAndSettle();
+
+      // 3. B2'deki dersi aç
+      await tester.tap(find.text('Bu haftanın diğerleri'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('TDE_9 ikinci kazanım'));
+      await tester.pumpAndSettle();
+
+      // Continuity artık B2 olmalı
+      final currentFocus = await continuity.getLastFocus('TDE_9');
+      expect(currentFocus?.blockId, 'TDE_9-B2');
+
+      // Outcome detayından geri çık
+      await tester.tap(find.byTooltip('Geri'));
+      await tester.pumpAndSettle();
+
+      // 4. Plan sekmesine geri dön
+      await _tapDestination(tester, Icons.view_timeline_outlined);
+      await tester.pumpAndSettle();
+
+      // Plan artık B2'yi göstermeli!
+      expect(find.textContaining('TDE_9 Tema · TDE_9 Blok 2'), findsOneWidget);
+
+      // Annual sequence ve OutcomePlanning buildPlan ekstra çağrılmamış olmalı!
+      expect(repository.annualSequenceCalls, 1);
+      expect(service.buildPlanCalls, buildPlanCallsAfterPlan);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('Kaynaklar ilk açılışında OutcomePlanningService çağrılmaz', (
     tester,
   ) async {
@@ -180,6 +278,300 @@ void main() {
     expect(repository.teacherPackageCalls, 1);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'Kaynaklar sekmesi açıldıktan sonra Bu Hafta sekmesinde farklı temadaki ders açıldığında Kaynaklar yeni temayı gösterir',
+    (tester) async {
+      _phone(tester);
+      final repository = _TwoThemeTabRepository('TDE_9');
+      final plan = _twoThemePlanFor(repository);
+      final service = _CountingOutcomePlanningService(
+        repository: repository,
+        plan: plan,
+      );
+      final continuity = MemoryContinuityRepository();
+      await continuity.setLastFocus(
+        LastFocusState(
+          courseId: 'TDE_9',
+          academicYear: '2026-2027',
+          weekNumber: 1,
+          trackingKey: '2026-2027:TDE_9-T1-O1:1',
+          outcomeCode: 'TDE_9.1',
+          themeTitle: 'TDE_9 Tema 1',
+          themeId: 'TDE_9-T1',
+          blockId: 'TDE_9-B1',
+          blockTitle: 'TDE_9 Blok 1',
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      final dependencies = AppDependencies(
+        repository: repository,
+        preferences: _Preferences(),
+        weeklyPlanning: _FixedWeeklyPlanning(plan.weeklyPlan),
+        outcomePlanning: service,
+        continuity: continuity,
+      );
+
+      await tester.pumpWidget(
+        TeacherOsApp(dependencies: dependencies),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. Kaynaklar sekmesine git
+      await _tapDestination(tester, Icons.library_books_outlined);
+      await tester.pumpAndSettle();
+
+      // Tema 1 kaynakları görünmeli
+      expect(find.text('TDE_9 Tema 1 kaynak'), findsOneWidget);
+      expect(repository.teacherPackageCalls, 1);
+      expect(repository.getThemesCalls, 1);
+
+      // 2. Bu Hafta sekmesine git
+      await _tapDestination(tester, Icons.today_outlined);
+      await tester.pumpAndSettle();
+
+      // 3. Tema 2'deki dersi aç
+      await tester.tap(find.text('Bu haftanın diğerleri'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('TDE_9 Tema 2 kazanımı'));
+      await tester.pumpAndSettle();
+
+      // Focus artık Tema 2 olmalı
+      final currentFocus = await continuity.getLastFocus('TDE_9');
+      expect(currentFocus?.themeId, 'TDE_9-T2');
+
+      // Outcome detayından geri çık
+      await tester.tap(find.byTooltip('Geri'));
+      await tester.pumpAndSettle();
+
+      // 4. Kaynaklar sekmesine geri dön
+      await _tapDestination(tester, Icons.library_books_outlined);
+      await tester.pumpAndSettle();
+
+      // Tema 2 kaynakları görünmeli!
+      expect(find.text('TDE_9 Tema 2 kaynak'), findsOneWidget);
+
+      // getThemes tekrar çağrılmamış olmalı (hala 1), teacherPackageCalls 2 olmalı (yalnızca Tema 2 için 1 kez çağrıldı)
+      expect(repository.getThemesCalls, 1);
+      expect(repository.teacherPackageCalls, 2);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'LastFocus değişirse cached Plan kendini cheap şekilde günceller',
+    (tester) async {
+      _phone(tester);
+      final repository = _TwoBlockTabRepository('TDE_9');
+      final plan = _twoBlockPlanFor(repository);
+      final service = _CountingOutcomePlanningService(
+        repository: repository,
+        plan: plan,
+      );
+      final continuity = MemoryContinuityRepository();
+      await continuity.setLastFocus(
+        LastFocusState(
+          courseId: 'TDE_9',
+          academicYear: '2026-2027',
+          weekNumber: 1,
+          trackingKey: '2026-2027:TDE_9-O1:1',
+          outcomeCode: 'TDE_9.1',
+          themeTitle: 'TDE_9 Tema',
+          blockId: 'TDE_9-B1',
+          blockTitle: 'TDE_9 Blok 1',
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      final dependencies = AppDependencies(
+        repository: repository,
+        preferences: _Preferences(),
+        weeklyPlanning: _FixedWeeklyPlanning(plan.weeklyPlan),
+        outcomePlanning: service,
+        continuity: continuity,
+      );
+
+      await tester.pumpWidget(TeacherOsApp(dependencies: dependencies));
+      await tester.pumpAndSettle();
+
+      // Plan sekmesine git
+      await _tapDestination(tester, Icons.view_timeline_outlined);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('TDE_9 Tema · TDE_9 Blok 1'), findsOneWidget);
+      expect(repository.annualSequenceCalls, 1);
+      final buildPlanCalls = service.buildPlanCalls;
+
+      // LastFocus B2 olarak değişir
+      await continuity.setLastFocus(
+        LastFocusState(
+          courseId: 'TDE_9',
+          academicYear: '2026-2027',
+          weekNumber: 1,
+          trackingKey: '2026-2027:TDE_9-O2:1',
+          outcomeCode: 'TDE_9.2',
+          themeTitle: 'TDE_9 Tema',
+          blockId: 'TDE_9-B2',
+          blockTitle: 'TDE_9 Blok 2',
+          updatedAt: DateTime.now(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Plan anında B2'yi göstermeli
+      expect(find.textContaining('TDE_9 Tema · TDE_9 Blok 2'), findsOneWidget);
+
+      // getAnnualSequence ve buildPlan ekstra çağrılmamış olmalı (cheap update)
+      expect(repository.annualSequenceCalls, 1);
+      expect(service.buildPlanCalls, buildPlanCalls);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'LastFocus değişirse cached Resources yalnız theme değişmişse package değiştirir',
+    (tester) async {
+      _phone(tester);
+      final repository = _TwoThemeTabRepository('TDE_9');
+      final plan = _twoThemePlanFor(repository);
+      final service = _CountingOutcomePlanningService(
+        repository: repository,
+        plan: plan,
+      );
+      final continuity = MemoryContinuityRepository();
+      await continuity.setLastFocus(
+        LastFocusState(
+          courseId: 'TDE_9',
+          academicYear: '2026-2027',
+          weekNumber: 1,
+          trackingKey: '2026-2027:TDE_9-T1-O1:1',
+          outcomeCode: 'TDE_9.1',
+          themeTitle: 'TDE_9 Tema 1',
+          themeId: 'TDE_9-T1',
+          blockId: 'TDE_9-B1',
+          blockTitle: 'TDE_9 Blok 1',
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      final dependencies = AppDependencies(
+        repository: repository,
+        preferences: _Preferences(),
+        weeklyPlanning: _FixedWeeklyPlanning(plan.weeklyPlan),
+        outcomePlanning: service,
+        continuity: continuity,
+      );
+
+      await tester.pumpWidget(TeacherOsApp(dependencies: dependencies));
+      await tester.pumpAndSettle();
+
+      // Kaynaklar sekmesine git
+      await _tapDestination(tester, Icons.library_books_outlined);
+      await tester.pumpAndSettle();
+
+      expect(find.text('TDE_9 Tema 1 kaynak'), findsOneWidget);
+      expect(repository.getThemesCalls, 1);
+      expect(repository.teacherPackageCalls, 1);
+
+      // 1. Durum: Aynı tema içinde farklı bir blok/ders odağı (Tema 1 içinde kalır)
+      await continuity.setLastFocus(
+        LastFocusState(
+          courseId: 'TDE_9',
+          academicYear: '2026-2027',
+          weekNumber: 1,
+          trackingKey: '2026-2027:TDE_9-T1-O1:1',
+          outcomeCode: 'TDE_9.1',
+          themeTitle: 'TDE_9 Tema 1',
+          themeId: 'TDE_9-T1',
+          blockId: 'TDE_9-B1',
+          blockTitle: 'TDE_9 Blok 1 (güncel ders)',
+          updatedAt: DateTime.now(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tema değişmediği için teacher package yeniden çağrılmamalı (0 ek çağrı)
+      expect(repository.teacherPackageCalls, 1);
+      expect(repository.getThemesCalls, 1);
+
+      // 2. Durum: Farklı tema (Tema 2) odağı gelir
+      await continuity.setLastFocus(
+        LastFocusState(
+          courseId: 'TDE_9',
+          academicYear: '2026-2027',
+          weekNumber: 1,
+          trackingKey: '2026-2027:TDE_9-T2-O2:1',
+          outcomeCode: 'TDE_9.2',
+          themeTitle: 'TDE_9 Tema 2',
+          themeId: 'TDE_9-T2',
+          blockId: 'TDE_9-B2',
+          blockTitle: 'TDE_9 Blok 2',
+          updatedAt: DateTime.now(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tema 2 kaynakları görünmeli, getTeacherPackage 1 kez daha çağrılmalı, getThemes çağrılmamalı
+      expect(find.text('TDE_9 Tema 2 kaynak'), findsOneWidget);
+      expect(repository.teacherPackageCalls, 2);
+      expect(repository.getThemesCalls, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'eski academicYear focus\'u Resources tarafından kullanılmaz',
+    (tester) async {
+      _phone(tester);
+      final repository = _TwoThemeTabRepository('TDE_9');
+      final plan = _twoThemePlanFor(repository);
+      final service = _CountingOutcomePlanningService(
+        repository: repository,
+        plan: plan,
+      );
+      final continuity = MemoryContinuityRepository();
+
+      // 2025-2026 eski akademik yıla ait Tema 2 odağı kaydedilmiş
+      await continuity.setLastFocus(
+        LastFocusState(
+          courseId: 'TDE_9',
+          academicYear: '2025-2026',
+          weekNumber: 36,
+          trackingKey: '2025-2026:TDE_9-T2-O2:36',
+          outcomeCode: 'TDE_9.2',
+          themeTitle: 'TDE_9 Tema 2',
+          themeId: 'TDE_9-T2',
+          blockId: 'TDE_9-B2',
+          blockTitle: 'TDE_9 Blok 2',
+          updatedAt: DateTime(2026, 6, 15),
+        ),
+      );
+
+      final dependencies = AppDependencies(
+        repository: repository,
+        preferences: _Preferences(),
+        weeklyPlanning: _FixedWeeklyPlanning(plan.weeklyPlan),
+        outcomePlanning: service,
+        continuity: continuity,
+      );
+
+      await tester.pumpWidget(TeacherOsApp(dependencies: dependencies));
+      await tester.pumpAndSettle();
+
+      // Kaynaklar sekmesine git
+      await _tapDestination(tester, Icons.library_books_outlined);
+      await tester.pumpAndSettle();
+
+      // 2026-2027 mevcut haftasının teması (Tema 1) açılmalı, eski yılın Tema 2'si açılmamalı
+      expect(find.text('TDE_9 Tema 1 kaynak'), findsOneWidget);
+      expect(find.text('TDE_9 Tema 2 kaynak'), findsNothing);
+
+      // Stale focus continuity'den temizlenmiş olmalı
+      expect(await continuity.getLastFocus('TDE_9'), isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'uygulama Bu Hafta ile açıldığında Plan ve Kaynaklar lazy kalır',
@@ -302,7 +694,10 @@ AppDependencies _dependencies(
   continuity: MemoryContinuityRepository(),
 );
 
-AnnualOutcomePlan _planFor(_TabRepository repository) {
+AnnualOutcomePlan _planFor(
+  _TabRepository repository, {
+  OutcomeTrackingStatus status = OutcomeTrackingStatus.planned,
+}) {
   final planningBlock = PlanningBlock(
     theme: repository.theme,
     block: repository.block,
@@ -345,7 +740,7 @@ AnnualOutcomePlan _planFor(_TabRepository repository) {
             academicYear: '2026-2027',
             plannedWeekNumber: 1,
             displayWeekNumber: 1,
-            status: OutcomeTrackingStatus.planned,
+            status: status,
             contexts: [
               OutcomeBlockContext.lightweight(
                 theme: repository.theme,
@@ -363,6 +758,7 @@ class _CountingOutcomePlanningService extends OutcomePlanningService {
   _CountingOutcomePlanningService({
     required super.repository,
     required this.plan,
+    this.completer,
     this.delay,
     this.failure,
   }) : super(
@@ -371,6 +767,7 @@ class _CountingOutcomePlanningService extends OutcomePlanningService {
        );
 
   final AnnualOutcomePlan plan;
+  final Completer<AnnualOutcomePlan>? completer;
   final Duration? delay;
   final Object? failure;
   int buildPlanCalls = 0;
@@ -381,6 +778,10 @@ class _CountingOutcomePlanningService extends OutcomePlanningService {
     final failure = this.failure;
     if (failure != null) {
       return Future<AnnualOutcomePlan>.error(failure);
+    }
+    final completer = this.completer;
+    if (completer != null) {
+      return completer.future;
     }
     final delay = this.delay;
     if (delay != null) {
@@ -602,6 +1003,538 @@ class _TabRepository implements CourseKnowledgeRepository {
       blocks: [block],
       outcomes: [outcome],
       textbookSections: detail.textbookSections,
+      activities: const [],
+      forms: const [],
+      assessmentArtifacts: const [],
+      assessmentGaps: const [],
+      assessmentTaskBindings: const [],
+      resourceDecisions: const [],
+      sourceReferences: const [],
+    );
+  }
+}
+
+AnnualOutcomePlan _twoBlockPlanFor(_TwoBlockTabRepository repository) {
+  final planningBlock1 = PlanningBlock(
+    theme: repository.theme,
+    block: repository.block1,
+    outcomes: [repository.outcome1],
+  );
+  final planningBlock2 = PlanningBlock(
+    theme: repository.theme,
+    block: repository.block2,
+    outcomes: [repository.outcome2],
+  );
+  final week = AcademicWeekPlan(
+    weekNumber: 1,
+    start: DateTime(2026, 9, 14),
+    end: DateTime(2026, 9, 18),
+    type: AcademicWeekType.instruction,
+    label: '1. Hafta',
+    plannedLessonHours: 5,
+    segments: [
+      WeeklyPlanSegment(
+        type: WeeklyPlanSegmentType.block,
+        theme: repository.theme,
+        hours: 3,
+        block: repository.block1,
+        planningBlock: planningBlock1,
+      ),
+      WeeklyPlanSegment(
+        type: WeeklyPlanSegmentType.block,
+        theme: repository.theme,
+        hours: 2,
+        block: repository.block2,
+        planningBlock: planningBlock2,
+      ),
+    ],
+    outcomes: [repository.outcome1, repository.outcome2],
+  );
+  final weeklyPlan = AnnualWeeklyPlan(
+    academicYear: '2026-2027',
+    courseId: repository.courseId,
+    weeklyLessonHours: 5,
+    annualHours: 45,
+    currentWeekNumber: 1,
+    weeks: [week],
+  );
+  return AnnualOutcomePlan(
+    weeklyPlan: weeklyPlan,
+    weeks: [
+      WeeklyOutcomeSummary(
+        week: week,
+        outcomes: [
+          TrackedOutcome(
+            outcome: repository.outcome1,
+            academicYear: '2026-2027',
+            plannedWeekNumber: 1,
+            displayWeekNumber: 1,
+            status: OutcomeTrackingStatus.planned,
+            contexts: [
+              OutcomeBlockContext.lightweight(
+                theme: repository.theme,
+                block: repository.block1,
+              ),
+            ],
+          ),
+          TrackedOutcome(
+            outcome: repository.outcome2,
+            academicYear: '2026-2027',
+            plannedWeekNumber: 1,
+            displayWeekNumber: 1,
+            status: OutcomeTrackingStatus.planned,
+            contexts: [
+              OutcomeBlockContext.lightweight(
+                theme: repository.theme,
+                block: repository.block2,
+              ),
+            ],
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+class _TwoBlockTabRepository implements CourseKnowledgeRepository {
+  _TwoBlockTabRepository(this.courseId)
+    : theme = model.Theme(
+        id: '$courseId-T1',
+        order: 1,
+        title: '$courseId Tema',
+        pageRange: null,
+        plannedHours: 45,
+        anlamaHours: null,
+        anlatmaHours: null,
+        sourceLocator: null,
+      ),
+      block1 = model.Block(
+        id: '$courseId-B1',
+        themeId: '$courseId-T1',
+        order: 1,
+        title: '$courseId Blok 1',
+        skillDomain: 'Okuma',
+        learningArea: null,
+        plannedHours: null,
+        timeStatus: 'ORDER_ONLY',
+        sourceLocators: const [],
+      ),
+      block2 = model.Block(
+        id: '$courseId-B2',
+        themeId: '$courseId-T1',
+        order: 2,
+        title: '$courseId Blok 2',
+        skillDomain: 'Yazma',
+        learningArea: null,
+        plannedHours: null,
+        timeStatus: 'ORDER_ONLY',
+        sourceLocators: const [],
+      ),
+      outcome1 = model.Outcome(
+        id: '$courseId-O1',
+        themeId: '$courseId-T1',
+        code: '$courseId.1',
+        officialText: '$courseId birinci kazanım',
+        processComponents: null,
+        sourceLocator: null,
+        verificationStatus: 'PASS',
+      ),
+      outcome2 = model.Outcome(
+        id: '$courseId-O2',
+        themeId: '$courseId-T1',
+        code: '$courseId.2',
+        officialText: '$courseId ikinci kazanım',
+        processComponents: null,
+        sourceLocator: null,
+        verificationStatus: 'PASS',
+      );
+
+  final String courseId;
+  final model.Theme theme;
+  final model.Block block1;
+  final model.Block block2;
+  final model.Outcome outcome1;
+  final model.Outcome outcome2;
+  int annualSequenceCalls = 0;
+  int getThemesCalls = 0;
+  int teacherPackageCalls = 0;
+  int getBlockCalls = 0;
+
+  @override
+  Future<model.Course> getCourse() async => model.Course(
+    courseId: courseId,
+    grade: 9,
+    title: 'Türk Dili ve Edebiyatı',
+    schemaVersion: '1.0.0',
+    sourceManifestFingerprint: courseId,
+  );
+
+  @override
+  Future<model.RuntimeManifest> getManifest() async => model.RuntimeManifest(
+    runtimePackageVersion: '1.0.0',
+    schemaVersion: '1.0.0',
+    courseId: courseId,
+    validationStatus: 'PASS',
+    canonicalContentFingerprint: courseId,
+    rowCounts: const {},
+    timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
+    timelineUnresolvedFields: const {},
+  );
+
+  @override
+  Future<List<model.Theme>> getThemes() async {
+    getThemesCalls++;
+    return [theme];
+  }
+
+  @override
+  Future<model.Theme> getTheme(String themeId) async => theme;
+
+  @override
+  Future<List<model.Block>> getBlocks(String themeId) async => [block1, block2];
+
+  @override
+  Future<model.BlockDetail> getBlock(String blockId) async {
+    getBlockCalls++;
+    final isB1 = blockId == block1.id;
+    return model.BlockDetail(
+      theme: theme,
+      block: isB1 ? block1 : block2,
+      outcomes: [isB1 ? outcome1 : outcome2],
+      textbookSections: const [],
+      activities: const [],
+      forms: const [],
+      assessmentArtifacts: const [],
+      assessmentGaps: const [],
+      assessmentTaskBindings: const [],
+      resourceDecisions: const [],
+      sourceReferences: const [],
+      previousBlock: isB1 ? null : block1,
+      nextBlock: isB1 ? block2 : null,
+    );
+  }
+
+  @override
+  Future<List<model.TimelineEntry>> getAnnualSequence() async {
+    annualSequenceCalls++;
+    return [
+      model.TimelineEntry(
+        sequencePosition: 1,
+        theme: theme,
+        block: block1,
+        officialTotalHours: 45,
+        coreInstructionHours: 20,
+        schoolBasedHours: 0,
+        schoolBasedHoursStatus: 'CONFIRMED',
+      ),
+      model.TimelineEntry(
+        sequencePosition: 2,
+        theme: theme,
+        block: block2,
+        officialTotalHours: 45,
+        coreInstructionHours: 25,
+        schoolBasedHours: 0,
+        schoolBasedHoursStatus: 'CONFIRMED',
+      ),
+    ];
+  }
+
+  @override
+  Future<List<model.ResourceDecision>> getResourceDecisions(
+    String themeId,
+  ) async => const [];
+
+  @override
+  Future<model.TeacherPackage> getTeacherPackage(String themeId) async {
+    teacherPackageCalls++;
+    return model.TeacherPackage(
+      theme: theme,
+      blocks: [block1, block2],
+      outcomes: [outcome1, outcome2],
+      textbookSections: const [],
+      activities: const [],
+      forms: const [],
+      assessmentArtifacts: const [],
+      assessmentGaps: const [],
+      assessmentTaskBindings: const [],
+      resourceDecisions: const [],
+      sourceReferences: const [],
+    );
+  }
+}
+
+AnnualOutcomePlan _twoThemePlanFor(_TwoThemeTabRepository repository) {
+  final planningBlock1 = PlanningBlock(
+    theme: repository.theme1,
+    block: repository.block1,
+    outcomes: [repository.outcome1],
+  );
+  final planningBlock2 = PlanningBlock(
+    theme: repository.theme2,
+    block: repository.block2,
+    outcomes: [repository.outcome2],
+  );
+  final week = AcademicWeekPlan(
+    weekNumber: 1,
+    start: DateTime(2026, 9, 14),
+    end: DateTime(2026, 9, 18),
+    type: AcademicWeekType.instruction,
+    label: '1. Hafta',
+    plannedLessonHours: 5,
+    segments: [
+      WeeklyPlanSegment(
+        type: WeeklyPlanSegmentType.block,
+        theme: repository.theme1,
+        hours: 3,
+        block: repository.block1,
+        planningBlock: planningBlock1,
+      ),
+      WeeklyPlanSegment(
+        type: WeeklyPlanSegmentType.block,
+        theme: repository.theme2,
+        hours: 2,
+        block: repository.block2,
+        planningBlock: planningBlock2,
+      ),
+    ],
+    outcomes: [repository.outcome1, repository.outcome2],
+  );
+  final weeklyPlan = AnnualWeeklyPlan(
+    academicYear: '2026-2027',
+    courseId: repository.courseId,
+    weeklyLessonHours: 5,
+    annualHours: 45,
+    currentWeekNumber: 1,
+    weeks: [week],
+  );
+  return AnnualOutcomePlan(
+    weeklyPlan: weeklyPlan,
+    weeks: [
+      WeeklyOutcomeSummary(
+        week: week,
+        outcomes: [
+          TrackedOutcome(
+            outcome: repository.outcome1,
+            academicYear: '2026-2027',
+            plannedWeekNumber: 1,
+            displayWeekNumber: 1,
+            status: OutcomeTrackingStatus.planned,
+            contexts: [
+              OutcomeBlockContext.lightweight(
+                theme: repository.theme1,
+                block: repository.block1,
+              ),
+            ],
+          ),
+          TrackedOutcome(
+            outcome: repository.outcome2,
+            academicYear: '2026-2027',
+            plannedWeekNumber: 1,
+            displayWeekNumber: 1,
+            status: OutcomeTrackingStatus.planned,
+            contexts: [
+              OutcomeBlockContext.lightweight(
+                theme: repository.theme2,
+                block: repository.block2,
+              ),
+            ],
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+class _TwoThemeTabRepository implements CourseKnowledgeRepository {
+  _TwoThemeTabRepository(this.courseId)
+    : theme1 = model.Theme(
+        id: '$courseId-T1',
+        order: 1,
+        title: '$courseId Tema 1',
+        pageRange: null,
+        plannedHours: 45,
+        anlamaHours: null,
+        anlatmaHours: null,
+        sourceLocator: null,
+      ),
+      theme2 = model.Theme(
+        id: '$courseId-T2',
+        order: 2,
+        title: '$courseId Tema 2',
+        pageRange: null,
+        plannedHours: 45,
+        anlamaHours: null,
+        anlatmaHours: null,
+        sourceLocator: null,
+      ),
+      block1 = model.Block(
+        id: '$courseId-B1',
+        themeId: '$courseId-T1',
+        order: 1,
+        title: '$courseId Blok 1',
+        skillDomain: 'Okuma',
+        learningArea: null,
+        plannedHours: null,
+        timeStatus: 'ORDER_ONLY',
+        sourceLocators: const [],
+      ),
+      block2 = model.Block(
+        id: '$courseId-B2',
+        themeId: '$courseId-T2',
+        order: 1,
+        title: '$courseId Blok 2',
+        skillDomain: 'Yazma',
+        learningArea: null,
+        plannedHours: null,
+        timeStatus: 'ORDER_ONLY',
+        sourceLocators: const [],
+      ),
+      outcome1 = model.Outcome(
+        id: '$courseId-T1-O1',
+        themeId: '$courseId-T1',
+        code: '$courseId.1',
+        officialText: '$courseId Tema 1 kazanımı',
+        processComponents: null,
+        sourceLocator: null,
+        verificationStatus: 'PASS',
+      ),
+      outcome2 = model.Outcome(
+        id: '$courseId-T2-O2',
+        themeId: '$courseId-T2',
+        code: '$courseId.2',
+        officialText: '$courseId Tema 2 kazanımı',
+        processComponents: null,
+        sourceLocator: null,
+        verificationStatus: 'PASS',
+      );
+
+  final String courseId;
+  final model.Theme theme1;
+  final model.Theme theme2;
+  final model.Block block1;
+  final model.Block block2;
+  final model.Outcome outcome1;
+  final model.Outcome outcome2;
+  int annualSequenceCalls = 0;
+  int getThemesCalls = 0;
+  int teacherPackageCalls = 0;
+  int getBlockCalls = 0;
+
+  @override
+  Future<model.Course> getCourse() async => model.Course(
+    courseId: courseId,
+    grade: 9,
+    title: 'Türk Dili ve Edebiyatı',
+    schemaVersion: '1.0.0',
+    sourceManifestFingerprint: courseId,
+  );
+
+  @override
+  Future<model.RuntimeManifest> getManifest() async => model.RuntimeManifest(
+    runtimePackageVersion: '1.0.0',
+    schemaVersion: '1.0.0',
+    courseId: courseId,
+    validationStatus: 'PASS',
+    canonicalContentFingerprint: courseId,
+    rowCounts: const {},
+    timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
+    timelineUnresolvedFields: const {},
+  );
+
+  @override
+  Future<List<model.Theme>> getThemes() async {
+    getThemesCalls++;
+    return [theme1, theme2];
+  }
+
+  @override
+  Future<model.Theme> getTheme(String themeId) async =>
+      themeId == theme1.id ? theme1 : theme2;
+
+  @override
+  Future<List<model.Block>> getBlocks(String themeId) async =>
+      themeId == theme1.id ? [block1] : [block2];
+
+  @override
+  Future<model.BlockDetail> getBlock(String blockId) async {
+    getBlockCalls++;
+    final isB1 = blockId == block1.id;
+    return model.BlockDetail(
+      theme: isB1 ? theme1 : theme2,
+      block: isB1 ? block1 : block2,
+      outcomes: [isB1 ? outcome1 : outcome2],
+      textbookSections: [
+        model.TextbookSection(
+          id: '$courseId-S-${isB1 ? "1" : "2"}',
+          themeId: isB1 ? theme1.id : theme2.id,
+          title: '$courseId ${isB1 ? "Tema 1" : "Tema 2"} kaynak',
+          genre: 'Metin',
+          printedPageRange: '1-2',
+          pdfPageRange: null,
+          sourceId: null,
+        ),
+      ],
+      activities: const [],
+      forms: const [],
+      assessmentArtifacts: const [],
+      assessmentGaps: const [],
+      assessmentTaskBindings: const [],
+      resourceDecisions: const [],
+      sourceReferences: const [],
+      previousBlock: null,
+      nextBlock: null,
+    );
+  }
+
+  @override
+  Future<List<model.TimelineEntry>> getAnnualSequence() async {
+    annualSequenceCalls++;
+    return [
+      model.TimelineEntry(
+        sequencePosition: 1,
+        theme: theme1,
+        block: block1,
+        officialTotalHours: 45,
+        coreInstructionHours: 45,
+        schoolBasedHours: 0,
+        schoolBasedHoursStatus: 'CONFIRMED',
+      ),
+      model.TimelineEntry(
+        sequencePosition: 2,
+        theme: theme2,
+        block: block2,
+        officialTotalHours: 45,
+        coreInstructionHours: 45,
+        schoolBasedHours: 0,
+        schoolBasedHoursStatus: 'CONFIRMED',
+      ),
+    ];
+  }
+
+  @override
+  Future<List<model.ResourceDecision>> getResourceDecisions(
+    String themeId,
+  ) async => const [];
+
+  @override
+  Future<model.TeacherPackage> getTeacherPackage(String themeId) async {
+    teacherPackageCalls++;
+    final isT1 = themeId == theme1.id;
+    return model.TeacherPackage(
+      theme: isT1 ? theme1 : theme2,
+      blocks: [isT1 ? block1 : block2],
+      outcomes: [isT1 ? outcome1 : outcome2],
+      textbookSections: [
+        model.TextbookSection(
+          id: '$courseId-S-${isT1 ? "1" : "2"}',
+          themeId: isT1 ? theme1.id : theme2.id,
+          title: '$courseId ${isT1 ? "Tema 1" : "Tema 2"} kaynak',
+          genre: 'Metin',
+          printedPageRange: '1-2',
+          pdfPageRange: null,
+          sourceId: null,
+        ),
+      ],
       activities: const [],
       forms: const [],
       assessmentArtifacts: const [],

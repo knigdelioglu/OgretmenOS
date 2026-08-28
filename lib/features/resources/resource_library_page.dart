@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../data/preferences/continuity_repository.dart';
@@ -31,32 +33,153 @@ class ResourceLibraryPage extends StatefulWidget {
 
 class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
   late Future<_ResourceData> _future;
+  _ResourceData? _resourceData;
   String? _selectedThemeId;
+  int _focusRevision = 0;
   bool _initialUsefulContentReported = false;
+  ContinuityRepository? _observedContinuity;
+  ContinuityChangeListener? _continuityChangeListener;
 
   @override
   void initState() {
     super.initState();
+    _subscribeToContinuityChanges();
     _future = _mainLoad();
   }
 
   @override
   void didUpdateWidget(covariant ResourceLibraryPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.continuity != widget.continuity) {
+      _unsubscribeFromContinuityChanges();
+      _subscribeToContinuityChanges();
+    }
     if (oldWidget.repository != widget.repository ||
         oldWidget.awaitingTextbook != widget.awaitingTextbook ||
         oldWidget.continuity != widget.continuity ||
         oldWidget.weeklyPlanning != widget.weeklyPlanning ||
         oldWidget.courseId != widget.courseId) {
       _selectedThemeId = null;
+      _resourceData = null;
       _initialUsefulContentReported = false;
       _future = _mainLoad();
     }
   }
 
+  @override
+  void dispose() {
+    _unsubscribeFromContinuityChanges();
+    super.dispose();
+  }
+
+  void _subscribeToContinuityChanges() {
+    final continuity = widget.continuity;
+    if (continuity == null) return;
+    final listener = _handleContinuityChanged;
+    _observedContinuity = continuity;
+    _continuityChangeListener = listener;
+    continuity.addChangeListener(listener);
+  }
+
+  void _unsubscribeFromContinuityChanges() {
+    final continuity = _observedContinuity;
+    final listener = _continuityChangeListener;
+    if (continuity != null && listener != null) {
+      continuity.removeChangeListener(listener);
+    }
+    _observedContinuity = null;
+    _continuityChangeListener = null;
+  }
+
+  void _handleContinuityChanged(String courseId) {
+    if (courseId != widget.courseId || !mounted) return;
+    _focusRevision++;
+    unawaited(_refreshFocusTheme());
+  }
+
+  Future<void> _clearStaleFocusBestEffort() async {
+    final continuity = widget.continuity;
+    final courseId = widget.courseId;
+    if (continuity != null && courseId != null) {
+      try {
+        await continuity.clearLastFocus(courseId);
+      } on Object {
+        // Stale continuity cleanup must never block the library view.
+      }
+    }
+  }
+
+  Future<void> _refreshFocusTheme() async {
+    final current = _resourceData;
+    if (current == null || current.themes.isEmpty) return;
+    final continuity = widget.continuity;
+    final courseId = widget.courseId;
+    if (continuity == null || courseId == null) return;
+
+    String? currentAcademicYear;
+    if (widget.weeklyPlanning != null) {
+      try {
+        final plan = await widget.weeklyPlanning!.buildPlan();
+        currentAcademicYear = plan.academicYear;
+      } on Object {
+        // Weekly planning context is optional.
+      }
+    }
+
+    String? targetThemeId;
+    try {
+      final stored = await continuity.getLastFocus(courseId);
+      if (stored != null) {
+        if (currentAcademicYear != null &&
+            stored.academicYear != currentAcademicYear) {
+          await _clearStaleFocusBestEffort();
+          return;
+        }
+        final storedThemeId = stored.themeId;
+        if (storedThemeId != null &&
+            current.themes.any((theme) => theme.id == storedThemeId)) {
+          targetThemeId = storedThemeId;
+        } else if (stored.blockId != null) {
+          final blockThemeId = await widget.repository
+              .getThemeIdForBlockIfAvailable(stored.blockId!);
+          if (blockThemeId != null &&
+              current.themes.any((theme) => theme.id == blockThemeId)) {
+            targetThemeId = blockThemeId;
+          }
+        }
+      }
+    } on Object {
+      return;
+    }
+
+    if (targetThemeId == null ||
+        targetThemeId == current.package?.theme.id) {
+      return;
+    }
+
+    try {
+      final package = await widget.repository.getTeacherPackage(targetThemeId);
+      if (!mounted) return;
+      setState(() {
+        _selectedThemeId = targetThemeId;
+        _resourceData = _ResourceData(
+          themes: current.themes,
+          package: package,
+        );
+      });
+    } on Object {
+      // Focus update is best-effort.
+    }
+  }
+
   Future<_ResourceData> _load() async {
+    final focusRevision = _focusRevision;
     final themes = await widget.repository.getThemes();
-    if (themes.isEmpty) return const _ResourceData(themes: [], package: null);
+    if (themes.isEmpty) {
+      final data = const _ResourceData(themes: [], package: null);
+      _resourceData = data;
+      return data;
+    }
 
     final explicitThemeId = _selectedThemeId;
     if (explicitThemeId != null &&
@@ -64,37 +187,61 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
       final package = await widget.repository.getTeacherPackage(
         explicitThemeId,
       );
-      return _ResourceData(themes: themes, package: package);
+      final data = _ResourceData(themes: themes, package: package);
+      _resourceData = data;
+      return data;
     }
 
     final resolvedThemeId = await _resolveThemeId(themes);
     final selectedThemeId = resolvedThemeId ?? themes.first.id;
     final package = await widget.repository.getTeacherPackage(selectedThemeId);
-    return _ResourceData(themes: themes, package: package);
+    final data = _ResourceData(themes: themes, package: package);
+    _resourceData = data;
+    if (_focusRevision != focusRevision) {
+      unawaited(_refreshFocusTheme());
+    }
+    return data;
   }
 
   Future<_ResourceData> _mainLoad() =>
       RuntimePerformanceTrace.measure('ResourceLibraryPage.mainLoad', _load);
 
   Future<String?> _resolveThemeId(List<model.Theme> themes) async {
+    AnnualWeeklyPlan? weeklyPlan;
+    final weeklyPlanning = widget.weeklyPlanning;
+    if (weeklyPlanning != null) {
+      try {
+        weeklyPlan = await weeklyPlanning.buildPlan();
+      } on Object {
+        // Current-week context is optional; the selected theme remains usable.
+      }
+    }
+
     final continuity = widget.continuity;
     final courseId = widget.courseId;
     if (continuity != null && courseId != null) {
       try {
         final stored = await continuity.getLastFocus(courseId);
-        final storedThemeId = stored?.themeId;
-        if (storedThemeId != null &&
-            themes.any((theme) => theme.id == storedThemeId)) {
-          return storedThemeId;
-        }
+        if (stored != null) {
+          if (weeklyPlan != null &&
+              stored.academicYear != weeklyPlan.academicYear) {
+            unawaited(_clearStaleFocusBestEffort());
+          } else {
+            final storedThemeId = stored.themeId;
+            if (storedThemeId != null &&
+                themes.any((theme) => theme.id == storedThemeId)) {
+              return storedThemeId;
+            }
 
-        final blockId = stored?.blockId;
-        if (blockId != null) {
-          final blockThemeId = await widget.repository
-              .getThemeIdForBlockIfAvailable(blockId);
-          if (blockThemeId != null &&
-              themes.any((theme) => theme.id == blockThemeId)) {
-            return blockThemeId;
+            final blockId = stored.blockId;
+            if (blockId != null) {
+              final blockThemeId = await widget.repository
+                  .getThemeIdForBlockIfAvailable(blockId);
+              if (blockThemeId != null &&
+                  themes.any((theme) => theme.id == blockThemeId)) {
+                return blockThemeId;
+              }
+            }
           }
         }
       } on Object {
@@ -103,64 +250,93 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
       }
     }
 
-    final weeklyPlanning = widget.weeklyPlanning;
-    if (weeklyPlanning != null) {
-      try {
-        final plan = await weeklyPlanning.buildPlan();
-        final currentWeek = plan.currentWeek;
-        if (currentWeek != null) {
-          for (final segment in currentWeek.segments) {
-            final themeId = segment.theme.id;
-            if (themes.any((theme) => theme.id == themeId)) {
-              return themeId;
-            }
+    if (weeklyPlan != null) {
+      final currentWeek = weeklyPlan.currentWeek;
+      if (currentWeek != null) {
+        for (final segment in currentWeek.segments) {
+          final themeId = segment.theme.id;
+          if (themes.any((theme) => theme.id == themeId)) {
+            return themeId;
           }
         }
-      } on Object {
-        // Current-week context is optional; the selected theme remains usable.
       }
     }
     return null;
   }
 
-  void _selectTheme(String themeId) {
+  Future<void> _selectTheme(String themeId) async {
+    final current = _resourceData;
+    if (current != null && current.package?.theme.id == themeId) return;
+    _selectedThemeId = themeId;
+    if (current != null && current.themes.any((t) => t.id == themeId)) {
+      try {
+        final package = await widget.repository.getTeacherPackage(themeId);
+        if (!mounted) return;
+        setState(() {
+          _resourceData = _ResourceData(
+            themes: current.themes,
+            package: package,
+          );
+        });
+        return;
+      } on Object {
+        // Fall back to full reload if needed.
+      }
+    }
     setState(() {
-      _selectedThemeId = themeId;
+      _resourceData = null;
       _future = _mainLoad();
     });
   }
 
   void _reload() {
     setState(() {
+      _resourceData = null;
       _future = _mainLoad();
     });
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<_ResourceData>(
-    future: _future,
-    builder: (context, snapshot) {
-      final loading = snapshot.connectionState != ConnectionState.done;
-      if (loading && !snapshot.hasData) {
-        return const LoadingView(label: 'Kaynaklar hazırlanıyor…');
-      }
-      if (!snapshot.hasData) {
-        return FeatureErrorView(
-          message: 'Kaynaklar yüklenemedi.',
-          onRetry: _reload,
-        );
-      }
-      final data = snapshot.data!;
-      if (!_initialUsefulContentReported) {
-        _initialUsefulContentReported = true;
-        RuntimePerformanceTrace.instant(
-          'ResourceLibraryPage.initialUsefulContent',
-        );
-      }
-      final package = data.package;
-      if (package == null) {
-        return const Center(child: Text('Gösterilebilir kaynak bulunmuyor.'));
-      }
+  Widget build(BuildContext context) {
+    final currentData = _resourceData;
+    if (currentData != null) {
+      return _buildContent(context, currentData, loading: false);
+    }
+    return FutureBuilder<_ResourceData>(
+      future: _future,
+      builder: (context, snapshot) {
+        final loading = snapshot.connectionState != ConnectionState.done;
+        if (loading && !snapshot.hasData) {
+          return const LoadingView(label: 'Kaynaklar hazırlanıyor…');
+        }
+        if (!snapshot.hasData) {
+          return FeatureErrorView(
+            message: 'Kaynaklar yüklenemedi.',
+            onRetry: _reload,
+          );
+        }
+        final data = snapshot.data!;
+        _resourceData = data;
+        return _buildContent(context, data, loading: loading);
+      },
+    );
+  }
+
+  Widget _buildContent(
+    BuildContext context,
+    _ResourceData data, {
+    required bool loading,
+  }) {
+    if (!_initialUsefulContentReported) {
+      _initialUsefulContentReported = true;
+      RuntimePerformanceTrace.instant(
+        'ResourceLibraryPage.initialUsefulContent',
+      );
+    }
+    final package = data.package;
+    if (package == null) {
+      return const Center(child: Text('Gösterilebilir kaynak bulunmuyor.'));
+    }
 
       if (widget.awaitingTextbook) {
         return AppPage(
@@ -282,8 +458,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
             ),
         ],
       );
-    },
-  );
+  }
 
   Widget _topActions(_ResourceData data, bool loading) => Wrap(
     alignment: WrapAlignment.end,

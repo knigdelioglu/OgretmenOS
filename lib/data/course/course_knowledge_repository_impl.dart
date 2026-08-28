@@ -54,7 +54,7 @@ class CourseKnowledgeRepositoryImpl
   }
 
   @override
-  Future<PlanningDataset> getPlanningDataset() {
+  Future<PlanningDataset> getPlanningDataset() async {
     RuntimePerformanceTrace.count(
       'CourseKnowledgeRepository.getPlanningDataset',
     );
@@ -64,14 +64,22 @@ class CourseKnowledgeRepositoryImpl
       manifest.schemaVersion,
       manifest.canonicalContentFingerprint,
     ].join('|');
-    if (_planningDatasetFuture == null ||
-        _planningDatasetCacheKey != cacheKey) {
+    var future = _planningDatasetFuture;
+    if (future == null || _planningDatasetCacheKey != cacheKey) {
       _planningDatasetCacheKey = cacheKey;
-      _planningDatasetFuture = dataSource.getPlanningDataset(
+      future = _planningDatasetFuture = dataSource.getPlanningDataset(
         courseId: manifest.courseId,
       );
     }
-    return _planningDatasetFuture!;
+    try {
+      return await future;
+    } catch (_) {
+      if (identical(_planningDatasetFuture, future)) {
+        _planningDatasetFuture = null;
+        _planningDatasetCacheKey = null;
+      }
+      rethrow;
+    }
   }
 
   @override

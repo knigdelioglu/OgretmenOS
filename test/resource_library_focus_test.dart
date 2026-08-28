@@ -152,6 +152,117 @@ void main() {
     expect(textbook, findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'mounted ResourceLibraryPage continuity değiştiğinde yeni temanın kaynaklarını günceller',
+    (tester) async {
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repository = _ResourceRepository();
+      final plan = _contextPlan(currentWeekNumber: 1);
+      final continuity = MemoryContinuityRepository();
+      await continuity.setLastFocus(
+        LastFocusState(
+          courseId: 'TDE_9',
+          academicYear: '2026-2027',
+          weekNumber: 1,
+          trackingKey: '2026-2027:O1:1',
+          outcomeCode: 'T1.1',
+          themeTitle: 'TEMA 1',
+          themeId: 'T1',
+          blockId: 'B1',
+          blockTitle: 'Blok 1',
+          updatedAt: DateTime(2026, 9, 14, 10),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _contextApp(
+          repository: repository,
+          continuity: continuity,
+          weeklyPlanning: _StaticWeeklyPlanning(plan.weeklyPlan),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('TEMA 1'), findsWidgets);
+      expect(find.text('Kitap Bölümü 1'), findsOneWidget);
+      expect(find.text('Kaynak 2'), findsNothing);
+
+      // Continuity focus changes to Theme 2
+      await continuity.setLastFocus(
+        LastFocusState(
+          courseId: 'TDE_9',
+          academicYear: '2026-2027',
+          weekNumber: 2,
+          trackingKey: '2026-2027:O2:2',
+          outcomeCode: 'T2.1',
+          themeTitle: 'TEMA 2',
+          themeId: 'T2',
+          blockId: 'B2',
+          blockTitle: 'Blok 2',
+          updatedAt: DateTime(2026, 9, 21, 10),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('TEMA 2'), findsWidgets);
+      expect(find.text('Kaynak 2'), findsOneWidget);
+      expect(find.text('Kitap Bölümü 1'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'eski akademik yıla ait focus yok sayılır ve mevcut haftanın teması açılır',
+    (tester) async {
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repository = _ResourceRepository();
+      // Current week is Week 1 (TEMA 1) in 2026-2027
+      final plan = _contextPlan(currentWeekNumber: 1);
+      final continuity = MemoryContinuityRepository();
+      // Stored focus is from 2025-2026 (TEMA 2)
+      await continuity.setLastFocus(
+        LastFocusState(
+          courseId: 'TDE_9',
+          academicYear: '2025-2026',
+          weekNumber: 36,
+          trackingKey: '2025-2026:O2:36',
+          outcomeCode: 'T2.1',
+          themeTitle: 'TEMA 2',
+          themeId: 'T2',
+          blockId: 'B2',
+          blockTitle: 'Blok 2',
+          updatedAt: DateTime(2026, 6, 15),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _contextApp(
+          repository: repository,
+          continuity: continuity,
+          weeklyPlanning: _StaticWeeklyPlanning(plan.weeklyPlan),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Eski akademik yılın TEMA 2 odağı yok sayılmalı ve mevcut haftanın TEMA 1 kaynakları açılmalı
+      expect(find.text('TEMA 1'), findsWidgets);
+      expect(find.text('Kitap Bölümü 1'), findsOneWidget);
+      expect(find.text('Kaynak 2'), findsNothing);
+
+      // Stale focus da temizlenmiş olmalı
+      expect(await continuity.getLastFocus('TDE_9'), isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 Widget _app({required bool awaitingTextbook}) => MaterialApp(

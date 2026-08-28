@@ -37,16 +37,21 @@ class AnnualPlanPage extends StatefulWidget {
 
 class _AnnualPlanPageState extends State<AnnualPlanPage> {
   late Future<_PlanData> _future;
+  _PlanData? _planData;
   _OptionalTrackingSummary? _trackingSummary;
   int _loadRevision = 0;
+  int _focusRevision = 0;
   bool _initialUsefulContentReported = false;
   OutcomePlanningService? _observedOutcomePlanning;
   OutcomePlanChangeListener? _trackingChangeListener;
+  ContinuityRepository? _observedContinuity;
+  ContinuityChangeListener? _continuityChangeListener;
 
   @override
   void initState() {
     super.initState();
     _subscribeToTrackingChanges();
+    _subscribeToContinuityChanges();
     _future = _mainLoad();
     unawaited(_refreshTrackingSummary(_loadRevision));
   }
@@ -57,6 +62,10 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
     if (oldWidget.outcomePlanning != widget.outcomePlanning) {
       _unsubscribeFromTrackingChanges();
       _subscribeToTrackingChanges();
+    }
+    if (oldWidget.continuity != widget.continuity) {
+      _unsubscribeFromContinuityChanges();
+      _subscribeToContinuityChanges();
     }
     if (oldWidget.repository != widget.repository ||
         oldWidget.preferences != widget.preferences ||
@@ -70,11 +79,13 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
   @override
   void dispose() {
     _unsubscribeFromTrackingChanges();
+    _unsubscribeFromContinuityChanges();
     super.dispose();
   }
 
   void _beginLoad() {
     _loadRevision++;
+    _planData = null;
     _trackingSummary = null;
     _future = _mainLoad();
     unawaited(_refreshTrackingSummary(_loadRevision));
@@ -111,8 +122,32 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
     unawaited(_refreshTrackingSummary(revision));
   }
 
-  Future<_PlanData> _load() async {
-    final sequence = await widget.repository.getAnnualSequence();
+  void _subscribeToContinuityChanges() {
+    final continuity = widget.continuity;
+    final listener = _handleContinuityChanged;
+    _observedContinuity = continuity;
+    _continuityChangeListener = listener;
+    continuity.addChangeListener(listener);
+  }
+
+  void _unsubscribeFromContinuityChanges() {
+    final continuity = _observedContinuity;
+    final listener = _continuityChangeListener;
+    if (continuity != null && listener != null) {
+      continuity.removeChangeListener(listener);
+    }
+    _observedContinuity = null;
+    _continuityChangeListener = null;
+  }
+
+  void _handleContinuityChanged(String courseId) {
+    if (courseId != widget.courseId || !mounted) return;
+    _focusRevision++;
+    unawaited(_refreshFocusState());
+  }
+
+  Future<({String? manualBlockId, String? automaticBlockId})>
+  _resolvePositionBlockIds(List<model.TimelineEntry> sequence) async {
     final manual = await _getManualPositionBestEffort();
     final lastFocus = await _getLastFocusBestEffort();
     var manualBlockId =
@@ -134,15 +169,48 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
       await _clearPositionPreferenceBestEffort();
     }
 
-    return _PlanData(
-      sequence: sequence,
+    return (
       manualBlockId: manualBlockId,
       automaticBlockId: automaticBlockId,
     );
   }
 
+  Future<_PlanData> _load() async {
+    final focusRevision = _focusRevision;
+    final sequence = await widget.repository.getAnnualSequence();
+    final position = await _resolvePositionBlockIds(sequence);
+    final data = _PlanData(
+      sequence: sequence,
+      manualBlockId: position.manualBlockId,
+      automaticBlockId: position.automaticBlockId,
+    );
+    _planData = data;
+    if (_focusRevision != focusRevision) {
+      unawaited(_refreshFocusState());
+    }
+    return data;
+  }
+
   Future<_PlanData> _mainLoad() =>
       RuntimePerformanceTrace.measure('AnnualPlanPage.mainLoad', _load);
+
+  Future<void> _refreshFocusState() async {
+    final current = _planData;
+    if (current == null) return;
+    final position = await _resolvePositionBlockIds(current.sequence);
+    if (!mounted) return;
+    if (position.manualBlockId == current.manualBlockId &&
+        position.automaticBlockId == current.automaticBlockId) {
+      return;
+    }
+    setState(() {
+      _planData = _PlanData(
+        sequence: current.sequence,
+        manualBlockId: position.manualBlockId,
+        automaticBlockId: position.automaticBlockId,
+      );
+    });
+  }
 
   Future<_OptionalTrackingSummary?> _loadTrackingSummary() {
     final service = widget.outcomePlanning;
@@ -231,7 +299,7 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
   Future<void> _setPosition(String blockId) async {
     try {
       await _setPositionPreference(blockId);
-      if (mounted) _reload();
+      if (mounted) unawaited(_refreshFocusState());
     } on Object {
       if (mounted) {
         showTeacherFeedback(context, 'Geçici konum işareti kaydedilemedi.');
@@ -242,7 +310,7 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
   Future<void> _clearPosition() async {
     try {
       await _clearPositionPreference();
-      if (mounted) _reload();
+      if (mounted) unawaited(_refreshFocusState());
     } on Object {
       if (mounted) {
         showTeacherFeedback(context, 'Geçici konum işareti temizlenemedi.');
@@ -251,87 +319,98 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<_PlanData>(
-    future: _future,
-    builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done) {
-        return const LoadingView(label: 'Yıllık plan hazırlanıyor…');
-      }
-      if (!snapshot.hasData) {
-        return FeatureErrorView(
-          message: 'Yıllık plan verileri yüklenemedi.',
-          onRetry: _reload,
-        );
-      }
+  Widget build(BuildContext context) {
+    final currentData = _planData;
+    if (currentData != null) {
+      return _buildContent(context, currentData);
+    }
+    return FutureBuilder<_PlanData>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const LoadingView(label: 'Yıllık plan hazırlanıyor…');
+        }
+        if (!snapshot.hasData) {
+          return FeatureErrorView(
+            message: 'Yıllık plan verileri yüklenemedi.',
+            onRetry: _reload,
+          );
+        }
 
-      final data = snapshot.data!;
-      if (!_initialUsefulContentReported) {
-        _initialUsefulContentReported = true;
-        RuntimePerformanceTrace.instant('AnnualPlanPage.initialUsefulContent');
-      }
-      if (data.sequence.isEmpty) {
-        return const Center(
-          child: Text('Gösterilebilir yıllık plan bulunmuyor.'),
-        );
-      }
+        final data = snapshot.data!;
+        _planData = data;
+        return _buildContent(context, data);
+      },
+    );
+  }
 
-      final grouped = <String, List<model.TimelineEntry>>{};
-      for (final entry in data.sequence) {
-        grouped.putIfAbsent(entry.theme.id, () => []).add(entry);
-      }
-      final annualHours = grouped.values
-          .map((entries) => entries.first.officialTotalHours ?? 0)
-          .fold<int>(0, (a, b) => a + b);
-      final activeBlockId = data.manualBlockId ?? data.automaticBlockId;
-      final activeEntry = activeBlockId == null
-          ? null
-          : data.sequence.firstWhere(
-              (entry) => entry.block.id == activeBlockId,
-            );
-      final isManualPosition =
-          activeEntry != null && data.manualBlockId == activeEntry.block.id;
+  Widget _buildContent(BuildContext context, _PlanData data) {
+    if (!_initialUsefulContentReported) {
+      _initialUsefulContentReported = true;
+      RuntimePerformanceTrace.instant('AnnualPlanPage.initialUsefulContent');
+    }
+    if (data.sequence.isEmpty) {
+      return const Center(
+        child: Text('Gösterilebilir yıllık plan bulunmuyor.'),
+      );
+    }
 
-      return AppPage(
-        topTrailing: widget.topTrailing,
-        children: [
-          _AnnualSummary(
-            themeCount: grouped.length,
-            blockCount: data.sequence.length,
-            annualHours: annualHours,
-            activeEntry: activeEntry,
-            isManualPosition: isManualPosition,
-            trackingSummary: _trackingSummary,
-            onClear: _clearPosition,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          for (var i = 0; i < grouped.values.length; i++) ...[
-            _ThemePlanCard(
-              entries: grouped.values.elementAt(i),
-              totalBlocks: data.sequence.length,
-              activeBlockId: activeBlockId,
-              manualBlockId: data.manualBlockId,
-              initiallyExpanded: activeBlockId == null
-                  ? i == 0
-                  : grouped.values
-                        .elementAt(i)
-                        .any((entry) => entry.block.id == activeBlockId),
-              onSelect: _setPosition,
-              onOpen: (blockId) => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => BlockDetailPage(
-                    repository: widget.repository,
-                    blockId: blockId,
-                  ),
+    final grouped = <String, List<model.TimelineEntry>>{};
+    for (final entry in data.sequence) {
+      grouped.putIfAbsent(entry.theme.id, () => []).add(entry);
+    }
+    final annualHours = grouped.values
+        .map((entries) => entries.first.officialTotalHours ?? 0)
+        .fold<int>(0, (a, b) => a + b);
+    final activeBlockId = data.manualBlockId ?? data.automaticBlockId;
+    final activeEntry = activeBlockId == null
+        ? null
+        : data.sequence.firstWhere(
+            (entry) => entry.block.id == activeBlockId,
+          );
+    final isManualPosition =
+        activeEntry != null && data.manualBlockId == activeEntry.block.id;
+
+    return AppPage(
+      topTrailing: widget.topTrailing,
+      children: [
+        _AnnualSummary(
+          themeCount: grouped.length,
+          blockCount: data.sequence.length,
+          annualHours: annualHours,
+          activeEntry: activeEntry,
+          isManualPosition: isManualPosition,
+          trackingSummary: _trackingSummary,
+          onClear: _clearPosition,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        for (var i = 0; i < grouped.values.length; i++) ...[
+          _ThemePlanCard(
+            entries: grouped.values.elementAt(i),
+            totalBlocks: data.sequence.length,
+            activeBlockId: activeBlockId,
+            manualBlockId: data.manualBlockId,
+            initiallyExpanded: activeBlockId == null
+                ? i == 0
+                : grouped.values
+                      .elementAt(i)
+                      .any((entry) => entry.block.id == activeBlockId),
+            onSelect: _setPosition,
+            onOpen: (blockId) => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => BlockDetailPage(
+                  repository: widget.repository,
+                  blockId: blockId,
                 ),
               ),
             ),
-            if (i != grouped.values.length - 1)
-              const SizedBox(height: AppSpacing.sm),
-          ],
+          ),
+          if (i != grouped.values.length - 1)
+            const SizedBox(height: AppSpacing.sm),
         ],
-      );
-    },
-  );
+      ],
+    );
+  }
 }
 
 class _PlanData {

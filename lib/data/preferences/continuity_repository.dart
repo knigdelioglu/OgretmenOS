@@ -80,22 +80,45 @@ class LastFocusState {
   }
 }
 
+typedef ContinuityChangeListener = void Function(String courseId);
+
 abstract interface class ContinuityRepository {
   Future<LastFocusState?> getLastFocus(String courseId);
 
   Future<void> setLastFocus(LastFocusState state);
 
   Future<void> clearLastFocus(String courseId);
+
+  void addChangeListener(ContinuityChangeListener listener);
+
+  void removeChangeListener(ContinuityChangeListener listener);
 }
 
 class SharedPreferencesContinuityRepository implements ContinuityRepository {
-  const SharedPreferencesContinuityRepository(this._preferences);
+  SharedPreferencesContinuityRepository(this._preferences);
 
   static const _keyPrefix = 'last_focus_v1_';
 
   final SharedPreferences _preferences;
+  final List<ContinuityChangeListener> _listeners = [];
 
   String _key(String courseId) => '$_keyPrefix$courseId';
+
+  @override
+  void addChangeListener(ContinuityChangeListener listener) {
+    _listeners.add(listener);
+  }
+
+  @override
+  void removeChangeListener(ContinuityChangeListener listener) {
+    _listeners.remove(listener);
+  }
+
+  void _notify(String courseId) {
+    for (final listener in List<ContinuityChangeListener>.of(_listeners)) {
+      listener(courseId);
+    }
+  }
 
   @override
   Future<LastFocusState?> getLastFocus(String courseId) async {
@@ -137,16 +160,35 @@ class SharedPreferencesContinuityRepository implements ContinuityRepository {
       _key(state.courseId),
       jsonEncode(state.toJson()),
     );
+    _notify(state.courseId);
   }
 
   @override
   Future<void> clearLastFocus(String courseId) async {
     await _preferences.remove(_key(courseId));
+    _notify(courseId);
   }
 }
 
 class MemoryContinuityRepository implements ContinuityRepository {
   final Map<String, LastFocusState> _states = {};
+  final List<ContinuityChangeListener> _listeners = [];
+
+  @override
+  void addChangeListener(ContinuityChangeListener listener) {
+    _listeners.add(listener);
+  }
+
+  @override
+  void removeChangeListener(ContinuityChangeListener listener) {
+    _listeners.remove(listener);
+  }
+
+  void _notify(String courseId) {
+    for (final listener in List<ContinuityChangeListener>.of(_listeners)) {
+      listener(courseId);
+    }
+  }
 
   @override
   Future<LastFocusState?> getLastFocus(String courseId) async =>
@@ -155,10 +197,12 @@ class MemoryContinuityRepository implements ContinuityRepository {
   @override
   Future<void> setLastFocus(LastFocusState state) async {
     _states[state.courseId] = state;
+    _notify(state.courseId);
   }
 
   @override
   Future<void> clearLastFocus(String courseId) async {
     _states.remove(courseId);
+    _notify(courseId);
   }
 }

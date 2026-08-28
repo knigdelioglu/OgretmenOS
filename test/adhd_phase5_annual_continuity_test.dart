@@ -137,6 +137,69 @@ void main() {
     expect(find.text('ŞU AN BURADASIN'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'mounted AnnualPlanPage continuity değiştiğinde ŞU AN BURADASIN konumunu günceller',
+    (tester) async {
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      SharedPreferences.setMockInitialValues({});
+      final raw = await SharedPreferences.getInstance();
+      final preferences = SharedPreferencesUserPreferences(raw);
+      final continuity = MemoryContinuityRepository();
+
+      await continuity.setLastFocus(
+        LastFocusState(
+          courseId: 'TDE_9',
+          academicYear: '2026-2027',
+          weekNumber: 1,
+          trackingKey: 'TDE_9|O1',
+          outcomeCode: 'TEST.1',
+          themeTitle: 'Test Tema',
+          blockId: 'B1',
+          blockTitle: 'Birinci Blok',
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnnualPlanPage(
+              repository: const _Repository(),
+              preferences: preferences,
+              continuity: continuity,
+              courseId: 'TDE_9',
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Test Tema · Birinci Blok'), findsOneWidget);
+
+      await continuity.setLastFocus(
+        LastFocusState(
+          courseId: 'TDE_9',
+          academicYear: '2026-2027',
+          weekNumber: 2,
+          trackingKey: 'TDE_9|O2',
+          outcomeCode: 'TEST.2',
+          themeTitle: 'Test Tema',
+          blockId: 'B2',
+          blockTitle: 'İkinci Blok',
+          updatedAt: DateTime.now(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Test Tema · İkinci Blok'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 final _oldFocusTime = DateTime.utc(2020, 1, 1);
@@ -304,4 +367,10 @@ class _FailingAnnualContinuity implements ContinuityRepository {
   @override
   Future<void> clearLastFocus(String courseId) =>
       Future<void>.error(StateError('continuity unavailable'));
+
+  @override
+  void addChangeListener(ContinuityChangeListener listener) {}
+
+  @override
+  void removeChangeListener(ContinuityChangeListener listener) {}
 }

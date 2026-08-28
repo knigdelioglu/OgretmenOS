@@ -50,6 +50,78 @@ void main() {
     expect(preferences.getString('last_focus_v1_TDE_9'), isNull);
   });
 
+  test('SharedPreferencesContinuityRepository notifies change listeners', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final repository = SharedPreferencesContinuityRepository(preferences);
+    final events = <String>[];
+    void listener(String courseId) => events.add(courseId);
+
+    repository.addChangeListener(listener);
+    await repository.setLastFocus(
+      LastFocusState(
+        courseId: 'TDE_9',
+        academicYear: '2026-2027',
+        weekNumber: 1,
+        trackingKey: 'key',
+        outcomeCode: 'TDE1.1',
+        updatedAt: DateTime.now(),
+      ),
+    );
+    expect(events, ['TDE_9']);
+
+    await repository.clearLastFocus('TDE_9');
+    expect(events, ['TDE_9', 'TDE_9']);
+
+    repository.removeChangeListener(listener);
+    await repository.setLastFocus(
+      LastFocusState(
+        courseId: 'TDE_10',
+        academicYear: '2026-2027',
+        weekNumber: 2,
+        trackingKey: 'key2',
+        outcomeCode: 'TDE2.1',
+        updatedAt: DateTime.now(),
+      ),
+    );
+    expect(events, ['TDE_9', 'TDE_9']);
+  });
+
+  test('MemoryContinuityRepository notifies change listeners', () async {
+    final repository = MemoryContinuityRepository();
+    final events = <String>[];
+    void listener(String courseId) => events.add(courseId);
+
+    repository.addChangeListener(listener);
+    await repository.setLastFocus(
+      LastFocusState(
+        courseId: 'TDE_9',
+        academicYear: '2026-2027',
+        weekNumber: 1,
+        trackingKey: 'key',
+        outcomeCode: 'TDE1.1',
+        updatedAt: DateTime.now(),
+      ),
+    );
+    expect(events, ['TDE_9']);
+
+    await repository.clearLastFocus('TDE_9');
+    expect(events, ['TDE_9', 'TDE_9']);
+
+    repository.removeChangeListener(listener);
+    await repository.setLastFocus(
+      LastFocusState(
+        courseId: 'TDE_10',
+        academicYear: '2026-2027',
+        weekNumber: 2,
+        trackingKey: 'key2',
+        outcomeCode: 'TDE2.1',
+        updatedAt: DateTime.now(),
+      ),
+    );
+    expect(events, ['TDE_9', 'TDE_9']);
+  });
+
   testWidgets('saved focus is offered as a direct resume path', (tester) async {
     tester.view.physicalSize = const Size(412, 915);
     tester.view.devicePixelRatio = 1;
@@ -467,4 +539,10 @@ class _FailingContinuityRepository implements ContinuityRepository {
   @override
   Future<void> clearLastFocus(String courseId) =>
       Future<void>.error(StateError('continuity unavailable'));
+
+  @override
+  void addChangeListener(ContinuityChangeListener listener) {}
+
+  @override
+  void removeChangeListener(ContinuityChangeListener listener) {}
 }
