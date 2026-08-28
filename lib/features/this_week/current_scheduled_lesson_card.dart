@@ -71,19 +71,27 @@ class _CurrentScheduledLessonCardState extends State<CurrentScheduledLessonCard>
       courseId: widget.courseId,
     );
 
-    final current = snapshot.currentOccurrence;
-    if (current != null) {
-      final position = snapshot.positionFor(current.assignmentId);
+    ScheduledLessonOccurrence? current;
+    TeachingAssignment? currentAssignment;
+    for (final assignment in assignments) {
+      final occurrence = snapshot.positionFor(assignment.id)?.currentOccurrence;
+      if (occurrence == null) continue;
+      if (current == null || occurrence.startsAt.isBefore(current.startsAt)) {
+        current = occurrence;
+        currentAssignment = assignment;
+      }
+    }
+
+    if (current != null && currentAssignment != null) {
+      final position = snapshot.positionFor(currentAssignment.id);
       final actualOrdinal = position?.actualOrdinal ?? current.plannedOrdinal;
       final selection = await LessonPlanWorkflowService(
         repository: widget.repository,
       ).selectionForInstructionOrdinal(widget.annualPlan, actualOrdinal);
-      final assignment = _assignment(assignments, current.assignmentId);
-      if (assignment == null) return null;
       return _CurrentLessonCardData(
         state: _ScheduledCardState.current,
-        assignment: assignment,
-        schoolClass: _schoolClass(classes, assignment.classId),
+        assignment: currentAssignment,
+        schoolClass: _schoolClass(classes, currentAssignment.classId),
         occurrence: current,
         selection: selection,
         actualOrdinal: actualOrdinal,
@@ -91,11 +99,19 @@ class _CurrentScheduledLessonCardState extends State<CurrentScheduledLessonCard>
       );
     }
 
-    final next = snapshot.nextOccurrence;
-    if (next == null) return null;
-    final assignment = _assignment(assignments, next.assignmentId);
-    if (assignment == null) return null;
-    final position = snapshot.positionFor(next.assignmentId);
+    ScheduledLessonOccurrence? next;
+    TeachingAssignment? nextAssignment;
+    for (final assignment in assignments) {
+      final occurrence = snapshot.positionFor(assignment.id)?.nextOccurrence;
+      if (occurrence == null) continue;
+      if (next == null || occurrence.startsAt.isBefore(next.startsAt)) {
+        next = occurrence;
+        nextAssignment = assignment;
+      }
+    }
+    if (next == null || nextAssignment == null) return null;
+
+    final position = snapshot.positionFor(nextAssignment.id);
     final actualOrdinal = position == null
         ? next.plannedOrdinal
         : (position.actualOrdinal +
@@ -106,8 +122,8 @@ class _CurrentScheduledLessonCardState extends State<CurrentScheduledLessonCard>
     ).selectionForInstructionOrdinal(widget.annualPlan, safeActualOrdinal);
     return _CurrentLessonCardData(
       state: _ScheduledCardState.next,
-      assignment: assignment,
-      schoolClass: _schoolClass(classes, assignment.classId),
+      assignment: nextAssignment,
+      schoolClass: _schoolClass(classes, nextAssignment.classId),
       occurrence: next,
       selection: selection,
       actualOrdinal: safeActualOrdinal,
@@ -269,16 +285,6 @@ class _CurrentLessonCardData {
 }
 
 enum _ScheduledCardState { current, next }
-
-TeachingAssignment? _assignment(
-  List<TeachingAssignment> assignments,
-  String id,
-) {
-  for (final assignment in assignments) {
-    if (assignment.id == id) return assignment;
-  }
-  return null;
-}
 
 SchoolClass? _schoolClass(List<SchoolClass> classes, String classId) {
   for (final item in classes) {
