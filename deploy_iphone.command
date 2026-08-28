@@ -89,30 +89,6 @@ fi
 
 echo -e "${GREEN}✅ iPhone bulundu: ${BOLD}${DEVICE_ID}${NC}"
 
-while true; do
-  read -r -p "Çalıştırma modu: [D]ebug (hot reload) / [R]elease (mevcut akış) [R]: " BUILD_MODE
-  BUILD_MODE="${BUILD_MODE:-R}"
-  BUILD_MODE_UPPER=$(printf '%s' "$BUILD_MODE" | tr '[:lower:]' '[:upper:]')
-  case "$BUILD_MODE_UPPER" in
-    D|DEBUG)
-      echo -e "${BLUE}🐛 Debug sürümü başlatılıyor; hot reload için bu pencereyi açık bırakın.${NC}"
-      if flutter run --debug -d "$DEVICE_ID"; then
-        echo -e "${GREEN}✅ Debug oturumu sona erdi.${NC}"
-      else
-        echo -e "${RED}❌ Debug oturumu başlatılamadı.${NC}"
-        exit 1
-      fi
-      exit 0
-      ;;
-    R|RELEASE)
-      break
-      ;;
-    *)
-      echo -e "${YELLOW}Lütfen D (Debug) veya R (Release) girin.${NC}"
-      ;;
-  esac
-done
-
 echo -e "${BLUE}📦 Release sürümü derleniyor ve iPhone'a yükleniyor...${NC}"
 
 if flutter run --release --no-resident -d "$DEVICE_ID"; then
