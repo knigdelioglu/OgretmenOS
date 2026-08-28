@@ -302,6 +302,7 @@ class _SingleLessonContent extends StatelessWidget {
     return AppPage(
       children: [
         _CollapsibleLessonHeader(
+          key: ValueKey('${plan.packageId}:${data.packageHour}'),
           eyebrow: '${data.blockHour}. DERS SAATİ',
           title: title,
           summary: summary,
@@ -389,6 +390,7 @@ class _SingleLessonContent extends StatelessWidget {
         ),
         _SingleLessonStepCard(
           lesson: lesson,
+          package: plan,
           displayHour: data.blockHour,
           presentation: presentation,
         ),
@@ -407,6 +409,7 @@ class _SingleLessonContent extends StatelessWidget {
 
 class _CollapsibleLessonHeader extends StatefulWidget {
   const _CollapsibleLessonHeader({
+    super.key,
     required this.eyebrow,
     required this.title,
     required this.summary,
@@ -597,11 +600,13 @@ class _HourProgressCard extends StatelessWidget {
 class _SingleLessonStepCard extends StatelessWidget {
   const _SingleLessonStepCard({
     required this.lesson,
+    required this.package,
     required this.displayHour,
     required this.presentation,
   });
 
   final LessonPlanLesson lesson;
+  final LessonPlanPackage package;
   final int displayHour;
   final LessonPlanTeacherPresentation presentation;
 
@@ -612,7 +617,11 @@ class _SingleLessonStepCard extends StatelessWidget {
     final studentActions = _presentedLines(lesson.studentActions, presentation);
     final assessment = _presentedLines(lesson.assessment, presentation);
     final closure = _presentedLines(lesson.closure, presentation);
-    final materials = _presentedLines(lesson.materials, presentation);
+    final materials = presentation.materialLabels(
+      lesson.materials,
+      currentPackageNo: package.packageNo,
+      currentLessonNo: lesson.lessonNo,
+    );
     final activities = presentation.activityLabels(lesson.activityIds);
     final forms = presentation.formLabels(lesson.formIds);
 
