@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import '../../app/resource_navigation.dart';
 import '../../data/preferences/continuity_repository.dart';
 import '../../domain/models/outcome_tracking_models.dart';
+import '../../domain/repositories/assignment_lesson_progress_repository.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
+import '../../domain/repositories/instruction_context_repository.dart';
 import '../../domain/repositories/lesson_plan_progress_repository.dart';
+import '../../domain/services/assignment_lesson_timeline_service.dart';
 import '../../domain/services/outcome_planning_service.dart';
 import '../outcomes/outcome_detail_page.dart';
 import '../shared/feature_widgets.dart';
@@ -19,6 +22,10 @@ class ContinuityThisWeekPage extends StatefulWidget {
     required this.courseId,
     this.topTrailing,
     this.lessonPlanProgress,
+    this.instructionContext,
+    this.assignmentLessonProgress,
+    this.assignmentTimeline,
+    this.onConfigureSchedule,
     this.onOpenResources,
   });
 
@@ -26,8 +33,12 @@ class ContinuityThisWeekPage extends StatefulWidget {
   final OutcomePlanningService service;
   final ContinuityRepository continuity;
   final LessonPlanProgressRepository? lessonPlanProgress;
+  final InstructionContextRepository? instructionContext;
+  final AssignmentLessonProgressRepository? assignmentLessonProgress;
+  final AssignmentLessonTimelineService? assignmentTimeline;
   final String courseId;
   final Widget? topTrailing;
+  final VoidCallback? onConfigureSchedule;
   final ResourceNavigationCallback? onOpenResources;
 
   @override
@@ -52,6 +63,9 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
         oldWidget.service != widget.service ||
         oldWidget.continuity != widget.continuity ||
         oldWidget.lessonPlanProgress != widget.lessonPlanProgress ||
+        oldWidget.instructionContext != widget.instructionContext ||
+        oldWidget.assignmentLessonProgress != widget.assignmentLessonProgress ||
+        oldWidget.assignmentTimeline != widget.assignmentTimeline ||
         oldWidget.courseId != widget.courseId) {
       _workspaceRevision++;
       _startLoad();
@@ -181,6 +195,11 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
         repository: widget.repository,
         service: widget.service,
         lessonPlanProgress: widget.lessonPlanProgress,
+        instructionContext: widget.instructionContext,
+        assignmentLessonProgress: widget.assignmentLessonProgress,
+        assignmentTimeline: widget.assignmentTimeline,
+        courseId: widget.courseId,
+        onConfigureSchedule: widget.onConfigureSchedule,
         onOutcomeViewed: _rememberViewed,
         initialPlanFuture: _planFuture,
         topTrailing: widget.topTrailing,
