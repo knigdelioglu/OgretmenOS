@@ -20,18 +20,27 @@ class AppPage extends StatelessWidget {
     required this.children,
     this.onRefresh,
     this.controller,
+    this.topTrailing,
     this.maxWidth = 960,
   });
 
   final List<Widget> children;
   final Future<void> Function()? onRefresh;
   final ScrollController? controller;
+  final Widget? topTrailing;
   final double maxWidth;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final horizontalPadding = constraints.maxWidth >= 840 ? 32.0 : 16.0;
+      final pageChildren = [
+        if (topTrailing != null) ...[
+          Align(alignment: Alignment.centerRight, child: topTrailing!),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+        ...children,
+      ];
       final content = ListView(
         controller: controller,
         physics: onRefresh == null
@@ -43,7 +52,7 @@ class AppPage extends StatelessWidget {
           horizontalPadding,
           AppSpacing.xxl,
         ),
-        children: children,
+        children: pageChildren,
       );
       final scrollable = onRefresh == null
           ? content

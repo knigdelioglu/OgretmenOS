@@ -12,6 +12,7 @@ class ResourceLibraryPage extends StatefulWidget {
     super.key,
     required this.repository,
     required this.awaitingTextbook,
+    this.topTrailing,
     this.continuity,
     this.outcomePlanning,
     this.courseId,
@@ -20,6 +21,7 @@ class ResourceLibraryPage extends StatefulWidget {
 
   final CourseKnowledgeRepository repository;
   final bool awaitingTextbook;
+  final Widget? topTrailing;
   final ContinuityRepository? continuity;
   final OutcomePlanningService? outcomePlanning;
   final String? courseId;
@@ -162,13 +164,8 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
 
       if (widget.awaitingTextbook) {
         return AppPage(
+          topTrailing: _topActions(data, loading),
           children: [
-            _ThemeSelector(
-              themes: data.themes,
-              selectedThemeId: package.theme.id,
-              enabled: !loading,
-              onChanged: _selectTheme,
-            ),
             if (loading) ...[
               const SizedBox(height: AppSpacing.sm),
               const LinearProgressIndicator(),
@@ -216,13 +213,8 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
       );
 
       return AppPage(
+        topTrailing: _topActions(data, loading),
         children: [
-          _ThemeSelector(
-            themes: data.themes,
-            selectedThemeId: package.theme.id,
-            enabled: !loading,
-            onChanged: _selectTheme,
-          ),
           if (loading) ...[
             const SizedBox(height: AppSpacing.sm),
             const LinearProgressIndicator(),
@@ -291,6 +283,25 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
         ],
       );
     },
+  );
+
+  Widget _topActions(_ResourceData data, bool loading) => Wrap(
+    alignment: WrapAlignment.end,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    spacing: AppSpacing.sm,
+    runSpacing: AppSpacing.xs,
+    children: [
+      if (widget.topTrailing != null) widget.topTrailing!,
+      SizedBox(
+        width: 220,
+        child: _ThemeSelector(
+          themes: data.themes,
+          selectedThemeId: data.package!.theme.id,
+          enabled: !loading,
+          onChanged: _selectTheme,
+        ),
+      ),
+    ],
   );
 }
 

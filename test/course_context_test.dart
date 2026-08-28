@@ -68,15 +68,12 @@ void main() {
 
     expect(find.byTooltip('Sınıf seç'), findsOneWidget);
     expect(find.text('9. Sınıf'), findsOneWidget);
-    expect(find.text('Türk Dili ve Edebiyatı'), findsOneWidget);
+    expect(find.text('Türk Dili ve Edebiyatı'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }
 
-Future<void> _tapBottomDestination(
-  WidgetTester tester,
-  IconData icon,
-) async {
+Future<void> _tapBottomDestination(WidgetTester tester, IconData icon) async {
   final bar = find.byType(NavigationBar);
   expect(bar, findsOneWidget);
   final target = find.descendant(of: bar, matching: find.byIcon(icon));
@@ -162,32 +159,32 @@ class _CourseContextRepository implements CourseKnowledgeRepository {
   );
 
   int get grade => switch (courseId) {
-        'TDE_10' => 10,
-        'TDE_11' => 11,
-        'TDE_12' => 12,
-        _ => 9,
-      };
+    'TDE_10' => 10,
+    'TDE_11' => 11,
+    'TDE_12' => 12,
+    _ => 9,
+  };
 
   @override
   Future<model.Course> getCourse() async => model.Course(
-        courseId: courseId,
-        grade: grade,
-        title: 'Türk Dili ve Edebiyatı',
-        schemaVersion: '1.0.0',
-        sourceManifestFingerprint: 'test',
-      );
+    courseId: courseId,
+    grade: grade,
+    title: 'Türk Dili ve Edebiyatı',
+    schemaVersion: '1.0.0',
+    sourceManifestFingerprint: 'test',
+  );
 
   @override
   Future<model.RuntimeManifest> getManifest() async => model.RuntimeManifest(
-        runtimePackageVersion: '1.0.0',
-        schemaVersion: '1.0.0',
-        courseId: courseId,
-        validationStatus: 'PASS',
-        canonicalContentFingerprint: 'test',
-        rowCounts: const {},
-        timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
-        timelineUnresolvedFields: const {},
-      );
+    runtimePackageVersion: '1.0.0',
+    schemaVersion: '1.0.0',
+    courseId: courseId,
+    validationStatus: 'PASS',
+    canonicalContentFingerprint: 'test',
+    rowCounts: const {},
+    timelineResolution: 'THEME_AND_BLOCK_ORDER_RESOLVED',
+    timelineUnresolvedFields: const {},
+  );
 
   @override
   Future<List<model.Theme>> getThemes() async => const [theme];
@@ -203,20 +200,21 @@ class _CourseContextRepository implements CourseKnowledgeRepository {
 
   @override
   Future<List<model.TimelineEntry>> getAnnualSequence() async => const [
-        model.TimelineEntry(
-          sequencePosition: 1,
-          theme: theme,
-          block: block,
-          officialTotalHours: 45,
-          coreInstructionHours: 43,
-          schoolBasedHours: 2,
-          schoolBasedHoursStatus: 'CONFIRMED',
-        ),
-      ];
+    model.TimelineEntry(
+      sequencePosition: 1,
+      theme: theme,
+      block: block,
+      officialTotalHours: 45,
+      coreInstructionHours: 43,
+      schoolBasedHours: 2,
+      schoolBasedHoursStatus: 'CONFIRMED',
+    ),
+  ];
 
   @override
-  Future<List<model.ResourceDecision>> getResourceDecisions(String themeId) async =>
-      const [];
+  Future<List<model.ResourceDecision>> getResourceDecisions(
+    String themeId,
+  ) async => const [];
 
   @override
   Future<model.TeacherPackage> getTeacherPackage(String themeId) async =>
@@ -241,7 +239,8 @@ class _CourseContextWeeklyPlanning implements WeeklyPlanningService {
   final String courseId;
 
   @override
-  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async => AnnualWeeklyPlan(
+  Future<AnnualWeeklyPlan> buildPlan({DateTime? today}) async =>
+      AnnualWeeklyPlan(
         academicYear: '2026-2027',
         courseId: courseId,
         weeklyLessonHours: 5,

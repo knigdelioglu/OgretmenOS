@@ -17,6 +17,7 @@ class AnnualPlanPage extends StatefulWidget {
     required this.preferences,
     required this.continuity,
     required this.courseId,
+    this.topTrailing,
     this.outcomePlanning,
   });
 
@@ -24,6 +25,7 @@ class AnnualPlanPage extends StatefulWidget {
   final UserPreferencesRepository preferences;
   final ContinuityRepository continuity;
   final String courseId;
+  final Widget? topTrailing;
   final OutcomePlanningService? outcomePlanning;
 
   @override
@@ -217,6 +219,7 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
           activeEntry != null && data.manualBlockId == activeEntry.block.id;
 
       return AppPage(
+        topTrailing: widget.topTrailing,
         children: [
           _AnnualSummary(
             themeCount: grouped.length,

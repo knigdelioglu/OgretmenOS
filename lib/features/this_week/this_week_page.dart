@@ -16,12 +16,14 @@ class ThisWeekPage extends StatefulWidget {
     super.key,
     required this.repository,
     required this.service,
+    this.topTrailing,
     this.lessonPlanProgress,
     this.onOutcomeViewed,
   });
 
   final CourseKnowledgeRepository repository;
   final OutcomePlanningService service;
+  final Widget? topTrailing;
   final LessonPlanProgressRepository? lessonPlanProgress;
   final Future<void> Function(TrackedOutcome item)? onOutcomeViewed;
 
@@ -342,6 +344,20 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
       );
 
       return AppPage(
+        topTrailing: Wrap(
+          alignment: WrapAlignment.end,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.xs,
+          children: [
+            if (widget.topTrailing != null) widget.topTrailing!,
+            TextButton.icon(
+              onPressed: () => _chooseWeek(plan, summary.week.weekNumber),
+              icon: const Icon(Icons.calendar_month_outlined),
+              label: const Text('Hafta değiştir'),
+            ),
+          ],
+        ),
         onRefresh: () async {
           _reload();
           await _future;
@@ -352,7 +368,6 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
             academicYear: plan.academicYear,
             focus: focus,
             isCurrentWeek: isCurrentWeek,
-            onChooseWeek: () => _chooseWeek(plan, summary.week.weekNumber),
             onReturnToCurrent: !isCurrentWeek && plan.currentWeekNumber != null
                 ? () => setState(
                     () => _selectedWeekNumber = plan.currentWeekNumber,
@@ -530,7 +545,6 @@ class _FocusCard extends StatelessWidget {
     required this.academicYear,
     required this.focus,
     required this.isCurrentWeek,
-    required this.onChooseWeek,
     required this.onReturnToCurrent,
     required this.onContinue,
     required this.canCarryNext,
@@ -541,7 +555,6 @@ class _FocusCard extends StatelessWidget {
   final String academicYear;
   final TrackedOutcome? focus;
   final bool isCurrentWeek;
-  final VoidCallback onChooseWeek;
   final VoidCallback? onReturnToCurrent;
   final VoidCallback? onContinue;
   final bool canCarryNext;
@@ -577,14 +590,6 @@ class _FocusCard extends StatelessWidget {
                     color: scheme.onPrimaryContainer,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.8,
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: onChooseWeek,
-                  icon: const Icon(Icons.calendar_month_outlined),
-                  label: const Text('Hafta değiştir'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: scheme.onPrimaryContainer,
                   ),
                 ),
               ],

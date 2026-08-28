@@ -16,6 +16,7 @@ class ContinuityThisWeekPage extends StatefulWidget {
     required this.service,
     required this.continuity,
     required this.courseId,
+    this.topTrailing,
     this.lessonPlanProgress,
   });
 
@@ -24,6 +25,7 @@ class ContinuityThisWeekPage extends StatefulWidget {
   final ContinuityRepository continuity;
   final LessonPlanProgressRepository? lessonPlanProgress;
   final String courseId;
+  final Widget? topTrailing;
 
   @override
   State<ContinuityThisWeekPage> createState() => _ContinuityThisWeekPageState();
@@ -163,6 +165,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
         service: widget.service,
         lessonPlanProgress: widget.lessonPlanProgress,
         onOutcomeViewed: _rememberViewed,
+        topTrailing: widget.topTrailing,
       ),
     );
   }

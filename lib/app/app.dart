@@ -218,11 +218,6 @@ class _AppShellState extends State<_AppShell> {
   late final ContinuityRepository _continuity;
   late final LessonPlanProgressRepository _lessonPlanProgress;
 
-  static const _titles = ['Bu Hafta', 'Plan', 'Kaynaklar'];
-
-  bool _headerCollapsed = false;
-  double _lastScrollOffset = 0;
-
   @override
   void initState() {
     super.initState();
@@ -238,41 +233,6 @@ class _AppShellState extends State<_AppShell> {
           weeklyPlanning: widget.dependencies.weeklyPlanning,
           trackingRepository: MemoryOutcomeTrackingRepository(),
         );
-  }
-
-  @override
-  void didUpdateWidget(covariant _AppShell oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.selectedIndex != widget.selectedIndex) {
-      _lastScrollOffset = 0;
-      if (_headerCollapsed) {
-        setState(() => _headerCollapsed = false);
-      }
-    }
-  }
-
-  bool _handleScrollNotification(ScrollNotification notification) {
-    if (notification.metrics.axis != Axis.vertical) return false;
-    final offset = notification.metrics.pixels.clamp(0.0, double.infinity);
-
-    if (offset <= 8) {
-      _lastScrollOffset = offset;
-      if (_headerCollapsed && mounted) {
-        setState(() => _headerCollapsed = false);
-      }
-      return false;
-    }
-
-    if (notification is ScrollUpdateNotification) {
-      final delta = notification.scrollDelta ?? (offset - _lastScrollOffset);
-      if (delta > 3 && !_headerCollapsed && mounted) {
-        setState(() => _headerCollapsed = true);
-      } else if (delta < -6 && _headerCollapsed && mounted) {
-        setState(() => _headerCollapsed = false);
-      }
-    }
-    _lastScrollOffset = offset;
-    return false;
   }
 
   Widget _courseSelector(BuildContext context) {
@@ -336,6 +296,7 @@ class _AppShellState extends State<_AppShell> {
         continuity: _continuity,
         lessonPlanProgress: _lessonPlanProgress,
         courseId: widget.activeCourseId,
+        topTrailing: _courseSelector(context),
       ),
       AnnualPlanPage(
         repository: repository,
@@ -343,6 +304,7 @@ class _AppShellState extends State<_AppShell> {
         continuity: _continuity,
         courseId: widget.activeCourseId,
         outcomePlanning: _outcomePlanning,
+        topTrailing: _courseSelector(context),
       ),
       ResourceLibraryPage(
         repository: repository,
@@ -351,6 +313,7 @@ class _AppShellState extends State<_AppShell> {
         outcomePlanning: _outcomePlanning,
         courseId: widget.activeCourseId,
         active: widget.selectedIndex == 2,
+        topTrailing: _courseSelector(context),
       ),
     ];
 
@@ -361,50 +324,12 @@ class _AppShellState extends State<_AppShell> {
         final compactLabels = textScale >= 1.5;
         final extendedRail =
             useRail && constraints.maxWidth >= 1080 && !compactLabels;
-        final content = NotificationListener<ScrollNotification>(
-          onNotification: _handleScrollNotification,
-          child: IndexedStack(
-            index: widget.selectedIndex,
-            children: pages,
-          ),
+        final content = IndexedStack(
+          index: widget.selectedIndex,
+          children: pages,
         );
 
         return Scaffold(
-          appBar: AppBar(
-            toolbarHeight: _headerCollapsed ? 48 : 64,
-            title: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 170),
-              reverseDuration: const Duration(milliseconds: 120),
-              child: _headerCollapsed
-                  ? const SizedBox.shrink(key: ValueKey('collapsed-header'))
-                  : Column(
-                      key: const ValueKey('expanded-header'),
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _titles[widget.selectedIndex],
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          activeCourse.isAwaitingTextbook
-                              ? '${activeCourse.subjectLabel} · Kitap bekleniyor'
-                              : activeCourse.subjectLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-            actions: [_courseSelector(context)],
-          ),
           body: useRail
               ? Row(
                   children: [
