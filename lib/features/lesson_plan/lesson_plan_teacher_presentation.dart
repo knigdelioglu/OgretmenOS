@@ -87,6 +87,8 @@ class LessonPlanTeacherPresentation {
       }
     }
 
+    value = _humanizePackageRangeReferences(value);
+
     for (final entry in _packageRanges.entries) {
       final number = entry.key.toString().padLeft(2, '0');
       final range = entry.value;
@@ -142,6 +144,60 @@ class LessonPlanTeacherPresentation {
     value = value.replaceAll(RegExp(r'\bACT\b'), 'Etkinlik');
 
     return value;
+  }
+
+  String _humanizePackageRangeReferences(String input) {
+    var value = input;
+
+    final priorWorkProducts = RegExp(
+      r'\bP\d{1,2}\s*[-–—/]\s*P\d{1,2}\s+(?:(öğrenci)\s+)?(çalışma\s+ürünler(?:i|inden|ine|ini|inin|inde))\b',
+      caseSensitive: false,
+    );
+    value = value.replaceAllMapped(priorWorkProducts, (match) {
+      final before = value.substring(0, match.start).trimRight();
+      final atSentenceStart =
+          before.isEmpty || RegExp(r'[.!?]\s*$').hasMatch(before);
+      final prefix = atSentenceStart ? 'Önceki' : 'önceki';
+      final student = match.group(1) == null ? '' : 'öğrenci ';
+      final workProducts = match.group(2) ?? 'çalışma ürünleri';
+      return '$prefix derslerde oluşturulan $student$workProducts';
+    });
+
+    final connectiveRange = RegExp(
+      r'\bP(\d{1,2})\s*[-–—/]\s*P(\d{1,2})(?=\s+(?:boyunca|arasında|ile|ve|öncesinde|sonrasında)\b)',
+      caseSensitive: false,
+    );
+    value = value.replaceAllMapped(connectiveRange, (match) {
+      final range = _resolvedPackageRange(match);
+      return range == null
+          ? 'ilgili ders planları'
+          : teacherLessonHourRange(range.start, range.end);
+    });
+
+    final bareRange = RegExp(
+      r'\bP(\d{1,2})\s*[-–—/]\s*P(\d{1,2})\b',
+      caseSensitive: false,
+    );
+    value = value.replaceAllMapped(bareRange, (match) {
+      final range = _resolvedPackageRange(match);
+      if (range == null) return 'ilgili ders planlarına ait';
+      final label = teacherLessonHourRange(range.start, range.end)
+          .replaceFirst('ders saati', 'ders saatine')
+          .replaceFirst('ders saatleri', 'ders saatlerine');
+      return '$label ait';
+    });
+
+    return value;
+  }
+
+  ({int start, int end})? _resolvedPackageRange(Match match) {
+    final firstPackage = int.tryParse(match.group(1) ?? '');
+    final lastPackage = int.tryParse(match.group(2) ?? '');
+    if (firstPackage == null || lastPackage == null) return null;
+    final first = _packageRanges[firstPackage];
+    final last = _packageRanges[lastPackage];
+    if (first == null || last == null || first.start > last.end) return null;
+    return (start: first.start, end: last.end);
   }
 
   String validationLabel(String value) => switch (value) {
