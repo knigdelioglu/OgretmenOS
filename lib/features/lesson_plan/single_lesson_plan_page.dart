@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../app/resource_navigation.dart';
+import '../../domain/models/assignment_lesson_progress_models.dart';
 import '../../domain/models/course_models.dart' as model;
 import '../../domain/models/lesson_plan_models.dart';
 import '../../domain/models/lesson_plan_progress_models.dart';
+import '../../domain/repositories/assignment_lesson_progress_repository.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../../domain/repositories/lesson_plan_progress_repository.dart';
+import '../../domain/services/assignment_lesson_progress_service.dart';
 import '../shared/feature_widgets.dart';
 import '../shared/interaction_polish.dart';
 import 'lesson_plan_teacher_presentation.dart';
@@ -18,6 +21,8 @@ class SingleLessonPlanPage extends StatefulWidget {
     required this.initialPackageId,
     required this.initialPackageHour,
     this.progressRepository,
+    this.assignmentProgressRepository,
+    this.assignmentId,
     this.academicYear,
     this.onOpenResources,
   });
@@ -26,6 +31,8 @@ class SingleLessonPlanPage extends StatefulWidget {
   final String initialPackageId;
   final int initialPackageHour;
   final LessonPlanProgressRepository? progressRepository;
+  final AssignmentLessonProgressRepository? assignmentProgressRepository;
+  final String? assignmentId;
   final String? academicYear;
   final ResourceNavigationCallback? onOpenResources;
 
@@ -39,10 +46,18 @@ class _SingleLessonPlanPageState extends State<SingleLessonPlanPage> {
   late Future<_SingleLessonViewData> _future;
   LessonPlanProgressResolution? _localProgress;
 
-  bool get _progressEnabled =>
+  bool get _assignmentProgressEnabled =>
+      widget.assignmentProgressRepository != null &&
+      widget.assignmentId != null &&
+      widget.assignmentId!.trim().isNotEmpty;
+
+  bool get _legacyProgressEnabled =>
       widget.progressRepository != null &&
       widget.academicYear != null &&
       widget.academicYear!.trim().isNotEmpty;
+
+  bool get _progressEnabled =>
+      _assignmentProgressEnabled || _legacyProgressEnabled;
 
   @override
   void initState() {
@@ -114,7 +129,22 @@ class _SingleLessonPlanPageState extends State<SingleLessonPlanPage> {
         : _LessonTarget(packageId: nextPackage.packageId, packageHour: 1);
 
     LessonPlanProgressResolution? progress;
-    if (_progressEnabled) {
+    if (_assignmentProgressEnabled) {
+      final service = AssignmentLessonProgressService(
+        repository: widget.assignmentProgressRepository!,
+      );
+      final resolution = await service.resolve(
+        assignmentId: widget.assignmentId!,
+        package: current,
+        packageHour: effectiveHour,
+      );
+      progress = _assignmentResolutionToLegacy(
+        package: current,
+        packageHour: effectiveHour,
+        resolution: resolution,
+        academicYear: widget.academicYear ?? '',
+      );
+    } else if (_legacyProgressEnabled) {
       final record = await widget.progressRepository!.get(
         courseId: current.courseId,
         academicYear: widget.academicYear!,
@@ -151,6 +181,11 @@ class _SingleLessonPlanPageState extends State<SingleLessonPlanPage> {
     int packageHour,
     LessonPlanProgressStatus status,
   ) async {
+    if (_assignmentProgressEnabled) {
+      await _setAssignmentProgress(package, packageHour, status);
+      return;
+    }
+
     final repository = widget.progressRepository;
     final academicYear = widget.academicYear;
     if (repository == null || academicYear == null || academicYear.isEmpty) {
@@ -219,6 +254,90 @@ class _SingleLessonPlanPageState extends State<SingleLessonPlanPage> {
                 _packageHour == packageHour) {
               setState(
                 () => _localProgress = _resolveProgress(package, previous),
+              );
+            }
+            showTeacherFeedback(context, 'Ders durumu geri alındı.');
+          } on Object {
+            if (!mounted) return;
+            showTeacherFeedback(
+              context,
+              'Ders durumu geri alınamadı. Tekrar deneyin.',
+              duration: const Duration(seconds: 4),
+            );
+          }
+        },
+      );
+    } on Object {
+      if (!mounted) return;
+      showTeacherFeedback(
+        context,
+        'Ders durumu kaydedilemedi. Tekrar deneyin.',
+        duration: const Duration(seconds: 4),
+      );
+    }
+  }
+
+  Future<void> _setAssignmentProgress(
+    LessonPlanPackage package,
+    int packageHour,
+    LessonPlanProgressStatus status,
+  ) async {
+    final repository = widget.assignmentProgressRepository!;
+    final assignmentId = widget.assignmentId!;
+    final service = AssignmentLessonProgressService(repository: repository);
+    try {
+      final previous = await repository.get(
+        assignmentId: assignmentId,
+        packageId: package.packageId,
+        packageHour: packageHour,
+      );
+      final saved = await service.setStatus(
+        assignmentId: assignmentId,
+        package: package,
+        packageHour: packageHour,
+        status: status,
+      );
+      final resolution = service.resolveRecord(package: package, record: saved);
+      if (!mounted) return;
+      if (status == LessonPlanProgressStatus.completed) {
+        HapticFeedback.mediumImpact();
+      }
+      setState(
+        () => _localProgress = _assignmentResolutionToLegacy(
+          package: package,
+          packageHour: packageHour,
+          resolution: resolution,
+          academicYear: widget.academicYear ?? '',
+        ),
+      );
+      showTeacherUndoFeedback(
+        context,
+        '${status.teacherLabel} olarak kaydedildi.',
+        onUndo: () async {
+          try {
+            if (previous == null) {
+              await repository.delete(
+                assignmentId: assignmentId,
+                packageId: package.packageId,
+                packageHour: packageHour,
+              );
+            } else {
+              await repository.save(previous);
+            }
+            if (!mounted) return;
+            if (_packageId == package.packageId &&
+                _packageHour == packageHour) {
+              final restored = service.resolveRecord(
+                package: package,
+                record: previous,
+              );
+              setState(
+                () => _localProgress = _assignmentResolutionToLegacy(
+                  package: package,
+                  packageHour: packageHour,
+                  resolution: restored,
+                  academicYear: widget.academicYear ?? '',
+                ),
               );
             }
             showTeacherFeedback(context, 'Ders durumu geri alındı.');
@@ -946,6 +1065,29 @@ LessonPlanProgressResolution _resolveProgress(
   return LessonPlanProgressResolution(
     record: record,
     bindingState: LessonPlanProgressBindingState.current,
+  );
+}
+
+LessonPlanProgressResolution _assignmentResolutionToLegacy({
+  required LessonPlanPackage package,
+  required int packageHour,
+  required AssignmentLessonProgressResolution resolution,
+  required String academicYear,
+}) {
+  final source = resolution.record;
+  if (source == null) return const LessonPlanProgressResolution.none();
+  return LessonPlanProgressResolution(
+    record: LessonPlanProgressRecord(
+      courseId: package.courseId,
+      academicYear: academicYear,
+      packageId: _hourProgressId(package.packageId, packageHour),
+      payloadSha256: source.payloadSha256,
+      status: source.status,
+      startedAt: source.startedAt,
+      completedAt: source.completedAt,
+      updatedAt: source.updatedAt,
+    ),
+    bindingState: resolution.bindingState,
   );
 }
 
