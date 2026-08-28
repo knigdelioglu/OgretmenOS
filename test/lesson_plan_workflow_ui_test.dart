@@ -80,7 +80,69 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ders Planı'), findsOneWidget);
-    expect(find.text('Metin çözümleme'), findsWidgets);
+    expect(find.text('6. DERS SAATİ'), findsOneWidget);
+    expect(find.textContaining('DERS SAATLERİ'), findsNothing);
+    expect(find.textContaining('2 DERS SAATİ'), findsNothing);
+    expect(find.text('Metin çözümleme · 2. ders'), findsOneWidget);
+    expect(find.text('Metin kanıtlarını karşılaştırır.'), findsNothing);
+
+    await tester.tap(find.text('Metin çözümleme · 2. ders'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Metin kanıtlarını karşılaştırır.'), findsOneWidget);
+  });
+
+  testWidgets('tekil ders durumu komşu saati otomatik tamamlamaz', (
+    tester,
+  ) async {
+    final packages = [
+      _package('BLOCK_A_P01', 1, title: 'Başlangıç'),
+      _package('BLOCK_A_P02', 2, title: 'Yakın okuma'),
+      _package('BLOCK_A_P03', 3, title: 'Metin çözümleme'),
+      _package('BLOCK_A_P04', 4, title: 'Değerlendirme'),
+      _package('BLOCK_A_P05', 5, title: 'Pekiştirme'),
+    ];
+    final progress = MemoryLessonPlanProgressRepository();
+    final repository = _FakeRepository(packages);
+    final plan = _fiveHourAnnualPlan(theme: theme, block: block);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: WeeklyLessonPlanPanel(
+              repository: repository,
+              annualPlan: plan,
+              weekNumber: 2,
+              progressRepository: progress,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('6. ders saati'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ChoiceChip, 'İşlendi'));
+    await tester.pumpAndSettle();
+
+    expect(
+      (await progress.get(
+        courseId: 'TDE_9',
+        academicYear: '2026-2027',
+        packageId: 'BLOCK_A_P03::lesson-hour:2',
+      ))?.status,
+      LessonPlanProgressStatus.completed,
+    );
+    expect(
+      await progress.get(
+        courseId: 'TDE_9',
+        academicYear: '2026-2027',
+        packageId: 'BLOCK_A_P03::lesson-hour:1',
+      ),
+      isNull,
+    );
   });
 
   testWidgets('ders planı ekranı önceki ve sonraki plana ilerler', (
@@ -120,7 +182,7 @@ void main() {
     expect(find.textContaining('3–4. DERS SAATLERİ'), findsWidgets);
   });
 
-  testWidgets('haftalık panel stale completed kaydı tamamlanmış saymaz', (
+  testWidgets('haftalık panel stale tekil ders kaydını tamamlanmış saymaz', (
     tester,
   ) async {
     final packages = [
@@ -135,7 +197,7 @@ void main() {
       LessonPlanProgressRecord(
         courseId: 'TDE_9',
         academicYear: '2026-2027',
-        packageId: packages[2].packageId,
+        packageId: '${packages[2].packageId}::lesson-hour:2',
         payloadSha256: 'sha256-old-p03',
         status: LessonPlanProgressStatus.completed,
         startedAt: timestamp,
@@ -147,7 +209,7 @@ void main() {
       LessonPlanProgressRecord(
         courseId: 'TDE_9',
         academicYear: '2026-2027',
-        packageId: packages[3].packageId,
+        packageId: '${packages[3].packageId}::lesson-hour:1',
         payloadSha256: packages[3].payloadSha256,
         status: LessonPlanProgressStatus.completed,
         startedAt: timestamp,
@@ -173,11 +235,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('1 ders planı güncellendi; durumu yeniden işaretlenmeli.'),
+      find.text('1 ders güncellendi; durumu yeniden işaretlenmeli.'),
       findsOneWidget,
     );
-    expect(find.text('Plan güncellendi · yeniden işaretle'), findsNWidgets(2));
-    expect(find.text('Bu haftanın ders planı işlendi.'), findsNothing);
+    expect(find.text('Plan güncellendi · yeniden işaretle'), findsOneWidget);
+    expect(find.text('Bu haftanın dersleri işlendi.'), findsNothing);
   });
 }
 
