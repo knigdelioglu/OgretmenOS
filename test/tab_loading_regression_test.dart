@@ -44,6 +44,7 @@ void main() {
               continuity: MemoryContinuityRepository(),
               courseId: repository.courseId,
               outcomePlanning: service,
+              weeklyPlanning: _FixedWeeklyPlanning(plan.weeklyPlan),
             ),
           ),
         ),
@@ -54,7 +55,7 @@ void main() {
       await tester.pump();
 
       // Completer unresolved iken ana yıllık plan içeriği görünür
-      expect(find.text('1 tema · 45 saat · 1 blok'), findsOneWidget);
+      expect(find.text('Sınıf defterine yazılacaklar'), findsOneWidget);
       expect(find.text('TDE_9 Tema'), findsOneWidget);
       expect(find.text('Yıllık plan hazırlanıyor…'), findsNothing);
       // Tracking summary henüz yüklenmediği için görünmemeli
@@ -66,7 +67,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Artık tracking summary de görünür
-      expect(find.text('1 tema · 45 saat · 1 blok'), findsOneWidget);
+      expect(find.text('Sınıf defterine yazılacaklar'), findsOneWidget);
       expect(find.text('İSTEĞE BAĞLI TAKİP'), findsOneWidget);
       expect(find.text('İşlendi 1'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -78,9 +79,10 @@ void main() {
   ) async {
     _phone(tester);
     final repository = _TabRepository('TDE_9');
+    final plan = _planFor(repository);
     final service = _CountingOutcomePlanningService(
       repository: repository,
-      plan: _planFor(repository),
+      plan: plan,
       failure: StateError('tracking intentionally failed'),
     );
 
@@ -93,13 +95,14 @@ void main() {
             continuity: MemoryContinuityRepository(),
             courseId: repository.courseId,
             outcomePlanning: service,
+            weeklyPlanning: _FixedWeeklyPlanning(plan.weeklyPlan),
           ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('1 tema · 45 saat · 1 blok'), findsOneWidget);
+    expect(find.text('Sınıf defterine yazılacaklar'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

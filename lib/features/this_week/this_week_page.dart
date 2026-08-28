@@ -11,6 +11,7 @@ import '../lesson_plan/lesson_plan_panels.dart';
 import '../outcomes/outcome_detail_page.dart';
 import '../shared/feature_widgets.dart';
 import '../shared/interaction_polish.dart';
+import '../shared/process_component_summary.dart';
 
 class ThisWeekPage extends StatefulWidget {
   const ThisWeekPage({
@@ -379,7 +380,6 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
         children: [
           _FocusCard(
             summary: summary,
-            academicYear: plan.academicYear,
             focus: focus,
             isCurrentWeek: isCurrentWeek,
             onReturnToCurrent: !isCurrentWeek && plan.currentWeekNumber != null
@@ -557,7 +557,6 @@ class _WeekPickerSheet extends StatelessWidget {
 class _FocusCard extends StatelessWidget {
   const _FocusCard({
     required this.summary,
-    required this.academicYear,
     required this.focus,
     required this.isCurrentWeek,
     required this.onReturnToCurrent,
@@ -567,7 +566,6 @@ class _FocusCard extends StatelessWidget {
   });
 
   final WeeklyOutcomeSummary summary;
-  final String academicYear;
   final TrackedOutcome? focus;
   final bool isCurrentWeek;
   final VoidCallback? onReturnToCurrent;
@@ -589,7 +587,7 @@ class _FocusCard extends StatelessWidget {
     return Card(
       color: scheme.primaryContainer,
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -601,45 +599,61 @@ class _FocusCard extends StatelessWidget {
               children: [
                 Text(
                   isCurrentWeek ? 'ŞİMDİ' : 'İNCELEDİĞİN HAFTA',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: scheme.onPrimaryContainer,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.8,
                   ),
                 ),
+                if (onContinue != null)
+                  FilledButton.icon(
+                    onPressed: onContinue,
+                    icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                    label: const Text('Ders ayrıntısını aç'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.sm,
+                      ),
+                      textStyle: Theme.of(context).textTheme.labelLarge
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                if (onReturnToCurrent != null)
+                  OutlinedButton.icon(
+                    onPressed: onReturnToCurrent,
+                    icon: const Icon(Icons.today, size: 18),
+                    label: const Text('Bu haftaya dön'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: scheme.onPrimaryContainer,
+                      side: BorderSide(color: scheme.onPrimaryContainer),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.sm,
+                      ),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
               week.isEventWeek ? week.label : '${week.weekNumber}. Hafta',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 color: scheme.onPrimaryContainer,
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '$academicYear · ${_dateRange(week.start, week.end)} · ${week.plannedLessonHours} ders saati',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: scheme.onPrimaryContainer,
-              ),
+              _dateRange(week.start, week.end),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onPrimaryContainer),
             ),
-            if (onReturnToCurrent != null) ...[
-              const SizedBox(height: AppSpacing.sm),
-              OutlinedButton.icon(
-                onPressed: onReturnToCurrent,
-                icon: const Icon(Icons.today),
-                label: const Text('Bu haftaya dön'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: scheme.onPrimaryContainer,
-                  side: BorderSide(color: scheme.onPrimaryContainer),
-                ),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             Text(
               blockTitle,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: scheme.onPrimaryContainer,
                 fontWeight: FontWeight.w800,
               ),
@@ -648,7 +662,7 @@ class _FocusCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 themeTitle,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: scheme.onPrimaryContainer,
                 ),
               ),
@@ -662,7 +676,7 @@ class _FocusCard extends StatelessWidget {
                 children: [
                   Text(
                     focus!.outcome.code,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: scheme.onPrimaryContainer,
                       fontWeight: FontWeight.w800,
                     ),
@@ -674,10 +688,14 @@ class _FocusCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.sm),
               Text(
                 focus!.outcome.officialText,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: scheme.onPrimaryContainer,
-                  height: 1.45,
+                  height: 1.35,
                 ),
+              ),
+              ProcessComponentSummary(
+                outcome: focus!.outcome,
+                color: scheme.onPrimaryContainer,
               ),
               if (focus!.teacherNote?.isNotEmpty == true) ...[
                 const SizedBox(height: AppSpacing.md),
@@ -701,17 +719,12 @@ class _FocusCard extends StatelessWidget {
                   ],
                 ),
               ],
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               Wrap(
                 spacing: AppSpacing.sm,
                 runSpacing: AppSpacing.sm,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  FilledButton.icon(
-                    onPressed: onContinue,
-                    icon: const Icon(Icons.open_in_new_rounded),
-                    label: const Text('Ders ayrıntısını aç'),
-                  ),
                   if (onAction != null)
                     _OutcomeActionMenu(
                       item: focus!,
@@ -890,7 +903,13 @@ class _OutcomeRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
-                  Text(item.outcome.officialText),
+                  Text(
+                    item.outcome.officialText,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(height: 1.35),
+                  ),
+                  ProcessComponentSummary(outcome: item.outcome),
                   if (_hasVisibleTrackingStatus(item)) ...[
                     const SizedBox(height: AppSpacing.sm),
                     Text(

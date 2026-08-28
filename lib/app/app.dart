@@ -317,6 +317,7 @@ class _AppShellState extends State<_AppShell> {
       continuity: _continuity,
       courseId: widget.activeCourseId,
       outcomePlanning: _outcomePlanning,
+      weeklyPlanning: widget.dependencies.weeklyPlanning,
       topTrailing: _courseSelector(context),
       onOpenResources: widget.onOpenResources,
     );

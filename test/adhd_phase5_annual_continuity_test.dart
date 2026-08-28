@@ -52,7 +52,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('İkinci Blok'), findsOneWidget);
-      expect(find.text('Öğretim sırası: 2 / 2. blok'), findsOneWidget);
       expect(
         await preferences.getManualPositionOverrideForCourse('TDE_9'),
         isNull,
@@ -133,7 +132,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('1 tema · 45 saat · 2 blok'), findsOneWidget);
     expect(find.text('Test Tema'), findsOneWidget);
     expect(find.text('ŞU AN BURADASIN'), findsNothing);
     expect(tester.takeException(), isNull);

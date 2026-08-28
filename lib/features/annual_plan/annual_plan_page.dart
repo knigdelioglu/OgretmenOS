@@ -7,12 +7,14 @@ import '../../data/preferences/continuity_repository.dart';
 import '../../data/preferences/user_preferences_repository.dart';
 import '../../domain/models/course_models.dart' as model;
 import '../../domain/models/outcome_tracking_models.dart';
+import '../../domain/models/weekly_plan_models.dart';
 import '../../domain/performance_instrumentation.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../../domain/services/outcome_planning_service.dart';
 import '../block/block_detail_page.dart';
 import '../shared/feature_widgets.dart';
 import '../shared/interaction_polish.dart';
+import '../shared/process_component_summary.dart';
 
 class AnnualPlanPage extends StatefulWidget {
   const AnnualPlanPage({
@@ -23,6 +25,7 @@ class AnnualPlanPage extends StatefulWidget {
     required this.courseId,
     this.topTrailing,
     this.outcomePlanning,
+    this.weeklyPlanning,
     this.onOpenResources,
   });
 
@@ -32,6 +35,7 @@ class AnnualPlanPage extends StatefulWidget {
   final String courseId;
   final Widget? topTrailing;
   final OutcomePlanningService? outcomePlanning;
+  final WeeklyPlanningService? weeklyPlanning;
   final ResourceNavigationCallback? onOpenResources;
 
   @override
@@ -40,6 +44,7 @@ class AnnualPlanPage extends StatefulWidget {
 
 class _AnnualPlanPageState extends State<AnnualPlanPage> {
   late Future<_PlanData> _future;
+  late Future<AnnualWeeklyPlan?> _weeklyPlanFuture;
   _PlanData? _planData;
   _OptionalTrackingSummary? _trackingSummary;
   int _loadRevision = 0;
@@ -56,6 +61,7 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
     _subscribeToTrackingChanges();
     _subscribeToContinuityChanges();
     _future = _mainLoad();
+    _weeklyPlanFuture = _loadWeeklyPlan();
     unawaited(_refreshTrackingSummary(_loadRevision));
   }
 
@@ -74,7 +80,8 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
         oldWidget.preferences != widget.preferences ||
         oldWidget.continuity != widget.continuity ||
         oldWidget.courseId != widget.courseId ||
-        oldWidget.outcomePlanning != widget.outcomePlanning) {
+        oldWidget.outcomePlanning != widget.outcomePlanning ||
+        oldWidget.weeklyPlanning != widget.weeklyPlanning) {
       _beginLoad();
     }
   }
@@ -91,7 +98,19 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
     _planData = null;
     _trackingSummary = null;
     _future = _mainLoad();
+    _weeklyPlanFuture = _loadWeeklyPlan();
     unawaited(_refreshTrackingSummary(_loadRevision));
+  }
+
+  Future<AnnualWeeklyPlan?> _loadWeeklyPlan() {
+    final weeklyPlanning =
+        widget.weeklyPlanning ?? widget.outcomePlanning?.weeklyPlanning;
+    if (weeklyPlanning == null) return Future.value(null);
+    return weeklyPlanning.buildPlan();
+  }
+
+  void _reloadWeeklyPlan() {
+    setState(() => _weeklyPlanFuture = _loadWeeklyPlan());
   }
 
   Future<void> _refreshTrackingSummary(int revision) async {
@@ -366,28 +385,27 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
     for (final entry in data.sequence) {
       grouped.putIfAbsent(entry.theme.id, () => []).add(entry);
     }
-    final annualHours = grouped.values
-        .map((entries) => entries.first.officialTotalHours ?? 0)
-        .fold<int>(0, (a, b) => a + b);
     final activeBlockId = data.manualBlockId ?? data.automaticBlockId;
     final activeEntry = activeBlockId == null
         ? null
         : data.sequence.firstWhere((entry) => entry.block.id == activeBlockId);
-    final isManualPosition =
-        activeEntry != null && data.manualBlockId == activeEntry.block.id;
-
     return AppPage(
       topTrailing: widget.topTrailing,
       children: [
-        _AnnualSummary(
-          themeCount: grouped.length,
-          blockCount: data.sequence.length,
-          annualHours: annualHours,
+        _WeeklyJournalSlot(
+          weeklyPlanFuture: _weeklyPlanFuture,
           activeEntry: activeEntry,
-          isManualPosition: isManualPosition,
-          trackingSummary: _trackingSummary,
-          onClear: _clearPosition,
+          onRetry: _reloadWeeklyPlan,
         ),
+        if (_trackingSummary != null) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: _OptionalTrackingPanel(summary: _trackingSummary!),
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         for (var i = 0; i < grouped.values.length; i++) ...[
           _ThemePlanCard(
@@ -401,6 +419,7 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
                       .elementAt(i)
                       .any((entry) => entry.block.id == activeBlockId),
             onSelect: _setPosition,
+            onClear: _clearPosition,
             onOpen: (blockId) => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => BlockDetailPage(
@@ -431,94 +450,265 @@ class _PlanData {
   final String? automaticBlockId;
 }
 
-class _AnnualSummary extends StatelessWidget {
-  const _AnnualSummary({
-    required this.themeCount,
-    required this.blockCount,
-    required this.annualHours,
+class _WeeklyJournalSlot extends StatelessWidget {
+  const _WeeklyJournalSlot({
+    required this.weeklyPlanFuture,
     required this.activeEntry,
-    required this.isManualPosition,
-    required this.trackingSummary,
-    required this.onClear,
+    required this.onRetry,
   });
 
-  final int themeCount;
-  final int blockCount;
-  final int annualHours;
+  final Future<AnnualWeeklyPlan?> weeklyPlanFuture;
   final model.TimelineEntry? activeEntry;
-  final bool isManualPosition;
-  final _OptionalTrackingSummary? trackingSummary;
-  final VoidCallback onClear;
+  final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '$themeCount tema · $annualHours saat · $blockCount blok',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Bloklara ayrı resmî süre verilmediğinde bu görünüm öğretim sırasını gösterir; süre uyarısı her blokta tekrar edilmez.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          if (activeEntry != null) ...[
-            const SizedBox(height: AppSpacing.md),
+  Widget build(BuildContext context) => FutureBuilder<AnnualWeeklyPlan?>(
+    future: weeklyPlanFuture,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState != ConnectionState.done &&
+          !snapshot.hasData) {
+        return const _WeeklyJournalLoadingCard();
+      }
+      if (snapshot.hasError) {
+        return _WeeklyJournalErrorCard(onRetry: onRetry);
+      }
+      final weeklyPlan = snapshot.data;
+      if (weeklyPlan == null) return const SizedBox.shrink();
+
+      final week = _resolveJournalWeek(weeklyPlan, activeEntry);
+      if (week == null) return const _WeeklyJournalEmptyCard();
+      return _WeeklyJournalCard(week: week);
+    },
+  );
+}
+
+class _WeeklyJournalCard extends StatelessWidget {
+  const _WeeklyJournalCard({required this.week});
+
+  final AcademicWeekPlan week;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(
               children: [
-                Icon(
-                  Icons.location_on_outlined,
-                  size: 20,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                Icon(Icons.menu_book_outlined, size: 20, color: scheme.primary),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
-                    'Öğretim sırası: ${activeEntry!.sequencePosition} / $blockCount. blok',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    'Sınıf defterine yazılacaklar',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-                if (isManualPosition)
-                  IconButton(
-                    tooltip: 'Geçici konum işaretini temizle',
-                    onPressed: onClear,
-                    icon: const Icon(Icons.restart_alt),
-                  ),
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Bu konum öğretim sırasıdır; ilerleme veya tamamlanma yüzdesi değildir.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+              week.isEventWeek ? week.label : '${week.weekNumber}. Hafta',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              _journalDateRange(week.start, week.end),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            const Divider(height: AppSpacing.xl),
+            Text(
+              'Öğrenme çıktıları',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            if (week.outcomes.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
+                child: Text(
+                  week.isEventWeek
+                      ? 'Bu hafta sınıf defterine yazılacak yeni bir öğrenme çıktısı yok.'
+                      : 'Bu hafta için doğrulanmış öğrenme çıktısı bulunmuyor.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              )
+            else
+              for (var index = 0; index < week.outcomes.length; index++) ...[
+                if (index > 0) const Divider(height: AppSpacing.xl),
+                _JournalOutcome(outcome: week.outcomes[index]),
+              ],
           ],
-          if (trackingSummary != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            _OptionalTrackingPanel(summary: trackingSummary!),
-          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _JournalOutcome extends StatelessWidget {
+  const _JournalOutcome({required this.outcome});
+
+  final model.Outcome outcome;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: AppSpacing.sm),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          outcome.code,
+          style: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          outcome.officialText,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.35),
+        ),
+        ProcessComponentSummary(outcome: outcome),
+      ],
+    ),
+  );
+}
+
+class _WeeklyJournalLoadingCard extends StatelessWidget {
+  const _WeeklyJournalLoadingCard();
+
+  @override
+  Widget build(BuildContext context) => const Card(
+    child: Padding(
+      padding: EdgeInsets.all(AppSpacing.lg),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: AppSpacing.sm),
+          Expanded(child: Text('Sınıf defteri özeti hazırlanıyor…')),
         ],
       ),
     ),
   );
 }
+
+class _WeeklyJournalErrorCard extends StatelessWidget {
+  const _WeeklyJournalErrorCard({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sınıf defteri özeti yüklenemedi',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Yıllık öğretim sırasını kullanmaya devam edebilirsiniz.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                OutlinedButton(
+                  onPressed: onRetry,
+                  child: const Text('Tekrar dene'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _WeeklyJournalEmptyCard extends StatelessWidget {
+  const _WeeklyJournalEmptyCard();
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.menu_book_outlined),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'Bu tarih için tanımlı bir öğretim haftası bulunmuyor.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+AcademicWeekPlan? _resolveJournalWeek(
+  AnnualWeeklyPlan plan,
+  model.TimelineEntry? activeEntry,
+) {
+  if (activeEntry != null) {
+    for (final week in plan.weeks) {
+      if (week.segments.any(
+        (segment) => segment.block?.id == activeEntry.block.id,
+      )) {
+        return week;
+      }
+    }
+  }
+  return plan.currentWeek;
+}
+
+String _journalDateRange(DateTime start, DateTime end) =>
+    '${start.day} ${_journalMonth(start.month)} - ${end.day} ${_journalMonth(end.month)} ${end.year}';
+
+String _journalMonth(int month) => switch (month) {
+  1 => 'Ocak',
+  2 => 'Şubat',
+  3 => 'Mart',
+  4 => 'Nisan',
+  5 => 'Mayıs',
+  6 => 'Haziran',
+  7 => 'Temmuz',
+  8 => 'Ağustos',
+  9 => 'Eylül',
+  10 => 'Ekim',
+  11 => 'Kasım',
+  12 => 'Aralık',
+  _ => '',
+};
 
 class _OptionalTrackingSummary {
   const _OptionalTrackingSummary({
@@ -627,6 +817,7 @@ class _ThemePlanCard extends StatelessWidget {
     required this.manualBlockId,
     required this.initiallyExpanded,
     required this.onSelect,
+    required this.onClear,
     required this.onOpen,
   });
 
@@ -636,6 +827,7 @@ class _ThemePlanCard extends StatelessWidget {
   final String? manualBlockId;
   final bool initiallyExpanded;
   final Future<void> Function(String blockId) onSelect;
+  final VoidCallback onClear;
   final ValueChanged<String> onOpen;
 
   @override
@@ -690,12 +882,14 @@ class _ThemePlanCard extends StatelessWidget {
               ),
               trailing: IconButton(
                 tooltip: entries[i].block.id == manualBlockId
-                    ? 'Geçici konum işareti'
+                    ? 'Geçici konum işaretini temizle'
                     : 'Burayı geçici olarak işaretle',
-                onPressed: () => onSelect(entries[i].block.id),
+                onPressed: entries[i].block.id == manualBlockId
+                    ? onClear
+                    : () => onSelect(entries[i].block.id),
                 icon: Icon(
                   entries[i].block.id == manualBlockId
-                      ? Icons.bookmark_added
+                      ? Icons.restart_alt
                       : Icons.bookmark_add_outlined,
                 ),
               ),

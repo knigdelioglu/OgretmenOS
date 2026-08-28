@@ -21,6 +21,10 @@ void main() {
     expect(find.text('ŞİMDİ'), findsOneWidget);
     expect(find.text('Sıradaki'), findsNothing);
     expect(find.text('Ders ayrıntısını aç'), findsOneWidget);
+    expect(find.text('2026-2027'), findsNothing);
+    expect(find.text('5 ders saati'), findsNothing);
+    expect(find.text('Süreç bileşenleri'), findsOneWidget);
+    expect(find.text('TEST SÜREÇ BİLEŞENİ'), findsOneWidget);
     expect(find.text('Hafta değiştir'), findsOneWidget);
     expect(find.text('1. Hafta'), findsOneWidget);
     expect(find.text('TEST.1'), findsOneWidget);
@@ -30,6 +34,10 @@ void main() {
     expect(find.textContaining('Takip:'), findsNothing);
     expect(find.widgetWithText(FilledButton, 'Başla'), findsNothing);
     expect(find.widgetWithText(FilledButton, 'İşlendi'), findsNothing);
+    expect(
+      tester.getTopLeft(find.text('Ders ayrıntısını aç')).dy,
+      lessThan(tester.getTopLeft(find.text('TEST.1')).dy),
+    );
     expect(await tracking.getForAcademicYear('2026-2027'), isEmpty);
 
     await tester.tap(find.byTooltip('Kazanım işlemleri'));
@@ -262,7 +270,11 @@ void main() {
     await _tapNavigation(tester, Icons.view_timeline_outlined);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('1 tema · 45 saat · 1 blok'), findsOneWidget);
+    expect(find.text('Sınıf defterine yazılacaklar'), findsOneWidget);
+    expect(find.textContaining('1 tema · 45 saat · 1 blok'), findsNothing);
+    expect(find.text('Öğretim sırası: 1 / 1. blok'), findsNothing);
+    expect(find.text('İlk test kazanımı'), findsOneWidget);
+    expect(find.text('TEST SÜREÇ BİLEŞENİ'), findsOneWidget);
     expect(find.text('TEST TEMA'), findsOneWidget);
     expect(find.text('Test Blok'), findsOneWidget);
     expect(find.textContaining('Bu blok için ayrı süre bilgisi'), findsNothing);
@@ -291,14 +303,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('ŞU AN BURADASIN'), findsNothing);
-    expect(find.text('Öğretim sırası: 1 / 1. blok'), findsOneWidget);
     expect(find.text('Mevcut öğretim konumu · Sıra 1 / 1'), findsOneWidget);
-    expect(
-      find.text(
-        'Bu konum öğretim sırasıdır; ilerleme veya tamamlanma yüzdesi değildir.',
-      ),
-      findsOneWidget,
-    );
     expect(find.byType(LinearProgressIndicator), findsNothing);
     expect(find.text('İSTEĞE BAĞLI TAKİP'), findsOneWidget);
     expect(find.text('İşlendi 1'), findsOneWidget);
