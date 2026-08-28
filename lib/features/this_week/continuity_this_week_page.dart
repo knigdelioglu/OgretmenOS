@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/resource_navigation.dart';
 import '../../data/preferences/continuity_repository.dart';
 import '../../domain/models/instruction_context_models.dart';
+import '../../domain/models/instruction_timeline_models.dart';
 import '../../domain/models/outcome_tracking_models.dart';
 import '../../domain/repositories/assignment_lesson_progress_repository.dart';
 import '../../domain/repositories/assignment_outcome_tracking_adapter.dart';
@@ -15,6 +16,7 @@ import '../../domain/services/assignment_lesson_timeline_service.dart';
 import '../../domain/services/outcome_planning_service.dart';
 import '../outcomes/outcome_detail_page.dart';
 import '../shared/feature_widgets.dart';
+import 'current_scheduled_lesson_card.dart';
 import 'this_week_page.dart';
 
 class ContinuityThisWeekPage extends StatefulWidget {
@@ -183,19 +185,19 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
 
   String? _resolveAssignmentId(
     List<TeachingAssignment> assignments,
-    dynamic snapshot,
+    InstructionTimelineSnapshot snapshot,
   ) {
     final selected = _selectedAssignmentId;
     if (selected != null && assignments.any((item) => item.id == selected)) {
       return selected;
     }
 
-    final currentId = snapshot.currentOccurrence?.assignmentId as String?;
+    final currentId = snapshot.currentOccurrence?.assignmentId;
     if (currentId != null && assignments.any((item) => item.id == currentId)) {
       return currentId;
     }
 
-    final nextId = snapshot.nextOccurrence?.assignmentId as String?;
+    final nextId = snapshot.nextOccurrence?.assignmentId;
     if (nextId != null && assignments.any((item) => item.id == nextId)) {
       return nextId;
     }
@@ -404,21 +406,47 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) => FutureBuilder<_ContinuityData>(
-    future: _future,
-    builder: (context, snapshot) {
-      if (!snapshot.hasData) {
-        return const LoadingView(label: 'Bu hafta hazırlanıyor…');
-      }
-      final data = snapshot.data!;
-      if (data.item == null || data.stored == null) {
-        return _workspace(context, data);
-      }
+  bool _hasCurrentLessonCard(_ContinuityData data) =>
+      data.selectedAssignmentId != null &&
+      data.instructionContext != null &&
+      widget.assignmentLessonProgress != null &&
+      widget.assignmentTimeline != null;
 
-      return NestedScrollView(
-        physics: const ClampingScrollPhysics(),
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+  Widget _content(BuildContext context, _ContinuityData data) {
+    final hasCurrentCard = _hasCurrentLessonCard(data);
+    final hasResume = data.item != null && data.stored != null;
+    if (!hasCurrentCard && !hasResume) return _workspace(context, data);
+
+    return NestedScrollView(
+      physics: const ClampingScrollPhysics(),
+      headerSliverBuilder: (context, innerBoxIsScrolled) => [
+        if (hasCurrentCard)
+          SliverToBoxAdapter(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 960),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.md,
+                    AppSpacing.lg,
+                    0,
+                  ),
+                  child: CurrentScheduledLessonCard(
+                    repository: widget.repository,
+                    annualPlan: data.plan,
+                    courseId: widget.courseId,
+                    instructionContext: data.instructionContext!,
+                    timeline: widget.assignmentTimeline!,
+                    progressRepository: widget.assignmentLessonProgress!,
+                    onOpenResources: widget.onOpenResources,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (hasResume)
           SliverToBoxAdapter(
             child: Align(
               alignment: Alignment.topCenter,
@@ -432,9 +460,19 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
               ),
             ),
           ),
-        ],
-        body: _workspace(context, data),
-      );
+      ],
+      body: _workspace(context, data),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<_ContinuityData>(
+    future: _future,
+    builder: (context, snapshot) {
+      if (!snapshot.hasData) {
+        return const LoadingView(label: 'Bu hafta hazırlanıyor…');
+      }
+      return _content(context, snapshot.data!);
     },
   );
 }
