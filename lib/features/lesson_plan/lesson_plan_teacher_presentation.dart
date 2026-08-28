@@ -18,7 +18,7 @@ class LessonPlanTeacherPresentation {
   final Map<int, ({int start, int end})> _packageRanges;
 
   static final RegExp _workProductRange = RegExp(
-    r'\bP(\d{1,2})\s*[-–—/]\s*P(\d{1,2})\s+(?:öğrenci\s+)?çalışma\s+ürünler(i|inden|ine|ini|inin|inde)\b',
+    r'\bP(\d{1,2})\s*[-–—/]\s*P(\d{1,2})\s+(?:öğrenci\s+)?çalışma\s+ürünler(i|inden|ine|ini|inin|inde|iyle)\b',
     caseSensitive: false,
   );
 
@@ -81,6 +81,11 @@ class LessonPlanTeacherPresentation {
   }) {
     final result = <String>[];
 
+    void addLabel(String raw) {
+      final label = humanize(raw).trim();
+      if (label.isNotEmpty && !result.contains(label)) result.add(label);
+    }
+
     void addValue(Object? item) {
       if (item == null) return;
       if (item is Iterable) {
@@ -99,7 +104,7 @@ class LessonPlanTeacherPresentation {
       final raw = item.toString().trim();
       if (raw.isEmpty) return;
       final match = _workProductRange.firstMatch(raw);
-      if (match != null && match.start == 0 && match.end == raw.length) {
+      if (match != null) {
         final first = int.tryParse(match.group(1) ?? '');
         final last = int.tryParse(match.group(2) ?? '');
         if (first != null && last != null) {
@@ -110,16 +115,19 @@ class LessonPlanTeacherPresentation {
             currentLessonNo: currentLessonNo,
           );
           if (evidence.isNotEmpty) {
+            final before = _cleanMaterialFragment(raw.substring(0, match.start));
+            final after = _cleanMaterialFragment(raw.substring(match.end));
+            if (before.isNotEmpty) addLabel(before);
             for (final label in evidence) {
               if (!result.contains(label)) result.add(label);
             }
+            if (after.isNotEmpty) addLabel(after);
             return;
           }
         }
       }
 
-      final label = humanize(raw).trim();
-      if (label.isNotEmpty && !result.contains(label)) result.add(label);
+      addLabel(raw);
     }
 
     addValue(materials);
@@ -217,6 +225,7 @@ class LessonPlanTeacherPresentation {
         'ini' => 'önceki ölçme kanıtlarını',
         'inin' => 'önceki ölçme kanıtlarının',
         'inde' => 'önceki ölçme kanıtlarında',
+        'iyle' => 'önceki ölçme kanıtlarıyla',
         _ => 'önceki ölçme kanıtları',
       };
       final before = input.substring(0, match.start).trimRight();
@@ -342,7 +351,9 @@ class LessonPlanTeacherPresentation {
   String _compactEvidenceLabel(String assessment) {
     var text = assessment.trim();
     if (text.isEmpty) return '';
-    final sentenceEnd = RegExp(r'[.!?](?:\s|$)').firstMatch(text);
+    final sentenceEnd = RegExp(
+      r'[.!?](?:\s+(?=[A-ZÇĞİÖŞÜ“"]|$)|$)',
+    ).firstMatch(text);
     if (sentenceEnd != null) {
       text = text.substring(0, sentenceEnd.start + 1).trim();
     }
@@ -426,6 +437,14 @@ class LessonPlanTeacherPresentation {
     return result;
   }
 }
+
+String _cleanMaterialFragment(String value) => value
+    .trim()
+    .replaceFirst(RegExp(r'^(?:ve|ile)\s+', caseSensitive: false), '')
+    .replaceFirst(RegExp(r'\s+(?:ve|ile)$', caseSensitive: false), '')
+    .replaceFirst(RegExp(r'^[,;·–—-]+\s*'), '')
+    .replaceFirst(RegExp(r'\s*[,;·–—-]+$'), '')
+    .trim();
 
 String _textValue(Object? value) {
   if (value == null) return '';
