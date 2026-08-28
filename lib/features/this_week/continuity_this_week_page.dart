@@ -54,9 +54,12 @@ class ContinuityThisWeekPage extends StatefulWidget {
 }
 
 class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
+  static const _automaticSelectionValue = '__automatic_assignment__';
+
   late Future<_ContinuityData> _future;
   int _workspaceRevision = 0;
   String? _selectedAssignmentId;
+  bool _assignmentSelectionPinned = false;
 
   @override
   void initState() {
@@ -78,6 +81,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
         oldWidget.courseId != widget.courseId) {
       _workspaceRevision++;
       _selectedAssignmentId = null;
+      _assignmentSelectionPinned = false;
       _future = _load();
     }
   }
@@ -188,7 +192,9 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
     InstructionTimelineSnapshot snapshot,
   ) {
     final selected = _selectedAssignmentId;
-    if (selected != null && assignments.any((item) => item.id == selected)) {
+    if (_assignmentSelectionPinned &&
+        selected != null &&
+        assignments.any((item) => item.id == selected)) {
       return selected;
     }
 
@@ -260,10 +266,20 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
     });
   }
 
-  void _selectAssignment(String assignmentId) {
-    if (_selectedAssignmentId == assignmentId) return;
+  void _handleAssignmentSelection(String value) {
+    if (value == _automaticSelectionValue) {
+      setState(() {
+        _assignmentSelectionPinned = false;
+        _selectedAssignmentId = null;
+        _workspaceRevision += 1;
+        _future = _load();
+      });
+      return;
+    }
+    if (_assignmentSelectionPinned && _selectedAssignmentId == value) return;
     setState(() {
-      _selectedAssignmentId = assignmentId;
+      _assignmentSelectionPinned = true;
+      _selectedAssignmentId = value;
       _workspaceRevision += 1;
       _future = _load();
     });
@@ -324,15 +340,29 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
     }
     return PopupMenuButton<String>(
       tooltip: 'Sınıf/şube seç',
-      initialValue: selected,
-      onSelected: _selectAssignment,
+      onSelected: _handleAssignmentSelection,
       itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: _automaticSelectionValue,
+          child: Row(
+            children: [
+              if (!_assignmentSelectionPinned)
+                const Icon(Icons.check, size: 18)
+              else
+                const SizedBox(width: 18),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Ders programına göre otomatik')),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
         for (final choice in data.choices)
           PopupMenuItem<String>(
             value: choice.assignmentId,
             child: Row(
               children: [
-                if (choice.assignmentId == selected)
+                if (_assignmentSelectionPinned &&
+                    choice.assignmentId == selected)
                   const Icon(Icons.check, size: 18)
                 else
                   const SizedBox(width: 18),
@@ -343,7 +373,12 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
           ),
       ],
       child: Chip(
-        avatar: const Icon(Icons.class_outlined, size: 18),
+        avatar: Icon(
+          _assignmentSelectionPinned
+              ? Icons.class_outlined
+              : Icons.auto_mode_rounded,
+          size: 18,
+        ),
         label: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
