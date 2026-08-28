@@ -759,7 +759,6 @@ class _CountingOutcomePlanningService extends OutcomePlanningService {
     required super.repository,
     required this.plan,
     this.completer,
-    this.delay,
     this.failure,
   }) : super(
          weeklyPlanning: _ThrowingWeeklyPlanning(),
@@ -768,7 +767,6 @@ class _CountingOutcomePlanningService extends OutcomePlanningService {
 
   final AnnualOutcomePlan plan;
   final Completer<AnnualOutcomePlan>? completer;
-  final Duration? delay;
   final Object? failure;
   int buildPlanCalls = 0;
 
@@ -782,10 +780,6 @@ class _CountingOutcomePlanningService extends OutcomePlanningService {
     final completer = this.completer;
     if (completer != null) {
       return completer.future;
-    }
-    final delay = this.delay;
-    if (delay != null) {
-      return Future<AnnualOutcomePlan>.delayed(delay, () => plan);
     }
     return Future.value(plan);
   }
