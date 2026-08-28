@@ -6,10 +6,15 @@ import '../data/course/course_knowledge_repository_impl.dart';
 import '../data/course/lesson_plan_database_data_source.dart';
 import '../data/preferences/continuity_repository.dart';
 import '../data/preferences/user_preferences_repository.dart';
+import '../data/tracking/assignment_lesson_progress_repository_impl.dart';
+import '../data/tracking/instruction_context_repository_impl.dart';
 import '../data/tracking/outcome_tracking_database.dart';
 import '../domain/models/weekly_plan_models.dart';
+import '../domain/repositories/assignment_lesson_progress_repository.dart';
 import '../domain/repositories/course_knowledge_repository.dart';
+import '../domain/repositories/instruction_context_repository.dart';
 import '../domain/repositories/lesson_plan_progress_repository.dart';
+import '../domain/services/assignment_lesson_timeline_service.dart';
 import '../domain/services/outcome_planning_service.dart';
 
 class AppDependencies {
@@ -20,6 +25,9 @@ class AppDependencies {
     this.outcomePlanning,
     this.continuity,
     this.lessonPlanProgress,
+    this.instructionContext,
+    this.assignmentLessonProgress,
+    this.assignmentTimeline,
     this.dispose,
   });
 
@@ -29,6 +37,9 @@ class AppDependencies {
   final OutcomePlanningService? outcomePlanning;
   final ContinuityRepository? continuity;
   final LessonPlanProgressRepository? lessonPlanProgress;
+  final InstructionContextRepository? instructionContext;
+  final AssignmentLessonProgressRepository? assignmentLessonProgress;
+  final AssignmentLessonTimelineService? assignmentTimeline;
   final Future<void> Function()? dispose;
 }
 
@@ -55,6 +66,15 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
     final lessonPlanProgress = SqfliteLessonPlanProgressRepository(
       trackingDatabase.database,
     );
+    final instructionContext = SqfliteInstructionContextRepository(
+      trackingDatabase.database,
+    );
+    final assignmentLessonProgress =
+        SqfliteAssignmentLessonProgressRepository(trackingDatabase.database);
+    final assignmentTimeline = AssignmentLessonTimelineService(
+      instructionContext: instructionContext,
+      weeklyPlanning: weeklyPlanning,
+    );
     final continuity = SharedPreferencesContinuityRepository(preferences);
     final outcomePlanning = OutcomePlanningService(
       repository: repository,
@@ -69,6 +89,9 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
       outcomePlanning: outcomePlanning,
       continuity: continuity,
       lessonPlanProgress: lessonPlanProgress,
+      instructionContext: instructionContext,
+      assignmentLessonProgress: assignmentLessonProgress,
+      assignmentTimeline: assignmentTimeline,
       dispose: () async {
         await trackingDatabase?.close();
         await database.close();
