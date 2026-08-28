@@ -17,6 +17,7 @@ class AnnualPlanPage extends StatefulWidget {
     required this.preferences,
     required this.continuity,
     required this.courseId,
+    this.active = true,
     this.topTrailing,
     this.outcomePlanning,
   });
@@ -25,6 +26,7 @@ class AnnualPlanPage extends StatefulWidget {
   final UserPreferencesRepository preferences;
   final ContinuityRepository continuity;
   final String courseId;
+  final bool active;
   final Widget? topTrailing;
   final OutcomePlanningService? outcomePlanning;
 
@@ -44,7 +46,14 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
   @override
   void didUpdateWidget(covariant AnnualPlanPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _future = _load();
+    if (oldWidget.repository != widget.repository ||
+        oldWidget.preferences != widget.preferences ||
+        oldWidget.continuity != widget.continuity ||
+        oldWidget.courseId != widget.courseId ||
+        oldWidget.outcomePlanning != widget.outcomePlanning ||
+        (!oldWidget.active && widget.active)) {
+      _future = _load();
+    }
   }
 
   Future<_PlanData> _load() async {
@@ -83,7 +92,11 @@ class _AnnualPlanPageState extends State<AnnualPlanPage> {
     final service = widget.outcomePlanning;
     if (service == null) return null;
     try {
-      final plan = await service.buildPlan();
+      // Tracking is supplementary information. It must never keep the
+      // annual teaching sequence behind a slow or stalled Android query.
+      final plan = await service.buildPlan().timeout(
+        const Duration(seconds: 4),
+      );
       final courseTrackingKeys = <String>{
         for (final week in plan.weeks)
           for (final item in week.outcomes) item.trackingKey,

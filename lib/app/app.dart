@@ -303,6 +303,7 @@ class _AppShellState extends State<_AppShell> {
         preferences: widget.dependencies.preferences,
         continuity: _continuity,
         courseId: widget.activeCourseId,
+        active: widget.selectedIndex == 1,
         outcomePlanning: _outcomePlanning,
         topTrailing: _courseSelector(context),
       ),
