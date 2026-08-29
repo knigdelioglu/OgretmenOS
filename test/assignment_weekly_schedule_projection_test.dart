@@ -10,6 +10,7 @@ import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart
 import 'package:ogretmen_os/domain/repositories/instruction_context_repository.dart';
 import 'package:ogretmen_os/domain/repositories/school_schedule_exception_repository.dart';
 import 'package:ogretmen_os/domain/services/assignment_lesson_timeline_service.dart';
+import 'package:ogretmen_os/domain/services/lesson_plan_workflow_service.dart';
 import 'package:ogretmen_os/features/lesson_plan/assignment_weekly_lesson_plan_panel.dart';
 
 void main() {
@@ -80,6 +81,57 @@ void main() {
     },
   );
 
+  testWidgets(
+    'takvimde kalan okul temelli planlama saati gizlenmez ve tracking üretmez',
+    (tester) async {
+      tester.view.physicalSize = const Size(900, 1100);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repository = _FakeCourseRepository(
+        List.generate(4, (index) => _package(index + 1)),
+      );
+      final instructionContext = MemoryInstructionContextRepository();
+      final progress = MemoryAssignmentLessonProgressRepository();
+      await _seedSchedule(instructionContext);
+      final plan = _schoolPlanningPlan();
+      final timeline = AssignmentLessonTimelineService(
+        instructionContext: instructionContext,
+        weeklyPlanning: _FixedWeeklyPlanningService(plan.weeklyPlan),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: AssignmentAwareWeeklyLessonPlanSection(
+                repository: repository,
+                annualPlan: plan,
+                weekNumber: 1,
+                courseId: 'TDE_9',
+                instructionContext: instructionContext,
+                timeline: timeline,
+                progressRepository: progress,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('5 ders saati'), findsOneWidget);
+      for (final ordinal in [1, 2, 3, 4]) {
+        expect(find.text('Plan $ordinal'), findsOneWidget);
+      }
+      expect(find.text('Okul temelli planlama'), findsOneWidget);
+      expect(find.text('Bu saat için tekil ders planı yok'), findsOneWidget);
+      expect(find.text('5. ders saati'), findsOneWidget);
+      expect(await progress.getForAssignment('a9a'), isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   test('timeline seçili takvim haftasının exception-adjusted occurrence listesini verir', () async {
     final instructionContext = MemoryInstructionContextRepository();
     await _seedSchedule(instructionContext);
@@ -120,6 +172,25 @@ void main() {
       DateTime.friday,
     ]);
     expect(secondWeek.map((item) => item.plannedOrdinal), [5, 6, 7, 8, 9]);
+  });
+
+  test('instruction ordinal school-planning konumunu paket olmasa da korur', () async {
+    final plan = _schoolPlanningPlan();
+    final workflow = LessonPlanWorkflowService(
+      repository: _FakeCourseRepository(
+        List.generate(4, (index) => _package(index + 1)),
+      ),
+    );
+
+    final location = workflow.locationForInstructionOrdinal(plan, 5);
+    final selection = await workflow.selectionForInstructionOrdinal(plan, 5);
+
+    expect(location, isNotNull);
+    expect(location!.weekNumber, 1);
+    expect(location.weekHour, 5);
+    expect(location.isSchoolBasedPlanning, isTrue);
+    expect(location.teacherTitle, 'Okul temelli planlama');
+    expect(selection, isNull);
   });
 }
 
@@ -164,6 +235,42 @@ AnnualOutcomePlan _annualPlan() {
       for (final week in weeks)
         WeeklyOutcomeSummary(week: week, outcomes: const []),
     ],
+  );
+}
+
+AnnualOutcomePlan _schoolPlanningPlan() {
+  final week = AcademicWeekPlan(
+    weekNumber: 1,
+    start: DateTime(2026, 9, 14),
+    end: DateTime(2026, 9, 18),
+    type: AcademicWeekType.instruction,
+    label: '1. Hafta',
+    plannedLessonHours: 5,
+    segments: const [
+      WeeklyPlanSegment(
+        type: WeeklyPlanSegmentType.block,
+        theme: _theme,
+        hours: 4,
+        block: _block,
+      ),
+      WeeklyPlanSegment(
+        type: WeeklyPlanSegmentType.schoolBasedPlanning,
+        theme: _theme,
+        hours: 1,
+      ),
+    ],
+    outcomes: const [],
+  );
+  return AnnualOutcomePlan(
+    weeklyPlan: AnnualWeeklyPlan(
+      academicYear: '2026-2027',
+      courseId: 'TDE_9',
+      weeklyLessonHours: 5,
+      annualHours: 5,
+      weeks: [week],
+      currentWeekNumber: 1,
+    ),
+    weeks: [WeeklyOutcomeSummary(week: week, outcomes: const [])],
   );
 }
 
