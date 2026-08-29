@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app/resource_navigation.dart';
@@ -60,6 +62,8 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
   int _workspaceRevision = 0;
   String? _selectedAssignmentId;
   bool _assignmentSelectionPinned = false;
+  Timer? _timelineRefreshTimer;
+  DateTime? _scheduledTimelineRefreshAt;
 
   @override
   void initState() {
@@ -79,11 +83,18 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
         oldWidget.assignmentOutcomeTracking != widget.assignmentOutcomeTracking ||
         oldWidget.assignmentTimeline != widget.assignmentTimeline ||
         oldWidget.courseId != widget.courseId) {
+      _cancelTimelineRefresh();
       _workspaceRevision++;
       _selectedAssignmentId = null;
       _assignmentSelectionPinned = false;
       _future = _load();
     }
+  }
+
+  @override
+  void dispose() {
+    _timelineRefreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<_ContinuityData> _load() async {
@@ -94,6 +105,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
     var continuityScopeId = widget.courseId;
     var choices = const <_AssignmentChoice>[];
     var scheduleReady = false;
+    DateTime? timelineRefreshAt;
 
     final instructionContext = widget.instructionContext;
     final timeline = widget.assignmentTimeline;
@@ -108,6 +120,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
           academicYear: basePlan.academicYear,
           courseId: widget.courseId,
         );
+        timelineRefreshAt = _nextTimelineRefresh(snapshot);
         final selectedId = _resolveAssignmentId(assignments, snapshot);
         _selectedAssignmentId = selectedId;
         if (selectedId != null) {
@@ -120,7 +133,9 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
           final slots = await instructionContext.getScheduleSlotsForAssignment(
             selectedId,
           );
-          scheduleReady = periods.isNotEmpty && slots.isNotEmpty;
+          scheduleReady =
+              periods.isNotEmpty &&
+              slots.length == basePlan.weeklyPlan.weeklyLessonHours;
           final assignmentTracking = widget.assignmentOutcomeTracking;
           if (assignmentTracking != null) {
             activeService = OutcomePlanningService(
@@ -156,6 +171,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
         choices: choices,
         selectedAssignmentId: _selectedAssignmentId,
         scheduleReady: scheduleReady,
+        timelineRefreshAt: timelineRefreshAt,
       );
     }
     if (stored.academicYear != activePlan.academicYear) {
@@ -168,6 +184,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
         choices: choices,
         selectedAssignmentId: _selectedAssignmentId,
         scheduleReady: scheduleReady,
+        timelineRefreshAt: timelineRefreshAt,
       );
     }
 
@@ -182,6 +199,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
         choices: choices,
         selectedAssignmentId: _selectedAssignmentId,
         scheduleReady: scheduleReady,
+        timelineRefreshAt: timelineRefreshAt,
       );
     }
     return _ContinuityData(
@@ -192,9 +210,50 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
       choices: choices,
       selectedAssignmentId: _selectedAssignmentId,
       scheduleReady: scheduleReady,
+      timelineRefreshAt: timelineRefreshAt,
       stored: stored,
       item: item,
     );
+  }
+
+  DateTime? _nextTimelineRefresh(InstructionTimelineSnapshot snapshot) {
+    final candidates = <DateTime>[
+      if (snapshot.currentOccurrence?.endsAt case final end?) end,
+      if (snapshot.nextOccurrence?.startsAt case final start?) start,
+    ].where((item) => item.isAfter(snapshot.now)).toList(growable: false)
+      ..sort();
+    return candidates.isEmpty ? null : candidates.first;
+  }
+
+  void _scheduleTimelineRefresh(DateTime? target) {
+    if (target == null) {
+      _cancelTimelineRefresh();
+      return;
+    }
+    if (_scheduledTimelineRefreshAt == target &&
+        _timelineRefreshTimer?.isActive == true) {
+      return;
+    }
+    _timelineRefreshTimer?.cancel();
+    _scheduledTimelineRefreshAt = target;
+    final rawDelay = target.difference(DateTime.now());
+    final delay = rawDelay.isNegative || rawDelay == Duration.zero
+        ? const Duration(milliseconds: 250)
+        : rawDelay + const Duration(milliseconds: 150);
+    _timelineRefreshTimer = Timer(delay, () {
+      if (!mounted) return;
+      _scheduledTimelineRefreshAt = null;
+      setState(() {
+        _workspaceRevision += 1;
+        _future = _load();
+      });
+    });
+  }
+
+  void _cancelTimelineRefresh() {
+    _timelineRefreshTimer?.cancel();
+    _timelineRefreshTimer = null;
+    _scheduledTimelineRefreshAt = null;
   }
 
   String? _resolveAssignmentId(
@@ -277,6 +336,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
   }
 
   void _handleAssignmentSelection(String value) {
+    _cancelTimelineRefresh();
     if (value == _automaticSelectionValue) {
       setState(() {
         _assignmentSelectionPinned = false;
@@ -543,7 +603,9 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
       if (!snapshot.hasData) {
         return const LoadingView(label: 'Bu hafta hazırlanıyor…');
       }
-      return _content(context, snapshot.data!);
+      final data = snapshot.data!;
+      _scheduleTimelineRefresh(data.timelineRefreshAt);
+      return _content(context, data);
     },
   );
 }
@@ -557,6 +619,7 @@ class _ContinuityData {
     required this.choices,
     required this.selectedAssignmentId,
     required this.scheduleReady,
+    required this.timelineRefreshAt,
     this.stored,
     this.item,
   });
@@ -568,6 +631,7 @@ class _ContinuityData {
   final List<_AssignmentChoice> choices;
   final String? selectedAssignmentId;
   final bool scheduleReady;
+  final DateTime? timelineRefreshAt;
   final LastFocusState? stored;
   final TrackedOutcome? item;
 }
