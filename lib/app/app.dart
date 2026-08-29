@@ -122,7 +122,13 @@ class _TeacherOsAppState extends State<TeacherOsApp>
   }
 
   Future<void> _refreshAutomaticCourseContext() async {
-    if (_courseContextCheckRunning || _courseSelectionPinned) return;
+    if (_courseSelectionPinned) return;
+    if (_courseContextCheckRunning) {
+      _scheduleAutomaticCourseCheck(
+        delay: const Duration(milliseconds: 250),
+      );
+      return;
+    }
     final dependencies = _resolvedDependencies;
     final instructionContext = dependencies?.instructionContext;
     if (dependencies == null || instructionContext == null) return;
