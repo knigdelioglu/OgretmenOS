@@ -74,6 +74,48 @@ check_single_connected_device() {
   return 1
 }
 
+# ADB bağlantısı kurulduktan sonra cihaz kısa süreliğine offline/unauthorized
+# görünebilir. Hedefi adb devices çıktısını anlık okuyarak değil, gerçekten
+# komut çalıştırılabilir hale gelene kadar bekleyerek doğrula.
+wait_for_adb_device() {
+  local target="$1"
+  local attempt
+  local state
+
+  for ((attempt = 1; attempt <= 24; attempt++)); do
+    state=$(adb -s "$target" get-state 2>/dev/null | tr -d '[:space:]')
+    if [ "$state" = "device" ]; then
+      return 0
+    fi
+    sleep 0.25
+  done
+  return 1
+}
+
+# TCP portu açık olmak, karşı uçta ADB servisi olduğu anlamına gelmez.
+# Bağlantıyı kur ve ADB transport'u çevrimiçi olana kadar doğrula.
+connect_and_wait() {
+  local target="$1"
+  local connect_output
+  local connect_status
+
+  connect_output=$(adb connect "$target" 2>&1)
+  connect_status=$?
+  if [ "$connect_status" -ne 0 ]; then
+    echo "$connect_output" >&2
+    return "$connect_status"
+  fi
+
+  if wait_for_adb_device "$target"; then
+    return 0
+  fi
+
+  if [ -n "$connect_output" ]; then
+    echo "$connect_output" >&2
+  fi
+  return 1
+}
+
 # Fonksiyon: USB bağlıysa Wi-Fi moduna geçirip IP'sini al
 try_usb_switch_to_wifi() {
   local usb_devices
@@ -96,11 +138,13 @@ try_usb_switch_to_wifi() {
       adb -s "$usb_dev" tcpip 5555 >/dev/null 2>&1 || true
       sleep 1
       echo -e "${GREEN}📱 Tablet Wi-Fi IP adresi alındı: ${tablet_wlan_ip}:5555${NC}" >&2
-      adb connect "${tablet_wlan_ip}:5555" >/dev/null 2>&1 || true
-      echo "${tablet_wlan_ip}:5555" > "$IP_CONFIG_FILE"
-      DEVICE_TARGET="${tablet_wlan_ip}:5555"
-      echo "$DEVICE_TARGET"
-      return 0
+      if connect_and_wait "${tablet_wlan_ip}:5555" >/dev/null; then
+        echo "${tablet_wlan_ip}:5555" > "$IP_CONFIG_FILE"
+        DEVICE_TARGET="${tablet_wlan_ip}:5555"
+        echo "$DEVICE_TARGET"
+        return 0
+      fi
+      echo -e "${RED}❌ USB'den Wi-Fi ADB bağlantısı doğrulanamadı.${NC}" >&2
     fi
   fi
   return 1
@@ -258,20 +302,14 @@ ensure_adb_online() {
 
   echo -e "${YELLOW}🔄 ADB bağlantısı yenileniyor (${DEVICE_TARGET})...${NC}"
   adb reconnect offline >/dev/null 2>&1 || true
-  adb connect "$DEVICE_TARGET" >/dev/null 2>&1 || true
-  sleep 1
-  state=$(adb -s "$DEVICE_TARGET" get-state 2>/dev/null | tr -d '[:space:]')
-  if [ "$state" = "device" ]; then
+  if connect_and_wait "$DEVICE_TARGET" >/dev/null; then
     return 0
   fi
 
   # Eski ADB sunucusu transport'u tutuyorsa yalnızca yerel daemon'u yenile.
   adb kill-server >/dev/null 2>&1 || true
   adb start-server >/dev/null 2>&1 || true
-  adb connect "$DEVICE_TARGET" >/dev/null 2>&1 || true
-  sleep 1
-  state=$(adb -s "$DEVICE_TARGET" get-state 2>/dev/null | tr -d '[:space:]')
-  if [ "$state" != "device" ]; then
+  if ! connect_and_wait "$DEVICE_TARGET" >/dev/null; then
     echo -e "${RED}❌ Tablet ADB üzerinden çevrimiçi duruma getirilemedi.${NC}"
     echo -e "${YELLOW}Tablette Kablosuz Hata Ayıklama'yı kapatıp açın veya IP:Port değerini kontrol edin.${NC}"
     return 1
@@ -300,9 +338,7 @@ if [ -z "$DEVICE_TARGET" ] && [ -f "$IP_CONFIG_FILE" ]; then
   SAVED_IP="$(cat "$IP_CONFIG_FILE" | tr -d '[:space:]')"
   if [ -n "$SAVED_IP" ]; then
     echo -e "Kayıtlı IP deneniyor (${SAVED_IP})..."
-    adb connect "$SAVED_IP" >/dev/null 2>&1 || true
-    sleep 0.5
-    if adb devices | grep -E "${SAVED_IP}[[:space:]]+device" >/dev/null 2>&1; then
+    if connect_and_wait "$SAVED_IP" >/dev/null; then
       DEVICE_TARGET="$SAVED_IP"
       echo -e "${GREEN}✅ Kayıtlı IP üzerinden bağlandı: ${BOLD}${DEVICE_TARGET}${NC}"
     fi
@@ -313,9 +349,8 @@ fi
 if [ -z "$DEVICE_TARGET" ]; then
   MDNS_IP=$(auto_scan_mdns || true)
   if [ -n "$MDNS_IP" ]; then
-    echo -e "${GREEN}✅ mDNS ile tablet bulundu: ${MDNS_IP}${NC}"
-    adb connect "$MDNS_IP" >/dev/null 2>&1 || true
-    if adb devices | grep -E "${MDNS_IP}[[:space:]]+device" >/dev/null 2>&1; then
+    if connect_and_wait "$MDNS_IP" >/dev/null; then
+      echo -e "${GREEN}✅ mDNS ile tablet bulundu: ${MDNS_IP}${NC}"
       DEVICE_TARGET="$MDNS_IP"
       echo "$DEVICE_TARGET" > "$IP_CONFIG_FILE"
     fi
@@ -327,9 +362,8 @@ if [ -z "$DEVICE_TARGET" ]; then
   echo -e "Ağdaki cihazlar taranıyor..."
   SCANNED_IP=$(auto_scan_network || true)
   if [ -n "$SCANNED_IP" ]; then
-    echo -e "${GREEN}✅ Ağda ADB portu açık tablet bulundu: ${SCANNED_IP}${NC}"
-    adb connect "$SCANNED_IP" >/dev/null 2>&1 || true
-    if adb devices | grep -E "${SCANNED_IP}[[:space:]]+device" >/dev/null 2>&1; then
+    if connect_and_wait "$SCANNED_IP" >/dev/null; then
+      echo -e "${GREEN}✅ Ağda ADB üzerinden tablet bulundu: ${SCANNED_IP}${NC}"
       DEVICE_TARGET="$SCANNED_IP"
       echo "$DEVICE_TARGET" > "$IP_CONFIG_FILE"
     fi
@@ -357,8 +391,7 @@ while [ -z "$DEVICE_TARGET" ]; do
     # Port scan kontrol
     SCANNED_IP=$(auto_scan_network || true)
     if [ -n "$SCANNED_IP" ]; then
-      adb connect "$SCANNED_IP" >/dev/null 2>&1 || true
-      if adb devices | grep -E "${SCANNED_IP}[[:space:]]+device" >/dev/null 2>&1; then
+      if connect_and_wait "$SCANNED_IP" >/dev/null; then
         DEVICE_TARGET="$SCANNED_IP"
         echo "$DEVICE_TARGET" > "$IP_CONFIG_FILE"
         break
@@ -368,8 +401,7 @@ while [ -z "$DEVICE_TARGET" ]; do
     if [[ "$USER_INPUT" != *:* ]]; then
       USER_INPUT="${USER_INPUT}:5555"
     fi
-    adb connect "$USER_INPUT" >/dev/null 2>&1 || true
-    if adb devices | grep -E "${USER_INPUT}[[:space:]]+device" >/dev/null 2>&1; then
+    if connect_and_wait "$USER_INPUT" >/dev/null; then
       DEVICE_TARGET="$USER_INPUT"
       echo "$DEVICE_TARGET" > "$IP_CONFIG_FILE"
       break

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../data/preferences/legacy_migration_decision_repository.dart';
 import '../../domain/models/instruction_context_models.dart';
 import '../../domain/models/weekly_plan_models.dart';
 import '../../domain/repositories/instruction_context_repository.dart';
+import '../../domain/runtime/course_runtime_registry.dart';
 import '../../domain/services/assignment_lesson_timeline_service.dart';
 import '../../domain/services/assignment_progress_cursor_service.dart';
+import '../../domain/services/bell_schedule_builder.dart';
 import '../../domain/services/legacy_teacher_state_migration_service.dart';
 import '../shared/feature_widgets.dart';
 import '../shared/interaction_polish.dart';
@@ -111,15 +114,18 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
   void _reload() => setState(() => _future = _load());
 
   Future<void> _addClass(_SchedulePageData data) async {
-    final section = await showModalBottomSheet<String>(
+    final draft = await showModalBottomSheet<_ClassDraft>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => _AddClassSheet(grade: widget.grade),
+      builder: (_) => _AddClassSheet(initialGrade: widget.grade),
     );
-    if (section == null || section.trim().isEmpty) return;
-    final normalizedSection = section.trim().toUpperCase();
-    final displayName = '${widget.grade}/$normalizedSection';
+    if (draft == null || draft.section.trim().isEmpty) return;
+    final normalizedSection = draft.section.trim().toUpperCase();
+    final targetCourse = supportedCourseRuntimes.firstWhere(
+      (course) => course.grade == draft.grade,
+    );
+    final displayName = '${draft.grade}/$normalizedSection';
     if (data.classes.any(
       (item) =>
           item.academicYear == data.academicYear &&
@@ -130,16 +136,16 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
     }
 
     final now = DateTime.now();
-    final suffix = _safeId('${widget.grade}_$normalizedSection');
+    final suffix = _safeId('${draft.grade}_$normalizedSection');
     final classId = 'class_${_safeId(data.academicYear)}_$suffix';
     final assignmentId =
-        'assignment_${_safeId(data.academicYear)}_${_safeId(widget.courseId)}_$suffix';
+        'assignment_${_safeId(data.academicYear)}_${_safeId(targetCourse.courseId)}_$suffix';
     try {
       await widget.repository.saveClass(
         SchoolClass(
           id: classId,
           academicYear: data.academicYear,
-          grade: widget.grade,
+          grade: draft.grade,
           section: normalizedSection,
           displayName: displayName,
           createdAt: now,
@@ -150,7 +156,7 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
         TeachingAssignment(
           id: assignmentId,
           academicYear: data.academicYear,
-          courseId: widget.courseId,
+          courseId: targetCourse.courseId,
           classId: classId,
           isActive: true,
           createdAt: now,
@@ -159,7 +165,14 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
       );
       if (!mounted) return;
       _reload();
-      showTeacherFeedback(context, '$displayName eklendi.');
+      final followUp = draft.grade == widget.grade
+          ? ''
+          : ' Programını görmek için ana ekrandan ${draft.grade}. sınıfı seçin.';
+      showTeacherFeedback(
+        context,
+        '$displayName eklendi.$followUp',
+        duration: const Duration(seconds: 4),
+      );
     } on Object {
       if (!mounted) return;
       showTeacherFeedback(
@@ -252,7 +265,9 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
               academicYear: data.academicYear,
               courseId: widget.courseId,
             );
-            oldPlannedOrdinal = before.positionFor(assignment.id)?.plannedOrdinal;
+            oldPlannedOrdinal = before
+                .positionFor(assignment.id)
+                ?.plannedOrdinal;
           } on Object {
             oldPlannedOrdinal = null;
           }
@@ -309,7 +324,9 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
               academicYear: data.academicYear,
               courseId: widget.courseId,
             );
-            newPlannedOrdinal = after.positionFor(assignment.id)?.plannedOrdinal;
+            newPlannedOrdinal = after
+                .positionFor(assignment.id)
+                ?.plannedOrdinal;
           } on Object {
             newPlannedOrdinal = null;
           }
@@ -356,11 +373,15 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
       _reload();
       showTeacherFeedback(
         context,
-        selected.isEmpty ? 'Ders programı temizlendi.' : 'Ders programı kaydedildi.',
+        selected.isEmpty
+            ? 'Ders programı temizlendi.'
+            : 'Ders programı kaydedildi.',
       );
     } on ScheduleSlotConflictException catch (error) {
       if (!mounted) return;
-      final conflictingAssignment = data.assignment(error.conflictingAssignmentId);
+      final conflictingAssignment = data.assignment(
+        error.conflictingAssignmentId,
+      );
       final conflictingClass = conflictingAssignment == null
           ? null
           : data.classFor(conflictingAssignment.classId);
@@ -463,7 +484,8 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
       selected = data.assignment(assignmentId);
     }
     if (selected == null || !mounted) return;
-    final className = data.classFor(selected.classId)?.displayName ?? 'seçili şube';
+    final className =
+        data.classFor(selected.classId)?.displayName ?? 'seçili şube';
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -623,8 +645,7 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
                         .toList(growable: false),
                     periods: data.periods,
                     expectedWeeklyHours: data.weeklyLessonHours,
-                    onEdit: () =>
-                        _editAssignmentSchedule(data, assignment),
+                    onEdit: () => _editAssignmentSchedule(data, assignment),
                     onDelete: () => _deleteAssignment(data, assignment),
                   ),
                 ),
@@ -672,7 +693,8 @@ class _AssignmentCard extends StatelessWidget {
         final day = a.weekday.compareTo(b.weekday);
         return day != 0 ? day : a.periodNumber.compareTo(b.periodNumber);
       });
-    final incomplete = ordered.isNotEmpty && ordered.length != expectedWeeklyHours;
+    final incomplete =
+        ordered.isNotEmpty && ordered.length != expectedWeeklyHours;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -742,10 +764,7 @@ class _AssignmentCard extends StatelessWidget {
 }
 
 class _LegacyMigrationCard extends StatelessWidget {
-  const _LegacyMigrationCard({
-    required this.preview,
-    required this.onMigrate,
-  });
+  const _LegacyMigrationCard({required this.preview, required this.onMigrate});
 
   final LegacyTeacherStateMigrationPreview preview;
   final VoidCallback onMigrate;
@@ -812,9 +831,9 @@ class _LegacyAssignmentPicker extends StatelessWidget {
           ),
           child: Text(
             'Eski takip hangi şubeye ait?',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
         ),
         for (final assignment in assignments)
@@ -837,10 +856,17 @@ class _LegacyAssignmentPicker extends StatelessWidget {
   }
 }
 
-class _AddClassSheet extends StatefulWidget {
-  const _AddClassSheet({required this.grade});
+class _ClassDraft {
+  const _ClassDraft({required this.grade, required this.section});
 
   final int grade;
+  final String section;
+}
+
+class _AddClassSheet extends StatefulWidget {
+  const _AddClassSheet({required this.initialGrade});
+
+  final int initialGrade;
 
   @override
   State<_AddClassSheet> createState() => _AddClassSheetState();
@@ -848,6 +874,14 @@ class _AddClassSheet extends StatefulWidget {
 
 class _AddClassSheetState extends State<_AddClassSheet> {
   final _controller = TextEditingController();
+  late int _grade;
+  String? _sectionError;
+
+  @override
+  void initState() {
+    super.initState();
+    _grade = widget.initialGrade;
+  }
 
   @override
   void dispose() {
@@ -863,40 +897,76 @@ class _AddClassSheetState extends State<_AddClassSheet> {
       AppSpacing.lg,
       MediaQuery.viewInsetsOf(context).bottom + AppSpacing.lg,
     ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          '${widget.grade}. sınıf şubesi ekle',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 520),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Sınıf ekle',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Sınıf düzeyini ve şubeyi seçin.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            DropdownButtonFormField<int>(
+              initialValue: _grade,
+              decoration: const InputDecoration(
+                labelText: 'Sınıf düzeyi',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                for (var grade = 9; grade <= 12; grade++)
+                  DropdownMenuItem<int>(
+                    value: grade,
+                    child: Text('$grade. sınıf'),
+                  ),
+              ],
+              onChanged: (value) {
+                if (value != null) setState(() => _grade = value);
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.characters,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                labelText: 'Şube',
+                hintText: 'A',
+                border: const OutlineInputBorder(),
+                errorText: _sectionError,
+              ),
+              onChanged: (_) {
+                if (_sectionError != null) {
+                  setState(() => _sectionError = null);
+                }
+              },
+              onSubmitted: (_) => _submit(),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            FilledButton(onPressed: _submit, child: const Text('Ekle')),
+          ],
         ),
-        const SizedBox(height: AppSpacing.md),
-        TextField(
-          controller: _controller,
-          autofocus: true,
-          textCapitalization: TextCapitalization.characters,
-          decoration: const InputDecoration(
-            labelText: 'Şube',
-            hintText: 'A',
-            border: OutlineInputBorder(),
-          ),
-          onSubmitted: (_) => _submit(),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        FilledButton(
-          onPressed: _submit,
-          child: const Text('Ekle'),
-        ),
-      ],
+      ),
     ),
   );
 
   void _submit() {
     final value = _controller.text.trim();
-    if (value.isNotEmpty) Navigator.of(context).pop(value);
+    if (value.isEmpty) {
+      setState(() => _sectionError = 'Şube adını yazın.');
+      return;
+    }
+    Navigator.of(context).pop(_ClassDraft(grade: _grade, section: value));
   }
 }
 
@@ -910,27 +980,50 @@ class _BellPeriodsSheet extends StatefulWidget {
 }
 
 class _BellPeriodsSheetState extends State<_BellPeriodsSheet> {
-  late final List<_PeriodDraft> _drafts;
+  static const _defaultLessonCount = 8;
+  static const _defaultStartMinute = 8 * 60 + 30;
+  static const _defaultLessonsBeforeLunch = 4;
+  static const _defaultLunchBreakMinutes = 45;
+  static const _defaultLessonDurationMinutes = 40;
+  static const _defaultPassingBreakMinutes = 10;
+
+  late int _startMinute;
+  late int _lessonCount;
+  late int _lessonsBeforeLunch;
+  late int _passingBreakMinutes;
+  late final TextEditingController _lunchController;
+  late final TextEditingController _durationController;
+  String? _lunchError;
+  String? _durationError;
+  String? _formError;
 
   @override
   void initState() {
     super.initState();
-    final source = widget.initial.isEmpty ? _defaultPeriods() : widget.initial;
-    _drafts = [
-      for (final item in source)
-        _PeriodDraft(
-          start: TextEditingController(text: _formatMinute(item.startMinute)),
-          end: TextEditingController(text: _formatMinute(item.endMinute)),
-        ),
-    ];
+    final ordered = [...widget.initial]
+      ..sort((a, b) => a.periodNumber.compareTo(b.periodNumber));
+    _startMinute = ordered.isEmpty
+        ? _defaultStartMinute
+        : ordered.first.startMinute;
+    final sourceCount = ordered.isEmpty ? _defaultLessonCount : ordered.length;
+    _lessonCount = sourceCount < 2 ? 2 : sourceCount;
+    _passingBreakMinutes = _inferPassingBreak(ordered);
+    _lessonsBeforeLunch = _inferLessonsBeforeLunch(
+      ordered,
+      _passingBreakMinutes,
+    );
+    _lunchController = TextEditingController(
+      text: _inferLunchBreak(ordered, _passingBreakMinutes).toString(),
+    );
+    _durationController = TextEditingController(
+      text: _inferLessonDuration(ordered).toString(),
+    );
   }
 
   @override
   void dispose() {
-    for (final draft in _drafts) {
-      draft.start.dispose();
-      draft.end.dispose();
-    }
+    _lunchController.dispose();
+    _durationController.dispose();
     super.dispose();
   }
 
@@ -943,135 +1036,310 @@ class _BellPeriodsSheetState extends State<_BellPeriodsSheet> {
       MediaQuery.viewInsetsOf(context).bottom + AppSpacing.lg,
     ),
     child: ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 640),
+      constraints: const BoxConstraints(maxHeight: 720),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Ders saatleri',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+            widget.initial.isEmpty
+                ? 'Ders saatlerini tanımla'
+                : 'Ders saatlerini düzenle',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Başlangıç değerleri örnektir; okulunuzun zil saatlerine göre düzenleyin.',
-            style: Theme.of(context).textTheme.bodySmall,
+            'Birkaç bilgiyi cevaplayın; saatleri sizin için oluşturalım.',
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: AppSpacing.md),
           Flexible(
-            child: ListView.separated(
+            child: ListView(
               shrinkWrap: true,
-              itemCount: _drafts.length,
-              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-              itemBuilder: (context, index) {
-                final draft = _drafts[index];
-                return Row(
-                  children: [
-                    SizedBox(
-                      width: 72,
-                      child: Text(
-                        '${index + 1}. ders',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+              children: [
+                _startTimeField(context),
+                const SizedBox(height: AppSpacing.md),
+                DropdownButtonFormField<int>(
+                  key: ValueKey('lesson-count-$_lessonCount'),
+                  initialValue: _lessonCount,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Bir günde toplam ders',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    for (final count in _lessonCountOptions)
+                      DropdownMenuItem<int>(
+                        value: count,
+                        child: Text('$count ders'),
                       ),
-                    ),
-                    Expanded(
-                      child: TextField(
-                        controller: draft.start,
-                        keyboardType: TextInputType.datetime,
-                        decoration: const InputDecoration(
-                          labelText: 'Başlangıç',
-                          hintText: '08:30',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: TextField(
-                        controller: draft.end,
-                        keyboardType: TextInputType.datetime,
-                        decoration: const InputDecoration(
-                          labelText: 'Bitiş',
-                          hintText: '09:10',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                    if (_drafts.length > 1) ...[
-                      const SizedBox(width: AppSpacing.xs),
-                      IconButton(
-                        tooltip: 'Ders saatini kaldır',
-                        onPressed: () => setState(() {
-                          final removed = _drafts.removeAt(index);
-                          removed.start.dispose();
-                          removed.end.dispose();
-                        }),
-                        icon: const Icon(Icons.remove_circle_outline),
-                      ),
-                    ],
                   ],
-                );
-              },
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _lessonCount = value;
+                      if (_lessonsBeforeLunch >= value) {
+                        _lessonsBeforeLunch = value - 1;
+                      }
+                      _formError = null;
+                    });
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                DropdownButtonFormField<int>(
+                  key: ValueKey(
+                    'before-lunch-$_lessonCount-$_lessonsBeforeLunch',
+                  ),
+                  initialValue: _lessonsBeforeLunch,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Öğle arasından önce kaç ders saati var?',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    for (var count = 1; count < _lessonCount; count++)
+                      DropdownMenuItem<int>(
+                        value: count,
+                        child: Text('$count ders'),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _lessonsBeforeLunch = value;
+                        _formError = null;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: _lunchController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(
+                    labelText: 'Öğle arası',
+                    suffixText: 'dakika',
+                    border: const OutlineInputBorder(),
+                    errorText: _lunchError,
+                  ),
+                  onChanged: (_) => _clearFieldErrors(),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: _durationController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(
+                    labelText: 'Bir ders kaç dakika?',
+                    suffixText: 'dakika',
+                    helperText: 'Başlangıç değeri: 40 dakika',
+                    border: const OutlineInputBorder(),
+                    errorText: _durationError,
+                  ),
+                  onChanged: (_) => _clearFieldErrors(),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _schedulePreview(context),
+                if (_formError != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    _formError!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          OutlinedButton.icon(
-            onPressed: () => setState(() {
-              final previous = _drafts.last;
-              final previousEnd = _parseMinute(previous.end.text) ?? 8 * 60 + 30;
-              final start = previousEnd + 10;
-              _drafts.add(
-                _PeriodDraft(
-                  start: TextEditingController(text: _formatMinute(start)),
-                  end: TextEditingController(text: _formatMinute(start + 40)),
-                ),
-              );
-            }),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Ders saati ekle'),
-          ),
-          const SizedBox(height: AppSpacing.sm),
           FilledButton(
             onPressed: _save,
-            child: const Text('Kaydet'),
+            child: const Text('Saatleri oluştur ve kaydet'),
           ),
         ],
       ),
     ),
   );
 
-  void _save() {
-    final periods = <BellPeriod>[];
-    for (var index = 0; index < _drafts.length; index++) {
-      final start = _parseMinute(_drafts[index].start.text);
-      final end = _parseMinute(_drafts[index].end.text);
-      if (start == null || end == null || end <= start) {
-        showTeacherFeedback(context, '${index + 1}. ders saati geçersiz.');
-        return;
-      }
-      periods.add(
-        BellPeriod(
-          periodNumber: index + 1,
-          startMinute: start,
-          endMinute: end,
+  Widget _startTimeField(BuildContext context) => InputDecorator(
+    decoration: const InputDecoration(
+      labelText: 'İlk ders başlangıcı',
+      border: OutlineInputBorder(),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            _formatMinute(_startMinute),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
         ),
-      );
-    }
-    Navigator.of(context).pop(periods);
+        TextButton.icon(
+          onPressed: _pickStartTime,
+          icon: const Icon(Icons.schedule_rounded),
+          label: const Text('Değiştir'),
+        ),
+      ],
+    ),
+  );
+
+  Widget _schedulePreview(BuildContext context) {
+    final periods = _tryBuildPeriods();
+    if (periods == null || periods.isEmpty) return const SizedBox.shrink();
+    final lunchAfter = periods[_lessonsBeforeLunch - 1];
+    final firstAfterLunch = periods[_lessonsBeforeLunch];
+    return Text(
+      '${periods.length} ders oluşacak · ${_formatMinute(periods.first.startMinute)}–'
+      '${_formatMinute(periods.last.endMinute)}\n'
+      'Öğle arası ${_formatMinute(lunchAfter.endMinute)}–'
+      '${_formatMinute(firstAfterLunch.startMinute)} · Ders araları $_passingBreakMinutes dakika',
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        height: 1.4,
+      ),
+    );
   }
 
-  List<BellPeriod> _defaultPeriods() {
-    const start = 8 * 60 + 30;
-    return List.generate(8, (index) {
-      final periodStart = start + index * 50;
-      return BellPeriod(
-        periodNumber: index + 1,
-        startMinute: periodStart,
-        endMinute: periodStart + 40,
-      );
+  Future<void> _pickStartTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: _startMinute ~/ 60,
+        minute: _startMinute % 60,
+      ),
+    );
+    if (!mounted || picked == null) return;
+    setState(() {
+      _startMinute = picked.hour * 60 + picked.minute;
+      _formError = null;
     });
+  }
+
+  void _save() {
+    final lunch = int.tryParse(_lunchController.text.trim());
+    final duration = int.tryParse(_durationController.text.trim());
+    final lunchError = lunch == null || lunch < 1 || lunch > 180
+        ? '1–180 dakika arasında yazın.'
+        : null;
+    final durationError = duration == null || duration < 1 || duration > 180
+        ? '1–180 dakika arasında yazın.'
+        : null;
+    if (lunchError != null || durationError != null) {
+      setState(() {
+        _lunchError = lunchError;
+        _durationError = durationError;
+        _formError = null;
+      });
+      return;
+    }
+
+    try {
+      final periods = buildBellPeriods(
+        BellScheduleConfiguration(
+          firstLessonStartMinute: _startMinute,
+          lessonCount: _lessonCount,
+          lessonsBeforeLunch: _lessonsBeforeLunch,
+          lunchBreakMinutes: lunch!,
+          lessonDurationMinutes: duration!,
+          passingBreakMinutes: _passingBreakMinutes,
+        ),
+      );
+      Navigator.of(context).pop(periods);
+    } on ArgumentError {
+      setState(() {
+        _formError =
+            'Bu ayarlarla son ders günün dışına taşıyor. Başlangıç veya süreyi azaltın.';
+      });
+    }
+  }
+
+  void _clearFieldErrors() {
+    if (_lunchError == null && _durationError == null && _formError == null) {
+      return;
+    }
+    setState(() {
+      _lunchError = null;
+      _durationError = null;
+      _formError = null;
+    });
+  }
+
+  List<BellPeriod>? _tryBuildPeriods() {
+    final lunch = int.tryParse(_lunchController.text.trim());
+    final duration = int.tryParse(_durationController.text.trim());
+    if (lunch == null || duration == null) return null;
+    try {
+      return buildBellPeriods(
+        BellScheduleConfiguration(
+          firstLessonStartMinute: _startMinute,
+          lessonCount: _lessonCount,
+          lessonsBeforeLunch: _lessonsBeforeLunch,
+          lunchBreakMinutes: lunch,
+          lessonDurationMinutes: duration,
+          passingBreakMinutes: _passingBreakMinutes,
+        ),
+      );
+    } on ArgumentError {
+      return null;
+    }
+  }
+
+  int _inferPassingBreak(List<BellPeriod> periods) {
+    if (periods.length < 2) return _defaultPassingBreakMinutes;
+    for (var index = 1; index < periods.length; index++) {
+      final gap = periods[index].startMinute - periods[index - 1].endMinute;
+      if (gap >= 0 && gap <= 20) return gap;
+    }
+    return _defaultPassingBreakMinutes;
+  }
+
+  List<int> get _lessonCountOptions {
+    final options = [for (var count = 2; count <= 12; count++) count];
+    if (_lessonCount > 12) options.add(_lessonCount);
+    return options;
+  }
+
+  int _inferLessonsBeforeLunch(List<BellPeriod> periods, int passingBreak) {
+    final defaultBoundary = _defaultLessonsBeforeLunch >= _lessonCount
+        ? _lessonCount - 1
+        : _defaultLessonsBeforeLunch;
+    if (periods.length < 2) return defaultBoundary;
+    var largestGap = passingBreak;
+    var boundary = defaultBoundary;
+    for (var index = 1; index < periods.length; index++) {
+      final gap = periods[index].startMinute - periods[index - 1].endMinute;
+      if (gap > largestGap) {
+        largestGap = gap;
+        boundary = index;
+      }
+    }
+    if (largestGap == passingBreak) {
+      boundary = defaultBoundary;
+    }
+    if (boundary >= _lessonCount) boundary = _lessonCount - 1;
+    return boundary < 1 ? 1 : boundary;
+  }
+
+  int _inferLunchBreak(List<BellPeriod> periods, int passingBreak) {
+    var largestGap = 0;
+    for (var index = 1; index < periods.length; index++) {
+      final gap = periods[index].startMinute - periods[index - 1].endMinute;
+      if (gap > largestGap) largestGap = gap;
+    }
+    return largestGap > passingBreak ? largestGap : _defaultLunchBreakMinutes;
+  }
+
+  int _inferLessonDuration(List<BellPeriod> periods) {
+    if (periods.isEmpty) return _defaultLessonDurationMinutes;
+    final duration = periods.first.endMinute - periods.first.startMinute;
+    return duration > 0 ? duration : _defaultLessonDurationMinutes;
   }
 }
 
@@ -1110,9 +1378,9 @@ class _AssignmentScheduleSheetState extends State<_AssignmentScheduleSheet> {
         children: [
           Text(
             'Haftalık ders programı',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
@@ -1136,9 +1404,11 @@ class _AssignmentScheduleSheetState extends State<_AssignmentScheduleSheet> {
             child: ListView(
               shrinkWrap: true,
               children: [
-                for (var weekday = DateTime.monday;
-                    weekday <= DateTime.friday;
-                    weekday++) ...[
+                for (
+                  var weekday = DateTime.monday;
+                  weekday <= DateTime.friday;
+                  weekday++
+                ) ...[
                   Text(
                     _weekdayLong(weekday),
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -1191,7 +1461,9 @@ class _AssignmentScheduleSheetState extends State<_AssignmentScheduleSheet> {
               label: const Text('Programı temizle'),
             ),
           FilledButton(
-            onPressed: _canSave ? () => Navigator.of(context).pop(_selected) : null,
+            onPressed: _canSave
+                ? () => Navigator.of(context).pop(_selected)
+                : null,
             child: const Text('Kaydet'),
           ),
         ],
@@ -1243,13 +1515,6 @@ class _SchedulePageData {
       .toList(growable: false);
 }
 
-class _PeriodDraft {
-  const _PeriodDraft({required this.start, required this.end});
-
-  final TextEditingController start;
-  final TextEditingController end;
-}
-
 class _ScheduleCell {
   const _ScheduleCell(this.weekday, this.period);
 
@@ -1276,15 +1541,6 @@ String _formatMinute(int minute) {
   final hour = (minute ~/ 60).toString().padLeft(2, '0');
   final mins = (minute % 60).toString().padLeft(2, '0');
   return '$hour:$mins';
-}
-
-int? _parseMinute(String text) {
-  final match = RegExp(r'^(\d{1,2}):(\d{2})$').firstMatch(text.trim());
-  if (match == null) return null;
-  final hour = int.tryParse(match.group(1)!);
-  final minute = int.tryParse(match.group(2)!);
-  if (hour == null || minute == null || hour > 23 || minute > 59) return null;
-  return hour * 60 + minute;
 }
 
 String _weekdayShort(int weekday) => switch (weekday) {
