@@ -83,9 +83,14 @@ class AssignmentLessonTimelineService {
           exceptions = List.unmodifiable([...exceptions, ...stored]);
         }
       } on Object {
-        // Schedule exceptions improve timetable truth but are not allowed to
-        // hide canonical weekly content if the auxiliary asset cannot load.
-        // The asset repository remains retryable on the next resolution.
+        // Calendar exceptions are part of schedule truth. If that authority
+        // cannot be read, do not invent a current/next lesson from the regular
+        // timetable. Returning an empty projection keeps canonical weekly
+        // content usable while the retryable exception repository can recover.
+        return InstructionTimelineSnapshot(
+          now: effectiveNow,
+          positions: const {},
+        );
       }
     }
 
