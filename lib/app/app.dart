@@ -248,6 +248,7 @@ class _AppShellState extends State<_AppShell> {
   late final AssignmentLessonTimelineService _assignmentTimeline;
   AnnualPlanPage? _annualPlanPage;
   ResourceLibraryPage? _resourceLibraryPage;
+  int _scheduleRevision = 0;
 
   @override
   void initState() {
@@ -346,7 +347,12 @@ class _AppShellState extends State<_AppShell> {
         ),
       ),
     );
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {
+      _scheduleRevision += 1;
+      _annualPlanPage = null;
+      _resourceLibraryPage = null;
+    });
   }
 
   Widget _topTrailing(BuildContext context) => Wrap(
@@ -402,6 +408,7 @@ class _AppShellState extends State<_AppShell> {
     final repository = widget.dependencies.repository;
     final pages = <Widget>[
       ContinuityThisWeekPage(
+        key: ValueKey('${widget.activeCourseId}:schedule:$_scheduleRevision'),
         repository: repository,
         service: _outcomePlanning,
         continuity: _continuity,
