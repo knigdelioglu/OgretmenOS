@@ -96,6 +96,9 @@ class _AssignmentAwareWeeklyLessonPlanSectionState
     final current = data.timeline.currentOccurrence?.assignmentId;
     if (current != null && data.assignment(current) != null) return current;
 
+    final next = data.timeline.nextOccurrence?.assignmentId;
+    if (next != null && data.assignment(next) != null) return next;
+
     ScheduledLessonOccurrence? latest;
     for (final assignment in data.assignments) {
       final previous = data.timeline.positionFor(assignment.id)?.previousOccurrence;
@@ -105,9 +108,6 @@ class _AssignmentAwareWeeklyLessonPlanSectionState
       }
     }
     if (latest != null) return latest.assignmentId;
-
-    final next = data.timeline.nextOccurrence?.assignmentId;
-    if (next != null && data.assignment(next) != null) return next;
     return data.assignments.isEmpty ? null : data.assignments.first.id;
   }
 
@@ -284,14 +284,18 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
       );
       scheduledOccurrenceCount = occurrences.length;
       for (final occurrence in occurrences) {
+        final location = workflow.locationForInstructionOrdinal(
+          widget.annualPlan,
+          occurrence.plannedOrdinal,
+        );
         final selection = await workflow.selectionForInstructionOrdinal(
           widget.annualPlan,
           occurrence.plannedOrdinal,
         );
-        if (selection == null) continue;
         rows.add(
           _ScheduledPlanRow(
             selection: selection,
+            location: location,
             occurrence: occurrence,
           ),
         );
@@ -301,9 +305,18 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
         widget.annualPlan,
         widget.weekNumber,
       );
-      rows.addAll(
-        selections.map((selection) => _ScheduledPlanRow(selection: selection)),
-      );
+      for (final selection in selections) {
+        final ordinal = _instructionOrdinalForSelection(selection);
+        rows.add(
+          _ScheduledPlanRow(
+            selection: selection,
+            location: workflow.locationForInstructionOrdinal(
+              widget.annualPlan,
+              ordinal,
+            ),
+          ),
+        );
+      }
       scheduledOccurrenceCount = selections.length;
     }
 
@@ -323,6 +336,7 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
     final resolved = <AssignmentLessonProgressKey, AssignmentLessonProgressResolution>{};
     for (final row in rows) {
       final selection = row.selection;
+      if (selection == null) continue;
       final key = AssignmentLessonProgressKey(
         packageId: selection.package.packageId,
         packageHour: selection.packageHour,
@@ -332,23 +346,33 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
         record: rawByKey[key],
       );
     }
+    final actualOrdinal = widget.position?.actualOrdinal ?? 0;
+    final plannedOrdinal = widget.position?.plannedOrdinal ?? 0;
     final actualSelection = widget.position == null
         ? null
         : await workflow.selectionForInstructionOrdinal(
             widget.annualPlan,
-            widget.position!.actualOrdinal,
+            actualOrdinal,
           );
     final plannedSelection = widget.position == null
         ? null
         : await workflow.selectionForInstructionOrdinal(
             widget.annualPlan,
-            widget.position!.plannedOrdinal,
+            plannedOrdinal,
           );
     return _AssignmentPanelData(
       rows: List.unmodifiable(rows),
       resolutions: Map.unmodifiable(resolved),
       actualSelection: actualSelection,
       plannedSelection: plannedSelection,
+      actualLocation: workflow.locationForInstructionOrdinal(
+        widget.annualPlan,
+        actualOrdinal,
+      ),
+      plannedLocation: workflow.locationForInstructionOrdinal(
+        widget.annualPlan,
+        plannedOrdinal,
+      ),
       scheduleProjected: scheduleProjected,
       scheduledOccurrenceCount: scheduledOccurrenceCount,
     );
@@ -551,7 +575,7 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
                     child: Text(
                       data.scheduledOccurrenceCount == 0
                           ? 'Takvime göre bu hafta bu şubede ders yok.'
-                          : 'Bu haftaki program saatleri için açılabilir tekil ders planı bulunmuyor.',
+                          : 'Bu haftaki program saatleri için gösterilebilir plan bağlamı bulunmuyor.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
@@ -564,15 +588,20 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
                         final row = data.rows[index];
                         final selection = row.selection;
                         final ordinal = row.occurrence?.plannedOrdinal ??
-                            _instructionOrdinalForSelection(selection);
-                        final key = AssignmentLessonProgressKey(
-                          packageId: selection.package.packageId,
-                          packageHour: selection.packageHour,
-                        );
-                        final resolution = data.resolutions[key] ??
-                            const AssignmentLessonProgressResolution.none();
-                        final isActual = ordinal == actual;
-                        final isPlanned = ordinal == planned;
+                            (selection == null
+                                ? row.location?.instructionOrdinal ?? 0
+                                : _instructionOrdinalForSelection(selection));
+                        final resolution = selection == null
+                            ? const AssignmentLessonProgressResolution.none()
+                            : data.resolutions[
+                                    AssignmentLessonProgressKey(
+                                      packageId: selection.package.packageId,
+                                      packageHour: selection.packageHour,
+                                    )
+                                  ] ??
+                                  const AssignmentLessonProgressResolution.none();
+                        final isActual = ordinal > 0 && ordinal == actual;
+                        final isPlanned = ordinal > 0 && ordinal == planned;
                         final isCurrentTime =
                             row.occurrence != null &&
                             currentOccurrence?.assignmentId ==
@@ -580,19 +609,22 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
                             currentOccurrence?.plannedOrdinal == ordinal;
                         return _AssignmentPlanRow(
                           selection: selection,
+                          location: row.location,
                           occurrence: row.occurrence,
                           weekOccurrenceIndex:
                               row.occurrence == null ? null : index + 1,
                           selectedCalendarWeekNumber: widget.weekNumber,
                           resolution: resolution,
                           schedulePassed:
-                              data.scheduleProjected && ordinal < planned,
+                              data.scheduleProjected && ordinal > 0 && ordinal < planned,
                           isCurrentTime: isCurrentTime,
                           isActual: isActual,
                           isPlanned: isPlanned,
                           positionsDiffer: actual != planned,
                           isLast: index == data.rows.length - 1,
-                          onOpen: () => _openPlan(selection),
+                          onOpen: selection == null
+                              ? null
+                              : () => _openPlan(selection),
                         );
                       },
                     ),
@@ -609,30 +641,38 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
     required int planned,
     required int actual,
   }) {
-    final plannedTitle = _selectionTitle(data.plannedSelection);
-    final actualTitle = _selectionTitle(data.actualSelection);
-    if (planned == actual) {
-      return actualTitle == null
-          ? 'Planlanan ve gerçek ders konumu aynı.'
-          : 'Güncel konum: $actualTitle';
-    }
-    return [
-      if (plannedTitle != null) 'Planlanan: $plannedTitle',
-      if (actualTitle != null) 'Gerçek: $actualTitle',
-    ].join(' · ');
+    final plannedTitle = _positionTitle(
+      ordinal: planned,
+      selection: data.plannedSelection,
+      location: data.plannedLocation,
+    );
+    final actualTitle = _positionTitle(
+      ordinal: actual,
+      selection: data.actualSelection,
+      location: data.actualLocation,
+    );
+    if (planned == actual) return 'Güncel konum: $actualTitle';
+    return 'Planlanan: $plannedTitle · Gerçek: $actualTitle';
   }
 
-  String? _selectionTitle(WeeklyLessonPlanSelection? selection) {
-    if (selection == null) return null;
-    final lessonTitle = selection.lesson?.title.trim();
+  String _positionTitle({
+    required int ordinal,
+    required WeeklyLessonPlanSelection? selection,
+    required InstructionOrdinalLocation? location,
+  }) {
+    if (ordinal <= 0) return 'Henüz başlamadı';
+    final lessonTitle = selection?.lesson?.title.trim();
     if (lessonTitle != null && lessonTitle.isNotEmpty) return lessonTitle;
-    return selection.package.title;
+    final packageTitle = selection?.package.title.trim();
+    if (packageTitle != null && packageTitle.isNotEmpty) return packageTitle;
+    return location?.teacherTitle ?? '$ordinal. ders';
   }
 }
 
 class _AssignmentPlanRow extends StatelessWidget {
   const _AssignmentPlanRow({
     required this.selection,
+    required this.location,
     required this.occurrence,
     required this.weekOccurrenceIndex,
     required this.selectedCalendarWeekNumber,
@@ -646,7 +686,8 @@ class _AssignmentPlanRow extends StatelessWidget {
     required this.onOpen,
   });
 
-  final WeeklyLessonPlanSelection selection;
+  final WeeklyLessonPlanSelection? selection;
+  final InstructionOrdinalLocation? location;
   final ScheduledLessonOccurrence? occurrence;
   final int? weekOccurrenceIndex;
   final int selectedCalendarWeekNumber;
@@ -657,33 +698,46 @@ class _AssignmentPlanRow extends StatelessWidget {
   final bool isPlanned;
   final bool positionsDiffer;
   final bool isLast;
-  final VoidCallback onOpen;
+  final VoidCallback? onOpen;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final lessonTitle = selection.lesson?.title.trim();
+    final lessonTitle = selection?.lesson?.title.trim();
+    final packageTitle = selection?.package.title.trim();
     final title = lessonTitle != null && lessonTitle.isNotEmpty
         ? lessonTitle
-        : selection.package.title;
-    final explicitStatus = resolution.isStale
+        : packageTitle != null && packageTitle.isNotEmpty
+        ? packageTitle
+        : location?.teacherTitle ?? 'Plan bağlamı';
+    final explicitStatus = selection == null
+        ? null
+        : resolution.isStale
         ? 'Plan güncellendi · yeniden işaretle'
         : resolution.isCurrent &&
               resolution.record?.status != LessonPlanProgressStatus.notStarted
         ? resolution.record!.status.teacherLabel
         : null;
     final contextualStatus = explicitStatus ??
-        (schedulePassed ? 'Programa göre geçildi' : null);
+        (schedulePassed
+            ? 'Programa göre geçildi'
+            : selection == null && location?.isSchoolBasedPlanning == true
+            ? 'Bu saat için tekil ders planı yok'
+            : null);
     final emphasized = isCurrentTime || isActual || isPlanned;
     final rowLabel = occurrence == null
-        ? '${selection.weekHour}. ders saati'
-        : '${weekOccurrenceIndex ?? selection.weekHour}. ders saati';
+        ? '${location?.weekHour ?? selection?.weekHour ?? 0}. ders saati'
+        : '${weekOccurrenceIndex ?? location?.weekHour ?? selection?.weekHour ?? 0}. ders saati';
     final scheduleLabel = occurrence == null
         ? null
         : '${_weekdayShort(occurrence!.date.weekday)} · '
               '${occurrence!.slot.periodNumber}. saat';
+    final canonicalWeek = location?.weekNumber ?? selection?.weekNumber;
+    final canonicalHour = location?.weekHour ?? selection?.weekHour;
     final shiftedFromCanonicalWeek =
-        occurrence != null && selection.weekNumber != selectedCalendarWeekNumber;
+        occurrence != null &&
+        canonicalWeek != null &&
+        canonicalWeek != selectedCalendarWeekNumber;
 
     String? badge;
     if (isCurrentTime) {
@@ -805,7 +859,7 @@ class _AssignmentPlanRow extends StatelessWidget {
                         if (shiftedFromCanonicalWeek) ...[
                           const SizedBox(height: AppSpacing.xs),
                           Text(
-                            'Takvim kayması · plan sırası ${selection.weekNumber}. hafta, ${selection.weekHour}. ders',
+                            'Takvim kayması · plan sırası $canonicalWeek. hafta, $canonicalHour. ders',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: scheme.onSurfaceVariant,
                             ),
@@ -832,7 +886,9 @@ class _AssignmentPlanRow extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 3),
                     child: Icon(
-                      Icons.chevron_right_rounded,
+                      onOpen == null
+                          ? Icons.school_outlined
+                          : Icons.chevron_right_rounded,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -879,20 +935,26 @@ class _ActualPositionSheetState extends State<_ActualPositionSheet> {
     final upper = math.max(widget.plannedOrdinal + 4, widget.actualOrdinal + 2);
     final options = <_PositionOption>[];
     for (var ordinal = lower; ordinal <= upper; ordinal++) {
+      final location = workflow.locationForInstructionOrdinal(
+        widget.annualPlan,
+        ordinal,
+      );
+      if (location == null) continue;
       final selection = await workflow.selectionForInstructionOrdinal(
         widget.annualPlan,
         ordinal,
       );
-      if (selection == null) continue;
-      final lessonTitle = selection.lesson?.title.trim();
+      final lessonTitle = selection?.lesson?.title.trim();
+      final packageTitle = selection?.package.title.trim();
       options.add(
         _PositionOption(
           ordinal: ordinal,
           title: lessonTitle != null && lessonTitle.isNotEmpty
               ? lessonTitle
-              : selection.package.title,
-          subtitle:
-              '${selection.weekNumber}. hafta · ${selection.weekHour}. ders saati',
+              : packageTitle != null && packageTitle.isNotEmpty
+              ? packageTitle
+              : location.teacherTitle,
+          subtitle: '${location.weekNumber}. hafta · ${location.weekHour}. ders saati',
         ),
       );
     }
@@ -937,6 +999,15 @@ class _ActualPositionSheetState extends State<_ActualPositionSheet> {
                 return ListView(
                   shrinkWrap: true,
                   children: [
+                    RadioListTile<int>(
+                      value: 0,
+                      groupValue: widget.actualOrdinal,
+                      onChanged: (_) => Navigator.of(context).pop(
+                        const _PositionChoice.actual(0),
+                      ),
+                      title: const Text('Henüz başlamadım'),
+                      subtitle: const Text('Gerçek ilerleme ders planının başında'),
+                    ),
                     for (final option in snapshot.data!)
                       RadioListTile<int>(
                         value: option.ordinal,
@@ -1007,9 +1078,14 @@ class _AssignmentSectionData {
 }
 
 class _ScheduledPlanRow {
-  const _ScheduledPlanRow({required this.selection, this.occurrence});
+  const _ScheduledPlanRow({
+    required this.selection,
+    required this.location,
+    this.occurrence,
+  });
 
-  final WeeklyLessonPlanSelection selection;
+  final WeeklyLessonPlanSelection? selection;
+  final InstructionOrdinalLocation? location;
   final ScheduledLessonOccurrence? occurrence;
 }
 
@@ -1019,6 +1095,8 @@ class _AssignmentPanelData {
     required this.resolutions,
     required this.actualSelection,
     required this.plannedSelection,
+    required this.actualLocation,
+    required this.plannedLocation,
     required this.scheduleProjected,
     required this.scheduledOccurrenceCount,
   });
@@ -1028,6 +1106,8 @@ class _AssignmentPanelData {
   resolutions;
   final WeeklyLessonPlanSelection? actualSelection;
   final WeeklyLessonPlanSelection? plannedSelection;
+  final InstructionOrdinalLocation? actualLocation;
+  final InstructionOrdinalLocation? plannedLocation;
   final bool scheduleProjected;
   final int scheduledOccurrenceCount;
 }
