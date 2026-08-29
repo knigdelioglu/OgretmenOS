@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/calendar/asset_school_schedule_exception_repository.dart';
 import '../data/calendar/asset_weekly_planning_service.dart';
 import '../data/course/course_database_installer.dart';
 import '../data/course/course_knowledge_repository_impl.dart';
@@ -17,6 +18,7 @@ import '../domain/repositories/assignment_outcome_tracking_repository.dart';
 import '../domain/repositories/course_knowledge_repository.dart';
 import '../domain/repositories/instruction_context_repository.dart';
 import '../domain/repositories/lesson_plan_progress_repository.dart';
+import '../domain/repositories/school_schedule_exception_repository.dart';
 import '../domain/services/assignment_lesson_timeline_service.dart';
 import '../domain/services/legacy_teacher_state_migration_service.dart';
 import '../domain/services/outcome_planning_service.dart';
@@ -32,6 +34,7 @@ class AppDependencies {
     this.instructionContext,
     this.assignmentLessonProgress,
     this.assignmentOutcomeTracking,
+    this.scheduleExceptions,
     this.assignmentTimeline,
     this.legacyTeacherStateMigration,
     this.legacyMigrationDecision,
@@ -47,6 +50,7 @@ class AppDependencies {
   final InstructionContextRepository? instructionContext;
   final AssignmentLessonProgressRepository? assignmentLessonProgress;
   final AssignmentOutcomeTrackingRepository? assignmentOutcomeTracking;
+  final SchoolScheduleExceptionRepository? scheduleExceptions;
   final AssignmentLessonTimelineService? assignmentTimeline;
   final LegacyTeacherStateMigrationService? legacyTeacherStateMigration;
   final LegacyMigrationDecisionRepository? legacyMigrationDecision;
@@ -69,6 +73,7 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
       lessonPlanDataSource: LessonPlanDatabaseDataSource(database.database),
     );
     final weeklyPlanning = AssetWeeklyPlanningService(repository: repository);
+    final scheduleExceptions = AssetSchoolScheduleExceptionRepository();
     trackingDatabase = await OutcomeTrackingDatabase.open();
     final trackingRepository = SqfliteOutcomeTrackingRepository(
       trackingDatabase.database,
@@ -86,6 +91,7 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
     final assignmentTimeline = AssignmentLessonTimelineService(
       instructionContext: instructionContext,
       weeklyPlanning: weeklyPlanning,
+      scheduleExceptions: scheduleExceptions,
     );
     final legacyTeacherStateMigration = LegacyTeacherStateMigrationService(
       legacyLessonProgress: lessonPlanProgress,
@@ -112,6 +118,7 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
       instructionContext: instructionContext,
       assignmentLessonProgress: assignmentLessonProgress,
       assignmentOutcomeTracking: assignmentOutcomeTracking,
+      scheduleExceptions: scheduleExceptions,
       assignmentTimeline: assignmentTimeline,
       legacyTeacherStateMigration: legacyTeacherStateMigration,
       legacyMigrationDecision: legacyMigrationDecision,
