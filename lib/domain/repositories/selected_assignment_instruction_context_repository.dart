@@ -1,8 +1,8 @@
 import '../models/instruction_context_models.dart';
 import 'instruction_context_repository.dart';
 
-/// Restricts assignment discovery to one teaching assignment while preserving
-/// all authoritative mutations and shared bell-period/class data on the
+/// Restricts assignment discovery and assignment-scoped mutations to one
+/// teaching assignment while preserving shared bell-period/class reads on the
 /// underlying repository.
 class SelectedAssignmentInstructionContextRepository
     implements InstructionContextRepository {
@@ -51,12 +51,16 @@ class SelectedAssignmentInstructionContextRepository
   }
 
   @override
-  Future<void> saveAssignment(TeachingAssignment assignment) =>
-      delegate.saveAssignment(assignment);
+  Future<void> saveAssignment(TeachingAssignment assignment) {
+    _requireSelected(assignment.id);
+    return delegate.saveAssignment(assignment);
+  }
 
   @override
-  Future<void> deleteAssignment(String requestedAssignmentId) =>
-      delegate.deleteAssignment(requestedAssignmentId);
+  Future<void> deleteAssignment(String requestedAssignmentId) {
+    _requireSelected(requestedAssignmentId);
+    return delegate.deleteAssignment(requestedAssignmentId);
+  }
 
   @override
   Future<List<BellPeriod>> getBellPeriods() => delegate.getBellPeriods();
@@ -86,10 +90,13 @@ class SelectedAssignmentInstructionContextRepository
   Future<void> replaceScheduleSlotsForAssignment({
     required String assignmentId,
     required List<LessonScheduleSlot> slots,
-  }) => delegate.replaceScheduleSlotsForAssignment(
-    assignmentId: assignmentId,
-    slots: slots,
-  );
+  }) {
+    _requireSelected(assignmentId);
+    return delegate.replaceScheduleSlotsForAssignment(
+      assignmentId: assignmentId,
+      slots: slots,
+    );
+  }
 
   @override
   Future<AssignmentProgressCursor?> getProgressCursor(
@@ -100,10 +107,22 @@ class SelectedAssignmentInstructionContextRepository
   }
 
   @override
-  Future<void> saveProgressCursor(AssignmentProgressCursor cursor) =>
-      delegate.saveProgressCursor(cursor);
+  Future<void> saveProgressCursor(AssignmentProgressCursor cursor) {
+    _requireSelected(cursor.assignmentId);
+    return delegate.saveProgressCursor(cursor);
+  }
 
   @override
-  Future<void> deleteProgressCursor(String requestedAssignmentId) =>
-      delegate.deleteProgressCursor(requestedAssignmentId);
+  Future<void> deleteProgressCursor(String requestedAssignmentId) {
+    _requireSelected(requestedAssignmentId);
+    return delegate.deleteProgressCursor(requestedAssignmentId);
+  }
+
+  void _requireSelected(String requestedAssignmentId) {
+    if (requestedAssignmentId != assignmentId) {
+      throw StateError(
+        'Selected assignment scope violation: $requestedAssignmentId',
+      );
+    }
+  }
 }
