@@ -48,9 +48,11 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
     final classes = await widget.repository.getClasses(plan.academicYear);
     final assignments = await widget.repository.getAssignments(
       academicYear: plan.academicYear,
-      courseId: widget.courseId,
       activeOnly: false,
     );
+    final courseAssignments = assignments
+        .where((item) => item.courseId == widget.courseId)
+        .toList(growable: false);
     final periods = await widget.repository.getBellPeriods();
     final slots = await widget.repository.getScheduleSlotsForAssignments(
       assignments.map((item) => item.id),
@@ -76,7 +78,7 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
           academicYear: plan.academicYear,
         );
         if (migrationDecision != null &&
-            !assignments.any(
+            !courseAssignments.any(
               (item) => item.id == migrationDecision!.assignmentId,
             )) {
           await decisionRepository.clear(
@@ -95,6 +97,7 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
 
     return _SchedulePageData(
       academicYear: plan.academicYear,
+      weeklyLessonHours: plan.weeklyLessonHours,
       classes: classes,
       assignments: assignments,
       periods: periods,
@@ -213,6 +216,7 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
       useSafeArea: true,
       builder: (_) => _AssignmentScheduleSheet(
         periods: data.periods,
+        expectedWeeklyHours: data.weeklyLessonHours,
         initial: currentSlots
             .map((slot) => _ScheduleCell(slot.weekday, slot.periodNumber))
             .toSet(),
@@ -220,6 +224,15 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
       ),
     );
     if (selected == null) return;
+    if (selected.isNotEmpty && selected.length != data.weeklyLessonHours) {
+      showTeacherFeedback(
+        context,
+        'Bu ders haftada ${data.weeklyLessonHours} saat. '
+        '${data.weeklyLessonHours} ders saati seçin veya programı tamamen temizleyin.',
+        duration: const Duration(seconds: 5),
+      );
+      return;
+    }
 
     try {
       final before = await widget.timeline.resolve(
@@ -258,7 +271,10 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
       );
       if (!mounted) return;
       _reload();
-      showTeacherFeedback(context, 'Ders programı kaydedildi.');
+      showTeacherFeedback(
+        context,
+        selected.isEmpty ? 'Ders programı temizlendi.' : 'Ders programı kaydedildi.',
+      );
     } on ScheduleSlotConflictException catch (error) {
       if (!mounted) return;
       final conflictingAssignment = data.assignment(error.conflictingAssignmentId);
@@ -389,29 +405,13 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
     );
     if (confirmed != true) return;
 
+    LegacyTeacherStateMigrationReport report;
     try {
-      final report = await migration.migrateToAssignment(
+      report = await migration.migrateToAssignment(
         assignmentId: selected.id,
         courseId: widget.courseId,
         academicYear: data.academicYear,
         allowedOutcomeIds: data.allowedOutcomeIds,
-      );
-      await decisionRepository.save(
-        LegacyMigrationDecision(
-          courseId: widget.courseId,
-          academicYear: data.academicYear,
-          assignmentId: selected.id,
-          decidedAt: DateTime.now(),
-        ),
-      );
-      if (!mounted) return;
-      _reload();
-      showTeacherFeedback(
-        context,
-        report.copiedCount == 0
-            ? 'Yeni kayıt yok; mevcut şube verileri korundu.'
-            : '${report.copiedCount} eski kayıt $className şubesine aktarıldı.',
-        duration: const Duration(seconds: 5),
       );
     } on Object {
       if (!mounted) return;
@@ -420,7 +420,35 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
         'Eski takip verisi aktarılamadı. Hiçbir eski kayıt silinmedi.',
         duration: const Duration(seconds: 5),
       );
+      return;
     }
+
+    var decisionSaved = true;
+    try {
+      await decisionRepository.save(
+        LegacyMigrationDecision(
+          courseId: widget.courseId,
+          academicYear: data.academicYear,
+          assignmentId: selected.id,
+          decidedAt: DateTime.now(),
+        ),
+      );
+    } on Object {
+      decisionSaved = false;
+    }
+
+    if (!mounted) return;
+    _reload();
+    final copiedMessage = report.copiedCount == 0
+        ? 'Yeni kayıt yok; mevcut şube verileri korundu.'
+        : '${report.copiedCount} eski kayıt $className şubesine aktarıldı.';
+    showTeacherFeedback(
+      context,
+      decisionSaved
+          ? copiedMessage
+          : '$copiedMessage Aktarım tercihi kaydedilemediği için bu soru yeniden görünebilir.',
+      duration: const Duration(seconds: 6),
+    );
   }
 
   @override
@@ -491,7 +519,7 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
             SectionHeading(
               '${widget.grade}. sınıf şubeleri',
               subtitle:
-                  'Aynı dersin her şubesi kendi gerçek ilerleme konumunu tutar.',
+                  'Bu ders haftada ${data.weeklyLessonHours} saat. Her şube kendi programını ve gerçek ilerleme konumunu tutar.',
               icon: Icons.groups_2_outlined,
             ),
             if (courseAssignments.isEmpty)
@@ -511,6 +539,7 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
                         .where((slot) => slot.assignmentId == assignment.id)
                         .toList(growable: false),
                     periods: data.periods,
+                    expectedWeeklyHours: data.weeklyLessonHours,
                     onEdit: () =>
                         _editAssignmentSchedule(data, assignment),
                     onDelete: () => _deleteAssignment(data, assignment),
@@ -541,6 +570,7 @@ class _AssignmentCard extends StatelessWidget {
     required this.schoolClass,
     required this.slots,
     required this.periods,
+    required this.expectedWeeklyHours,
     required this.onEdit,
     required this.onDelete,
   });
@@ -548,6 +578,7 @@ class _AssignmentCard extends StatelessWidget {
   final SchoolClass? schoolClass;
   final List<LessonScheduleSlot> slots;
   final List<BellPeriod> periods;
+  final int expectedWeeklyHours;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -558,6 +589,7 @@ class _AssignmentCard extends StatelessWidget {
         final day = a.weekday.compareTo(b.weekday);
         return day != 0 ? day : a.periodNumber.compareTo(b.periodNumber);
       });
+    final incomplete = ordered.isNotEmpty && ordered.length != expectedWeeklyHours;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -589,7 +621,7 @@ class _AssignmentCard extends StatelessWidget {
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               )
-            else
+            else ...[
               Wrap(
                 spacing: AppSpacing.sm,
                 runSpacing: AppSpacing.sm,
@@ -602,6 +634,17 @@ class _AssignmentCard extends StatelessWidget {
                     ),
                 ],
               ),
+              if (incomplete) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Program eksik: ${ordered.length}/$expectedWeeklyHours ders saati tanımlı.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ],
             const SizedBox(height: AppSpacing.md),
             FilledButton.tonalIcon(
               onPressed: onEdit,
@@ -952,11 +995,13 @@ class _BellPeriodsSheetState extends State<_BellPeriodsSheet> {
 class _AssignmentScheduleSheet extends StatefulWidget {
   const _AssignmentScheduleSheet({
     required this.periods,
+    required this.expectedWeeklyHours,
     required this.initial,
     required this.occupied,
   });
 
   final List<BellPeriod> periods;
+  final int expectedWeeklyHours;
   final Set<_ScheduleCell> initial;
   final Set<_ScheduleCell> occupied;
 
@@ -967,6 +1012,9 @@ class _AssignmentScheduleSheet extends StatefulWidget {
 
 class _AssignmentScheduleSheetState extends State<_AssignmentScheduleSheet> {
   late final Set<_ScheduleCell> _selected = {...widget.initial};
+
+  bool get _canSave =>
+      _selected.isEmpty || _selected.length == widget.expectedWeeklyHours;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -985,8 +1033,20 @@ class _AssignmentScheduleSheetState extends State<_AssignmentScheduleSheet> {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Bu sınıfa girdiğiniz ders saatlerini seçin. Dolu görünen saat başka bir sınıfa atanmıştır.',
+            'Bu ders haftada ${widget.expectedWeeklyHours} saat. '
+            'Tam program için ${widget.expectedWeeklyHours} saat seçin. '
+            'Dolu görünen saat başka bir ders/sınıfa atanmıştır.',
             style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '${_selected.length}/${widget.expectedWeeklyHours} saat seçildi',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: _canSave
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.error,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           Flexible(
@@ -1041,8 +1101,14 @@ class _AssignmentScheduleSheetState extends State<_AssignmentScheduleSheet> {
               ],
             ),
           ),
+          if (_selected.isNotEmpty)
+            TextButton.icon(
+              onPressed: () => setState(_selected.clear),
+              icon: const Icon(Icons.restart_alt_rounded),
+              label: const Text('Programı temizle'),
+            ),
           FilledButton(
-            onPressed: () => Navigator.of(context).pop(_selected),
+            onPressed: _canSave ? () => Navigator.of(context).pop(_selected) : null,
             child: const Text('Kaydet'),
           ),
         ],
@@ -1054,6 +1120,7 @@ class _AssignmentScheduleSheetState extends State<_AssignmentScheduleSheet> {
 class _SchedulePageData {
   const _SchedulePageData({
     required this.academicYear,
+    required this.weeklyLessonHours,
     required this.classes,
     required this.assignments,
     required this.periods,
@@ -1064,6 +1131,7 @@ class _SchedulePageData {
   });
 
   final String academicYear;
+  final int weeklyLessonHours;
   final List<SchoolClass> classes;
   final List<TeachingAssignment> assignments;
   final List<BellPeriod> periods;
