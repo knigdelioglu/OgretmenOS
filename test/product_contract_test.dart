@@ -3,45 +3,47 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('binding docs preserve the post-phase DEHB and lesson-plan contract', () {
+  test('binding docs preserve the assignment-aware schedule contract', () {
     final product = File('docs/PRODUCT_SCOPE.md').readAsStringSync();
     final blueprint = File('docs/FLUTTER_BLUEPRINT.md').readAsStringSync();
     final agent = File('AGENT.md').readAsStringSync();
 
     for (final document in [product, blueprint, agent]) {
       expect(document, contains('Bu Hafta'));
-      expect(document, contains('Yıllık'));
       expect(document, contains('Kaynaklar'));
-      expect(document, contains('LessonPlanPage'));
-      expect(document, contains('lesson_plan_progress'));
-      expect(document, contains('payload_sha256'));
-      expect(document.toLowerCase(), contains('stale'));
+      expect(document, contains('TeachingAssignment'));
       expect(document.toLowerCase(), contains('tracking'));
-      expect(document, contains('Undo'));
+      expect(document, contains('payload_sha256'));
+      expect(document, contains('assignment_lesson_progress'));
+      expect(document, contains('assignment_outcome_tracking'));
+      expect(document, contains('teacher_state.sqlite'));
     }
 
     expect(product, contains('Tracking isteğe bağlıdır'));
-    expect(product, contains('Konum ilerleme değildir'));
-    expect(product, contains('Ders planı yeni top-level navigation oluşturmaz'));
-    expect(
-      product,
-      contains('Lesson-plan status mutationları önceki persisted snapshot'),
-    );
-    expect(
-      product,
-      contains('Course-wide runtime fingerprint progress geçerlilik anahtarı değildir'),
-    );
-    expect(agent, contains('`İşlendi` zorunlu değildir'));
-    expect(agent, contains('previous == null'));
-    expect(agent, contains('TDE_11/TDE_12 curriculum-only fallback'));
-    expect(agent, contains('resolve/resolveRecord'));
+    expect(product, contains('SchoolScheduleException'));
+    expect(product, contains('Ders programına göre otomatik'));
+    expect(product, contains('Program konumu completion değildir'));
+    expect(product, contains('actualOrdinal = plannedOrdinal'));
+    expect(product, contains('legacy kayıtlar silinmez'));
+    expect(product, contains('mevcut assignment kayıtları overwrite edilmez'));
+
+    expect(blueprint, contains('OutcomeTrackingDatabase.schemaVersion = 5'));
     expect(
       blueprint,
-      contains('Position-derived `LinearProgressIndicator` yasaktır'),
+      contains('UNIQUE (academic_year, weekday, period_number)'),
     );
-    expect(blueprint, contains('P5 real Undo contract'));
-    expect(blueprint, contains('teacher_state schema v3 migration'));
-    expect(blueprint, contains('88 package / 172 instructional hours'));
+    expect(blueprint, contains('v4 → v5 migration'));
+    expect(blueprint, contains('TeachingCourseContextService'));
+    expect(blueprint, contains('SchoolScheduleExceptionRepository'));
+    expect(blueprint, contains('AssignmentAwareWeeklyLessonPlanSection'));
+    expect(blueprint, contains('SingleLessonPlanPage'));
+    expect(blueprint, contains('schedule position does not persist completed'));
+
+    expect(agent, contains('`İşlendi` zorunlu değildir'));
+    expect(agent, contains('Eksik weekly schedule `ŞU AN` üretmek için geçerli sayılmaz'));
+    expect(agent, contains('Default course mode `Ders programına göre otomatik`tir'));
+    expect(agent, contains('schedule exception'));
+    expect(agent, contains('v4→v5 timetable migration preserves rows'));
 
     const staleNavigation = 'Kazanımlar\nHaftalık\nYıllık Plan\nPaket';
     expect(product, isNot(contains(staleNavigation)));
