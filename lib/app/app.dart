@@ -140,7 +140,7 @@ class _TeacherOsAppState extends State<TeacherOsApp>
         return;
       }
 
-      final targetCourse = snapshot.currentCourseId;
+      final targetCourse = snapshot.preferredCourseId;
       if (targetCourse != null &&
           targetCourse != _activeCourseId &&
           isSupportedRuntimeCourse(targetCourse)) {
