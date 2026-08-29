@@ -271,11 +271,12 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
   Future<_AssignmentPanelData> _load() async {
     final workflow = LessonPlanWorkflowService(repository: widget.repository);
     final selectedWeek = widget.annualPlan.week(widget.weekNumber)?.week;
-    final scheduleProjected = widget.position != null && selectedWeek != null;
 
     final rows = <_ScheduledPlanRow>[];
     var scheduledOccurrenceCount = 0;
-    if (scheduleProjected) {
+    var scheduleProjected = false;
+    if (widget.position != null && selectedWeek != null) {
+      scheduleProjected = true;
       final occurrences = widget.timelineSnapshot.occurrencesForAssignmentBetween(
         assignmentId: widget.assignment.id,
         start: selectedWeek.start,
