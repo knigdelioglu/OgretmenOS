@@ -2,15 +2,18 @@ import '../models/instruction_context_models.dart';
 import '../models/instruction_timeline_models.dart';
 import '../models/weekly_plan_models.dart';
 import '../repositories/instruction_context_repository.dart';
+import '../repositories/school_schedule_exception_repository.dart';
 
 class AssignmentLessonTimelineService {
   const AssignmentLessonTimelineService({
     required this.instructionContext,
     required this.weeklyPlanning,
+    this.scheduleExceptions,
   });
 
   final InstructionContextRepository instructionContext;
   final WeeklyPlanningService weeklyPlanning;
+  final SchoolScheduleExceptionRepository? scheduleExceptions;
 
   Future<InstructionTimelineSnapshot> resolve({
     required String academicYear,
@@ -71,6 +74,15 @@ class AssignmentLessonTimelineService {
         .where((slot) => completeAssignmentIds.contains(slot.assignmentId))
         .toList(growable: false);
 
+    var exceptions = plan.scheduleExceptions;
+    final exceptionRepository = scheduleExceptions;
+    if (exceptionRepository != null) {
+      final stored = await exceptionRepository.getForAcademicYear(academicYear);
+      if (stored.isNotEmpty) {
+        exceptions = List.unmodifiable([...exceptions, ...stored]);
+      }
+    }
+
     final periodByNumber = {
       for (final period in periods) period.periodNumber: period,
     };
@@ -78,6 +90,7 @@ class AssignmentLessonTimelineService {
       plan: plan,
       slots: effectiveSlots,
       periodByNumber: periodByNumber,
+      exceptions: exceptions,
     );
 
     ScheduledLessonOccurrence? current;
@@ -154,6 +167,7 @@ class AssignmentLessonTimelineService {
     required AnnualWeeklyPlan plan,
     required List<LessonScheduleSlot> slots,
     required Map<int, BellPeriod> periodByNumber,
+    required List<SchoolScheduleException> exceptions,
   }) {
     final counters = <String, int>{};
     final raw = <_RawOccurrence>[];
@@ -174,6 +188,14 @@ class AssignmentLessonTimelineService {
             date.isAfter(_dateOnly(week.end))) {
           continue;
         }
+        final cancelled = exceptions.any(
+          (exception) => exception.cancels(
+            candidateDate: date,
+            candidateStartMinute: period.startMinute,
+            candidateEndMinute: period.endMinute,
+          ),
+        );
+        if (cancelled) continue;
         raw.add(
           _RawOccurrence(
             assignmentId: slot.assignmentId,
