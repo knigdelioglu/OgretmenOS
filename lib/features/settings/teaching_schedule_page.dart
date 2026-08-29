@@ -235,11 +235,39 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
     }
 
     try {
-      final before = await widget.timeline.resolve(
-        academicYear: data.academicYear,
-        courseId: widget.courseId,
+      final previousCursor = await widget.repository.getProgressCursor(
+        assignment.id,
       );
-      final oldPlanned = before.positionFor(assignment.id)?.plannedOrdinal ?? 0;
+      final hasManualCursor =
+          previousCursor?.mode == AssignmentProgressMode.manualOffset;
+      int? oldPlannedOrdinal;
+
+      if (hasManualCursor) {
+        if (currentSlots.isEmpty &&
+            previousCursor!.plannedOrdinalAtAnchor == 0) {
+          oldPlannedOrdinal = 0;
+        } else {
+          try {
+            final before = await widget.timeline.resolve(
+              academicYear: data.academicYear,
+              courseId: widget.courseId,
+            );
+            oldPlannedOrdinal = before.positionFor(assignment.id)?.plannedOrdinal;
+          } on Object {
+            oldPlannedOrdinal = null;
+          }
+        }
+        if (oldPlannedOrdinal == null) {
+          if (!mounted) return;
+          showTeacherFeedback(
+            context,
+            'Gerçek ilerleme konumu doğrulanamadığı için program değiştirilmedi. Tekrar deneyin.',
+            duration: const Duration(seconds: 5),
+          );
+          return;
+        }
+      }
+
       final now = DateTime.now();
       final slots = selected
           .map(
@@ -253,22 +281,77 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
             ),
           )
           .toList(growable: false);
+
+      Future<bool> restorePreviousSchedule() async {
+        try {
+          await widget.repository.replaceScheduleSlotsForAssignment(
+            assignmentId: assignment.id,
+            slots: currentSlots,
+          );
+          return true;
+        } on Object {
+          return false;
+        }
+      }
+
       await widget.repository.replaceScheduleSlotsForAssignment(
         assignmentId: assignment.id,
         slots: slots,
       );
-      final after = await widget.timeline.resolve(
-        academicYear: data.academicYear,
-        courseId: widget.courseId,
-      );
-      final newPlanned = after.positionFor(assignment.id)?.plannedOrdinal ?? 0;
-      await AssignmentProgressCursorService(
-        repository: widget.repository,
-      ).reanchorForScheduleChange(
-        assignmentId: assignment.id,
-        oldPlannedOrdinal: oldPlanned,
-        newPlannedOrdinal: newPlanned,
-      );
+
+      if (hasManualCursor) {
+        int? newPlannedOrdinal;
+        if (selected.isEmpty) {
+          newPlannedOrdinal = 0;
+        } else {
+          try {
+            final after = await widget.timeline.resolve(
+              academicYear: data.academicYear,
+              courseId: widget.courseId,
+            );
+            newPlannedOrdinal = after.positionFor(assignment.id)?.plannedOrdinal;
+          } on Object {
+            newPlannedOrdinal = null;
+          }
+        }
+
+        if (newPlannedOrdinal == null) {
+          final restored = await restorePreviousSchedule();
+          if (!mounted) return;
+          _reload();
+          showTeacherFeedback(
+            context,
+            restored
+                ? 'Yeni programda gerçek ilerleme doğrulanamadı; değişiklik uygulanmadı ve önceki program korundu.'
+                : 'Program değişti ancak gerçek ilerleme doğrulanamadı. İlerlemeyi “Düzelt” ile kontrol edin.',
+            duration: const Duration(seconds: 6),
+          );
+          return;
+        }
+
+        try {
+          await AssignmentProgressCursorService(
+            repository: widget.repository,
+          ).reanchorForScheduleChange(
+            assignmentId: assignment.id,
+            oldPlannedOrdinal: oldPlannedOrdinal!,
+            newPlannedOrdinal: newPlannedOrdinal,
+          );
+        } on Object {
+          final restored = await restorePreviousSchedule();
+          if (!mounted) return;
+          _reload();
+          showTeacherFeedback(
+            context,
+            restored
+                ? 'Gerçek ilerleme korunamadığı için program değişikliği geri alındı.'
+                : 'Program değişti ancak gerçek ilerleme kaydı korunamadı. İlerlemeyi “Düzelt” ile kontrol edin.',
+            duration: const Duration(seconds: 6),
+          );
+          return;
+        }
+      }
+
       if (!mounted) return;
       _reload();
       showTeacherFeedback(
