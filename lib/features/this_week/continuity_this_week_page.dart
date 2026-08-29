@@ -466,7 +466,6 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
         assignmentLessonProgress: widget.assignmentLessonProgress,
         assignmentTimeline: widget.assignmentTimeline,
         courseId: widget.courseId,
-        scheduleContextActive: data.scheduleReady,
         onConfigureSchedule: widget.onConfigureSchedule,
         onOutcomeViewed: (item) =>
             _rememberViewed(item, data.continuityScopeId),
