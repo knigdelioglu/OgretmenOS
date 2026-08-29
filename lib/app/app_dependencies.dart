@@ -98,6 +98,7 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
       legacyOutcomeTracking: trackingRepository,
       assignmentLessonProgress: assignmentLessonProgress,
       assignmentOutcomeTracking: assignmentOutcomeTracking,
+      instructionContext: instructionContext,
     );
     final legacyMigrationDecision =
         SharedPreferencesLegacyMigrationDecisionRepository(preferences);
