@@ -268,7 +268,8 @@
     "timeline_blocks": 16,
     "source_references": 8,
     "entity_source_references": 4,
-    "lesson_plan_packages": 88
+    "lesson_plan_packages": 88,
+    "form_templates": 35
   },
   "timeline_resolution": "BLOCK_TIME_RESOLVED",
   "timeline_unresolved_fields": {
@@ -324,5 +325,15 @@
     "source_payload_parity": true,
     "validation_bound": true,
     "calendar_neutral": true
+  },
+  "capabilities": {
+    "form_templates": true
+  },
+  "form_template_schema_versions": [
+    "1.0"
+  ],
+  "form_template_status_counts": {
+    "ready": 16,
+    "needs_review": 19
   }
 }

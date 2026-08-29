@@ -1,4 +1,5 @@
 import '../../domain/models/course_models.dart';
+import '../../domain/models/form_models.dart';
 import '../../domain/models/lesson_plan_models.dart';
 import '../../domain/models/planning_models.dart';
 import '../../domain/performance_instrumentation.dart';
@@ -9,6 +10,7 @@ import 'lesson_plan_database_data_source.dart';
 class CourseKnowledgeRepositoryImpl
     implements
         CourseKnowledgeRepository,
+        FormTemplateKnowledgeRepository,
         CoursePlanningKnowledgeRepository,
         LessonPlanKnowledgeRepository {
   CourseKnowledgeRepositoryImpl({
@@ -99,6 +101,14 @@ class CourseKnowledgeRepositoryImpl
       'CourseKnowledgeRepository.getTeacherPackage',
     );
     return dataSource.getTeacherPackage(themeId);
+  }
+
+  @override
+  Future<FormDefinition?> getFormDefinition(String formId) {
+    RuntimePerformanceTrace.count(
+      'CourseKnowledgeRepository.getFormDefinition',
+    );
+    return dataSource.getFormDefinition(formId);
   }
 
   @override

@@ -71,6 +71,7 @@ class RuntimeManifest {
     required this.rowCounts,
     required this.timelineResolution,
     required this.timelineUnresolvedFields,
+    this.capabilities = const {},
     this.assessmentPayloadCapabilities = const {},
   });
 
@@ -90,13 +91,20 @@ class RuntimeManifest {
         unresolved[entry.key.toString()] = entry.value;
       }
     }
-    final rawCapabilities = json['assessment_payload_capabilities'];
-    final capabilities = <String, bool>{};
-    if (rawCapabilities is Map) {
-      for (final entry in rawCapabilities.entries) {
-        capabilities[entry.key.toString()] = entry.value == true;
+    Map<String, bool> readCapabilities(Object? raw) {
+      final values = <String, bool>{};
+      if (raw is Map) {
+        for (final entry in raw.entries) {
+          values[entry.key.toString()] = entry.value == true;
+        }
       }
+      return values;
     }
+
+    final capabilities = readCapabilities(json['capabilities']);
+    final assessmentCapabilities = readCapabilities(
+      json['assessment_payload_capabilities'],
+    );
     return RuntimeManifest(
       runtimePackageVersion: json['runtime_package_version']?.toString() ?? '',
       schemaVersion: json['schema_version']?.toString() ?? '',
@@ -107,7 +115,8 @@ class RuntimeManifest {
       rowCounts: rowCounts,
       timelineResolution: json['timeline_resolution']?.toString() ?? '',
       timelineUnresolvedFields: unresolved,
-      assessmentPayloadCapabilities: capabilities,
+      capabilities: capabilities,
+      assessmentPayloadCapabilities: assessmentCapabilities,
     );
   }
 
@@ -119,6 +128,7 @@ class RuntimeManifest {
   final Map<String, int> rowCounts;
   final String timelineResolution;
   final Map<String, Object?> timelineUnresolvedFields;
+  final Map<String, bool> capabilities;
   final Map<String, bool> assessmentPayloadCapabilities;
 
   bool get isCompatible =>
@@ -128,6 +138,8 @@ class RuntimeManifest {
 
   bool hasAssessmentCapability(String capability) =>
       assessmentPayloadCapabilities[capability] == true;
+
+  bool hasCapability(String capability) => capabilities[capability] == true;
 
   String? get weeklyLessonHours =>
       timelineUnresolvedFields['weekly_lesson_hours']?.toString();

@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../domain/models/course_models.dart';
+import '../../domain/models/form_models.dart';
 import '../../domain/models/planning_models.dart';
 import '../../domain/performance_instrumentation.dart';
 import '../../domain/services/sequence_navigation.dart';
@@ -478,6 +479,30 @@ class CourseDatabaseDataSource {
         () => _readTeacherPackage(themeId),
       );
 
+  Future<FormDefinition?> getFormDefinition(String formId) async {
+    if (!await _hasTable('form_templates')) return null;
+    final rows = await _database.query(
+      'form_templates',
+      columns: ['schema_version', 'template_json', 'render_status'],
+      where: 'form_id = ?',
+      whereArgs: [formId],
+      limit: 1,
+    );
+    if (rows.isEmpty || rows.first['render_status'] != 'ready') return null;
+    final schemaVersion = rows.first['schema_version']?.toString();
+    final templateJson = rows.first['template_json']?.toString();
+    if (schemaVersion == null || templateJson == null) {
+      throw const FormDefinitionException('Form şablonu eksik alan içeriyor.');
+    }
+    final definition = FormDefinition.fromJsonString(templateJson);
+    if (definition.schemaVersion != schemaVersion) {
+      throw const FormDefinitionException(
+        'Form şablonu ile kayıt şema sürümü uyuşmuyor.',
+      );
+    }
+    return definition;
+  }
+
   Future<TeacherPackage> _readTeacherPackage(String themeId) async {
     final theme = await getTheme(themeId);
     final blocks = await getBlocks(themeId);
@@ -513,6 +538,17 @@ class CourseDatabaseDataSource {
       }
       rethrow;
     }
+  }
+
+  Future<bool> _hasTable(String table) async {
+    final rows = await _database.query(
+      'sqlite_master',
+      columns: ['name'],
+      where: "type = 'table' AND name = ?",
+      whereArgs: [table],
+      limit: 1,
+    );
+    return rows.isNotEmpty;
   }
 
   Row _first(List<Row> rows, String entity) {

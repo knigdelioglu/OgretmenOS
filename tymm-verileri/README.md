@@ -29,6 +29,25 @@ tymm-verileri/
 
 `package_manifest.json` paketin modunu ve `textbook_status` değerini belirler. Curriculum-only runtime, `tool/build_curriculum_only_runtime.py` ile program verisinden üretilir. Blok başına `12+11+10+10` saat dağılımı ÖğretmenOS planlama politikasıdır; TYMM'nin resmî blok süreleri olarak yorumlanmaz.
 
+### Form template sözleşmesi
+
+`FULL_RUNTIME` paketleri, hafif provenance kaydı olan `forms` tablosuna ek
+olarak semantik form içeriğini `form_templates` tablosunda taşır. İçerik
+koordinat tabanlı değildir; `schema_version = 1.0` olan `FormDefinition`
+JSON'udur. `render_status` yalnız `ready` veya `needs_review` olabilir.
+`ready` olmayan kayıtlar uygulamada belge olarak açılmaz.
+
+`capabilities.form_templates` yalnız tablo ve sözleşme paket tarafından
+sağlandığında `true` olur. `CURRICULUM_ONLY` paketlerde değer `false` kalır ve
+tablonun bulunmaması normaldir. Eski runtime paketleri de tablo yokken
+uygulama tarafından metadata-only olarak okunmaya devam eder.
+
+FULL_RUNTIME senkronizasyonunda `tool/sync_course_runtime.dart`, kopyalama
+sonrası `tool/build_form_templates.py` projector'ını çalıştırır. Böylece
+runtime yeniden üretildiğinde form içerikleri kaybolmaz. Projector kaynağı
+kesinleştirilemeyen kayıtları boş bir şablonla yayımlamak yerine
+`needs_review` olarak işaretler.
+
 ## Süreç bileşeni canonical kuralı
 
 Tema sayfasında subordinate süreç bileşenlerinin tekrar edilmemesi effective bileşen olmadığı anlamına gelmez. Curriculum-only paketler şu çözümleme sırasını kullanır:

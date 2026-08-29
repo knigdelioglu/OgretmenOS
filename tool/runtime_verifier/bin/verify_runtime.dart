@@ -34,7 +34,10 @@ Future<void> main(List<String> args) async {
     dataMode == 'FULL_RUNTIME' || dataMode == 'CURRICULUM_ONLY',
     'bilinmeyen data_mode: $dataMode',
   );
-  _check(packageManifest['course_id'] == courseId, 'package course_id uyuşmuyor');
+  _check(
+    packageManifest['course_id'] == courseId,
+    'package course_id uyuşmuyor',
+  );
 
   final manifestMap = _decodeMap(await manifestFile.readAsString());
   _check(manifestMap['course_id'] == courseId, 'course_id $courseId değil');
@@ -110,7 +113,7 @@ Future<void> main(List<String> args) async {
     if (dataMode == 'CURRICULUM_ONLY') {
       _verifyCurriculumOnly(database, counts, packageManifest, manifestMap);
     } else {
-      _verifyFullRuntime(database);
+      _verifyFullRuntime(database, manifestMap);
     }
   } finally {
     database.close();
@@ -137,7 +140,11 @@ void _verifyCurriculumOnly(
   );
   _checkValue(_count(database, 'themes'), 4, 'curriculum-only tema sayısı');
   _checkValue(_count(database, 'blocks'), 16, 'curriculum-only blok sayısı');
-  _checkValue(_count(database, 'outcomes'), 64, 'curriculum-only kazanım sayısı');
+  _checkValue(
+    _count(database, 'outcomes'),
+    64,
+    'curriculum-only kazanım sayısı',
+  );
   _checkValue(
     _count(database, 'block_outcomes'),
     64,
@@ -168,7 +175,11 @@ void _verifyCurriculumOnly(
     'assessment_gap_mappings',
     'assessment_task_bindings',
   ]) {
-    _checkValue(_count(database, table), 0, '$table curriculum-only pakette boş olmalı');
+    _checkValue(
+      _count(database, table),
+      0,
+      '$table curriculum-only pakette boş olmalı',
+    );
   }
 
   final blocksWithoutOutcome = database.select('''
@@ -195,9 +206,21 @@ void _verifyCurriculumOnly(
   };
   _checkValue(declaredCounts['themes'], 4, 'manifest tema sayısı');
   _checkValue(declaredCounts['outcomes'], 64, 'manifest kazanım sayısı');
+  final capabilities = manifest['capabilities'];
+  _check(
+    capabilities is Map && capabilities['form_templates'] == false,
+    'curriculum-only form_templates capability false olmalı',
+  );
+  if (_tableExists(database, 'form_templates')) {
+    _checkValue(
+      _count(database, 'form_templates'),
+      0,
+      'curriculum-only form_templates boş olmalı',
+    );
+  }
 }
 
-void _verifyFullRuntime(Database database) {
+void _verifyFullRuntime(Database database, Map<String, dynamic> manifest) {
   final verificationCandidates = database.select('''
     SELECT b.theme_id, b.block_id
     FROM blocks b
@@ -250,9 +273,123 @@ void _verifyFullRuntime(Database database) {
     'theme kaynak kararı yok',
   );
   _check(
-    _countWhere(database, 'assessment_task_bindings', 'theme_id = ?', [themeId]) > 0,
+    _countWhere(database, 'assessment_task_bindings', 'theme_id = ?', [
+          themeId,
+        ]) >
+        0,
     'theme ölçme bağlama yok',
   );
+  _verifyFormTemplates(database, manifest);
+}
+
+void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
+  final formCount = _count(database, 'forms');
+  final capabilities = manifest['capabilities'];
+  _check(capabilities is Map, 'runtime capabilities eksik');
+  if (formCount == 0) {
+    _check(
+      capabilities['form_templates'] != true,
+      'forms yokken form_templates capability true olamaz',
+    );
+    return;
+  }
+  _check(
+    capabilities['form_templates'] == true,
+    'FULL_RUNTIME form_templates capability true olmalı',
+  );
+  _check(
+    _tableExists(database, 'form_templates'),
+    'form_templates tablosu yok',
+  );
+  _checkValue(
+    _count(database, 'form_templates'),
+    formCount,
+    'her form için form_templates kaydı',
+  );
+  final foreignKeyErrors = database.select(
+    'PRAGMA foreign_key_check(form_templates)',
+  );
+  _check(
+    foreignKeyErrors.isEmpty,
+    'form_templates foreign key bütünlüğü bozuk',
+  );
+
+  const allowedStatuses = {'ready', 'needs_review'};
+  const allowedTypes = {
+    'heading',
+    'paragraph',
+    'identityFields',
+    'freeText',
+    'checklist',
+    'ratingScale',
+    'table',
+    'rubric',
+    'note',
+    'signature',
+    'spacer',
+  };
+  final rows = database.select('''
+    SELECT ft.form_id, ft.schema_version, ft.template_json,
+           ft.render_status, ft.provenance_json, f.title
+    FROM form_templates ft
+    INNER JOIN forms f ON f.form_id = ft.form_id
+    ORDER BY ft.form_id
+  ''');
+  for (final row in rows) {
+    final formId = row['form_id'];
+    _check(
+      (row['title']?.toString().trim() ?? '').isNotEmpty,
+      '$formId kullanıcı başlığı boş',
+    );
+    final schemaVersion = row['schema_version']?.toString() ?? '';
+    _check(schemaVersion == '1.0', '$formId desteklenmeyen schema_version');
+    final status = row['render_status']?.toString() ?? '';
+    _check(allowedStatuses.contains(status), '$formId render_status geçersiz');
+    final provenance = _decodeMap(row['provenance_json']?.toString() ?? '');
+    _check(provenance.isNotEmpty, '$formId provenance boş');
+    final template = _decodeMap(row['template_json']?.toString() ?? '');
+    _check(
+      template['schema_version'] == schemaVersion,
+      '$formId şema uyuşmuyor',
+    );
+    _check(
+      (template['title']?.toString().trim() ?? '').isNotEmpty,
+      '$formId template başlığı boş',
+    );
+    final sections = template['sections'];
+    _check(sections is List, '$formId sections liste değil');
+    for (final section in sections as List) {
+      _check(section is Map, '$formId section nesne değil');
+      final elements = (section as Map)['elements'];
+      _check(elements is List, '$formId elements liste değil');
+      for (final element in elements as List) {
+        _check(element is Map, '$formId element nesne değil');
+        final type = (element as Map)['type']?.toString() ?? '';
+        _check(
+          allowedTypes.contains(type),
+          '$formId element type geçersiz: $type',
+        );
+        if (type == 'table') {
+          final columns = element['columns'];
+          _check(
+            columns is List && columns.isNotEmpty,
+            '$formId table columns boş',
+          );
+        }
+        if (type == 'rubric') {
+          final criteria = element['criteria'];
+          final levels = element['levels'];
+          _check(
+            criteria is List &&
+                criteria.isNotEmpty &&
+                levels is List &&
+                levels.isNotEmpty,
+            '$formId rubric ölçüt/düzey boş',
+          );
+        }
+      }
+    }
+  }
 }
 
 void _verifySequence(ResultSet sequence) {
@@ -268,7 +405,10 @@ void _verifySequence(ResultSet sequence) {
       expectedBlockOrder++;
     }
     _checkValue(row['block_order'], expectedBlockOrder, '$themeId blok sırası');
-    _check(seenBlockIds.add(row['block_id']), 'timeline blokları tekrar ediyor');
+    _check(
+      seenBlockIds.add(row['block_id']),
+      'timeline blokları tekrar ediyor',
+    );
   }
 }
 
@@ -304,6 +444,11 @@ int _count(Database database, String table) {
   return rows.single['count'] as int;
 }
 
+bool _tableExists(Database database, String table) => database.select(
+  "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+  [table],
+).isNotEmpty;
+
 int _countWhere(
   Database database,
   String table,
@@ -333,7 +478,10 @@ String? _valueFor(List<String> args, String name) {
   return args[index + 1];
 }
 
-void _checkSchemaCompatibility(Object? databaseVersion, Object? manifestVersion) {
+void _checkSchemaCompatibility(
+  Object? databaseVersion,
+  Object? manifestVersion,
+) {
   final database = databaseVersion?.toString() ?? '';
   final manifest = manifestVersion?.toString() ?? '';
   if (database.isEmpty ||

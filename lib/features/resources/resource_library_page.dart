@@ -9,6 +9,7 @@ import '../../domain/models/weekly_plan_models.dart';
 import '../../domain/performance_instrumentation.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../shared/feature_widgets.dart';
+import 'form_viewer_page.dart';
 
 class ResourceLibraryPage extends StatefulWidget {
   const ResourceLibraryPage({
@@ -44,6 +45,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
   int _sectionRevision = 0;
   int _focusRevision = 0;
   bool _initialUsefulContentReported = false;
+  String? _openedNavigationFormId;
   ContinuityRepository? _observedContinuity;
   ContinuityChangeListener? _continuityChangeListener;
 
@@ -434,6 +436,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
     }
 
     final hasBook = package.textbookSections.isNotEmpty;
+    _openNavigationFormIfNeeded(package.forms);
     final hasActivities = package.activities.isNotEmpty;
     final hasForms = package.forms.isNotEmpty;
     final hasAssessment =
@@ -497,7 +500,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
             initiallyExpanded:
                 primary == _ResourceKind.forms ||
                 _selectedCategory == ResourceCategory.forms,
-            child: _Forms(forms: package.forms),
+            child: _Forms(forms: package.forms, repository: widget.repository),
           ),
         if (hasForms && (hasAssessment || hasSources))
           const SizedBox(height: AppSpacing.sm),
@@ -527,6 +530,30 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
           ),
       ],
     );
+  }
+
+  void _openNavigationFormIfNeeded(List<model.Form> forms) {
+    final navigation = widget.navigationContext;
+    final requestedId =
+        navigation?.formId ??
+        (navigation?.category == ResourceCategory.forms
+            ? navigation?.resourceId
+            : null);
+    if (requestedId == null || requestedId == _openedNavigationFormId) return;
+    final matching = forms.where((form) => form.id == requestedId);
+    if (matching.isEmpty) return;
+    _openedNavigationFormId = requestedId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => FormViewerPage(
+            form: matching.first,
+            repository: widget.repository,
+          ),
+        ),
+      );
+    });
   }
 
   Widget _topActions(_ResourceData data, bool loading) => Wrap(
@@ -693,25 +720,88 @@ class _Activities extends StatelessWidget {
 }
 
 class _Forms extends StatelessWidget {
-  const _Forms({required this.forms});
+  const _Forms({required this.forms, required this.repository});
 
   final List<model.Form> forms;
+  final CourseKnowledgeRepository repository;
 
   @override
   Widget build(BuildContext context) => Column(
     children: [
       for (var i = 0; i < forms.length; i++) ...[
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(forms[i].title),
-          subtitle: forms[i].assessmentType?.isNotEmpty == true
-              ? Text(forms[i].assessmentType!)
-              : null,
+        Card.outlined(
+          margin: const EdgeInsets.symmetric(vertical: 5),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final details = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      forms[i].title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(_friendlyFormType(forms[i])),
+                  ],
+                );
+                final action = FilledButton.tonalIcon(
+                  onPressed: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute(
+                      builder: (_) => FormViewerPage(
+                        form: forms[i],
+                        repository: repository,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  label: const Text('Formu aç'),
+                );
+                if (constraints.maxWidth < 520) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      details,
+                      const SizedBox(height: 12),
+                      Align(alignment: Alignment.centerLeft, child: action),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: details),
+                    const SizedBox(width: 16),
+                    action,
+                  ],
+                );
+              },
+            ),
+          ),
         ),
-        if (i != forms.length - 1) const Divider(height: 1),
       ],
     ],
   );
+}
+
+String _friendlyFormType(model.Form form) {
+  final type = form.assessmentType ?? form.structuralType ?? '';
+  return switch (type) {
+    'self_assessment_form' => 'Öz değerlendirme',
+    'peer_assessment_form' => 'Akran değerlendirmesi',
+    'teacher_evaluation_form' => 'Öğretmen değerlendirmesi',
+    'checklist' => 'Kontrol listesi',
+    'observation_form' => 'Gözlem formu',
+    'learning_journal' => 'Öğrenme günlüğü',
+    'assessment_criteria_table' => 'Değerlendirme ölçütleri',
+    'test_question_set' => 'Ölçme ve değerlendirme',
+    'exit_ticket' => 'Çıkış kartı',
+    'reflection_prompt' => 'Yansıtma formu',
+    'dereceli_puanlama_anahtari_link' => 'Dereceli puanlama anahtarı',
+    _ => 'Değerlendirme formu',
+  };
 }
 
 class _Assessments extends StatelessWidget {

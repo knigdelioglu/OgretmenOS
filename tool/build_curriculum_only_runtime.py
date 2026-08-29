@@ -358,6 +358,7 @@ def build(package_root: Path, source_commit: str) -> None:
             "textbook_sections": False,
             "activities": False,
             "forms": False,
+            "form_templates": False,
             "resource_decisions": False,
             "assessment_artifacts": False,
         },

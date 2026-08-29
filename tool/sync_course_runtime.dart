@@ -97,17 +97,30 @@ Future<void> main(List<String> args) async {
     }
     if (sourceValidationReport.existsSync() &&
         !await _filesEqual(sourceValidationReport, targetValidationReport)) {
-      throw StateError('Runtime validation report hedef doğrulaması başarısız.');
+      throw StateError(
+        'Runtime validation report hedef doğrulaması başarısız.',
+      );
     }
 
+    await _projectFormTemplates(
+      courseId: courseId,
+      sourceRuntimeRoot: sourceRoot,
+      targetRoot: targetRoot,
+    );
+    final projectedManifestJson = jsonDecode(
+      await targetManifest.readAsString(),
+    );
+    if (projectedManifestJson is! Map<String, dynamic>) {
+      throw StateError('Projected runtime manifest JSON nesnesi olmalı.');
+    }
     await _validateRuntimeDatabase(
       targetDatabase.path,
-      manifestJson,
+      projectedManifestJson,
       requireLessonPlans: requireLessonPlans,
     );
     await _updatePackageManifest(
       targetRoot: targetRoot,
-      runtimeManifest: manifestJson,
+      runtimeManifest: projectedManifestJson,
       sourceCommit: sourceCommit,
       requireLessonPlans: requireLessonPlans,
     );
@@ -143,6 +156,48 @@ Future<void> main(List<String> args) async {
   }
 }
 
+Future<void> _projectFormTemplates({
+  required String courseId,
+  required String sourceRuntimeRoot,
+  required String targetRoot,
+}) async {
+  final projectRoot = Directory.current.absolute.path;
+  final script = p.join(projectRoot, 'tool', 'build_form_templates.py');
+  final formsIndex = p.join(
+    Directory(sourceRuntimeRoot).parent.path,
+    'textbook_forms_index.json',
+  );
+  if (!File(script).existsSync()) {
+    throw StateError('Form template projector bulunamadı: $script');
+  }
+  if (!File(formsIndex).existsSync()) {
+    throw StateError('Canonical form index bulunamadı: $formsIndex');
+  }
+  final catalog = p.join(
+    projectRoot,
+    'tool',
+    'form_templates',
+    '$courseId.json',
+  );
+  final arguments = <String>[
+    script,
+    '--course-id',
+    courseId,
+    '--runtime-dir',
+    targetRoot,
+    '--forms-index',
+    formsIndex,
+    if (File(catalog).existsSync()) ...['--catalog', catalog],
+  ];
+  final result = await Process.run('python3', arguments);
+  if (result.exitCode != 0) {
+    throw StateError(
+      'Form template projection başarısız:\n${result.stdout}\n${result.stderr}',
+    );
+  }
+  stdout.write(result.stdout);
+}
+
 void _validateLessonPlanManifest(
   Map<String, dynamic> manifest,
   String courseId,
@@ -154,7 +209,10 @@ void _validateLessonPlanManifest(
   }
   final runtimeVersion = manifest['runtime_package_version']?.toString() ?? '';
   final schemaVersion = manifest['schema_version']?.toString() ?? '';
-  if (!_versionAtLeast(runtimeVersion, _minimumLessonPlanRuntimePackageVersion)) {
+  if (!_versionAtLeast(
+    runtimeVersion,
+    _minimumLessonPlanRuntimePackageVersion,
+  )) {
     throw StateError(
       'Lesson-plan runtime package sürümü yetersiz: $runtimeVersion < '
       '$_minimumLessonPlanRuntimePackageVersion',
@@ -204,8 +262,7 @@ void _validateLessonPlanManifest(
   if (validation is! Map) {
     throw StateError('lesson_plan_validation eksik.');
   }
-  if (validation['status'] != 'VERIFIED' ||
-      validation['scope'] != 'COURSE') {
+  if (validation['status'] != 'VERIFIED' || validation['scope'] != 'COURSE') {
     throw StateError(
       'Lesson-plan validation doğrulanmamış: '
       '${validation['status']}/${validation['scope']}',
@@ -280,14 +337,15 @@ Future<void> _validateRuntimeDatabase(
              COALESCE(SUM(lesson_hours), 0) AS instruction_hours,
              SUM(CASE WHEN validation_status = 'PASS' THEN 0 ELSE 1 END) AS invalid_rows
       FROM lesson_plan_packages
-    '''))
-        .first;
+    ''')).first;
     if (_int(totals['package_count']) != _expectedLessonPlanPackages) {
       throw StateError('Runtime SQLite lesson-plan package count 88 değil.');
     }
     if (_int(totals['instruction_hours']) !=
         _expectedLessonPlanInstructionHours) {
-      throw StateError('Runtime SQLite lesson-plan instruction hours 172 değil.');
+      throw StateError(
+        'Runtime SQLite lesson-plan instruction hours 172 değil.',
+      );
     }
     if (_int(totals['invalid_rows']) != 0) {
       throw StateError(
@@ -352,7 +410,8 @@ Future<void> _updatePackageManifest({
     decoded['tymm_source_repository'] = 'knigdelioglu/tymm';
     decoded['tymm_source_commit'] = sourceCommit;
   }
-  decoded['runtime_package_version'] = runtimeManifest['runtime_package_version'];
+  decoded['runtime_package_version'] =
+      runtimeManifest['runtime_package_version'];
   decoded['runtime_schema_version'] = runtimeManifest['schema_version'];
   decoded['runtime_canonical_content_fingerprint'] =
       runtimeManifest['canonical_content_fingerprint'];

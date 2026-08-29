@@ -80,6 +80,7 @@
     "textbook_sections": false,
     "activities": false,
     "forms": false,
+    "form_templates": false,
     "resource_decisions": false,
     "assessment_artifacts": false
   },

@@ -1,0 +1,224 @@
+{
+  "schema_version": "1.0",
+  "course_id": "TDE_10",
+  "source_basis": "Resmî ders kitabındaki basılı form sayfaları",
+  "templates": {
+    "FORM_T1_EXIT_321": {
+      "kind": "prompts",
+      "prompts": [
+        "Sunumunuzda geliştirilmesi gerektiğini düşündüğünüz üç unsuru yazınız.",
+        "Özgün konuşmacı kimliğinin nasıl oluşturulabileceğine yönelik iki soru yazınız.",
+        "Sunumunuz sırasında sizi en çok geliştirdiğini düşündüğünüz aşamayı yazınız."
+      ],
+      "lines": [3, 2, 2]
+    },
+    "FORM_T1_KONUSMA_AKRAN": {
+      "kind": "rating",
+      "identity_fields": ["Grubun adı", "Grup üyelerinin adı, soyadı ve okul numarası"],
+      "options": ["Evet", "Kısmen", "Hayır"],
+      "items": [
+        "Seçilen temaya uygun şiirler belirlendi.",
+        "Dikkat çekici bir giriş yapılarak sunuma başlandı.",
+        "Şiirler özgün bir üslupla seslendirildi.",
+        "Seçilen şiirlere uygun görsel ve işitsel ögeler kullanıldı.",
+        "Beden dili, şiirlerin etkileyiciliğine katkı sağlayacak şekilde kullanıldı.",
+        "Mekân etkili bir şekilde kullanıldı.",
+        "Gerekli yerlerde vurgu ve tonlama yapıldı.",
+        "Dinleti boyunca olumlu bir tutum sergilendi.",
+        "Sunum belirlenen sürede bitirildi.",
+        "Sunum plana uygun olarak tamamlandı.",
+        "Türkçenin doğru kullanımına dikkat edildi."
+      ]
+    },
+    "FORM_T1_MASAL_OZ": {
+      "kind": "rating",
+      "identity_fields": ["Adı Soyadı", "Numarası"],
+      "instructions": "Kendi beğeni ölçütlerinizi belirleyerek Mercan Kız masalını değerlendiriniz. Çalışmanızı en doğru yansıtan ölçüt cümlesini yazıp uygun dereceyi işaretleyiniz.",
+      "options": ["Her zaman", "Bazen", "Hiçbir zaman"],
+      "items": [
+        "Masaldaki olayların tutarlı olduğunu düşünüyorum.",
+        "Kendi ölçütüm 1", "Kendi ölçütüm 2", "Kendi ölçütüm 3",
+        "Kendi ölçütüm 4", "Kendi ölçütüm 5", "Kendi ölçütüm 6"
+      ]
+    },
+    "FORM_T1_YAZMA_KONTROL": {
+      "kind": "rating",
+      "options": ["Evet", "Kısmen", "Hayır"],
+      "items": [
+        "Film şeridini hazırlamaya başlamadan önce çalışmamın amacını belirledim.",
+        "Amacıma ve seçtiğim hedef kitleye uygun olarak akış planımı oluşturdum.",
+        "Film şeridini oluştururken kullanacağım malzemeleri hazırladım.",
+        "Görsel ve işitsel ögeleri çalışmama uygun olacak şekilde kullandım.",
+        "Yaptığım taslak çalışmayla ilgili arkadaşlarımdan geri bildirimler aldım.",
+        "Aldığım geri bildirimler doğrultusunda çalışmamı düzenledim.",
+        "Çalışmamda kullandığım ifadelerin açık ve anlaşılır olmasına dikkat ettim.",
+        "Çalışmamı hazırlarken estetik unsuru göz önünde bulundurdum.",
+        "Film karelerine yaptığım çizimlerde masal karakterlerini yansıttım."
+      ]
+    },
+    "FORM_T1_YAZMA_AKRAN": {
+      "kind": "prompts",
+      "identity_fields": ["Çalışmayı yapan öğrenci", "Çalışmanın adı"],
+      "prompts": [
+        "Çalışmanın beğendiğim üç yönü",
+        "Çalışmanın geliştirilmesi gereken iki yönü",
+        "Çalışmanın eksik bulduğum bir yönü"
+      ],
+      "lines": [4, 3, 2]
+    },
+    "FORM_T2_YAZMA_KONTROL": {
+      "kind": "rating",
+      "options": ["Evet", "Kısmen", "Hayır"],
+      "items": [
+        "Öğretici metin türlerinden hangisini edebî metne dönüştüreceğimi belirledim.",
+        "Yazma amacıma uygun olarak yazma stratejime karar verdim.",
+        "Amacıma ve seçtiğim hedef kitleye uygun olarak taslak planımı hazırladım.",
+        "Vermek istediğim iletileri yansıtabilecek bir edebî tür belirledim.",
+        "Metnimi zenginleştirmek için görsel ve işitsel ögelerden faydalandım.",
+        "Yaptığım taslak çalışmayı sınıf arkadaşlarıma sunarak onlardan geri bildirimler aldım.",
+        "Aldığım geri bildirimler doğrultusunda çalışmamı düzenledim.",
+        "Metnimde anlatım biçimleri ve düşünceyi geliştirme yollarını kullandım.",
+        "Metnime uygun olacak şekilde söz sanatlarına yer verdim.",
+        "Kendime özgü bir üslupla yazmaya gayret gösterdim.",
+        "Metnimi Türkçenin yapısına, yazım ve noktalama kurallarına göre yazdım.",
+        "Kelime ve cümleleri metnin bağlamına uygun olacak şekilde kullandım.",
+        "Eksiltili cümlelere yer vererek iletiyi okuyucunun tamamlamasını sağladım.",
+        "Seçtiğim öğretici metni edebî metne dönüştürdüm.",
+        "Metnime son şeklini vererek metnimi sınıfta paylaştım.",
+        "Öğretmenim ve arkadaşlarımdan aldığım geri bildirimler doğrultusunda çalışmamı gözden geçirdim.",
+        "Çalışmamı sınıf/okul panosu veya okulun resmî çevrim içi ortamlarında paylaştım.",
+        "Dijital ortamlardan yapılan eleştirilere nezaket kuralları çerçevesinde cevap verdim."
+      ]
+    },
+    "FORM_T2_YAZMA_AKRAN": {
+      "kind": "prompts",
+      "identity_fields": ["Çalışmayı yapan öğrenci", "Çalışmanın adı"],
+      "prompts": [
+        "Çalışmanın en iyi yönü",
+        "Bu çalışmanın beğendiğim diğer üç yönü",
+        "Bu çalışmanın geliştirilmesi gerektiğini düşündüğüm üç yönü"
+      ],
+      "lines": [3, 5, 5]
+    },
+    "FORM_T3_KONUSMA_OZ": {
+      "kind": "rating",
+      "identity_fields": ["Adı Soyadı", "Numarası"],
+      "options": ["Her zaman", "Bazen", "Hiçbir zaman"],
+      "items": [
+        "Konuşma metnimi amaçlarım doğrultusunda planladım.",
+        "Konuşmam için uygun görseller seçtim ve içeriği görsellerle zenginleştirdim.",
+        "Konuşmama etkili bir başlangıç yaptım.",
+        "Konuşurken gereksiz ses ve kelimeler kullanmaktan kaçındım.",
+        "Konuşmamda duygu ve düşüncelerimi açık ve akıcı bir şekilde ifade ettim.",
+        "Konuşmamda vurgu ve tonlamaya dikkat ettim.",
+        "Konuşmamda beden dilini etkili kullandım.",
+        "Konuşmamda sözcükleri bağlamlarına uygun kullandım.",
+        "Konuşmamı bana ayrılan süre içinde etkili biçimde sonlandırdım."
+      ]
+    },
+    "FORM_T3_KONUSMA_AKRAN": {
+      "kind": "prompts",
+      "identity_fields": ["Sunumu yapan öğrenci", "Çalışmanın adı"],
+      "prompts": [
+        "Çalışmanın en iyi yönü",
+        "Bu çalışmanın beğendiğim diğer üç yönü",
+        "Bu çalışmanın geliştirilmesi gerektiğini düşündüğüm üç yönü",
+        "Güçlü yönlerim", "Zayıf yönlerim"
+      ],
+      "lines": [3, 4, 4, 3, 3]
+    },
+    "FORM_T3_FABL_DINLEME_KONTROL": {
+      "kind": "rating",
+      "identity_fields": ["Adı Soyadı", "Numarası"],
+      "options": ["Evet", "Hayır"],
+      "items": [
+        "Anlatmaya bağlı edebî metinlerle ilgili ön bilgilerini kullanarak fablın bu metinler arasındaki yerini belirledi.",
+        "Dinleyeceği/izleyeceği metnin türünü göz önünde bulundurarak metne yönelik sorular oluşturdu.",
+        "Dinleyeceği/izleyeceği metnin içeriğiyle ilgili tahminlerde bulundu.",
+        "Dinleme/izleme amacını belirledi.",
+        "Dinleme/izleme sırasında hangi stratejiyi kullanacağına karar verdi.",
+        "Dinleme/izleme sürecini olumsuz etkileyebilecek faktörleri ortadan kaldırdı.",
+        "Dinleme/izleme sırasında gerekli gördüğü yerleri not almak için hazırlık yaptı."
+      ]
+    },
+    "FORM_T4_KONUSMA_AKRAN": {
+      "kind": "rating",
+      "identity_fields": ["Grubun adı", "Üyelerinin adı, soyadı ve okul numarası"],
+      "options": ["Evet (3)", "Kısmen (2)", "Hayır (1)"],
+      "items": [
+        "Canlandırma için uygun bir hikâye seçildi.",
+        "Hazırlanan plana uygun olacak şekilde canlandırma yapıldı.",
+        "Beden dili etkili bir şekilde kullanıldı.",
+        "Canlandırma yaparken metnin bağlamından uzaklaşılmadı.",
+        "Canlandırma sürecinde iletişim ve görgü kurallarına uygun davranıldı.",
+        "Görsel ve işitsel ögelerden yararlanıldı.",
+        "Mekân etkili şekilde kullanıldı.",
+        "Canlandırma belirlenen sürede tamamlandı.",
+        "Türkçe, millî bilinçle ve kurallara uygun şekilde kullanıldı."
+      ]
+    },
+    "FORM_T4_KONUSMA_OZ": {
+      "kind": "rating",
+      "identity_fields": ["Adı Soyadı", "Numarası"],
+      "options": ["Evet (3)", "Kısmen (2)", "Hayır (1)"],
+      "items": [
+        "Hikâyenin konusuna uygun şekilde canlandırmamı yaptım.",
+        "Kahramanı kendi yorumumu katarak canlandırdım.",
+        "Ses tonumu ve beden dilimi etkili kullandım.",
+        "Canlandırmamda görsel ve işitsel ögelere yer verdim.",
+        "Hazırladığım canlandırma planına sadık kaldım.",
+        "Grup arkadaşlarımla iletişim kurarken nezaket kurallarına dikkat ettim."
+      ]
+    },
+    "FORM_T4_DINLEME_OZ": {
+      "kind": "rating",
+      "identity_fields": ["Adı Soyadı", "Numarası"],
+      "options": ["Katılıyorum", "Kararsızım", "Katılmıyorum"],
+      "items": [
+        "Atalarımın yaptığı fedakârlıklar beni duygulandırdı.",
+        "Kendimi başkahraman ile özdeşleştirdim.",
+        "Vatan için mücadele eden şehit ve gazilere şükran duydum; vefa borcum olduğunu hissettim.",
+        "Yaşadığım vatan toprağının ne kadar zor şartlar altında kazanıldığını fark ettim.",
+        "Milletim ve vatanım için çok çalışarak fedakârlık yapmam gerektiğinin bilincine vardım.",
+        "Atalarımın bugün için büyük bedeller ödediklerini fark ettim.",
+        "Köklerimin millî ve manevi değerler hazinesi üzerine inşa edildiğini anladım."
+      ]
+    },
+    "FORM_T4_YAZMA_AKRAN": {
+      "kind": "prompts",
+      "identity_fields": ["Çalışmayı yapan öğrenci", "Çalışmanın adı"],
+      "prompts": [
+        "Bu çalışmanın en iyi yönü",
+        "Bu çalışmanın beğendiğim diğer üç yönü",
+        "Bu çalışmanın geliştirilmesi gerektiğini düşündüğüm üç yönü"
+      ],
+      "lines": [3, 4, 4]
+    },
+    "FORM_T4_YAZMA_KONTROL": {
+      "kind": "rating",
+      "identity_fields": ["Adı Soyadı", "Numarası"],
+      "options": ["Evet", "Kısmen", "Hayır"],
+      "items": [
+        "Şiire dönüştüreceğim hikâyenin temasını belirledim.",
+        "Yazma amacıma uygun olarak yazma stratejime karar verdim.",
+        "Yazma planımı oluşturdum.",
+        "Şiirimde vermek istediğim açık ve örtük iletileri belirledim.",
+        "Bağlama uygun söz varlığından faydalandım.",
+        "Şiirimi yazarken özgün bir üslup kullandım.",
+        "Şiirimi yazarken dil bilgisi kurallarına dikkat ettim.",
+        "Şiirimi arkadaşlarımdan aldığım geri bildirimler doğrultusunda düzenledim."
+      ]
+    },
+    "FORM_T4_TEMA_GUNLUK": {
+      "kind": "prompts",
+      "identity_fields": ["Tarih"],
+      "prompts": [
+        "Tema sonunda öğrendiğiniz kavramları ve bu kavramların düşünce dünyanızda oluşturduğu etkiyi yazınız.",
+        "Temada okuduğunuz, dinlediğiniz/izlediğiniz metinlerde sosyal, kültürel, edebî değişim ve dönüşümü fark ettiniz mi? Gerekçelendirerek yazınız.",
+        "Tema sonunda kendinizde ve düşünce dünyanızda herhangi bir değişim olduğunu hissediyor musunuz? Gerekçelendirerek açıklayınız.",
+        "Temada tahlil ettiğiniz metinlerdeki olayları, kahramanları, duygu ve düşünceleri günlük hayatınızla bağdaştırabildiniz mi? Gerekçelendirerek açıklayınız."
+      ],
+      "lines": [4, 4, 4, 4]
+    }
+  }
+}

@@ -9,12 +9,14 @@ class ResourceNavigationContext {
     required this.themeId,
     this.blockId,
     this.resourceId,
+    this.formId,
     this.category,
   });
 
   final String themeId;
   final String? blockId;
   final String? resourceId;
+  final String? formId;
   final ResourceCategory? category;
 
   @override
@@ -23,10 +25,12 @@ class ResourceNavigationContext {
       other.themeId == themeId &&
       other.blockId == blockId &&
       other.resourceId == resourceId &&
+      other.formId == formId &&
       other.category == category;
 
   @override
-  int get hashCode => Object.hash(themeId, blockId, resourceId, category);
+  int get hashCode =>
+      Object.hash(themeId, blockId, resourceId, formId, category);
 }
 
 typedef ResourceNavigationCallback =

@@ -1,4 +1,5 @@
 import '../models/course_models.dart';
+import '../models/form_models.dart';
 import '../models/lesson_plan_models.dart';
 import '../models/planning_models.dart';
 
@@ -20,6 +21,26 @@ abstract interface class CourseKnowledgeRepository {
   Future<List<ResourceDecision>> getResourceDecisions(String themeId);
 
   Future<TeacherPackage> getTeacherPackage(String themeId);
+}
+
+/// Lazy, optional access to printable form definitions.
+///
+/// Older runtime packages and lightweight test repositories intentionally do
+/// not need to implement this capability.
+abstract interface class FormTemplateKnowledgeRepository {
+  Future<FormDefinition?> getFormDefinition(String formId);
+}
+
+extension FormTemplateKnowledgeRepositoryAccess on CourseKnowledgeRepository {
+  Future<FormDefinition?> getFormDefinitionIfAvailable(String formId) {
+    final repository = this;
+    if (repository is FormTemplateKnowledgeRepository) {
+      return (repository as FormTemplateKnowledgeRepository).getFormDefinition(
+        formId,
+      );
+    }
+    return Future.value(null);
+  }
 }
 
 /// Optional read-only capability used by planning and resource-context paths.
