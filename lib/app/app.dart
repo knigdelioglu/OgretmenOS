@@ -341,6 +341,8 @@ class _AppShellState extends State<_AppShell> {
           timeline: _assignmentTimeline,
           courseId: widget.activeCourseId,
           grade: activeCourse.grade,
+          legacyMigration: widget.dependencies.legacyTeacherStateMigration,
+          legacyMigrationDecision: widget.dependencies.legacyMigrationDecision,
         ),
       ),
     );
