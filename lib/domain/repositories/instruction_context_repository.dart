@@ -70,6 +70,15 @@ class MemoryInstructionContextRepository implements InstructionContextRepository
 
   @override
   Future<void> saveClass(SchoolClass schoolClass) async {
+    final duplicate = _classes.values.any(
+      (item) =>
+          item.id != schoolClass.id &&
+          item.academicYear == schoolClass.academicYear &&
+          item.displayName.toUpperCase() == schoolClass.displayName.toUpperCase(),
+    );
+    if (duplicate) {
+      throw StateError('Aynı akademik yılda aynı sınıf/şube zaten var.');
+    }
     _classes[schoolClass.id] = schoolClass;
   }
 
@@ -107,6 +116,23 @@ class MemoryInstructionContextRepository implements InstructionContextRepository
 
   @override
   Future<void> saveAssignment(TeachingAssignment assignment) async {
+    final schoolClass = _classes[assignment.classId];
+    if (schoolClass == null) {
+      throw StateError('Ders atamasının sınıfı bulunamadı.');
+    }
+    if (schoolClass.academicYear != assignment.academicYear) {
+      throw StateError('Sınıf ve ders ataması akademik yılı uyuşmuyor.');
+    }
+    final duplicate = _assignments.values.any(
+      (item) =>
+          item.id != assignment.id &&
+          item.academicYear == assignment.academicYear &&
+          item.courseId == assignment.courseId &&
+          item.classId == assignment.classId,
+    );
+    if (duplicate) {
+      throw StateError('Bu ders bu sınıfa zaten atanmış.');
+    }
     _assignments[assignment.id] = assignment;
   }
 
@@ -126,6 +152,12 @@ class MemoryInstructionContextRepository implements InstructionContextRepository
 
   @override
   Future<void> replaceBellPeriods(List<BellPeriod> periods) async {
+    _validatePeriods(periods);
+    final desired = periods.map((period) => period.periodNumber).toSet();
+    final used = _slots.values.map((slot) => slot.periodNumber).toSet();
+    if (used.any((number) => !desired.contains(number))) {
+      throw StateError('Programda kullanılan bir ders saati silinemez.');
+    }
     _periods
       ..clear()
       ..addEntries(periods.map((period) => MapEntry(period.periodNumber, period)));
@@ -160,15 +192,43 @@ class MemoryInstructionContextRepository implements InstructionContextRepository
     required String assignmentId,
     required List<LessonScheduleSlot> slots,
   }) async {
+    final assignment = _assignments[assignmentId];
+    if (assignment == null) {
+      throw StateError('Ders ataması bulunamadı.');
+    }
+    final cells = <String>{};
+    for (final slot in slots) {
+      _validateSlot(slot, assignmentId);
+      if (!_periods.containsKey(slot.periodNumber)) {
+        throw StateError('${slot.periodNumber}. ders saati tanımlı değil.');
+      }
+      final cell = '${slot.weekday}:${slot.periodNumber}';
+      if (!cells.add(cell)) {
+        throw ArgumentError('Aynı program hücresi birden fazla kez seçildi.');
+      }
+    }
+
+    for (final slot in slots) {
+      for (final existing in _slots.values) {
+        if (existing.assignmentId == assignmentId ||
+            existing.weekday != slot.weekday ||
+            existing.periodNumber != slot.periodNumber) {
+          continue;
+        }
+        final otherAssignment = _assignments[existing.assignmentId];
+        if (otherAssignment?.academicYear == assignment.academicYear) {
+          throw ScheduleSlotConflictException(
+            academicYear: assignment.academicYear,
+            weekday: slot.weekday,
+            periodNumber: slot.periodNumber,
+            conflictingAssignmentId: existing.assignmentId,
+          );
+        }
+      }
+    }
+
     _slots.removeWhere((_, slot) => slot.assignmentId == assignmentId);
     for (final slot in slots) {
-      if (slot.assignmentId != assignmentId) {
-        throw ArgumentError.value(
-          slot.assignmentId,
-          'slot.assignmentId',
-          'Must match assignmentId',
-        );
-      }
       _slots[slot.id] = slot;
     }
   }
@@ -180,12 +240,52 @@ class MemoryInstructionContextRepository implements InstructionContextRepository
 
   @override
   Future<void> saveProgressCursor(AssignmentProgressCursor cursor) async {
+    if (!_assignments.containsKey(cursor.assignmentId)) {
+      throw StateError('Ders ataması bulunamadı.');
+    }
     _cursors[cursor.assignmentId] = cursor;
   }
 
   @override
   Future<void> deleteProgressCursor(String assignmentId) async {
     _cursors.remove(assignmentId);
+  }
+
+  void _validateSlot(LessonScheduleSlot slot, String assignmentId) {
+    if (slot.assignmentId != assignmentId) {
+      throw ArgumentError.value(
+        slot.assignmentId,
+        'slot.assignmentId',
+        'Must match assignmentId',
+      );
+    }
+    if (slot.weekday < DateTime.monday || slot.weekday > DateTime.sunday) {
+      throw ArgumentError.value(slot.weekday, 'slot.weekday');
+    }
+    if (slot.periodNumber < 1) {
+      throw ArgumentError.value(slot.periodNumber, 'slot.periodNumber');
+    }
+  }
+
+  void _validatePeriods(List<BellPeriod> periods) {
+    final numbers = <int>{};
+    BellPeriod? previous;
+    final ordered = [...periods]
+      ..sort((a, b) => a.periodNumber.compareTo(b.periodNumber));
+    for (final period in ordered) {
+      if (period.periodNumber < 1 || !numbers.add(period.periodNumber)) {
+        throw ArgumentError.value(period.periodNumber, 'periodNumber');
+      }
+      if (period.startMinute < 0 ||
+          period.endMinute > 1440 ||
+          period.startMinute >= period.endMinute) {
+        throw ArgumentError('Invalid bell period time range');
+      }
+      if (previous != null && previous.endMinute > period.startMinute) {
+        throw ArgumentError('Bell periods must not overlap');
+      }
+      previous = period;
+    }
   }
 
   void _sortSlots(List<LessonScheduleSlot> items) {
