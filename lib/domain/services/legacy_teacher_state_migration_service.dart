@@ -2,6 +2,7 @@ import '../models/assignment_lesson_progress_models.dart';
 import '../models/assignment_outcome_tracking_models.dart';
 import '../repositories/assignment_lesson_progress_repository.dart';
 import '../repositories/assignment_outcome_tracking_repository.dart';
+import '../repositories/instruction_context_repository.dart';
 import '../repositories/lesson_plan_progress_repository.dart';
 import '../repositories/outcome_tracking_repository.dart';
 
@@ -11,12 +12,18 @@ class LegacyTeacherStateMigrationService {
     required this.legacyOutcomeTracking,
     required this.assignmentLessonProgress,
     required this.assignmentOutcomeTracking,
+    this.instructionContext,
   });
 
   final LessonPlanProgressRepository legacyLessonProgress;
   final OutcomeTrackingRepository legacyOutcomeTracking;
   final AssignmentLessonProgressRepository assignmentLessonProgress;
   final AssignmentOutcomeTrackingRepository assignmentOutcomeTracking;
+
+  /// Optional for backwards-compatible tests/adapters. Production supplies the
+  /// instruction context so an explicit target cannot accidentally receive
+  /// legacy records belonging to another course or academic year.
+  final InstructionContextRepository? instructionContext;
 
   Future<LegacyTeacherStateMigrationPreview> preview({
     required String courseId,
@@ -56,6 +63,11 @@ class LegacyTeacherStateMigrationService {
     if (assignmentId.trim().isEmpty) {
       throw ArgumentError.value(assignmentId, 'assignmentId');
     }
+    await _validateTargetScope(
+      assignmentId: assignmentId,
+      courseId: courseId,
+      academicYear: academicYear,
+    );
 
     var lessonsCopied = 0;
     var lessonsSkippedMalformed = 0;
@@ -138,6 +150,25 @@ class LegacyTeacherStateMigrationService {
       outcomesSkippedOutsideCourse: outcomesSkippedOutsideCourse,
       outcomesSkippedExisting: outcomesSkippedExisting,
     );
+  }
+
+  Future<void> _validateTargetScope({
+    required String assignmentId,
+    required String courseId,
+    required String academicYear,
+  }) async {
+    final context = instructionContext;
+    if (context == null) return;
+    final assignment = await context.getAssignment(assignmentId);
+    if (assignment == null) {
+      throw StateError('Legacy aktarım hedefi bulunamadı.');
+    }
+    if (assignment.courseId != courseId ||
+        assignment.academicYear != academicYear) {
+      throw StateError(
+        'Legacy aktarım hedefi ders/akademik yıl kapsamıyla uyuşmuyor.',
+      );
+    }
   }
 
   _LegacyLessonIdentity? _parseLessonIdentity(String storedPackageId) {
