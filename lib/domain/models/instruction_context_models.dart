@@ -116,6 +116,25 @@ class LessonScheduleSlot {
   final DateTime updatedAt;
 }
 
+class ScheduleSlotConflictException implements Exception {
+  const ScheduleSlotConflictException({
+    required this.academicYear,
+    required this.weekday,
+    required this.periodNumber,
+    this.conflictingAssignmentId,
+  });
+
+  final String academicYear;
+  final int weekday;
+  final int periodNumber;
+  final String? conflictingAssignmentId;
+
+  @override
+  String toString() =>
+      'ScheduleSlotConflictException($academicYear, weekday=$weekday, '
+      'period=$periodNumber, assignment=$conflictingAssignmentId)';
+}
+
 class AssignmentProgressCursor {
   const AssignmentProgressCursor({
     required this.assignmentId,
