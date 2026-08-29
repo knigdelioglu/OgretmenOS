@@ -67,8 +67,16 @@ class AssetSchoolScheduleExceptionRepository
         item['label'],
         'schedule_exceptions[].label',
       );
-      final startMinute = _optionalMinute(item['start_minute'], 0);
-      final endMinute = _optionalMinute(item['end_minute'], 24 * 60);
+      final startMinute = _optionalMinute(
+        item['start_minute'],
+        fallback: 0,
+        field: '$id.start_minute',
+      );
+      final endMinute = _optionalMinute(
+        item['end_minute'],
+        fallback: 24 * 60,
+        field: '$id.end_minute',
+      );
       if (startMinute < 0 ||
           startMinute >= 24 * 60 ||
           endMinute <= 0 ||
@@ -128,8 +136,16 @@ DateTime _date(Object? value, String field) {
   return DateTime(parsed.year, parsed.month, parsed.day);
 }
 
-int _optionalMinute(Object? value, int fallback) {
+int _optionalMinute(
+  Object? value, {
+  required int fallback,
+  required String field,
+}) {
   if (value == null) return fallback;
   if (value is int) return value;
-  return int.tryParse(value.toString()) ?? fallback;
+  final parsed = int.tryParse(value.toString());
+  if (parsed == null) {
+    throw StateError('$field tam sayı dakika olmalıdır.');
+  }
+  return parsed;
 }
