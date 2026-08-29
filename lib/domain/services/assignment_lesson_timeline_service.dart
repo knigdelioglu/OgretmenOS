@@ -45,24 +45,38 @@ class AssignmentLessonTimelineService {
     if (slots.isEmpty || periods.isEmpty) {
       return InstructionTimelineSnapshot(
         now: effectiveNow,
-        positions: {
-          for (final assignment in assignments)
-            assignment.id: AssignmentTimelinePosition(
-              assignmentId: assignment.id,
-              plannedOrdinal: 0,
-              actualOrdinal: 0,
-              mode: AssignmentProgressMode.followSchedule,
-            ),
-        },
+        positions: const {},
       );
     }
+
+    final slotCounts = <String, int>{};
+    for (final slot in slots) {
+      slotCounts.update(
+        slot.assignmentId,
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
+    }
+    final completeAssignmentIds = {
+      for (final assignment in assignments)
+        if (slotCounts[assignment.id] == plan.weeklyLessonHours) assignment.id,
+    };
+    if (completeAssignmentIds.isEmpty) {
+      return InstructionTimelineSnapshot(
+        now: effectiveNow,
+        positions: const {},
+      );
+    }
+    final effectiveSlots = slots
+        .where((slot) => completeAssignmentIds.contains(slot.assignmentId))
+        .toList(growable: false);
 
     final periodByNumber = {
       for (final period in periods) period.periodNumber: period,
     };
     final occurrences = _buildOccurrences(
       plan: plan,
-      slots: slots,
+      slots: effectiveSlots,
       periodByNumber: periodByNumber,
     );
 
@@ -89,6 +103,7 @@ class AssignmentLessonTimelineService {
 
     final positions = <String, AssignmentTimelinePosition>{};
     for (final assignment in assignments) {
+      if (!completeAssignmentIds.contains(assignment.id)) continue;
       final scoped = occurrences
           .where((item) => item.assignmentId == assignment.id)
           .toList(growable: false);
