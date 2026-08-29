@@ -93,6 +93,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
     var selectedContext = widget.instructionContext;
     var continuityScopeId = widget.courseId;
     var choices = const <_AssignmentChoice>[];
+    var scheduleReady = false;
 
     final instructionContext = widget.instructionContext;
     final timeline = widget.assignmentTimeline;
@@ -115,6 +116,11 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
             assignmentId: selectedId,
           );
           continuityScopeId = '${widget.courseId}::$selectedId';
+          final periods = await instructionContext.getBellPeriods();
+          final slots = await instructionContext.getScheduleSlotsForAssignment(
+            selectedId,
+          );
+          scheduleReady = periods.isNotEmpty && slots.isNotEmpty;
           final assignmentTracking = widget.assignmentOutcomeTracking;
           if (assignmentTracking != null) {
             activeService = OutcomePlanningService(
@@ -149,6 +155,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
         continuityScopeId: continuityScopeId,
         choices: choices,
         selectedAssignmentId: _selectedAssignmentId,
+        scheduleReady: scheduleReady,
       );
     }
     if (stored.academicYear != activePlan.academicYear) {
@@ -160,6 +167,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
         continuityScopeId: continuityScopeId,
         choices: choices,
         selectedAssignmentId: _selectedAssignmentId,
+        scheduleReady: scheduleReady,
       );
     }
 
@@ -173,6 +181,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
         continuityScopeId: continuityScopeId,
         choices: choices,
         selectedAssignmentId: _selectedAssignmentId,
+        scheduleReady: scheduleReady,
       );
     }
     return _ContinuityData(
@@ -182,6 +191,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
       continuityScopeId: continuityScopeId,
       choices: choices,
       selectedAssignmentId: _selectedAssignmentId,
+      scheduleReady: scheduleReady,
       stored: stored,
       item: item,
     );
@@ -288,8 +298,9 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
   Future<void> _rememberViewed(
     TrackedOutcome item,
     String continuityScopeId,
-  ) => widget.continuity.setLastFocus(
-    LastFocusState(
+  ) async {
+    final now = DateTime.now();
+    final scopedState = LastFocusState(
       courseId: continuityScopeId,
       academicYear: item.academicYear,
       weekNumber: item.displayWeekNumber,
@@ -299,9 +310,33 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
       themeId: item.primaryTheme?.id,
       blockId: item.primaryBlock?.id,
       blockTitle: item.primaryBlock?.title,
-      updatedAt: DateTime.now(),
-    ),
-  );
+      updatedAt: now,
+    );
+    await widget.continuity.setLastFocus(scopedState);
+
+    // Resources and Annual remain course-scoped. Mirror only the last-viewed
+    // context; this is convenience state and never copies tracking status.
+    if (continuityScopeId != widget.courseId) {
+      try {
+        await widget.continuity.setLastFocus(
+          LastFocusState(
+            courseId: widget.courseId,
+            academicYear: item.academicYear,
+            weekNumber: item.displayWeekNumber,
+            trackingKey: item.trackingKey,
+            outcomeCode: item.outcome.code,
+            themeTitle: item.primaryTheme?.title,
+            themeId: item.primaryTheme?.id,
+            blockId: item.primaryBlock?.id,
+            blockTitle: item.primaryBlock?.title,
+            updatedAt: now,
+          ),
+        );
+      } on Object {
+        // Course-wide convenience context must never block lesson navigation.
+      }
+    }
+  }
 
   Future<void> _resume(_ContinuityData data) async {
     final item = data.item;
@@ -431,6 +466,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
         assignmentLessonProgress: widget.assignmentLessonProgress,
         assignmentTimeline: widget.assignmentTimeline,
         courseId: widget.courseId,
+        scheduleContextActive: data.scheduleReady,
         onConfigureSchedule: widget.onConfigureSchedule,
         onOutcomeViewed: (item) =>
             _rememberViewed(item, data.continuityScopeId),
@@ -442,6 +478,7 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
   }
 
   bool _hasCurrentLessonCard(_ContinuityData data) =>
+      data.scheduleReady &&
       data.selectedAssignmentId != null &&
       data.instructionContext != null &&
       widget.assignmentLessonProgress != null &&
@@ -520,6 +557,7 @@ class _ContinuityData {
     required this.continuityScopeId,
     required this.choices,
     required this.selectedAssignmentId,
+    required this.scheduleReady,
     this.stored,
     this.item,
   });
@@ -530,6 +568,7 @@ class _ContinuityData {
   final String continuityScopeId;
   final List<_AssignmentChoice> choices;
   final String? selectedAssignmentId;
+  final bool scheduleReady;
   final LastFocusState? stored;
   final TrackedOutcome? item;
 }
