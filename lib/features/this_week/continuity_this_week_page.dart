@@ -217,10 +217,12 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
   }
 
   DateTime? _nextTimelineRefresh(InstructionTimelineSnapshot snapshot) {
-    final candidates = <DateTime>[
-      if (snapshot.currentOccurrence?.endsAt case final end?) end,
-      if (snapshot.nextOccurrence?.startsAt case final start?) start,
-    ].where((item) => item.isAfter(snapshot.now)).toList(growable: false)
+    final candidates = <DateTime?>[
+      snapshot.currentOccurrence?.endsAt,
+      snapshot.nextOccurrence?.startsAt,
+    ].whereType<DateTime>().where((item) => item.isAfter(snapshot.now)).toList(
+      growable: false,
+    )
       ..sort();
     return candidates.isEmpty ? null : candidates.first;
   }
@@ -620,8 +622,15 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
   Widget build(BuildContext context) => FutureBuilder<_ContinuityData>(
     future: _future,
     builder: (context, snapshot) {
-      if (!snapshot.hasData) {
+      if (snapshot.connectionState != ConnectionState.done &&
+          !snapshot.hasData) {
         return const LoadingView(label: 'Bu hafta hazırlanıyor…');
+      }
+      if (!snapshot.hasData) {
+        return FeatureErrorView(
+          message: 'Haftalık çalışma görünümü yüklenemedi.',
+          onRetry: _reload,
+        );
       }
       final data = snapshot.data!;
       _scheduleTimelineRefresh(data.timelineRefreshAt);

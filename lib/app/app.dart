@@ -423,9 +423,7 @@ class _AppShellState extends State<_AppShell> {
     final activeCourse = runtimeForCourse(widget.activeCourseId);
     if (widget.onCourseChanged == null) return const SizedBox.shrink();
     return PopupMenuButton<String>(
-      tooltip: widget.courseSelectionPinned
-          ? 'Sınıf düzeyi seç'
-          : 'Sınıf düzeyi · ders programına göre otomatik',
+      tooltip: 'Sınıf seç',
       initialValue: widget.courseSelectionPinned
           ? widget.activeCourseId
           : _automaticCourseValue,
@@ -541,15 +539,19 @@ class _AppShellState extends State<_AppShell> {
     final cached = _annualPlanPage;
     if (cached != null) return cached;
     if (widget.selectedIndex != 1) return const SizedBox.shrink();
+    final annualOutcomePlanning =
+        widget.dependencies.assignmentOutcomeTracking == null
+        ? _outcomePlanning
+        : null;
     return _annualPlanPage = AnnualPlanPage(
       repository: widget.dependencies.repository,
       preferences: widget.dependencies.preferences,
       continuity: _continuity,
       courseId: widget.activeCourseId,
-      // Annual is still course-level. Do not project legacy/course-wide tracking
-      // after teacher state has been split by section until Annual gains an
-      // explicit assignment selector.
-      outcomePlanning: null,
+      // Annual is still course-level. In assignment-aware production mode,
+      // course-wide legacy tracking is not projected without an assignment
+      // selector; lightweight legacy/test mode keeps its optional summary.
+      outcomePlanning: annualOutcomePlanning,
       weeklyPlanning: widget.dependencies.weeklyPlanning,
       topTrailing: _topTrailing(context),
       onOpenResources: widget.onOpenResources,

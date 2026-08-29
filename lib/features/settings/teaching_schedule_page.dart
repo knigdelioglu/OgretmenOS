@@ -223,7 +223,7 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
         occupied: occupied.keys.toSet(),
       ),
     );
-    if (selected == null) return;
+    if (selected == null || !mounted) return;
     if (selected.isNotEmpty && selected.length != data.weeklyLessonHours) {
       showTeacherFeedback(
         context,
@@ -964,7 +964,7 @@ class _BellPeriodsSheetState extends State<_BellPeriodsSheet> {
             child: ListView.separated(
               shrinkWrap: true,
               itemCount: _drafts.length,
-              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
               itemBuilder: (context, index) {
                 final draft = _drafts[index];
                 return Row(

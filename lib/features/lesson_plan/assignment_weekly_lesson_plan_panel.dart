@@ -927,7 +927,7 @@ class _ActualPositionSheet extends StatefulWidget {
 }
 
 class _ActualPositionSheetState extends State<_ActualPositionSheet> {
-  late Future<List<_PositionOption>> _future = _load();
+  late final Future<List<_PositionOption>> _future = _load();
 
   Future<List<_PositionOption>> _load() async {
     final workflow = LessonPlanWorkflowService(repository: widget.repository);
@@ -996,29 +996,28 @@ class _ActualPositionSheetState extends State<_ActualPositionSheet> {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                return ListView(
-                  shrinkWrap: true,
-                  children: [
-                    RadioListTile<int>(
-                      value: 0,
-                      groupValue: widget.actualOrdinal,
-                      onChanged: (_) => Navigator.of(context).pop(
-                        const _PositionChoice.actual(0),
-                      ),
-                      title: const Text('Henüz başlamadım'),
-                      subtitle: const Text('Gerçek ilerleme ders planının başında'),
-                    ),
-                    for (final option in snapshot.data!)
+                return RadioGroup<int>(
+                  groupValue: widget.actualOrdinal,
+                  onChanged: (value) {
+                    if (value == null) return;
+                    Navigator.of(context).pop(_PositionChoice.actual(value));
+                  },
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
                       RadioListTile<int>(
-                        value: option.ordinal,
-                        groupValue: widget.actualOrdinal,
-                        onChanged: (_) => Navigator.of(context).pop(
-                          _PositionChoice.actual(option.ordinal),
-                        ),
-                        title: Text(option.title),
-                        subtitle: Text(option.subtitle),
+                        value: 0,
+                        title: const Text('Henüz başlamadım'),
+                        subtitle: const Text('Gerçek ilerleme ders planının başında'),
                       ),
-                  ],
+                      for (final option in snapshot.data!)
+                        RadioListTile<int>(
+                          value: option.ordinal,
+                          title: Text(option.title),
+                          subtitle: Text(option.subtitle),
+                        ),
+                    ],
+                  ),
                 );
               },
             ),

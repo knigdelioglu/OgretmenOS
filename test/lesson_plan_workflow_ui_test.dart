@@ -126,6 +126,8 @@ void main() {
 
     await tester.tap(find.text('6. ders saati'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('İsteğe bağlı takip'));
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ChoiceChip, 'İşlendi'));
     await tester.pumpAndSettle();
 

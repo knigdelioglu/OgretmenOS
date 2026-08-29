@@ -189,7 +189,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // 3. B2'deki dersi aç
-      await tester.tap(find.text('Bu haftanın diğerleri'));
+      final otherOutcomes = find.text('Bu haftanın diğerleri');
+      await tester.ensureVisible(otherOutcomes);
+      await tester.pumpAndSettle();
+      await tester.tap(otherOutcomes);
       await tester.pumpAndSettle();
       await tester.tap(find.text('TDE_9 ikinci kazanım'));
       await tester.pumpAndSettle();
@@ -555,7 +558,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // 3. Tema 2'deki dersi aç
-      await tester.tap(find.text('Bu haftanın diğerleri'));
+      final otherOutcomes = find.text('Bu haftanın diğerleri');
+      await tester.ensureVisible(otherOutcomes);
+      await tester.pumpAndSettle();
+      await tester.tap(otherOutcomes);
       await tester.pumpAndSettle();
       await tester.tap(find.text('TDE_9 Tema 2 kazanımı'));
       await tester.pumpAndSettle();
