@@ -449,9 +449,7 @@ class _SingleLessonContent extends StatelessWidget {
             plan: plan,
             packageHour: data.packageHour,
             progress: progress,
-            next: data.next,
             onSetProgress: onSetProgress,
-            onOpenLesson: onOpenLesson,
           ),
           const SizedBox(height: AppSpacing.md),
         ],
@@ -652,63 +650,81 @@ class _HourProgressCard extends StatelessWidget {
     required this.plan,
     required this.packageHour,
     required this.progress,
-    required this.next,
     required this.onSetProgress,
-    required this.onOpenLesson,
   });
 
   final LessonPlanPackage plan;
   final int packageHour;
   final LessonPlanProgressResolution progress;
-  final _LessonTarget? next;
   final Future<void> Function(
     LessonPlanPackage package,
     int packageHour,
     LessonPlanProgressStatus status,
   )
   onSetProgress;
-  final ValueChanged<_LessonTarget> onOpenLesson;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final status = progress.effectiveStatus;
     final stale = progress.isStale;
-    final completed = !stale && status == LessonPlanProgressStatus.completed;
+    final hasExplicitStatus =
+        !stale && status != LessonPlanProgressStatus.notStarted;
+    final subtitle = stale
+        ? 'Plan güncellendi · yeniden gözden geçir'
+        : hasExplicitStatus
+        ? status.teacherLabel
+        : 'Takip yok · ders programı bundan bağımsız ilerler';
+
     return Card(
-      color: stale
-          ? scheme.errorContainer
-          : completed
-          ? scheme.secondaryContainer
-          : scheme.tertiaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'DERS DURUMU',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.7,
+      clipBehavior: Clip.antiAlias,
+      color: stale ? scheme.errorContainer : null,
+      child: ExpansionTile(
+        initiallyExpanded: stale,
+        leading: Icon(
+          stale
+              ? Icons.warning_amber_rounded
+              : hasExplicitStatus
+              ? Icons.bookmark_added_outlined
+              : Icons.bookmark_border_rounded,
+          color: stale ? scheme.onErrorContainer : scheme.onSurfaceVariant,
+        ),
+        title: Text(
+          'İsteğe bağlı takip',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: stale ? scheme.onErrorContainer : null,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(
+            color: stale ? scheme.onErrorContainer : scheme.onSurfaceVariant,
+          ),
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          0,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              stale
+                  ? 'Bu ders saati için eski işaret planın güncel içeriğiyle eşleşmiyor. İsterseniz yeni içeriği gördükten sonra yeniden işaretleyin.'
+                  : 'Bu seçim yalnızca kişisel takip kaydıdır. ŞU AN ve planlanan ders konumu ders programından hesaplanır; burada bir seçim yapmak zorunda değilsiniz.',
+              style: TextStyle(
+                height: 1.4,
+                color: stale ? scheme.onErrorContainer : scheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              stale ? 'Plan güncellendi' : status.teacherLabel,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            if (stale) ...[
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Bu ders saati için önceki durum kaydı güncel planla eşleşmiyor. Dersi gördükten sonra durumu yeniden seçin.',
-                style: TextStyle(color: scheme.onErrorContainer, height: 1.4),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
               children: [
@@ -722,16 +738,8 @@ class _HourProgressCard extends StatelessWidget {
                   ),
               ],
             ),
-            if (completed && next != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              FilledButton.icon(
-                onPressed: () => onOpenLesson(next!),
-                icon: const Icon(Icons.arrow_forward),
-                label: const Text('Sonraki derse geç'),
-              ),
-            ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
