@@ -72,6 +72,7 @@ class _CurrentScheduledLessonCardState extends State<CurrentScheduledLessonCard>
       academicYear: widget.annualPlan.academicYear,
       courseId: widget.courseId,
     );
+    final workflow = LessonPlanWorkflowService(repository: widget.repository);
 
     ScheduledLessonOccurrence? current;
     TeachingAssignment? currentAssignment;
@@ -87,10 +88,20 @@ class _CurrentScheduledLessonCardState extends State<CurrentScheduledLessonCard>
     if (current != null && currentAssignment != null) {
       final position = snapshot.positionFor(currentAssignment.id);
       final actualOrdinal = position?.actualOrdinal ?? current.plannedOrdinal;
+      // Cursor 0 means the teacher has not started canonical instruction yet.
+      // During a live scheduled slot the useful plan to open is therefore the
+      // first canonical instruction hour, while the visible delta remains based
+      // on the true cursor value (0).
+      final openOrdinal = actualOrdinal < 1 ? 1 : actualOrdinal;
+      final location = workflow.locationForInstructionOrdinal(
+        widget.annualPlan,
+        openOrdinal,
+      );
       final selection = lessonPlanUsable
-          ? await LessonPlanWorkflowService(
-              repository: widget.repository,
-            ).selectionForInstructionOrdinal(widget.annualPlan, actualOrdinal)
+          ? await workflow.selectionForInstructionOrdinal(
+              widget.annualPlan,
+              openOrdinal,
+            )
           : null;
       return _CurrentLessonCardData(
         state: _ScheduledCardState.current,
@@ -98,6 +109,7 @@ class _CurrentScheduledLessonCardState extends State<CurrentScheduledLessonCard>
         schoolClass: _schoolClass(classes, currentAssignment.classId),
         occurrence: current,
         selection: selection,
+        location: location,
         lessonPlanUsable: lessonPlanUsable,
         actualOrdinal: actualOrdinal,
         delta: position?.delta ?? 0,
@@ -122,10 +134,15 @@ class _CurrentScheduledLessonCardState extends State<CurrentScheduledLessonCard>
         : (position.actualOrdinal +
               (next.plannedOrdinal - position.plannedOrdinal));
     final safeActualOrdinal = actualOrdinal < 1 ? 1 : actualOrdinal;
+    final location = workflow.locationForInstructionOrdinal(
+      widget.annualPlan,
+      safeActualOrdinal,
+    );
     final selection = lessonPlanUsable
-        ? await LessonPlanWorkflowService(
-            repository: widget.repository,
-          ).selectionForInstructionOrdinal(widget.annualPlan, safeActualOrdinal)
+        ? await workflow.selectionForInstructionOrdinal(
+            widget.annualPlan,
+            safeActualOrdinal,
+          )
         : null;
     return _CurrentLessonCardData(
       state: _ScheduledCardState.next,
@@ -133,6 +150,7 @@ class _CurrentScheduledLessonCardState extends State<CurrentScheduledLessonCard>
       schoolClass: _schoolClass(classes, nextAssignment.classId),
       occurrence: next,
       selection: selection,
+      location: location,
       lessonPlanUsable: lessonPlanUsable,
       actualOrdinal: safeActualOrdinal,
       delta: safeActualOrdinal - next.plannedOrdinal,
@@ -168,9 +186,12 @@ class _CurrentScheduledLessonCardState extends State<CurrentScheduledLessonCard>
       final isCurrent = data.state == _ScheduledCardState.current;
       final selection = data.selection;
       final lessonTitle = selection?.lesson?.title.trim();
+      final packageTitle = selection?.package.title.trim();
       final title = lessonTitle != null && lessonTitle.isNotEmpty
           ? lessonTitle
-          : selection?.package.title;
+          : packageTitle != null && packageTitle.isNotEmpty
+          ? packageTitle
+          : data.location?.teacherTitle;
       final className = data.schoolClass?.displayName ?? 'Sınıf';
       final timeLabel = isCurrent
           ? '${data.occurrence.slot.periodNumber}. ders saati'
@@ -257,8 +278,10 @@ class _CurrentScheduledLessonCardState extends State<CurrentScheduledLessonCard>
                   ),
                 ] else if (selection == null) ...[
                   const SizedBox(height: AppSpacing.md),
-                  const Text(
-                    'Bu ders saati okul temelli planlama alanına denk geliyor; açılacak tekil ders planı yok.',
+                  Text(
+                    data.location?.isSchoolBasedPlanning == true
+                        ? 'Bu ders saati okul temelli planlama alanına denk geliyor; açılacak tekil ders planı yok.'
+                        : 'Bu ders konumu için açılabilir tekil ders planı bulunmuyor.',
                   ),
                 ] else ...[
                   const SizedBox(height: AppSpacing.md),
@@ -284,6 +307,7 @@ class _CurrentLessonCardData {
     required this.schoolClass,
     required this.occurrence,
     required this.selection,
+    required this.location,
     required this.lessonPlanUsable,
     required this.actualOrdinal,
     required this.delta,
@@ -294,6 +318,7 @@ class _CurrentLessonCardData {
   final SchoolClass? schoolClass;
   final ScheduledLessonOccurrence occurrence;
   final WeeklyLessonPlanSelection? selection;
+  final InstructionOrdinalLocation? location;
   final bool lessonPlanUsable;
   final int actualOrdinal;
   final int delta;
