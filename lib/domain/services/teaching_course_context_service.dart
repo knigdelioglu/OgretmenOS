@@ -95,7 +95,8 @@ class TeachingCourseContextService {
       effectiveNow.month,
       effectiveNow.day,
     );
-    final current = <_CurrentMatch>[];
+    final current = <_LessonMatch>[];
+    _LessonMatch? nextLesson;
     DateTime? nextTransition;
     for (final slot in slots) {
       if (!completeAssignmentIds.contains(slot.assignmentId) ||
@@ -113,19 +114,21 @@ class TeachingCourseContextService {
       );
       if (cancelled) continue;
 
+      final assignment = assignmentById[slot.assignmentId];
+      if (assignment == null) continue;
       final startsAt = _atMinute(today, period.startMinute);
       final endsAt = _atMinute(today, period.endMinute);
+      final match = _LessonMatch(
+        assignment: assignment,
+        startsAt: startsAt,
+        endsAt: endsAt,
+      );
       if (!effectiveNow.isBefore(startsAt) && effectiveNow.isBefore(endsAt)) {
-        final assignment = assignmentById[slot.assignmentId];
-        if (assignment != null) {
-          current.add(
-            _CurrentMatch(
-              assignment: assignment,
-              startsAt: startsAt,
-              endsAt: endsAt,
-            ),
-          );
-        }
+        current.add(match);
+      }
+      if (startsAt.isAfter(effectiveNow) &&
+          (nextLesson == null || startsAt.isBefore(nextLesson.startsAt))) {
+        nextLesson = match;
       }
       if (startsAt.isAfter(effectiveNow)) {
         nextTransition = _earlier(nextTransition, startsAt);
@@ -147,12 +150,19 @@ class TeachingCourseContextService {
       currentAssignmentId: active?.assignment.id,
       currentStartsAt: active?.startsAt,
       currentEndsAt: active?.endsAt,
+      nextCourseId: nextLesson?.assignment.courseId,
+      nextAssignmentId: nextLesson?.assignment.id,
+      nextStartsAt: nextLesson?.startsAt,
+      nextEndsAt: nextLesson?.endsAt,
       nextTransitionAt: nextTransition ?? fallbackTransition,
     );
   }
 
-  DateTime _nextDayBoundary(DateTime now) =>
-      DateTime(now.year, now.month, now.day).add(const Duration(days: 1, seconds: 1));
+  DateTime _nextDayBoundary(DateTime now) => DateTime(
+    now.year,
+    now.month,
+    now.day,
+  ).add(const Duration(days: 1, seconds: 1));
 
   DateTime _atMinute(DateTime date, int minuteOfDay) => DateTime(
     date.year,
@@ -174,6 +184,10 @@ class TeachingCourseContextSnapshot {
     this.currentAssignmentId,
     this.currentStartsAt,
     this.currentEndsAt,
+    this.nextCourseId,
+    this.nextAssignmentId,
+    this.nextStartsAt,
+    this.nextEndsAt,
   });
 
   final DateTime resolvedAt;
@@ -181,14 +195,22 @@ class TeachingCourseContextSnapshot {
   final String? currentAssignmentId;
   final DateTime? currentStartsAt;
   final DateTime? currentEndsAt;
+  final String? nextCourseId;
+  final String? nextAssignmentId;
+  final DateTime? nextStartsAt;
+  final DateTime? nextEndsAt;
   final DateTime nextTransitionAt;
 
   bool get hasCurrentLesson =>
       currentCourseId != null && currentAssignmentId != null;
+
+  bool get hasNextLesson => nextCourseId != null && nextAssignmentId != null;
+
+  String? get preferredCourseId => currentCourseId ?? nextCourseId;
 }
 
-class _CurrentMatch {
-  const _CurrentMatch({
+class _LessonMatch {
+  const _LessonMatch({
     required this.assignment,
     required this.startsAt,
     required this.endsAt,
