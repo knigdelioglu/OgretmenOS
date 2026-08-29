@@ -1,24 +1,27 @@
-# PRODUCT_SCOPE.md — ÖğretmenOS V1.3
+# PRODUCT_SCOPE.md — ÖğretmenOS V1.4
 
 **Product:** ÖğretmenOS  
-**Document version:** 1.3.2  
+**Document version:** 1.4.0  
 **Status:** Binding Product Scope Authority  
 **Implementation:** Flutter + Dart + Material 3  
 **Operation mode:** Offline-first, deterministic, local
 
 ## 1. Product definition
 
-ÖğretmenOS öğretmenin derse girerken **şu anki ders bağlamını mümkün olan en az karar yüküyle** görmesini sağlar. Birincil akış:
+ÖğretmenOS öğretmenin uygulamayı açtığında mümkün olan en az karar yüküyle **hangi sınıfta olması gerektiğini, o sınıfın planlanan ders konumunu ve gerekli doğrulanmış ders bilgisini** görmesini sağlar.
+
+Birincil akış:
 
 ```text
 uygulamayı aç
-→ Bu Hafta / ŞİMDİ
-→ ders bağlamını ve gerekli doğrulanmış bilgiyi gör
-→ gerekirse ayrıntı/kaynak/ders planı aç
+→ ders programından sınıf/şube bağlamını çöz
+→ ŞİMDİ / SONRAKİ DERS
+→ doğrulanmış ders planını veya ders ayrıntısını aç
+→ gerekirse gerçek ilerlemeyi tek işlemle düzelt
 → çık
 ```
 
-**Tracking isteğe bağlıdır.** Bir kazanımı veya ders planını görüntülemek, derse hazırlanmak ya da uygulamadan çıkmak için `Başla`, `İşlendi` veya başka bir tracking durumu zorunlu değildir.
+**Tracking isteğe bağlıdır.** Öğretmenin her ders sonunda `İşlendi` düğmesine basması normal kullanımın ön koşulu değildir.
 
 ## 2. Authority and truth boundary
 
@@ -30,7 +33,7 @@ Authority order:
 3. AGENT.md
 ```
 
-Canonical TYMM knowledge yalnız doğrulanmış runtime paketinden gelir:
+Canonical TYMM bilgisi yalnız doğrulanmış runtime paketinden gelir:
 
 ```text
 Canonical TYMM Knowledge
@@ -39,212 +42,154 @@ Canonical TYMM Knowledge
 → read-only CourseKnowledgeRepository
 ```
 
-Ders planı paketleri de canonical runtime bilgisidir. Uygulama runtime outcome/theme/block/textbook/activity/assessment/lesson-plan ilişkilerini değiştirmez veya uydurmaz.
+Sınıf/şube, zil saatleri, öğretmenin haftalık ders programı, gerçek ilerleme sapması ve explicit takip durumları **teacher-local state**'tir. Bunlar canonical curriculum gerçeği değildir.
 
-## 3. Primary navigation
+## 3. Temel öğretim bağlamı
 
-Top-level navigation yalnız üç öğretmen işidir:
-
-```text
-Bu Hafta
-Yıllık
-Kaynaklar
-```
-
-Default surface `Bu Hafta`dır.
-
-`Ders Planı` yeni bir top-level navigation item değildir; mevcut ders/hafta bağlamından açılan supporting detail yüzeyidir. Legacy `Kazanımlar / Haftalık / Paket` ekranları top-level ürün navigasyonu değildir. Tracking, haftalık ders akışının ikincil/isteğe bağlı bir özelliğidir.
-
-## 4. Bu Hafta — single focus contract
-
-`Bu Hafta` tek baskın `ŞİMDİ` odağı sunar. Birincil CTA:
+Aynı ders birden fazla şubede verilebilir. Runtime ders içeriği kopyalanmaz; öğretmen state'i şube bazında ayrılır.
 
 ```text
-Ders ayrıntısını aç
+Course
+  ├─ TeachingAssignment → 9/A
+  ├─ TeachingAssignment → 9/B
+  └─ TeachingAssignment → 9/C
 ```
 
-Varsayılan `planned` durumu kullanıcıya eksik iş, ilerleme veya yapılacaklar listesi gibi sunulmaz. Explicit öğretmen durumları yalnız kullanıcı gerçekten işaretlediyse `Takip: ...` olarak görünür.
-
-İsteğe bağlı işlemler:
+`TeachingAssignment` kimliği:
 
 ```text
-Devam ediyor olarak işaretle
-İşlendi olarak işaretle
-Kısmen işlendi
-sonraki öğretim haftasına taşı
-hızlı öğretmen notu
+academic_year + course_id + class_id
 ```
 
-Bu işlemler ana CTA değildir.
+Aşağıdaki bilgiler assignment bazlı tutulur:
 
-Lesson-plan capability kullanılabilir olduğunda haftalık/blok bağlamı `Bu dersin planı` gibi ikincil bir entry sunabilir. Capability yoksa veya fail-closed ise bu entry gösterilmez; ana ders akışı hata vermez.
+- haftalık ders programı bağlantısı;
+- gerçek ilerleme cursor'u;
+- saat bazlı ders-planı işaretleri;
+- outcome/kazanım takibi.
 
-## 5. Continuity / Kaldığın Yer
+9/A'daki bir durum değişikliği 9/B veya 9/C'yi değiştiremez.
 
-`LastFocusState` **son görüntülenen ders bağlamıdır**, tracking durumu değildir.
+## 4. Ders programı ve planlanan konum
 
-- outcome detail açılması continuity kaydını günceller;
-- status değişikliği continuity oluşturmaz veya silmez;
-- `completed` olmak son görüntülenen dersi yok etmez;
-- continuity okuma/yazma/temizleme hatası ana ders içeriğini bloke edemez;
-- stale veya bozuk continuity state güvenle yok sayılır.
-
-## 6. Ders ayrıntısı
-
-Ders ayrıntısı bilgi-first yüzeydir. `Derste lazım` bölümü official outcome, hafta/blok/tema, kitap/etkinlik ipuçları ve varsa öğretmen notunu öne çıkarır.
-
-Tracking kontrolleri yalnız `Daha fazla bilgi → Takip seçenekleri` altında bulunur. Varsayılan durum `İsteğe bağlı · Takip yok` olarak sunulur.
-
-Öğretmen notu otomatik kaydolur; kayıt başarısızsa sessiz veri kaybına izin verilmez ve sayfadan çıkış engellenir.
-
-## 7. Ders planı paketleri ve P5 ilerleme sözleşmesi
-
-TDE_9/TDE_10 lesson-plan-aware runtime kullanılabilir olduğunda öğretmen, mevcut blok/hafta bağlamından `LessonPlanPage` açabilir. Yüzey:
+Öğretmen bir kez okulun zil saatlerini ve haftalık programını tanımlar:
 
 ```text
-plan başlığı ve özeti
-plan konumu / kalan blok saati
-kazanımlar
-sonraki adım
-saat bazlı ders akışı
-önceki / sonraki paket navigasyonu
-isteğe bağlı ders durumu
+BellPeriod
+  period_number
+  start_minute
+  end_minute
+
+LessonScheduleSlot
+  assignment_id
+  academic_year
+  weekday
+  period_number
 ```
 
-Plan içeriği read-only canonical runtime bilgisidir. Progress ise teacher-local mutable state'tir ve canonical paketi değiştirmez.
+Aynı akademik yılda öğretmenin iki farklı assignment'ı aynı `weekday + period_number` hücresini kullanamaz. Farklı akademik yıllar birbirini bloke etmez.
 
-Lesson-plan progress semantiği:
+Takvim + program + saat yalnız **planlanan konumu** üretir. Ders saatinin geçmiş olması, dersin gerçekten işlendiğinin kanıtı değildir ve otomatik `completed` kaydı oluşturamaz.
+
+## 5. Planlanan konum, gerçek konum ve explicit takip ayrımı
+
+Üç ayrı kavram korunur:
 
 ```text
-kayıt yok      = Başlanmadı
-in_progress     = Kısmen işlendi
-completed       = İşlendi
+Planlanan konum
+  → takvim ve ders programından deterministik hesaplanır
+
+Gerçek konum
+  → varsayılan olarak planlanan konumu takip eder
+  → öğretmen sapma varsa tek seferlik düzeltir
+
+Explicit takip
+  → öğretmenin isteğe bağlı Kısmen işlendi / İşlendi işaretidir
 ```
 
-`Başlanmadı` seçimi persisted progress kaydını siler. `Kısmen işlendi` ve `İşlendi` teacher-local kayıt oluşturur/günceller. Bu durumlar kullanıcının seçtiği explicit işaretlerdir; uygulama planı yalnız görüntülediği için otomatik progress üretmez.
+Bunlar birbirinin yerine kullanılamaz.
 
-### 7.1 Progress → canonical content binding
+### 5.1 Cursor
 
-Her non-empty progress kaydı, işaretlendiği anda canonical `lesson_plan_packages.payload_sha256` değeriyle bağlanır.
-
-Geçerlilik kuralı:
+Normal mod:
 
 ```text
-record.payload_sha256 == current package.payload_sha256
-  => current / geçerli progress
-
-record.payload_sha256 missing veya farklı
-  => stale / yeniden gözden geçirilecek progress
+followSchedule
+actualOrdinal = plannedOrdinal
 ```
 
-Stale kayıt **silinmez**; öğretmenin geçmiş işareti korunur. Ancak stale `in_progress/completed` durumu yeni plan içeriği için etkin status sayılmaz, paketi otomatik tamamlanmış/geçilmiş yapmaz ve haftalık `all completed` hesabına katılmaz. UI `Plan güncellendi` / `yeniden işaretle` diliyle durumu açıkça gösterir.
-
-Öğretmen yeni içeriği gördükten sonra `Kısmen işlendi` veya `İşlendi` seçerse kayıt current package hash'iyle yeniden bağlanır ve yeni içerik için yeni `started_at` zaman çizelgesi başlar. `Başlanmadı` stale kaydı da temizleyebilir.
-
-Schema v2'den gelen ve hash taşımayan legacy lesson-plan progress kayıtları migration sırasında korunur; otomatik doğru kabul edilmez ve stale olarak ele alınır.
-
-Course-wide runtime fingerprint progress geçerlilik anahtarı değildir. Validity package-level `payload_sha256` ile belirlenir; böylece runtime paketinde başka bir plan değiştiğinde içeriği değişmeyen paketlerin teacher-state'i gereksiz yere stale olmaz.
-
-**Her ders planı durum mutasyonu gerçek Undo sunar.** Undo, mutasyondan önceki persisted snapshot'ı geri yükler; önce kayıt yoksa oluşturulan kayıt tamamen silinir, önce kayıt varsa önceki `payload_sha256/status/started_at/completed_at/updated_at` değerleri aynen geri gelir. Undo stale bir snapshot'ı geri getirirse UI tekrar stale durumunu gösterir.
-
-TDE_11/TDE_12 curriculum-only runtime için lesson-plan CTA gösterilmez ve bu eksiklik hata state'i değildir.
-
-## 8. Kaynaklar
-
-`Kaynaklar` canonical tema kaynak kataloğudur. Seçili temanın ders kitabı,
-etkinlik, form, değerlendirme ve program/dayanak kaynakları burada tam envanter
-olarak gösterilir; program çıktıları veya öğretim blokları kataloğu değildir.
-
-Blok ve ders planı ekranları bu kataloğun kopyası değildir. Görev bağlamında
-gerekli kaynakları kısa ve filtrelenmiş projeksiyon olarak gösterebilir.
-
-Normal `Kaynaklar` sekmesi açılışında bağlam önceliği:
+Sapma modu:
 
 ```text
-1. son görüntülenen ders
-2. mevcut öğretim haftası
-3. güvenli ilk-tema fallback
+manualOffset
+actualOrdinal = actualOrdinalAtAnchor
+              + (plannedOrdinal - plannedOrdinalAtAnchor)
 ```
 
-Bağlam convenience state'tir; okunamazsa kaynak erişimi yine çalışır. Manuel
-tema seçimi ekranda kalındığı sürece korunur; sekmeye yeniden girişte güncel
-ders bağlamı tekrar çözülür.
+Örneğin planlanan 5. ders, gerçek 3. ders olarak düzeltilirse sonraki planlanan ders geldiğinde gerçek konum da bir saat ilerler; öğretmenden tekrar tekrar veri girişi istenmez.
 
-Bloktan `Temanın tüm kaynaklarını aç` veya ders planındaki `Kaynaklarda aç`
-aksiyonları açık navigation context taşır (`themeId`, gerektiğinde `blockId`,
-kategori ve kaynak kimliği). Bu explicit context doğru temayı açar ve kaynak
-kategorisini görünür hale getirir.
+`Programa yeniden eşitle` tekrar `followSchedule` moduna döndürür.
 
-`Bu Hafta` üzerinde yalnızca inceleme amacıyla seçilen geçmiş hafta geçici UI
-state'tir; global kaynak context'i değildir. Bu seçim normal `Kaynaklar`
-resolver'ını otomatik olarak değiştirmez.
+Ders programı değiştirildiğinde cursor yeniden anchor edilir; öğretmenin gerçek konumu program düzenlemesi yüzünden zıplayamaz.
 
-## 9. Yıllık plan
+## 6. Bu Hafta UX sözleşmesi
 
-Yıllık plan canonical öğretim sırasını gösterir. Aktif konum yıllık blok listesi
-içinde sade biçimde işaretlenir; gerekirse summary alanında yalnızca kısa bir
-öğretim sırası satırı görünür. `ŞU AN BURADASIN` dili `Bu Hafta` ekranına aittir.
-
-Aktif konum:
+Program kurulmuşsa `Bu Hafta` yüzeyi program bağlamını öne çıkarır:
 
 ```text
-son görüntülenen ders
-veya daha yeni geçici manuel konum işareti
+ŞİMDİKİ / SONRAKİ DERS
+9/A
+3. ders saati
+Ders planını aç
 ```
 
-Manuel işaret course-scoped ve geçicidir; daha sonra açılan yeni ders odağı eski manuel işareti otomatik geçersiz kılar.
+Sınıf seçimi varsayılan olarak programdan otomatik çözülür. Kullanıcı isterse geçici olarak başka bir şubeye bakabilir; başka şubeyi görüntülemek o şubeyi "şu anki ders" yapmaz.
 
-**Konum ilerleme değildir.** Blok sırası yüzde/tamamlanma progress bar'ına dönüştürülemez.
+Haftalık ders planında:
 
-Tracking kullanılmışsa ayrı `İSTEĞE BAĞLI TAKİP` özeti yalnız açıkça işaretlenen statü adetlerini gösterebilir. İşaretlenmemiş kazanımlar eksik sayılmaz ve denominator/yüzde üretilmez.
+- geçmiş program saatleri `Programa göre geçildi` gibi planlama diliyle gösterilebilir;
+- mevcut planlanan saat `ŞU AN` olarak işaretlenebilir;
+- gerçek konum farklıysa `GERÇEK` ve `PLANLANAN` ayrımı açıkça gösterilir;
+- hiçbir otomatik görsel durum teacher-local `completed` kaydı yazamaz.
 
-## 10. Teacher-local mutable state
+Tracking kontrolleri ikincildir; normal akışta her satır için `İşlendi` tıklaması beklenmez.
 
-Canonical runtime'dan ayrı tutulur:
+Program henüz kurulmamışsa uygulama canonical haftalık ders içeriğini göstermeye devam eder ve program kurma aksiyonu sunabilir. Program eksikliği ana içeriği error state'e çeviremez.
+
+## 7. Ders planı ilerleme sözleşmesi
+
+Canonical plan içeriği read-only runtime bilgisidir. Explicit ders durumu teacher-local state'tir.
+
+Assignment-aware kimlik:
 
 ```text
-teacher_state.sqlite
-  outcome_tracking
-  lesson_plan_progress
-
-SharedPreferences
-  last viewed lesson continuity
-  course-scoped temporary annual marker
-  UI preferences
+assignment_id + package_id + package_hour
 ```
 
-Outcome tracking record alanları:
+Semantik:
 
 ```text
-academic_year
-outcome_id
-planned_week_number
-status
-actual_hours (optional)
-teacher_note (optional)
-completed_at (optional)
-carried_to_week_number (optional)
-updated_at
+kayıt yok                   = explicit takip yok
+matching hash + in_progress = Kısmen işlendi
+matching hash + completed   = İşlendi
+missing/mismatched hash     = Plan güncellendi / yeniden gözden geçirilecek
 ```
 
-Lesson-plan progress record alanları:
+`payload_sha256` identity değildir; canonical package content binding kanıtıdır.
+
+Ders planını yalnız görüntülemek progress kaydı oluşturmaz. Önceki/sonraki derse gezinmek de otomatik completion üretmez.
+
+Explicit durum mutationları gerçek Undo sunmalıdır.
+
+## 8. Outcome/kazanım takibi
+
+Assignment-aware outcome identity:
 
 ```text
-course_id
-academic_year
-package_id
-payload_sha256 (nullable only for migrated legacy rows)
-status
-started_at (optional)
-completed_at (optional)
-updated_at
+assignment_id + outcome_id + planned_week_number
 ```
 
-Runtime/calendar güncellemesi teacher state'i sessizce silemez. Lesson-plan progress, `course_id + academic_year + package_id` scope'unda tutulur; `payload_sha256` identity değil content-validity binding'idir.
-
-## 11. Tracking semantics
-
-Outcome tracking için valid storage states:
+Valid statuslar:
 
 ```text
 planned
@@ -254,91 +199,137 @@ partially_completed
 carried_over
 ```
 
-`planned` domain/storage fallback'ıdır; kullanıcıya otomatik ilerleme borcu olarak gösterilmez. Canonical schedule ve classroom tracking iki ayrı gerçektir.
+`planned` storage/domain fallback'ıdır; kullanıcı borcu veya eksik iş değildir.
 
-Carry-over canonical planned week'i değiştirmez, EVENT_WEEK'e hedeflenemez ve aynı original tracking identity üzerinden yürür.
+Outcome tracking ile ders-planı progress'i ayrı kanallardır. Biri diğerini otomatik değiştirmez.
 
-Lesson-plan progress outcome tracking'den ayrı bir teacher-state capability'dir. İkisi birbirinin statusunu veya continuity state'ini otomatik değiştirmez.
+## 9. Continuity / Kaldığın Yer
 
-## 12. Calendar/runtime invariants
+Continuity son görüntülenen bağlamdır; tracking değildir.
 
-Aktif TDE_9 2026-2027 profilinde:
+Assignment seçiliyken assignment-scoped continuity tutulabilir. Kaynaklar ve yıllık plan gibi course-scoped yüzeylerin bağlam kaybetmemesi için son görüntülenen curriculum bağlamı ayrıca course-scoped convenience state olarak aynalanabilir.
+
+Continuity hatası canonical içerik veya navigation'ı bloke edemez.
+
+## 10. Eski teacher-state verisinin geçişi
+
+Legacy tablolar mevcut kullanıcı verisini korumak için tutulur. Eski kayıtların hangi şubeye ait olduğu güvenilir biçimde bilinmiyorsa uygulama tahmin yapamaz.
+
+Geçiş sözleşmesi:
+
+```text
+legacy kayıt bulundu
+→ öğretmen şubeyi açıkça seçer
+→ kayıtlar seçilen assignment'a kopyalanır
+→ legacy kayıtlar silinmez
+→ mevcut assignment kayıtları overwrite edilmez
+```
+
+Birden fazla şube olduğunda otomatik 9/A/9/B eşlemesi yasaktır.
+
+Legacy migration decision yalnız duplicate-import guard'dır; curriculum authority değildir.
+
+## 11. Teacher-local mutable state
+
+`teacher_state.sqlite` güncel assignment-aware alanları:
+
+```text
+school_classes
+teaching_assignments
+bell_periods
+lesson_schedule_slots
+assignment_progress_cursor
+assignment_lesson_progress
+assignment_outcome_tracking
+```
+
+Geçiş güvenliği için legacy alanlar da korunur:
+
+```text
+lesson_plan_progress
+outcome_tracking
+```
+
+SharedPreferences:
+
+```text
+last viewed continuity
+course-scoped annual marker
+legacy migration decision guard
+UI preferences
+```
+
+Runtime/calendar güncellemesi teacher-state verisini sessizce silemez.
+
+## 12. Kaynaklar ve yıllık plan
+
+`Kaynaklar` canonical kaynak kataloğudur. Bağlam önceliği:
+
+```text
+son görüntülenen ders
+→ mevcut öğretim haftası
+→ güvenli tema fallback
+```
+
+`Yıllık` canonical öğretim sırasını gösterir. Konum tamamlanma yüzdesi değildir.
+
+Assignment-aware tracking özetleri yalnız ilgili assignment scope'u açıkça belli olduğunda kullanılmalıdır. Course-wide legacy takip yeni şubelerin ortak gerçeği gibi sunulamaz.
+
+## 13. Runtime/calendar invariants
+
+Aktif TDE_9 2026-2027 profilinde runtime/planning authority'den gelen temel sözleşme korunur:
 
 ```text
 weekly_hours = 5
 annual_hours = 180
-theme_count = 4
-theme_hours = 45
-structured_theme_hours = 43
-school_based_theme_hours = 2
 instructional_weeks = 36
 active_week_37 = EVENT_WEEK
 EVENT_WEEK new curriculum hours = 0
 ```
 
-Lesson-plan-aware TDE_9/TDE_10 runtime sözleşmesi:
+Lesson-plan-aware TDE_9/TDE_10 runtime doğrulaması mevcut runtime manifest ve contract testlerinin authority'sidir. Feature widget'ları package/hour sayılarını uyduramaz veya hardcode edemez.
 
-```text
-runtime_package_version = 1.3.0
-runtime_schema_version = 1.2.0
-lesson_plan_packages = 88
-lesson_plan_instruction_hours = 172
-validation = VERIFIED/PASS
-```
+## 14. Offline/privacy boundary
 
-Bu değerler feature widget'larında hardcode edilmez; versioned planning/runtime authority'den gelir.
+Core kullanım kurulum sonrası offline çalışır. Bu çalışma backend, hesap, telemetry veya AI zorunluluğu getirmez.
 
-## 13. Offline/privacy boundary
-
-Core kullanım kurulum sonrası offline çalışır. V1.3 dışında kalanlar:
+Scope dışı kalanlar ayrıca ürün kararı gerektirir:
 
 ```text
 student roster / attendance / grades
 student mastery analytics
-cloud account/backend/sync
-MEBBİS/e-Okul
-LLM/RAG/AI generation
-OCR/PDF ingestion
+cloud sync/backend
+MEBBİS/e-Okul entegrasyonu
 curriculum editing
-general-purpose notes/task manager
 ```
 
-## 14. Required UX invariants
+## 15. Required UX invariants
 
-- Tek baskın mevcut ders odağı.
-- Tracking zorunlu değildir.
-- Bir dersi veya ders planını görüntülemek tracking kaydı oluşturmaz.
+- Öğretmenden her ders için `İşlendi` tıklaması beklenmez.
+- Aynı dersin farklı şubeleri bağımsızdır.
+- Program konumu completion değildir.
+- Programdan otomatik hesaplanan geçmiş saatler DB'ye completed yazmaz.
+- Gerçek ilerleme yalnız istisnada tek işlemle düzeltilir.
+- Manuel başka şubeye bakmak takvim gerçeğini değiştirmez.
+- Tracking isteğe bağlıdır.
+- Bir dersi görüntülemek tracking oluşturmaz.
 - Continuity tracking'den bağımsızdır.
 - Lesson-plan capability yokluğu ana akışı bloke etmez.
-- Ders planı yeni top-level navigation oluşturmaz.
-- Convenience preference hataları authoritative içeriği bloke etmez.
-- Notlarda sessiz veri kaybı yoktur.
-- Outcome tracking/carry mutationları gerçek Undo sunar.
-- Lesson-plan status mutationları önceki persisted snapshot'a gerçek Undo sunar.
-- Lesson-plan progress yalnız eşleşen package `payload_sha256` ile current kabul edilir.
-- Stale lesson-plan progress otomatik tamamlanma/ilerleme üretmez ve sessizce silinmez.
-- `planned` bir kullanıcı borcu gibi sunulmaz.
-- Konum, tamamlanma yüzdesi değildir.
+- Stale hash explicit metinle gösterilir ve otomatik current sayılmaz.
+- Legacy state şubeye tahmin yoluyla atanmaz.
+- Konum completion yüzdesi değildir.
 - Phone/tablet, large text ve dark mode kullanılabilir kalır.
-- Touch target'lar Material minimumlarını korur.
 
-## 15. Definition of success
+## 16. Definition of success
 
-V1.3 başarılıdır when a teacher can:
+V1.4 başarılıdır when a teacher can:
 
-1. uygulamayı açıp `ŞİMDİ` dersini doğrudan görmek;
-2. hiçbir tracking işlemi yapmadan ders ayrıntısına ve kaynaklara ulaşmak;
-3. lesson-plan capability varsa mevcut dersin doğrulanmış planını açmak ve önceki/sonraki pakette ilerlemek;
-4. kesinti sonrası son görüntülenen derse dönmek;
-5. isterse outcome tracking/not/carry ve lesson-plan progress özelliklerini kullanmak ve mutasyonları Undo yapabilmek;
-6. runtime güncellemesinde değişen plan içeriğine ait eski progress'in yeniden gözden geçirilmesi gerektiğini açıkça görmek;
-7. yıllık konumu ilerleme yüzdesiyle karıştırmamak;
-8. runtime doğruluğunu bozmadan tüm core akışı offline kullanmak.
-
-## 16. Change protocol
-
-```text
-scope → blueprint → implementation → regression tests → full CI
-```
-
-DEHB Faz 0–6 veya lesson-plan P4/P5 sözleşmesini değiştiren bir çalışma önce bu belgeyi bilinçli biçimde revize etmelidir; eski unrouted ekranları yeniden bağlamak scope değişikliği sayılır.
+1. aynı dersi verdiği 9/A, 9/B, 9/C gibi şubeleri ayrı tanımlamak;
+2. zil saatlerini ve haftalık programını bir kez girmek;
+3. uygulamayı açınca programdan mevcut/sonraki sınıfı görmek;
+4. hiçbir `İşlendi` tıklaması yapmadan haftanın doğru planlanan ders saatine ulaşmak;
+5. gerçek ilerleme farklıysa tek seçimle düzeltmek ve farkın sonraki derslerde korunmasını sağlamak;
+6. şubeler arasında progress/outcome state sızıntısı yaşamamak;
+7. program değiştiğinde gerçek konumun zıplamamasını sağlamak;
+8. eski teacher-state verisini yalnız açıkça seçtiği şubeye güvenli biçimde kopyalamak;
+9. canonical curriculum ve lesson-plan içeriğini teacher-local state'ten bağımsız ve doğrulanmış biçimde kullanmaya devam etmek.
