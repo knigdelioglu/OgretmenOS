@@ -169,6 +169,7 @@ class AssignmentLessonTimelineService {
     return InstructionTimelineSnapshot(
       now: effectiveNow,
       positions: Map.unmodifiable(positions),
+      occurrences: occurrences,
       currentOccurrence: current,
       nextOccurrence: next,
     );
