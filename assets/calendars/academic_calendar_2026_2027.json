@@ -1,9 +1,9 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "academic_year": "2026-2027",
   "country": "TR",
   "calendar_type": "MEB_SCHOOL_YEAR",
-  "source_note": "2026-2027 akademik takvim verileri ürün sahibi tarafından sağlanan MEB takvim metninden girilmiştir.",
+  "source_note": "2026-2027 akademik takvim ve resmî tatil bilgileri MEB 2026-2027 Eğitim ve Öğretim Yılı Çalışma Takviminden girilmiştir.",
   "orientation_periods": [
     {
       "id": "ORIENTATION_2026",
@@ -57,6 +57,45 @@
       "label": "Etkinlik Haftası",
       "consume_course_hours": false,
       "assign_new_outcomes": false
+    }
+  ],
+  "schedule_exceptions": [
+    {
+      "id": "REPUBLIC_DAY_EVE_2026",
+      "date": "2026-10-28",
+      "start_minute": 780,
+      "end_minute": 1440,
+      "label": "Cumhuriyet Bayramı arifesi · 13.00 sonrası"
+    },
+    {
+      "id": "REPUBLIC_DAY_2026",
+      "date": "2026-10-29",
+      "label": "Cumhuriyet Bayramı"
+    },
+    {
+      "id": "NEW_YEAR_2027",
+      "date": "2027-01-01",
+      "label": "Yılbaşı tatili"
+    },
+    {
+      "id": "NATIONAL_SOVEREIGNTY_2027",
+      "date": "2027-04-23",
+      "label": "23 Nisan Ulusal Egemenlik ve Çocuk Bayramı"
+    },
+    {
+      "id": "EID_AL_ADHA_2027_DAY_2",
+      "date": "2027-05-17",
+      "label": "Kurban Bayramı"
+    },
+    {
+      "id": "EID_AL_ADHA_2027_DAY_3",
+      "date": "2027-05-18",
+      "label": "Kurban Bayramı"
+    },
+    {
+      "id": "EID_AL_ADHA_2027_DAY_4",
+      "date": "2027-05-19",
+      "label": "Kurban Bayramı / 19 Mayıs"
     }
   ],
   "course_profiles": {
