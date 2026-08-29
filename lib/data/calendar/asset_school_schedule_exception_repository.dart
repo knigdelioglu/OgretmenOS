@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
@@ -18,7 +19,23 @@ class AssetSchoolScheduleExceptionRepository
   @override
   Future<List<SchoolScheduleException>> getForAcademicYear(
     String academicYear,
-  ) => _cache.putIfAbsent(academicYear, () => _load(academicYear));
+  ) {
+    final cached = _cache[academicYear];
+    if (cached != null) return cached;
+    final future = _load(academicYear);
+    _cache[academicYear] = future;
+    unawaited(
+      future.then<void>(
+        (_) {},
+        onError: (Object error, StackTrace stack) {
+          if (identical(_cache[academicYear], future)) {
+            _cache.remove(academicYear);
+          }
+        },
+      ),
+    );
+    return future;
+  }
 
   Future<List<SchoolScheduleException>> _load(String academicYear) async {
     final index = _decodeMap(await _bundle.loadString(_indexAsset), _indexAsset);
