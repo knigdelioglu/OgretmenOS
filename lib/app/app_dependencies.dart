@@ -5,6 +5,7 @@ import '../data/course/course_database_installer.dart';
 import '../data/course/course_knowledge_repository_impl.dart';
 import '../data/course/lesson_plan_database_data_source.dart';
 import '../data/preferences/continuity_repository.dart';
+import '../data/preferences/legacy_migration_decision_repository.dart';
 import '../data/preferences/user_preferences_repository.dart';
 import '../data/tracking/assignment_lesson_progress_repository_impl.dart';
 import '../data/tracking/assignment_outcome_tracking_repository_impl.dart';
@@ -17,6 +18,7 @@ import '../domain/repositories/course_knowledge_repository.dart';
 import '../domain/repositories/instruction_context_repository.dart';
 import '../domain/repositories/lesson_plan_progress_repository.dart';
 import '../domain/services/assignment_lesson_timeline_service.dart';
+import '../domain/services/legacy_teacher_state_migration_service.dart';
 import '../domain/services/outcome_planning_service.dart';
 
 class AppDependencies {
@@ -31,6 +33,8 @@ class AppDependencies {
     this.assignmentLessonProgress,
     this.assignmentOutcomeTracking,
     this.assignmentTimeline,
+    this.legacyTeacherStateMigration,
+    this.legacyMigrationDecision,
     this.dispose,
   });
 
@@ -44,6 +48,8 @@ class AppDependencies {
   final AssignmentLessonProgressRepository? assignmentLessonProgress;
   final AssignmentOutcomeTrackingRepository? assignmentOutcomeTracking;
   final AssignmentLessonTimelineService? assignmentTimeline;
+  final LegacyTeacherStateMigrationService? legacyTeacherStateMigration;
+  final LegacyMigrationDecisionRepository? legacyMigrationDecision;
   final Future<void> Function()? dispose;
 }
 
@@ -81,6 +87,14 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
       instructionContext: instructionContext,
       weeklyPlanning: weeklyPlanning,
     );
+    final legacyTeacherStateMigration = LegacyTeacherStateMigrationService(
+      legacyLessonProgress: lessonPlanProgress,
+      legacyOutcomeTracking: trackingRepository,
+      assignmentLessonProgress: assignmentLessonProgress,
+      assignmentOutcomeTracking: assignmentOutcomeTracking,
+    );
+    final legacyMigrationDecision =
+        SharedPreferencesLegacyMigrationDecisionRepository(preferences);
     final continuity = SharedPreferencesContinuityRepository(preferences);
     final outcomePlanning = OutcomePlanningService(
       repository: repository,
@@ -99,6 +113,8 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
       assignmentLessonProgress: assignmentLessonProgress,
       assignmentOutcomeTracking: assignmentOutcomeTracking,
       assignmentTimeline: assignmentTimeline,
+      legacyTeacherStateMigration: legacyTeacherStateMigration,
+      legacyMigrationDecision: legacyMigrationDecision,
       dispose: () async {
         await trackingDatabase?.close();
         await database.close();
