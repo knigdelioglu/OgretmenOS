@@ -77,9 +77,15 @@ class AssignmentLessonTimelineService {
     var exceptions = plan.scheduleExceptions;
     final exceptionRepository = scheduleExceptions;
     if (exceptionRepository != null) {
-      final stored = await exceptionRepository.getForAcademicYear(academicYear);
-      if (stored.isNotEmpty) {
-        exceptions = List.unmodifiable([...exceptions, ...stored]);
+      try {
+        final stored = await exceptionRepository.getForAcademicYear(academicYear);
+        if (stored.isNotEmpty) {
+          exceptions = List.unmodifiable([...exceptions, ...stored]);
+        }
+      } on Object {
+        // Schedule exceptions improve timetable truth but are not allowed to
+        // hide canonical weekly content if the auxiliary asset cannot load.
+        // The asset repository remains retryable on the next resolution.
       }
     }
 
