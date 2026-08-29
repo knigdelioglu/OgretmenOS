@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -10,6 +12,7 @@ import '../domain/repositories/outcome_tracking_repository.dart';
 import '../domain/runtime/course_runtime_registry.dart';
 import '../domain/services/assignment_lesson_timeline_service.dart';
 import '../domain/services/outcome_planning_service.dart';
+import '../domain/services/teaching_course_context_service.dart';
 import '../features/annual_plan/annual_plan_page.dart';
 import '../features/resources/resource_library_page.dart';
 import '../features/settings/teaching_schedule_page.dart';
@@ -35,28 +38,55 @@ class TeacherOsApp extends StatefulWidget {
   State<TeacherOsApp> createState() => _TeacherOsAppState();
 }
 
-class _TeacherOsAppState extends State<TeacherOsApp> {
+class _TeacherOsAppState extends State<TeacherOsApp>
+    with WidgetsBindingObserver {
   late Future<AppDependencies> _dependenciesFuture;
   late String _activeCourseId;
   AppDependencies? _resolvedDependencies;
   int _selectedDestinationIndex = 0;
   ResourceNavigationContext? _resourceNavigationContext;
+  Timer? _courseContextTimer;
+  bool _courseSelectionPinned = false;
+  bool _courseContextCheckRunning = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _activeCourseId = widget.initialCourseId;
     _dependenciesFuture = widget.dependencies != null
         ? Future.value(widget.dependencies)
         : widget.courseLoader!(_activeCourseId);
   }
 
-  Future<void> _switchCourse(String courseId) async {
-    if (courseId == _activeCourseId || widget.dependencies != null) return;
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _scheduleAutomaticCourseCheck();
+    }
+  }
+
+  Future<void> _switchCourse(
+    String courseId, {
+    required bool manual,
+  }) async {
+    if (widget.dependencies != null) return;
+    if (manual && courseId == _activeCourseId) {
+      _courseContextTimer?.cancel();
+      if (!_courseSelectionPinned && mounted) {
+        setState(() => _courseSelectionPinned = true);
+      }
+      return;
+    }
+    if (!manual && courseId == _activeCourseId) return;
+
+    _courseContextTimer?.cancel();
     FocusManager.instance.primaryFocus?.unfocus();
     final previous = _resolvedDependencies;
     _resolvedDependencies = null;
+    if (!mounted) return;
     setState(() {
+      _courseSelectionPinned = manual;
       _activeCourseId = courseId;
       _dependenciesFuture = widget.courseLoader!(courseId);
       _resourceNavigationContext = null;
@@ -64,9 +94,84 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
     await previous?.dispose?.call();
   }
 
+  void _selectCourseManually(String courseId) {
+    unawaited(_switchCourse(courseId, manual: true));
+  }
+
+  void _enableAutomaticCourseSelection() {
+    if (widget.dependencies != null) return;
+    if (_courseSelectionPinned) {
+      setState(() => _courseSelectionPinned = false);
+    }
+    _scheduleAutomaticCourseCheck();
+  }
+
+  void _scheduleAutomaticCourseCheck({
+    Duration delay = Duration.zero,
+  }) {
+    if (widget.dependencies != null ||
+        _courseSelectionPinned ||
+        _resolvedDependencies == null) {
+      return;
+    }
+    _courseContextTimer?.cancel();
+    final safeDelay = delay.isNegative ? Duration.zero : delay;
+    _courseContextTimer = Timer(safeDelay, () {
+      unawaited(_refreshAutomaticCourseContext());
+    });
+  }
+
+  Future<void> _refreshAutomaticCourseContext() async {
+    if (_courseContextCheckRunning || _courseSelectionPinned) return;
+    final dependencies = _resolvedDependencies;
+    final instructionContext = dependencies?.instructionContext;
+    if (dependencies == null || instructionContext == null) return;
+
+    _courseContextCheckRunning = true;
+    try {
+      final snapshot = await TeachingCourseContextService(
+        instructionContext: instructionContext,
+        weeklyPlanning: dependencies.weeklyPlanning,
+        scheduleExceptions: dependencies.scheduleExceptions,
+      ).resolve();
+      if (!mounted ||
+          _courseSelectionPinned ||
+          !identical(_resolvedDependencies, dependencies)) {
+        return;
+      }
+
+      final targetCourse = snapshot.currentCourseId;
+      if (targetCourse != null &&
+          targetCourse != _activeCourseId &&
+          isSupportedRuntimeCourse(targetCourse)) {
+        await _switchCourse(targetCourse, manual: false);
+        return;
+      }
+
+      final now = DateTime.now();
+      var delay = snapshot.nextTransitionAt.difference(now) +
+          const Duration(milliseconds: 500);
+      if (delay < const Duration(seconds: 1)) {
+        delay = const Duration(seconds: 1);
+      }
+      _scheduleAutomaticCourseCheck(delay: delay);
+    } on Object {
+      // Automatic context is convenience state. A malformed schedule must not
+      // block the currently loaded course; retry later instead.
+      if (mounted && !_courseSelectionPinned) {
+        _scheduleAutomaticCourseCheck(delay: const Duration(minutes: 1));
+      }
+    } finally {
+      _courseContextCheckRunning = false;
+    }
+  }
+
+  void _scheduleChanged() => _scheduleAutomaticCourseCheck();
+
   void _retryLoad() {
     if (widget.dependencies != null) return;
     FocusManager.instance.primaryFocus?.unfocus();
+    _courseContextTimer?.cancel();
     _resolvedDependencies = null;
     setState(() {
       _dependenciesFuture = widget.courseLoader!(_activeCourseId);
@@ -92,6 +197,8 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _courseContextTimer?.cancel();
     if (widget.dependencies == null) {
       _resolvedDependencies?.dispose?.call();
     }
@@ -119,14 +226,29 @@ class _TeacherOsAppState extends State<TeacherOsApp> {
             onRetry: widget.dependencies == null ? _retryLoad : null,
           );
         }
-        _resolvedDependencies = snapshot.data!;
+        final dependencies = snapshot.data!;
+        if (!identical(_resolvedDependencies, dependencies)) {
+          _resolvedDependencies = dependencies;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && identical(_resolvedDependencies, dependencies)) {
+              _scheduleAutomaticCourseCheck();
+            }
+          });
+        }
         return _AppShell(
           key: ValueKey(_activeCourseId),
-          dependencies: snapshot.data!,
+          dependencies: dependencies,
           activeCourseId: _activeCourseId,
+          courseSelectionPinned: _courseSelectionPinned,
           selectedIndex: _selectedDestinationIndex,
           onDestinationChanged: _selectDestination,
-          onCourseChanged: widget.dependencies == null ? _switchCourse : null,
+          onCourseChanged: widget.dependencies == null
+              ? _selectCourseManually
+              : null,
+          onUseAutomaticCourse: widget.dependencies == null
+              ? _enableAutomaticCourseSelection
+              : null,
+          onScheduleChanged: widget.dependencies == null ? _scheduleChanged : null,
           resourceNavigationContext: _resourceNavigationContext,
           onOpenResources: _openResources,
         );
@@ -219,18 +341,24 @@ class _AppShell extends StatefulWidget {
     super.key,
     required this.dependencies,
     required this.activeCourseId,
+    required this.courseSelectionPinned,
     required this.selectedIndex,
     required this.onDestinationChanged,
     required this.onCourseChanged,
+    required this.onUseAutomaticCourse,
+    required this.onScheduleChanged,
     required this.resourceNavigationContext,
     required this.onOpenResources,
   });
 
   final AppDependencies dependencies;
   final String activeCourseId;
+  final bool courseSelectionPinned;
   final int selectedIndex;
   final ValueChanged<int> onDestinationChanged;
   final ValueChanged<String>? onCourseChanged;
+  final VoidCallback? onUseAutomaticCourse;
+  final VoidCallback? onScheduleChanged;
   final ResourceNavigationContext? resourceNavigationContext;
   final ResourceNavigationCallback onOpenResources;
 
@@ -239,6 +367,8 @@ class _AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<_AppShell> {
+  static const _automaticCourseValue = '__automatic_course__';
+
   late final OutcomePlanningService _outcomePlanning;
   late final ContinuityRepository _continuity;
   late final LessonPlanProgressRepository _lessonPlanProgress;
@@ -272,6 +402,7 @@ class _AppShellState extends State<_AppShell> {
         AssignmentLessonTimelineService(
           instructionContext: _instructionContext,
           weeklyPlanning: widget.dependencies.weeklyPlanning,
+          scheduleExceptions: widget.dependencies.scheduleExceptions,
         );
     _outcomePlanning =
         widget.dependencies.outcomePlanning ??
@@ -286,16 +417,41 @@ class _AppShellState extends State<_AppShell> {
     final activeCourse = runtimeForCourse(widget.activeCourseId);
     if (widget.onCourseChanged == null) return const SizedBox.shrink();
     return PopupMenuButton<String>(
-      tooltip: 'Sınıf düzeyi seç',
-      initialValue: widget.activeCourseId,
-      onSelected: widget.onCourseChanged,
+      tooltip: widget.courseSelectionPinned
+          ? 'Sınıf düzeyi seç'
+          : 'Sınıf düzeyi · ders programına göre otomatik',
+      initialValue: widget.courseSelectionPinned
+          ? widget.activeCourseId
+          : _automaticCourseValue,
+      onSelected: (value) {
+        if (value == _automaticCourseValue) {
+          widget.onUseAutomaticCourse?.call();
+        } else {
+          widget.onCourseChanged?.call(value);
+        }
+      },
       itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: _automaticCourseValue,
+          child: Row(
+            children: [
+              if (!widget.courseSelectionPinned)
+                const Icon(Icons.check, size: 18)
+              else
+                const SizedBox(width: 18),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Ders programına göre otomatik')),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
         for (final course in supportedCourseRuntimes)
           PopupMenuItem<String>(
             value: course.courseId,
             child: Row(
               children: [
-                if (course.courseId == widget.activeCourseId)
+                if (widget.courseSelectionPinned &&
+                    course.courseId == widget.activeCourseId)
                   const Icon(Icons.check, size: 18)
                 else
                   const SizedBox(width: 18),
@@ -316,7 +472,12 @@ class _AppShellState extends State<_AppShell> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.school_outlined, size: 20),
+            Icon(
+              widget.courseSelectionPinned
+                  ? Icons.school_outlined
+                  : Icons.auto_mode_rounded,
+              size: 20,
+            ),
             const SizedBox(width: 6),
             Text(
               '${activeCourse.grade}. Sınıf',
@@ -353,6 +514,7 @@ class _AppShellState extends State<_AppShell> {
       _annualPlanPage = null;
       _resourceLibraryPage = null;
     });
+    widget.onScheduleChanged?.call();
   }
 
   Widget _topTrailing(BuildContext context) => Wrap(
