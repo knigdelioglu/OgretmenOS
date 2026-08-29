@@ -10,7 +10,7 @@ class OutcomeTrackingDatabase {
   OutcomeTrackingDatabase._(this.database);
 
   static const fileName = 'ogretmen_os_teacher_state.sqlite';
-  static const schemaVersion = 4;
+  static const schemaVersion = 5;
 
   final Database database;
 
@@ -37,6 +37,8 @@ class OutcomeTrackingDatabase {
         }
         if (oldVersion < 4) {
           await _createInstructionContext(db);
+        } else if (oldVersion < 5) {
+          await _migrateScheduleSlotsToAcademicYear(db);
         }
       },
     );
@@ -132,26 +134,7 @@ class OutcomeTrackingDatabase {
       )
     ''');
 
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS lesson_schedule_slots (
-        slot_id TEXT PRIMARY KEY,
-        assignment_id TEXT NOT NULL,
-        weekday INTEGER NOT NULL,
-        period_number INTEGER NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        UNIQUE (weekday, period_number),
-        FOREIGN KEY (assignment_id) REFERENCES teaching_assignments(assignment_id)
-          ON DELETE CASCADE,
-        FOREIGN KEY (period_number) REFERENCES bell_periods(period_number)
-          ON DELETE RESTRICT,
-        CHECK (weekday >= 1 AND weekday <= 7)
-      )
-    ''');
-    await db.execute('''
-      CREATE INDEX IF NOT EXISTS idx_lesson_schedule_assignment
-      ON lesson_schedule_slots (assignment_id, weekday, period_number)
-    ''');
+    await _createScheduleSlots(db);
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS assignment_progress_cursor (
@@ -213,6 +196,79 @@ class OutcomeTrackingDatabase {
         status
       )
     ''');
+  }
+
+  static Future<void> _createScheduleSlots(
+    DatabaseExecutor db, {
+    String tableName = 'lesson_schedule_slots',
+  }) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableName (
+        slot_id TEXT PRIMARY KEY,
+        assignment_id TEXT NOT NULL,
+        academic_year TEXT NOT NULL,
+        weekday INTEGER NOT NULL,
+        period_number INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (academic_year, weekday, period_number),
+        FOREIGN KEY (assignment_id) REFERENCES teaching_assignments(assignment_id)
+          ON DELETE CASCADE,
+        FOREIGN KEY (period_number) REFERENCES bell_periods(period_number)
+          ON DELETE RESTRICT,
+        CHECK (weekday >= 1 AND weekday <= 7)
+      )
+    ''');
+    if (tableName == 'lesson_schedule_slots') {
+      await db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_lesson_schedule_assignment
+        ON lesson_schedule_slots (assignment_id, weekday, period_number)
+      ''');
+      await db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_lesson_schedule_year
+        ON lesson_schedule_slots (academic_year, weekday, period_number)
+      ''');
+    }
+  }
+
+  static Future<void> _migrateScheduleSlotsToAcademicYear(Database db) async {
+    await db.transaction((txn) async {
+      await _createScheduleSlots(txn, tableName: 'lesson_schedule_slots_v5');
+      await txn.execute('''
+        INSERT INTO lesson_schedule_slots_v5 (
+          slot_id,
+          assignment_id,
+          academic_year,
+          weekday,
+          period_number,
+          created_at,
+          updated_at
+        )
+        SELECT
+          s.slot_id,
+          s.assignment_id,
+          a.academic_year,
+          s.weekday,
+          s.period_number,
+          s.created_at,
+          s.updated_at
+        FROM lesson_schedule_slots s
+        INNER JOIN teaching_assignments a
+          ON a.assignment_id = s.assignment_id
+      ''');
+      await txn.execute('DROP TABLE lesson_schedule_slots');
+      await txn.execute(
+        'ALTER TABLE lesson_schedule_slots_v5 RENAME TO lesson_schedule_slots',
+      );
+      await txn.execute('''
+        CREATE INDEX idx_lesson_schedule_assignment
+        ON lesson_schedule_slots (assignment_id, weekday, period_number)
+      ''');
+      await txn.execute('''
+        CREATE INDEX idx_lesson_schedule_year
+        ON lesson_schedule_slots (academic_year, weekday, period_number)
+      ''');
+    });
   }
 
   Future<void> close() => database.close();
