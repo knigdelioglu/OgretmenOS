@@ -546,11 +546,31 @@ class _ContinuityThisWeekPageState extends State<ContinuityThisWeekPage> {
   Widget _content(BuildContext context, _ContinuityData data) {
     final hasCurrentCard = _hasCurrentLessonCard(data);
     final hasResume = data.item != null && data.stored != null;
-    if (!hasCurrentCard && !hasResume) return _workspace(context, data);
+    final needsScheduleSetup =
+        data.choices.isNotEmpty &&
+        data.selectedAssignmentId != null &&
+        !data.scheduleReady &&
+        widget.onConfigureSchedule != null;
+    if (!hasCurrentCard && !hasResume && !needsScheduleSetup) {
+      return _workspace(context, data);
+    }
 
     return NestedScrollView(
       physics: const ClampingScrollPhysics(),
       headerSliverBuilder: (context, innerBoxIsScrolled) => [
+        if (needsScheduleSetup)
+          SliverToBoxAdapter(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 960),
+                child: _ScheduleSetupBanner(
+                  weeklyHours: data.plan.weeklyPlan.weeklyLessonHours,
+                  onConfigure: widget.onConfigureSchedule!,
+                ),
+              ),
+            ),
+          ),
         if (hasCurrentCard)
           SliverToBoxAdapter(
             child: Align(
@@ -641,6 +661,75 @@ class _AssignmentChoice {
 
   final String assignmentId;
   final String label;
+}
+
+class _ScheduleSetupBanner extends StatelessWidget {
+  const _ScheduleSetupBanner({
+    required this.weeklyHours,
+    required this.onConfigure,
+  });
+
+  final int weeklyHours;
+  final VoidCallback onConfigure;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        0,
+      ),
+      child: Card(
+        color: scheme.secondaryContainer.withValues(alpha: 0.52),
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.edit_calendar_outlined,
+                color: scheme.onSecondaryContainer,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ders programını tamamla',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: scheme.onSecondaryContainer,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'ŞU AN dersini otomatik bulmak için seçili şubede haftalık $weeklyHours ders saatinin tamamı tanımlı olmalı.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSecondaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              TextButton(
+                onPressed: onConfigure,
+                style: TextButton.styleFrom(
+                  foregroundColor: scheme.onSecondaryContainer,
+                ),
+                child: const Text('Düzenle'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ResumeBanner extends StatelessWidget {
