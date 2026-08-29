@@ -262,17 +262,50 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
     if (oldWidget.assignment.id != widget.assignment.id ||
         oldWidget.weekNumber != widget.weekNumber ||
         oldWidget.position?.plannedOrdinal != widget.position?.plannedOrdinal ||
-        oldWidget.position?.actualOrdinal != widget.position?.actualOrdinal) {
+        oldWidget.position?.actualOrdinal != widget.position?.actualOrdinal ||
+        oldWidget.timelineSnapshot != widget.timelineSnapshot) {
       _future = _load();
     }
   }
 
   Future<_AssignmentPanelData> _load() async {
     final workflow = LessonPlanWorkflowService(repository: widget.repository);
-    final selections = await workflow.plansForWeek(
-      widget.annualPlan,
-      widget.weekNumber,
-    );
+    final selectedWeek = widget.annualPlan.week(widget.weekNumber)?.week;
+    final scheduleProjected = widget.position != null && selectedWeek != null;
+
+    final rows = <_ScheduledPlanRow>[];
+    var scheduledOccurrenceCount = 0;
+    if (scheduleProjected) {
+      final occurrences = widget.timelineSnapshot.occurrencesForAssignmentBetween(
+        assignmentId: widget.assignment.id,
+        start: selectedWeek.start,
+        end: selectedWeek.end,
+      );
+      scheduledOccurrenceCount = occurrences.length;
+      for (final occurrence in occurrences) {
+        final selection = await workflow.selectionForInstructionOrdinal(
+          widget.annualPlan,
+          occurrence.plannedOrdinal,
+        );
+        if (selection == null) continue;
+        rows.add(
+          _ScheduledPlanRow(
+            selection: selection,
+            occurrence: occurrence,
+          ),
+        );
+      }
+    } else {
+      final selections = await workflow.plansForWeek(
+        widget.annualPlan,
+        widget.weekNumber,
+      );
+      rows.addAll(
+        selections.map((selection) => _ScheduledPlanRow(selection: selection)),
+      );
+      scheduledOccurrenceCount = selections.length;
+    }
+
     final raw = await widget.progressRepository.getForAssignment(
       widget.assignment.id,
     );
@@ -287,7 +320,8 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
       repository: widget.progressRepository,
     );
     final resolved = <AssignmentLessonProgressKey, AssignmentLessonProgressResolution>{};
-    for (final selection in selections) {
+    for (final row in rows) {
+      final selection = row.selection;
       final key = AssignmentLessonProgressKey(
         packageId: selection.package.packageId,
         packageHour: selection.packageHour,
@@ -310,10 +344,12 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
             widget.position!.plannedOrdinal,
           );
     return _AssignmentPanelData(
-      selections: selections,
-      resolutions: resolved,
+      rows: List.unmodifiable(rows),
+      resolutions: Map.unmodifiable(resolved),
       actualSelection: actualSelection,
       plannedSelection: plannedSelection,
+      scheduleProjected: scheduleProjected,
+      scheduledOccurrenceCount: scheduledOccurrenceCount,
     );
   }
 
@@ -391,15 +427,21 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
         return const SizedBox.shrink();
       }
       final data = snapshot.data;
-      if (data == null || data.selections.isEmpty) return const SizedBox.shrink();
+      if (data == null) return const SizedBox.shrink();
+      if (data.rows.isEmpty && !data.scheduleProjected) {
+        return const SizedBox.shrink();
+      }
       final position = widget.position;
       final planned = position?.plannedOrdinal ?? 0;
       final actual = position?.actualOrdinal ?? planned;
       final delta = actual - planned;
-      final isCurrentClass =
-          widget.timelineSnapshot.currentOccurrence?.assignmentId ==
-          widget.assignment.id;
+      final currentOccurrence = widget.timelineSnapshot.currentOccurrence;
       final scheme = Theme.of(context).colorScheme;
+      final canonicalWeekHours =
+          widget.annualPlan.week(widget.weekNumber)?.week.plannedLessonHours ?? 0;
+      final scheduleChangedWeekShape =
+          data.scheduleProjected &&
+          data.scheduledOccurrenceCount != canonicalWeekHours;
 
       return Padding(
         padding: const EdgeInsets.only(top: AppSpacing.md),
@@ -440,7 +482,7 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
                       ),
                     ),
                     Text(
-                      '${data.selections.length} ders saati',
+                      '${data.scheduledOccurrenceCount} ders saati',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
@@ -448,6 +490,16 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
                     ),
                   ],
                 ),
+                if (scheduleChangedWeekShape) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Takvim istisnası nedeniyle bu haftanın gerçek ders sayısı '
+                    '${data.scheduledOccurrenceCount}. İptal edilen saatler plan sırasını tüketmez.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
                 if (position != null) ...[
                   const SizedBox(height: AppSpacing.md),
                   Container(
@@ -492,32 +544,57 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
                   ),
                 ],
                 const SizedBox(height: AppSpacing.sm),
-                for (var index = 0; index < data.selections.length; index++)
-                  Builder(
-                    builder: (context) {
-                      final selection = data.selections[index];
-                      final ordinal = _instructionOrdinalForSelection(selection);
-                      final key = AssignmentLessonProgressKey(
-                        packageId: selection.package.packageId,
-                        packageHour: selection.packageHour,
-                      );
-                      final resolution = data.resolutions[key] ??
-                          const AssignmentLessonProgressResolution.none();
-                      final isActual = ordinal == actual;
-                      final isPlanned = ordinal == planned;
-                      return _AssignmentPlanRow(
-                        selection: selection,
-                        resolution: resolution,
-                        schedulePassed: ordinal < planned,
-                        isCurrentTime: isCurrentClass && isPlanned,
-                        isActual: isActual,
-                        isPlanned: isPlanned,
-                        positionsDiffer: actual != planned,
-                        isLast: index == data.selections.length - 1,
-                        onOpen: () => _openPlan(selection),
-                      );
-                    },
-                  ),
+                if (data.rows.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    child: Text(
+                      data.scheduledOccurrenceCount == 0
+                          ? 'Takvime göre bu hafta bu şubede ders yok.'
+                          : 'Bu haftaki program saatleri için açılabilir tekil ders planı bulunmuyor.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  )
+                else
+                  for (var index = 0; index < data.rows.length; index++)
+                    Builder(
+                      builder: (context) {
+                        final row = data.rows[index];
+                        final selection = row.selection;
+                        final ordinal = row.occurrence?.plannedOrdinal ??
+                            _instructionOrdinalForSelection(selection);
+                        final key = AssignmentLessonProgressKey(
+                          packageId: selection.package.packageId,
+                          packageHour: selection.packageHour,
+                        );
+                        final resolution = data.resolutions[key] ??
+                            const AssignmentLessonProgressResolution.none();
+                        final isActual = ordinal == actual;
+                        final isPlanned = ordinal == planned;
+                        final isCurrentTime =
+                            row.occurrence != null &&
+                            currentOccurrence?.assignmentId ==
+                                widget.assignment.id &&
+                            currentOccurrence?.plannedOrdinal == ordinal;
+                        return _AssignmentPlanRow(
+                          selection: selection,
+                          occurrence: row.occurrence,
+                          weekOccurrenceIndex:
+                              row.occurrence == null ? null : index + 1,
+                          selectedCalendarWeekNumber: widget.weekNumber,
+                          resolution: resolution,
+                          schedulePassed:
+                              data.scheduleProjected && ordinal < planned,
+                          isCurrentTime: isCurrentTime,
+                          isActual: isActual,
+                          isPlanned: isPlanned,
+                          positionsDiffer: actual != planned,
+                          isLast: index == data.rows.length - 1,
+                          onOpen: () => _openPlan(selection),
+                        );
+                      },
+                    ),
               ],
             ),
           ),
@@ -555,6 +632,9 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
 class _AssignmentPlanRow extends StatelessWidget {
   const _AssignmentPlanRow({
     required this.selection,
+    required this.occurrence,
+    required this.weekOccurrenceIndex,
+    required this.selectedCalendarWeekNumber,
     required this.resolution,
     required this.schedulePassed,
     required this.isCurrentTime,
@@ -566,6 +646,9 @@ class _AssignmentPlanRow extends StatelessWidget {
   });
 
   final WeeklyLessonPlanSelection selection;
+  final ScheduledLessonOccurrence? occurrence;
+  final int? weekOccurrenceIndex;
+  final int selectedCalendarWeekNumber;
   final AssignmentLessonProgressResolution resolution;
   final bool schedulePassed;
   final bool isCurrentTime;
@@ -591,6 +674,15 @@ class _AssignmentPlanRow extends StatelessWidget {
     final contextualStatus = explicitStatus ??
         (schedulePassed ? 'Programa göre geçildi' : null);
     final emphasized = isCurrentTime || isActual || isPlanned;
+    final rowLabel = occurrence == null
+        ? '${selection.weekHour}. ders saati'
+        : '${weekOccurrenceIndex ?? selection.weekHour}. ders saati';
+    final scheduleLabel = occurrence == null
+        ? null
+        : '${_weekdayShort(occurrence!.date.weekday)} · '
+              '${occurrence!.slot.periodNumber}. saat';
+    final shiftedFromCanonicalWeek =
+        occurrence != null && selection.weekNumber != selectedCalendarWeekNumber;
 
     String? badge;
     if (isCurrentTime) {
@@ -644,39 +736,56 @@ class _AssignmentPlanRow extends StatelessWidget {
                   const SizedBox(width: AppSpacing.md),
                   SizedBox(
                     width: 142,
-                    child: Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.xs,
-                      crossAxisAlignment: WrapCrossAlignment.center,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '${selection.weekHour}. ders saati',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            color: emphasized
-                                ? scheme.primary
-                                : scheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        if (badge != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: scheme.primary.withValues(alpha: 0.10),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              badge,
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: scheme.primary,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.35,
+                        Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.xs,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              rowLabel,
+                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                color: emphasized
+                                    ? scheme.primary
+                                    : scheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
+                            if (badge != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: scheme.primary.withValues(alpha: 0.10),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  badge,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(
+                                        color: scheme.primary,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.35,
+                                      ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (scheduleLabel != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            scheduleLabel,
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
                           ),
+                        ],
                       ],
                     ),
                   ),
@@ -692,6 +801,15 @@ class _AssignmentPlanRow extends StatelessWidget {
                             height: 1.25,
                           ),
                         ),
+                        if (shiftedFromCanonicalWeek) ...[
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Takvim kayması · plan sırası ${selection.weekNumber}. hafta, ${selection.weekHour}. ders',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                         if (contextualStatus != null) ...[
                           const SizedBox(height: AppSpacing.xs),
                           Text(
@@ -887,17 +1005,38 @@ class _AssignmentSectionData {
   }
 }
 
+class _ScheduledPlanRow {
+  const _ScheduledPlanRow({required this.selection, this.occurrence});
+
+  final WeeklyLessonPlanSelection selection;
+  final ScheduledLessonOccurrence? occurrence;
+}
+
 class _AssignmentPanelData {
   const _AssignmentPanelData({
-    required this.selections,
+    required this.rows,
     required this.resolutions,
     required this.actualSelection,
     required this.plannedSelection,
+    required this.scheduleProjected,
+    required this.scheduledOccurrenceCount,
   });
 
-  final List<WeeklyLessonPlanSelection> selections;
+  final List<_ScheduledPlanRow> rows;
   final Map<AssignmentLessonProgressKey, AssignmentLessonProgressResolution>
   resolutions;
   final WeeklyLessonPlanSelection? actualSelection;
   final WeeklyLessonPlanSelection? plannedSelection;
+  final bool scheduleProjected;
+  final int scheduledOccurrenceCount;
 }
+
+String _weekdayShort(int weekday) => switch (weekday) {
+  DateTime.monday => 'Pzt',
+  DateTime.tuesday => 'Sal',
+  DateTime.wednesday => 'Çar',
+  DateTime.thursday => 'Per',
+  DateTime.friday => 'Cum',
+  DateTime.saturday => 'Cmt',
+  _ => 'Paz',
+};
