@@ -254,9 +254,7 @@ class _LessonPlanContent extends StatelessWidget {
           _PlanProgressCard(
             plan: plan,
             progress: progress,
-            next: data.next,
             onSetProgress: onSetProgress,
-            onOpenPackage: onOpenPackage,
           ),
           const SizedBox(height: AppSpacing.md),
         ],
@@ -380,61 +378,69 @@ class _PlanProgressCard extends StatelessWidget {
   const _PlanProgressCard({
     required this.plan,
     required this.progress,
-    required this.next,
     required this.onSetProgress,
-    required this.onOpenPackage,
   });
 
   final LessonPlanPackage plan;
   final LessonPlanProgressResolution progress;
-  final LessonPlanPackage? next;
   final Future<void> Function(
     LessonPlanPackage package,
     LessonPlanProgressStatus status,
   )
   onSetProgress;
-  final ValueChanged<String> onOpenPackage;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final status = progress.effectiveStatus;
     final stale = progress.isStale;
-    final completed = !stale && status == LessonPlanProgressStatus.completed;
+    final subtitle = stale
+        ? 'Plan güncellendi · takip yeniden seçilmeli'
+        : status == LessonPlanProgressStatus.notStarted
+        ? 'Takip yok · ders planı sırası bundan bağımsız ilerler'
+        : 'Takip: ${status.teacherLabel} · plan sırası bundan bağımsız';
+
     return Card(
-      color: stale
-          ? scheme.errorContainer
-          : completed
-          ? scheme.secondaryContainer
-          : scheme.tertiaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'DERS DURUMU',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.7,
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        initiallyExpanded: stale,
+        leading: Icon(
+          stale ? Icons.warning_amber_rounded : Icons.fact_check_outlined,
+          color: stale ? scheme.error : scheme.onSurfaceVariant,
+        ),
+        title: const Text(
+          'İsteğe bağlı takip',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        subtitle: Text(subtitle),
+        childrenPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          0,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
+        children: [
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Bu alan yalnız kişisel ders kaydı içindir. Önceki/sonraki ders planına geçiş bu seçimden bağımsızdır.',
+              style: TextStyle(height: 1.4),
+            ),
+          ),
+          if (stale) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Önceki “${progress.record?.status.teacherLabel ?? 'durum'}” kaydı güncel plan içeriği için geçerli sayılmadı. Planı gördükten sonra takip durumunu yeniden seçin.',
+                style: TextStyle(color: scheme.error, height: 1.4),
               ),
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              stale ? 'Plan güncellendi' : status.teacherLabel,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            if (stale) ...[
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Önceki “${progress.record?.status.teacherLabel ?? 'durum'}” kaydı ders planının güncel içeriği için geçerli sayılmadı. Yeni planı gördükten sonra durumu yeniden seçin.',
-                style: TextStyle(color: scheme.onErrorContainer, height: 1.4),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
+          ],
+          const SizedBox(height: AppSpacing.md),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
               children: [
@@ -448,16 +454,8 @@ class _PlanProgressCard extends StatelessWidget {
                   ),
               ],
             ),
-            if (completed && next != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              FilledButton.icon(
-                onPressed: () => onOpenPackage(next!.packageId),
-                icon: const Icon(Icons.arrow_forward),
-                label: const Text('Sonraki ders planına geç'),
-              ),
-            ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
