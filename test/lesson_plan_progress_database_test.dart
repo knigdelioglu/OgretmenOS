@@ -9,7 +9,7 @@ void main() {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
-  test('v1 teacher state v3e yükselirken kazanım kaydını korur', () async {
+  test('v1 teacher state v5e yükselirken kazanım kaydını korur', () async {
     final directory = await Directory.systemTemp.createTemp('ogretmen_os_p5_migration_');
     final path = '${directory.path}/teacher_state.sqlite';
     addTearDown(() async {
@@ -53,7 +53,7 @@ void main() {
     addTearDown(database.close);
 
     final versionRows = await database.database.rawQuery('PRAGMA user_version');
-    expect(versionRows.single['user_version'], 3);
+    expect(versionRows.single['user_version'], 5);
     final outcomeRows = await database.database.query('outcome_tracking');
     expect(outcomeRows, hasLength(1));
     expect(outcomeRows.single['outcome_id'], 'TDE.9.TEST');
@@ -65,9 +65,23 @@ void main() {
       columns.map((row) => row['name']),
       contains('payload_sha256'),
     );
+    final tables = await database.database.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type = 'table'",
+    );
+    expect(
+      tables.map((row) => row['name']),
+      containsAll(<String>[
+        'school_classes',
+        'teaching_assignments',
+        'lesson_schedule_slots',
+        'assignment_progress_cursor',
+        'assignment_lesson_progress',
+        'assignment_outcome_tracking',
+      ]),
+    );
   });
 
-  test('v2 progress v3e yükselirken kayıt korunur ve hashesiz stale adayı olur', () async {
+  test('v2 progress v5e yükselirken kayıt korunur ve hashesiz stale adayı olur', () async {
     final directory = await Directory.systemTemp.createTemp('ogretmen_os_p5_v2_binding_');
     final path = '${directory.path}/teacher_state.sqlite';
     addTearDown(() async {
@@ -131,7 +145,7 @@ void main() {
     addTearDown(database.close);
 
     final versionRows = await database.database.rawQuery('PRAGMA user_version');
-    expect(versionRows.single['user_version'], 3);
+    expect(versionRows.single['user_version'], 5);
     final record = await repository.get(
       courseId: 'TDE_9',
       academicYear: '2026-2027',
