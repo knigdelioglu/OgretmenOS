@@ -1,6 +1,6 @@
-# ÖğretmenOS — Flutter Blueprint V1.3
+# ÖğretmenOS — Flutter Blueprint V1.4
 
-**Belge sürümü:** 1.3.2  
+**Belge sürümü:** 1.4.0  
 **Durum:** Bağlayıcı teknik blueprint  
 **Teknoloji:** Flutter + Dart + Material 3  
 **Çalışma modu:** Offline-first / yerel / deterministik
@@ -10,7 +10,7 @@
 ## 1. Architecture
 
 ```text
-course_runtime.sqlite (read-only)
+course_runtime.sqlite (READ ONLY)
         ↓
 CourseKnowledgeRepository
         ├─ curriculum / outcome / block knowledge
@@ -20,18 +20,38 @@ calendar/profile assets
         ↓
 WeeklyPlanningService
 
-teacher_state.sqlite (mutable optional teacher state)
-        ├─ OutcomeTrackingRepository
-        └─ LessonPlanProgressRepository
+teacher_state.sqlite (READ/WRITE)
+        ├─ school_classes
+        ├─ teaching_assignments
+        ├─ bell_periods
+        ├─ lesson_schedule_slots
+        ├─ assignment_progress_cursor
+        ├─ assignment_lesson_progress
+        ├─ assignment_outcome_tracking
+        ├─ legacy lesson_plan_progress
+        └─ legacy outcome_tracking
 
-CourseKnowledgeRepository + WeeklyPlanningService + teacher-state repositories
+InstructionContextRepository
         ↓
-OutcomePlanningService / LessonPlanWorkflowService / LessonPlanProgressService
+AssignmentLessonTimelineService
         ↓
-Bu Hafta / Yıllık / Kaynaklar / routed details
+planned/current/next assignment position
+
+AssignmentOutcomeTrackingRepository
+        ↓ adapter(selected assignment)
+OutcomePlanningService
+
+AssignmentLessonProgressRepository
+        ↓
+assignment-aware weekly plan / SingleLessonPlanPage
+
+SharedPreferences
+        ├─ continuity
+        ├─ annual manual marker
+        └─ legacy migration decision guard
 ```
 
-Continuity ve annual manual marker SharedPreferences tabanlı convenience state'tir; curriculum veya tracking authority değildir.
+Canonical runtime ve teacher-local state birbirine yazılamaz.
 
 ## 2. Top-level shell
 
@@ -39,318 +59,409 @@ Continuity ve annual manual marker SharedPreferences tabanlı convenience state'
 
 ```text
 0 Bu Hafta
-1 Yıllık
+1 Plan
 2 Kaynaklar
 ```
 
-`IndexedStack` ekran state'ini korur. Normal Resource destination girişinde continuity resolver çalışır; blok veya ders planı bağlantıları ise yalnızca açık navigation context taşır.
+Ders programı/sınıf yönetimi top-level destination değildir; app bar'dan açılan supporting route'tur.
 
-`LessonPlanPage` supporting routed detail'dir; destination sayısını artırmaz.
+`LessonPlanPage` / `SingleLessonPlanPage` supporting detail route'larıdır.
 
-## 3. Bu Hafta composition
+## 3. Instruction context model
+
+```dart
+SchoolClass
+  id
+  academicYear
+  grade
+  section
+  displayName
+
+TeachingAssignment
+  id
+  academicYear
+  courseId
+  classId
+  isActive
+
+BellPeriod
+  periodNumber
+  startMinute
+  endMinute
+
+LessonScheduleSlot
+  id
+  assignmentId
+  weekday
+  periodNumber
+```
+
+Aynı `courseId` birden fazla `TeachingAssignment` ile kullanılabilir. Canonical ders içeriği kopyalanmaz.
+
+Schedule collision domain kuralı:
+
+```text
+UNIQUE (academic_year, weekday, period_number)
+```
+
+Bu kural teacher timetable içindir; farklı akademik yıllar aynı haftalık hücreyi kullanabilir.
+
+Repository katmanı DB constraint'e güvenmekle yetinmez; domain-level `ScheduleSlotConflictException` üretir.
+
+## 4. teacher_state schema v5
+
+`OutcomeTrackingDatabase.schemaVersion = 5`.
+
+### 4.1 Current assignment-aware tables
+
+```text
+school_classes
+teaching_assignments
+bell_periods
+lesson_schedule_slots
+assignment_progress_cursor
+assignment_lesson_progress
+assignment_outcome_tracking
+```
+
+### 4.2 Legacy tables
+
+```text
+lesson_plan_progress
+outcome_tracking
+```
+
+Legacy tablolar migration source olarak korunur. Yeni assignment-aware akış bunları ortak şube state'i olarak kullanmaz.
+
+### 4.3 v4 → v5 migration
+
+v4 `lesson_schedule_slots` tablosundaki global:
+
+```text
+UNIQUE (weekday, period_number)
+```
+
+kuralı yanlıştı. v5 migration assignment üzerinden `academic_year` backfill eder ve tabloyu:
+
+```text
+UNIQUE (academic_year, weekday, period_number)
+```
+
+ile yeniden kurar.
+
+Migration teacher state'i silmez.
+
+## 5. Timeline engine
+
+`AssignmentLessonTimelineService` girdileri:
+
+```text
+InstructionContextRepository
+WeeklyPlanningService
+DateTime now
+```
+
+Çıktı `InstructionTimelineSnapshot` içinde assignment bazlı occurrence/position bilgisidir.
+
+Sadece canonical `AnnualWeeklyPlan` içindeki instruction week'ler kullanılır. Event week yeni ders occurrence üretmez.
+
+Pozisyonlar:
+
+```text
+previousOccurrence
+currentOccurrence
+nextOccurrence
+plannedOrdinal
+actualOrdinal
+```
+
+Ders saati geçmiş olmak explicit completion değildir.
+
+## 6. Assignment progress cursor
+
+`AssignmentProgressCursor` iki mod taşır:
+
+```text
+follow_schedule
+manual_offset
+```
+
+`follow_schedule`:
+
+```text
+actual = planned
+```
+
+`manual_offset`:
+
+```text
+actual = actualAtAnchor + (planned - plannedAtAnchor)
+```
+
+`AssignmentProgressCursorService` sorumlulukları:
+
+- gerçek konumu explicit öğretmen seçimiyle anchor etmek;
+- programa yeniden eşitlemek;
+- program düzenlenince gerçek pozisyonu koruyacak biçimde re-anchor etmek.
+
+Program değişikliği explicit lesson/outcome tracking state'ini otomatik değiştirmez.
+
+## 7. Bu Hafta composition
 
 ```text
 ContinuityThisWeekPage
-  ├─ optional KALDIĞIN YER card
+  ├─ assignment auto resolver
+  ├─ optional assignment selector
+  ├─ optional CurrentScheduledLessonCard
+  ├─ optional Kaldığın yer
   └─ ThisWeekPage
-       └─ single ŞİMDİ focus card
-            └─ optional lesson-plan entry when capability usable
+       ├─ weekly curriculum focus
+       └─ AssignmentAwareWeeklyLessonPlanSection
 ```
 
-`ContinuityThisWeekPage` önce authoritative `OutcomePlanningService.buildPlan()` sonucunu yükler. Continuity read/cleanup hataları yakalanır ve weekly workspace yine render edilir.
-
-`ThisWeekPage` detail açılmadan önce optional `onOutcomeViewed` callback'ini best-effort çağırır. Callback hatası navigation'ı bloke etmez.
-
-Lesson-plan entry yalnız `LessonPlanCapability.usable == true` olduğunda gösterilir. TDE_11/TDE_12 curriculum-only runtime veya fail-closed lesson-plan capability ana haftalık ekranı error state'e çeviremez.
-
-## 4. Continuity contract
-
-`LastFocusState`:
+Assignment auto resolution order:
 
 ```text
-courseId
-academicYear
-weekNumber
-trackingKey
-outcomeCode
-theme/block context
-updatedAt
+pinned manual assignment (yalnız kullanıcı seçtiyse)
+→ current scheduled occurrence
+→ next scheduled occurrence
+→ most recent previous occurrence
+→ first assignment fallback
 ```
 
-Continuity yalnız viewing event ile güncellenir. Production `OutcomePlanningService` continuity callback'i almaz. Tracking mutationları continuity üzerinde side effect üretmez.
+Manuel selection yalnız görünüm bağlamını override eder. Timetable gerçeğini veya persisted cursor'u değiştirmez.
 
-Malformed JSON, malformed optional field veya preference I/O problemi `null` continuity olarak ele alınır.
+Current scheduled card yalnız selected assignment için bell period + schedule slot olduğunda aktif kabul edilir.
 
-## 5. OutcomePlanningService and tracking identity
+## 8. Assignment-scoped outcome tracking
 
-Tracking storage identity tek canonical encoder kullanır:
-
-```text
-outcomeTrackingKey(
-  academicYear,
-  outcomeId,
-  plannedWeekNumber,
-)
-```
-
-`LearningOutcomeTrackingRecord.trackingKey`, `TrackedOutcome.trackingKey`, plan projection ve annual optional tracking scope aynı encoder'a dayanır.
-
-Missing tracking row projection'da `planned` olur; bu storage/domain fallback'ıdır, zorunlu kullanıcı görevi değildir.
-
-## 6. Outcome detail
-
-`OutcomeDetailPage` foreground hiyerarşisi:
+Weekly outcome tracking selected assignment üzerinden adapter ile mevcut `OutcomePlanningService`'e bağlanır:
 
 ```text
-official outcome
-Derste lazım
-Daha fazla bilgi
-  ├─ Takip seçenekleri (optional)
-  ├─ Öğretmen notu
-  ├─ süreç bileşenleri
-  ├─ plan/blok context
-  └─ doğrulanmış resource/assessment context
-```
-
-`Başla` / `İşlendi` primary CTA değildir.
-
-Teacher note:
-
-- 700ms debounce autosave;
-- lifecycle/back flush;
-- concurrent save serialization;
-- save error görünür retry state;
-- dirty note kaydedilemezse route kapanmaz.
-
-## 7. Lesson-plan workflow and P5 progress
-
-Runtime access:
-
-```text
-CourseKnowledgeRepository
-  + LessonPlanKnowledgeRepository
+AssignmentOutcomeTrackingRepository
         ↓
-LessonPlanWorkflowService
-        ↓
-weekly/block lesson-plan entry
-        ↓
-LessonPlanPage
-```
-
-`LessonPlanPage` canonical payload'ı repository üzerinden okur; widget raw SQLite çalıştırmaz. Görünür içerik:
-
-```text
-package title / summary
-package order + remaining block hours
-outcome codes
-continuation hint
-structured lesson steps
-previous / next package navigation
-```
-
-Progress access:
-
-```text
-teacher_state.sqlite
-  lesson_plan_progress
-        ↓
-LessonPlanProgressRepository
-        ↓
-LessonPlanProgressService
-        ↓
-LessonPlanPage optional status card
+AssignmentOutcomeTrackingAdapter
+        ↓ implements OutcomeTrackingRepository projection
+OutcomePlanningService
 ```
 
 Storage identity:
 
 ```text
-course_id + academic_year + package_id
+assignment_id + outcome_id + planned_week_number
 ```
 
-Content-validity binding:
+Bu adapter canonical outcome projection mantığını kopyalamadan mevcut planning service'i yeniden kullanır.
+
+9/A mutation'ı 9/B record'una erişemez.
+
+## 9. Assignment-scoped lesson-plan progress
+
+Storage identity:
 
 ```text
-lesson_plan_progress.payload_sha256
-        ↕ exact equality
-lesson_plan_packages.payload_sha256
+assignment_id + package_id + package_hour
 ```
 
-`payload_sha256` storage identity'nin parçası değildir. Aynı package identity korunurken canonical içerik değişebilir; bu durumda existing teacher record korunur fakat stale olur.
+`AssignmentLessonProgressRepository` teacher-local explicit status içindir.
 
-Semantics:
+Content binding:
 
 ```text
-missing row                         → notStarted / Başlanmadı
-matching hash + in_progress         → Kısmen işlendi
-matching hash + completed           → İşlendi
-missing/mismatched payload_sha256   → stale / Plan güncellendi
+record.payload_sha256 == canonical package.payload_sha256
 ```
 
-`LessonPlanProgressService.resolveRecord()` tek binding resolver'dır. UI/service katmanları hash karşılaştırmasını farklı biçimlerde tekrar kurmaz.
+Hash mismatch/null stale'dir; current completion sayılmaz.
 
-`LessonPlanProgressSnapshot.records` yalnız current-binding kayıtları içerir; `stalePackageIds` stale identity'leri ayrı taşır. Böylece stale `completed` current/next çözümünde tamamlanmış sayılmaz ve `allCompleted` üretemez.
+Programdan türeyen `Programa göre geçildi`, `ŞU AN`, `PLANLANAN` gibi görünüm durumları **bu tabloya yazılmaz**.
 
-`notStarted` mutation persisted row'u siler. `inProgress/completed` mutationlarında current package hash zorunludur ve yeni kayıt `payloadSha256` alanını taşır. Hash boşsa mutation fail closed olur.
+`SingleLessonPlanPage`:
 
-Matching-hash record üzerinde `inProgress → completed` geçişi existing `startedAt` değerini korur. Stale/unbound record yeniden işaretlenirse önceki timeline yeni canonical içeriğe taşınmaz; yeni `startedAt` mutation anında başlar.
+- assignment-aware repository varsa onu kullanır;
+- legacy repository yalnız geçiş/fallback uyumluluğu içindir;
+- görüntüleme veya previous/next navigation progress oluşturmaz;
+- explicit mutation Undo sözleşmesini korur.
 
-Planı yalnız görüntülemek progress kaydı oluşturmaz.
+## 10. Weekly lesson plan projection
 
-### 7.1 teacher_state schema v3 migration
+`LessonPlanWorkflowService.selectionForInstructionOrdinal()` curriculum hour ordinal'ını canonical lesson-plan selection'a map eder.
 
-`OutcomeTrackingDatabase.schemaVersion = 3`.
+Assignment timeline'dan gelen actual/planned ordinal bu resolver'a girer. Widget package/hour sayılarını kendi başına tahmin etmez.
 
-v3 lesson-plan schema:
+Assignment-aware haftalık panel:
 
 ```text
-lesson_plan_progress
-  course_id
-  academic_year
-  package_id
-  payload_sha256 NULLABLE
-  status
-  started_at
-  completed_at
-  updated_at
+schedule occurrence
+→ planned ordinal
+→ cursor ile actual ordinal
+→ LessonPlanWorkflowService
+→ canonical package + packageHour
 ```
 
-Yeni service mutationları non-null hash yazar. Column yalnız legacy migration güvenliği için nullable'dır.
+Planlanan/geçmiş satır görsel durumu explicit completion'dan ayrı tutulur.
+
+## 11. TeachingSchedulePage
+
+Supporting route sorumlulukları:
+
+- şube eklemek/kaldırmak;
+- bell periods düzenlemek;
+- assignment'ın weekly slots'unu seçmek;
+- başka assignment'ın dolu hücrelerini bloke etmek;
+- schedule değişiminden sonra cursor re-anchor etmek;
+- legacy teacher state bulunduğunda explicit migration akışını göstermek.
+
+Repository authoritative validation yapar. UI'deki occupied-state yalnız ergonomidir ve DB/domain constraint'in yerine geçmez.
+
+## 12. Legacy teacher-state migration
+
+`LegacyTeacherStateMigrationService` yalnız explicit target assignment ile çalışır.
+
+Preview:
+
+```text
+legacy course lesson progress
++ active course outcome IDs ile eşleşen legacy outcome records
+```
 
 Migration:
 
 ```text
-v1 → v3: lesson_plan_progress doğrudan v3 schema ile oluştur
-v2 → v3: payload_sha256 nullable column ekle
+source legacy record
+→ target assignment record yoksa copy
+→ target mevcutsa skip
+→ source hiçbir zaman delete edilmez
 ```
 
-v2 existing rows backfill edilmez ve silinmez; canonical geçmiş binding kanıtı olmadığı için null hash güvenli biçimde stale'dir.
-
-### 7.2 P5 real Undo contract
-
-Her `LessonPlanPage` status mutasyonundan **önce** mevcut persisted `LessonPlanProgressRecord?` snapshot alınır. Mutation başarıyla persist edildikten sonra `showTeacherUndoFeedback` gösterilir.
-
-Undo:
+Legacy lesson identity yalnız güvenilir şekilde parse edilebilen:
 
 ```text
-previous == null
-  → yeni kaydı delete et
-previous != null
-  → previous record'u aynen save et
+<package_id>::lesson-hour:<N>
 ```
 
-Böylece `payloadSha256`, `status`, `startedAt`, `completedAt` ve `updatedAt` önceki persisted değere döner. Undo stale bir record'u geri getirirse `resolveRecord()` tekrar stale üretir; stale state local UI tarafından current progress gibi gösterilmez.
+formatından taşınır. Malformed kayıt tahmin edilmez.
 
-Undo yalnız mutation yapılan package'ın state'ini değiştirir; kullanıcı bu sırada başka pakete geçtiyse current package UI state'i yanlışlıkla overwrite edilmez.
+`LegacyMigrationDecisionRepository` yalnız aynı kullanıcıya tekrar tekrar aynı import sorusunu sormamak için SharedPreferences guard'dır.
 
-Yeni bir mutasyon mevcut Undo teklifinin yerini alır. Undo persistence failure başarı gibi gösterilmez.
+## 13. Continuity contract
 
-## 8. Mutation safety
+`LastFocusState` tracking değildir.
 
-Outcome status/carry/bulk tracking mutations persisted snapshot alır ve gerçek Undo sağlar. Status undo newer note/actual-hours state'ini ezmez.
-
-Lesson-plan status mutationları da persisted snapshot'a gerçek Undo sağlar. Outcome tracking ile lesson-plan progress birbirinden bağımsız teacher-state kanallarıdır.
-
-Runtime replacement teacher-state DB'yi silmez. Lesson-plan content değişimi destructive migration yerine hash-binding resolution ile ele alınır.
-
-Tracking optional olsa da kullanıldığında persistence authoritative teacher state'tir; mutation hataları sessizce başarı gibi gösterilemez.
-
-## 9. Resources context resolver
-
-Resolution order:
+Assignment-aware weekly workspace assignment-scoped continuity key kullanır:
 
 ```text
-valid last-viewed outcome
-→ current week outcome/theme
-→ first theme fallback
+<courseId>::<assignmentId>
 ```
 
-Resolver errors resource package access'ini engellemez. Manual theme selection yalnız mevcut Resources oturumu için override'dır.
+Kaynaklar ve Yıllık course-scoped resolver kullandığından viewing event ayrıca course-scoped last-focus'a best-effort mirror edilir.
 
-## 10. Annual plan
+Mirror yalnız curriculum/view context taşır; assignment tracking state'i course-wide state'e dönüştürülmez.
 
-Annual authoritative sequence `CourseKnowledgeRepository.getAnnualSequence()`dan gelir.
+Preference failure navigation'ı bloke edemez.
 
-Manual marker ve continuity read hataları annual sequence'i bloke etmez. Manual marker write/clear hataları kullanıcı feedback'i verir.
+## 14. Outcome detail and notes
 
-Active position:
+`OutcomeDetailPage` information-first kalır.
+
+Tracking optionaldır ve selected assignment'a bağlı active `OutcomePlanningService` kullanılır.
+
+Teacher note safety sözleşmesi korunur:
 
 ```text
-newer temporary manual marker
-else last viewed block
+700ms autosave
+back/lifecycle flush
+save failure visible
+no silent loss
 ```
 
-Position presentation:
+## 15. Resources / Annual
 
-```text
-Öğretim sırası: N / total. blok
-```
+Resources canonical catalog olarak course-scoped kalır; son görüntülenen assignment outcome context'i course mirror sayesinde theme/block çözümüne katkı verebilir.
 
-Position-derived `LinearProgressIndicator` yasaktır.
+Annual canonical sequence course-level'dır. Assignment-specific completion yüzdesi üretmez.
 
-Optional tracking panel yalnız active course planındaki canonical tracking keys ile eşleşen explicit non-planned statüleri sayar. Yüzde/denominator üretmez.
+Assignment seçimi açıkça annual tracking scope'una taşınmadıkça course-wide legacy status yeni şube status'u gibi sunulmamalıdır.
 
-## 11. Runtime truth
+## 16. Runtime truth
 
-- `course_runtime.sqlite` read-only.
-- Widgets raw SQL çalıştırmaz.
-- Block-level relation outcome-specific gibi sunulmaz.
-- UI missing canonical relationship üretmez.
+- `course_runtime.sqlite` READ ONLY.
+- Widget raw SQL çalıştırmaz.
+- Curriculum relationship uydurulmaz.
 - Calendar/year rules versioned assets'ten gelir.
-- Lesson-plan package payload/hash/navigation yalnız doğrulanmış runtime capability üzerinden açılır.
-- Progress validity package-level `payload_sha256` exact match ile çözülür; course-wide runtime fingerprint değişimi tek başına unaffected package progress'ini stale yapmaz.
-- TDE_9/TDE_10 lesson-plan runtime contract: package 1.3.0, schema 1.2.0, 88 package / 172 instructional hours.
-- TDE_11/TDE_12 lesson-plan capability yokluğu normal fallback'tir.
+- TDE_9/TDE_10 lesson-plan capability runtime authority'den çözülür.
+- TDE_11/TDE_12 capability yokluğu normal fallback'tir.
+- Schedule position teacher-local inference'dır; curriculum fact veya completion değildir.
 
-## 12. Responsive/accessibility
+## 17. Error hierarchy
 
-- Material 3.
-- Phone bottom navigation, tablet/desktop NavigationRail.
-- Large text fixed-height cardlarla kırılmaz.
-- Action groups overflow için `Wrap` kullanır.
-- Dark mode scheme-based.
-- Standard interactive target >= 48 logical px where audited.
-- Lesson-plan status controls `Wrap` kullanır; yeni top-level navigation eklemez.
-- Stale progress görünür metinle (`Plan güncellendi`) ifade edilir; yalnız renge güvenilmez.
-
-## 13. Legacy feature code
-
-Faz 0–6 öncesi top-level alternatif ekranlar active shell tarafından route edilmez. Unrouted duplicate implementations ürün authority'si değildir ve bakım borcu olarak kaldırılabilir. Aynı capability gerekiyorsa mevcut `Bu Hafta / Yıllık / Kaynaklar / OutcomeDetail / BlockDetail / LessonPlanPage` akışları üzerinden geliştirilir.
-
-## 14. Error hierarchy
-
-Authoritative failures:
+Authoritative startup failures:
 
 ```text
 runtime/course DB
 weekly planning
-teacher-state DB startup (production dependency)
+teacher-state DB open/migration
 ```
 
-uygun Loading/Error state üretir.
-
-Convenience/capability fallback:
+Visible mutation failures:
 
 ```text
-last focus
-manual annual marker
-resource context preference
-lesson-plan capability unavailable
+schedule save conflict
+assignment tracking save
+lesson progress save/undo
+teacher note save
 ```
 
-ana içeriği bloke etmez.
+Convenience failures:
 
-Lesson-plan progress mutation/undo failure görünür feedback üretir; canonical plan içeriğini okunamaz hâle getirmez. Stale progress de error screen değildir; teacher-state review state'idir.
+```text
+continuity mirror
+legacy migration decision preference
+manual UI state
+```
 
-## 15. Validation gate
+ana canonical içeriği bloke etmez.
 
-Her merge öncesi:
+## 18. Responsive/accessibility
+
+- Material 3.
+- Phone bottom navigation, tablet/desktop NavigationRail.
+- Large text sabit yükseklik varsayımına bağlı olmamalı.
+- Action groups `Wrap`/scroll-safe layout kullanmalı.
+- Dark mode scheme-based.
+- Standard interactive target >= 48 logical px.
+- Stale/offset/conflict durumları yalnız renkle anlatılmaz; görünür metin gerekir.
+
+## 19. Validation gate
+
+Merge öncesi doğrulama hedefleri:
 
 ```text
 flutter analyze
 runtime contract TDE9–TDE12
 flutter test
-flutter build apk --release
-APK runtime asset verification
+release build
+runtime asset verification
 ```
 
-Regresyon testleri ayrıca DEHB ve lesson-plan sözleşmesini korur: tracking-free primary flow, continuity independence, autosave/Undo, lesson-plan real Undo, v2→v3 progress migration, stale hash resolution, runtime replacement without teacher-state loss, context-aware resources, temporary annual marker, capability-safe TDE11/TDE12 fallback ve truthful progress semantics.
+Assignment-aware regresyon seti en az şunları kanıtlamalıdır:
+
+```text
+9/A state != 9/B state
+current/next assignment correct
+5. ders programla otomatik bulunur
+schedule position does not persist completed
+manual offset persists
+resync returns followSchedule
+schedule edit reanchors actual position
+same-year slot collision rejected
+different-year same slot allowed
+assignment outcome isolation
+assignment lesson-progress isolation
+legacy import requires explicit target
+legacy source preserved
+existing target records not overwritten
+continuity assignment scope + course mirror
+v4 → v5 timetable migration preserves rows
+```
+
+Bu branch'te validation kullanıcı tarafından ayrıca çalıştırılabilir; test çalıştırılmamış kod merge edilmiş sayılmaz.
