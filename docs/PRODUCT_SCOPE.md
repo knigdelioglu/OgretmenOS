@@ -1,23 +1,24 @@
 # PRODUCT_SCOPE.md — ÖğretmenOS V1.4
 
 **Product:** ÖğretmenOS  
-**Document version:** 1.4.0  
+**Document version:** 1.4.1  
 **Status:** Binding Product Scope Authority  
 **Implementation:** Flutter + Dart + Material 3  
 **Operation mode:** Offline-first, deterministic, local
 
 ## 1. Product definition
 
-ÖğretmenOS öğretmenin uygulamayı açtığında mümkün olan en az karar yüküyle **hangi sınıfta olması gerektiğini, o sınıfın planlanan ders konumunu ve gerekli doğrulanmış ders bilgisini** görmesini sağlar.
+ÖğretmenOS öğretmenin uygulamayı açtığında mümkün olan en az karar yüküyle **hangi ders/sınıf bağlamında olması gerektiğini, o sınıfın planlanan ders konumunu ve gerekli doğrulanmış ders bilgisini** görmesini sağlar.
 
 Birincil akış:
 
 ```text
 uygulamayı aç
-→ ders programından sınıf/şube bağlamını çöz
+→ akademik takvim + resmî ders istisnaları + öğretmen programından bağlamı çöz
+→ gerekirse ders/sınıf düzeyini otomatik değiştir
 → ŞİMDİ / SONRAKİ DERS
 → doğrulanmış ders planını veya ders ayrıntısını aç
-→ gerekirse gerçek ilerlemeyi tek işlemle düzelt
+→ yalnız gerekirse gerçek ilerlemeyi düzelt
 → çık
 ```
 
@@ -42,6 +43,8 @@ Canonical TYMM Knowledge
 → read-only CourseKnowledgeRepository
 ```
 
+Versioned akademik takvim asset'i okul yılı, tatil/ara tatil ve düzenli ders occurrence'ını iptal eden tarih/saat istisnalarının authority'sidir.
+
 Sınıf/şube, zil saatleri, öğretmenin haftalık ders programı, gerçek ilerleme sapması ve explicit takip durumları **teacher-local state**'tir. Bunlar canonical curriculum gerçeği değildir.
 
 ## 3. Temel öğretim bağlamı
@@ -61,7 +64,7 @@ Course
 academic_year + course_id + class_id
 ```
 
-Aşağıdaki bilgiler assignment bazlı tutulur:
+Assignment bazında ayrılan bilgiler:
 
 - haftalık ders programı bağlantısı;
 - gerçek ilerleme cursor'u;
@@ -70,7 +73,7 @@ Aşağıdaki bilgiler assignment bazlı tutulur:
 
 9/A'daki bir durum değişikliği 9/B veya 9/C'yi değiştiremez.
 
-## 4. Ders programı ve planlanan konum
+## 4. Ders programı, takvim istisnaları ve planlanan konum
 
 Öğretmen bir kez okulun zil saatlerini ve haftalık programını tanımlar:
 
@@ -82,14 +85,28 @@ BellPeriod
 
 LessonScheduleSlot
   assignment_id
-  academic_year
   weekday
   period_number
 ```
 
 Aynı akademik yılda öğretmenin iki farklı assignment'ı aynı `weekday + period_number` hücresini kullanamaz. Farklı akademik yıllar birbirini bloke etmez.
 
-Takvim + program + saat yalnız **planlanan konumu** üretir. Ders saatinin geçmiş olması, dersin gerçekten işlendiğinin kanıtı değildir ve otomatik `completed` kaydı oluşturamaz.
+Düzenli haftalık slot tek başına ders occurrence üretmek için yeterli değildir. Takvim authority'si ayrıca dersin o gün/saat gerçekten yapılabilir olmasını doğrular:
+
+```text
+SchoolScheduleException
+  date
+  start_minute
+  end_minute
+  label
+```
+
+- Tam günlük tatil o tarihteki bütün normal ders occurrence'larını kaldırır.
+- Yarım günlük/saate bağlı istisna yalnız zaman aralığıyla çakışan dersleri kaldırır.
+- İptal edilen occurrence curriculum ordinal'ını tüketmez; sonraki gerçek ders bir sonraki ordinal olur.
+- Ara tatil/event week mantığı ile günlük istisna birbirinden ayrıdır.
+
+Takvim + program + zil saati yalnız **planlanan konumu** üretir. Ders saatinin geçmiş olması, dersin gerçekten işlendiğinin kanıtı değildir ve otomatik `completed` kaydı oluşturamaz.
 
 ## 5. Planlanan konum, gerçek konum ve explicit takip ayrımı
 
@@ -97,7 +114,7 @@ Takvim + program + saat yalnız **planlanan konumu** üretir. Ders saatinin geç
 
 ```text
 Planlanan konum
-  → takvim ve ders programından deterministik hesaplanır
+  → takvim, istisnalar ve ders programından deterministik hesaplanır
 
 Gerçek konum
   → varsayılan olarak planlanan konumu takip eder
@@ -132,7 +149,34 @@ actualOrdinal = actualOrdinalAtAnchor
 
 Ders programı değiştirildiğinde cursor yeniden anchor edilir; öğretmenin gerçek konumu program düzenlemesi yüzünden zıplayamaz.
 
-## 6. Bu Hafta UX sözleşmesi
+## 6. Otomatik ders/sınıf düzeyi bağlamı
+
+Normal mod **ders programına göre otomatik**tir. Uygulama aktif akademik yıldaki bütün öğretmen assignment'larını aynı teacher-state üzerinden inceler.
+
+Resolution:
+
+```text
+şu anda süren geçerli ders
+→ yoksa bugün sıradaki geçerli ders
+→ yoksa mevcut course context'i koru
+```
+
+Geçerli ders için:
+
+- assignment aktif olmalı;
+- haftalık program eksiksiz olmalı;
+- slot o gün/saat için calendar exception ile iptal edilmemiş olmalı;
+- aynı anda birden fazla aktif assignment bulunması veri tutarsızlığıdır.
+
+Resolver başka desteklenen TDE course'u bulursa örneğin `TDE_9 → TDE_10` runtime context'i otomatik değişebilir. Böylece öğretmen 9. sınıf dersinden sonra 10. sınıf dersine geçerken course selector'ı elle değiştirmek zorunda kalmaz.
+
+Kullanıcı course selector'dan bir sınıf düzeyini açıkça seçerse **manuel pin** oluşur ve otomatik course switching o oturumda durur. `Ders programına göre otomatik` seçimi pini kaldırır.
+
+Bu resolver convenience/navigation context'tir. Hatası mevcut yüklenmiş canonical course içeriğini kapatamaz; uygulama mevcut bağlamla çalışmaya devam eder.
+
+V1.4'te desteklenen TDE_9–TDE_12 profillerinin haftalık ders saati aynı olduğundan cross-course tam-program doğrulaması ortak weekly-hour sözleşmesini kullanabilir. Farklı haftalık saate sahip yeni ders alanları eklenirse resolver course-specific profile ile genişletilmelidir.
+
+## 7. Bu Hafta UX sözleşmesi
 
 Program kurulmuşsa `Bu Hafta` yüzeyi program bağlamını öne çıkarır:
 
@@ -143,7 +187,7 @@ Program kurulmuşsa `Bu Hafta` yüzeyi program bağlamını öne çıkarır:
 Ders planını aç
 ```
 
-Sınıf seçimi varsayılan olarak programdan otomatik çözülür. Kullanıcı isterse geçici olarak başka bir şubeye bakabilir; başka şubeyi görüntülemek o şubeyi "şu anki ders" yapmaz.
+Course düzeyi ve assignment seçimi varsayılan olarak programdan otomatik çözülür. Kullanıcı isterse geçici olarak başka bir şubeye bakabilir; başka şubeyi görüntülemek o şubeyi timetable gerçeğinde "şu anki ders" yapmaz.
 
 Haftalık ders planında:
 
@@ -152,11 +196,11 @@ Haftalık ders planında:
 - gerçek konum farklıysa `GERÇEK` ve `PLANLANAN` ayrımı açıkça gösterilir;
 - hiçbir otomatik görsel durum teacher-local `completed` kaydı yazamaz.
 
+Program eksikse schedule-aware `ŞİMDİ` üretilemez. Canonical haftalık içerik çalışmaya devam eder ve programı tamamlama aksiyonu sunulur.
+
 Tracking kontrolleri ikincildir; normal akışta her satır için `İşlendi` tıklaması beklenmez.
 
-Program henüz kurulmamışsa uygulama canonical haftalık ders içeriğini göstermeye devam eder ve program kurma aksiyonu sunabilir. Program eksikliği ana içeriği error state'e çeviremez.
-
-## 7. Ders planı ilerleme sözleşmesi
+## 8. Ders planı ilerleme sözleşmesi
 
 Canonical plan içeriği read-only runtime bilgisidir. Explicit ders durumu teacher-local state'tir.
 
@@ -177,11 +221,9 @@ missing/mismatched hash     = Plan güncellendi / yeniden gözden geçirilecek
 
 `payload_sha256` identity değildir; canonical package content binding kanıtıdır.
 
-Ders planını yalnız görüntülemek progress kaydı oluşturmaz. Önceki/sonraki derse gezinmek de otomatik completion üretmez.
+Ders planını yalnız görüntülemek veya önceki/sonraki derse gezinmek progress kaydı oluşturmaz. Explicit durum mutationları gerçek Undo sunmalıdır.
 
-Explicit durum mutationları gerçek Undo sunmalıdır.
-
-## 8. Outcome/kazanım takibi
+## 9. Outcome/kazanım takibi
 
 Assignment-aware outcome identity:
 
@@ -203,7 +245,7 @@ carried_over
 
 Outcome tracking ile ders-planı progress'i ayrı kanallardır. Biri diğerini otomatik değiştirmez.
 
-## 9. Continuity / Kaldığın Yer
+## 10. Continuity / Kaldığın Yer
 
 Continuity son görüntülenen bağlamdır; tracking değildir.
 
@@ -211,7 +253,7 @@ Assignment seçiliyken assignment-scoped continuity tutulabilir. Kaynaklar ve y�
 
 Continuity hatası canonical içerik veya navigation'ı bloke edemez.
 
-## 10. Eski teacher-state verisinin geçişi
+## 11. Eski teacher-state verisinin geçişi
 
 Legacy tablolar mevcut kullanıcı verisini korumak için tutulur. Eski kayıtların hangi şubeye ait olduğu güvenilir biçimde bilinmiyorsa uygulama tahmin yapamaz.
 
@@ -229,7 +271,7 @@ Birden fazla şube olduğunda otomatik 9/A/9/B eşlemesi yasaktır.
 
 Legacy migration decision yalnız duplicate-import guard'dır; curriculum authority değildir.
 
-## 11. Teacher-local mutable state
+## 12. Teacher-local mutable state
 
 `teacher_state.sqlite` güncel assignment-aware alanları:
 
@@ -261,7 +303,7 @@ UI preferences
 
 Runtime/calendar güncellemesi teacher-state verisini sessizce silemez.
 
-## 12. Kaynaklar ve yıllık plan
+## 13. Kaynaklar ve yıllık plan
 
 `Kaynaklar` canonical kaynak kataloğudur. Bağlam önceliği:
 
@@ -275,9 +317,9 @@ son görüntülenen ders
 
 Assignment-aware tracking özetleri yalnız ilgili assignment scope'u açıkça belli olduğunda kullanılmalıdır. Course-wide legacy takip yeni şubelerin ortak gerçeği gibi sunulamaz.
 
-## 13. Runtime/calendar invariants
+## 14. Runtime/calendar invariants
 
-Aktif TDE_9 2026-2027 profilinde runtime/planning authority'den gelen temel sözleşme korunur:
+Aktif 2026-2027 TDE profillerinde planning authority'den gelen temel sözleşme korunur:
 
 ```text
 weekly_hours = 5
@@ -287,9 +329,11 @@ active_week_37 = EVENT_WEEK
 EVENT_WEEK new curriculum hours = 0
 ```
 
+Daily/partial-day `schedule_exceptions` 180 saatlik canonical yıllık curriculum budgetini yeniden yazmaz; yalnız öğretmenin gerçek takvim slotlarından türetilen occurrence/ordinal projeksiyonunu düzeltir.
+
 Lesson-plan-aware TDE_9/TDE_10 runtime doğrulaması mevcut runtime manifest ve contract testlerinin authority'sidir. Feature widget'ları package/hour sayılarını uyduramaz veya hardcode edemez.
 
-## 14. Offline/privacy boundary
+## 15. Offline/privacy boundary
 
 Core kullanım kurulum sonrası offline çalışır. Bu çalışma backend, hesap, telemetry veya AI zorunluluğu getirmez.
 
@@ -303,12 +347,17 @@ MEBBİS/e-Okul entegrasyonu
 curriculum editing
 ```
 
-## 15. Required UX invariants
+## 16. Required UX invariants
 
 - Öğretmenden her ders için `İşlendi` tıklaması beklenmez.
 - Aynı dersin farklı şubeleri bağımsızdır.
 - Program konumu completion değildir.
+- Takvimde iptal edilen normal ders ordinal tüketmez.
+- Yarım günlük istisna yalnız çakışan zil aralıklarını iptal eder.
 - Programdan otomatik hesaplanan geçmiş saatler DB'ye completed yazmaz.
+- Normal course selection mode ders programına göre otomatiktir.
+- Kullanıcının explicit course seçimi otomatik switching'i pinleyebilir; otomatik moda dönüş görünür olmalıdır.
+- Otomatik course resolver hatası mevcut canonical içeriği bloke etmez.
 - Gerçek ilerleme yalnız istisnada tek işlemle düzeltilir.
 - Manuel başka şubeye bakmak takvim gerçeğini değiştirmez.
 - Tracking isteğe bağlıdır.
@@ -320,16 +369,17 @@ curriculum editing
 - Konum completion yüzdesi değildir.
 - Phone/tablet, large text ve dark mode kullanılabilir kalır.
 
-## 16. Definition of success
+## 17. Definition of success
 
 V1.4 başarılıdır when a teacher can:
 
-1. aynı dersi verdiği 9/A, 9/B, 9/C gibi şubeleri ayrı tanımlamak;
+1. aynı veya farklı sınıf düzeylerinde verdiği dersleri/şubeleri ayrı tanımlamak;
 2. zil saatlerini ve haftalık programını bir kez girmek;
-3. uygulamayı açınca programdan mevcut/sonraki sınıfı görmek;
-4. hiçbir `İşlendi` tıklaması yapmadan haftanın doğru planlanan ders saatine ulaşmak;
-5. gerçek ilerleme farklıysa tek seçimle düzeltmek ve farkın sonraki derslerde korunmasını sağlamak;
-6. şubeler arasında progress/outcome state sızıntısı yaşamamak;
-7. program değiştiğinde gerçek konumun zıplamamasını sağlamak;
-8. eski teacher-state verisini yalnız açıkça seçtiği şubeye güvenli biçimde kopyalamak;
-9. canonical curriculum ve lesson-plan içeriğini teacher-local state'ten bağımsız ve doğrulanmış biçimde kullanmaya devam etmek.
+3. uygulamayı açınca geçerli mevcut ya da bugünkü sonraki dersin course/şube bağlamına otomatik ulaşmak;
+4. resmî tam/yarım günlük tatilde normal dersin yanlışlıkla `ŞİMDİ` görünmemesini sağlamak;
+5. hiçbir `İşlendi` tıklaması yapmadan doğru planlanan ders ordinal'ına ulaşmak;
+6. gerçek ilerleme farklıysa tek seçimle düzeltmek ve farkın sonraki derslerde korunmasını sağlamak;
+7. şubeler arasında progress/outcome state sızıntısı yaşamamak;
+8. program değiştiğinde gerçek konumun zıplamamasını sağlamak;
+9. eski teacher-state verisini yalnız açıkça seçtiği şubeye güvenli biçimde kopyalamak;
+10. canonical curriculum ve lesson-plan içeriğini teacher-local state'ten bağımsız ve doğrulanmış biçimde kullanmaya devam etmek.
