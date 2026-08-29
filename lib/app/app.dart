@@ -378,7 +378,10 @@ class _AppShellState extends State<_AppShell> {
       preferences: widget.dependencies.preferences,
       continuity: _continuity,
       courseId: widget.activeCourseId,
-      outcomePlanning: _outcomePlanning,
+      // Annual is still course-level. Do not project legacy/course-wide tracking
+      // after teacher state has been split by section until Annual gains an
+      // explicit assignment selector.
+      outcomePlanning: null,
       weeklyPlanning: widget.dependencies.weeklyPlanning,
       topTrailing: _topTrailing(context),
       onOpenResources: widget.onOpenResources,
