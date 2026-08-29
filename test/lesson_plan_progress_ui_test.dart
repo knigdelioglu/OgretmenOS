@@ -8,7 +8,7 @@ import 'package:ogretmen_os/domain/repositories/lesson_plan_progress_repository.
 import 'package:ogretmen_os/features/lesson_plan/lesson_plan_page.dart';
 
 void main() {
-  testWidgets('plan durumu kısmen işlendi ve işlendi olarak kaydedilir', (
+  testWidgets('plan takibi ikincildir ve kısmen işlendi/işlendi kaydedilir', (
     tester,
   ) async {
     final packages = [
@@ -30,7 +30,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('DERS DURUMU'), findsOneWidget);
+    expect(find.text('DERS DURUMU'), findsNothing);
+    expect(find.text('İsteğe bağlı takip'), findsOneWidget);
+    expect(
+      find.text('Takip yok · ders planı sırası bundan bağımsız ilerler'),
+      findsOneWidget,
+    );
+    expect(find.text('Sonraki ders planına geç'), findsNothing);
+
+    await _expandTracking(tester);
     expect(find.text('Başlanmadı'), findsWidgets);
 
     await tester.tap(find.widgetWithText(ChoiceChip, 'Kısmen işlendi'));
@@ -68,7 +76,7 @@ void main() {
       tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'İşlendi')).selected,
       isTrue,
     );
-    expect(find.text('Sonraki ders planına geç'), findsOneWidget);
+    expect(find.text('Sonraki ders planına geç'), findsNothing);
   });
 
   testWidgets('başlanmadı seçimi ilerleme kaydını temizler', (tester) async {
@@ -98,6 +106,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await _expandTracking(tester);
 
     await tester.tap(find.widgetWithText(ChoiceChip, 'Başlanmadı'));
     await tester.pumpAndSettle();
@@ -134,6 +143,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await _expandTracking(tester);
 
     await tester.tap(find.widgetWithText(ChoiceChip, 'Kısmen işlendi'));
     await tester.pumpAndSettle();
@@ -194,6 +204,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await _expandTracking(tester);
 
     await tester.tap(find.widgetWithText(ChoiceChip, 'İşlendi'));
     await tester.pumpAndSettle();
@@ -257,6 +268,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await _expandTracking(tester);
 
     await tester.tap(find.widgetWithText(ChoiceChip, 'Başlanmadı'));
     await tester.pumpAndSettle();
@@ -313,7 +325,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Plan güncellendi'), findsOneWidget);
+    expect(find.textContaining('Plan güncellendi'), findsWidgets);
     expect(find.textContaining('İşlendi'), findsWidgets);
     expect(
       tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'İşlendi')).selected,
@@ -330,7 +342,7 @@ void main() {
     );
     expect(reconfirmed?.status, LessonPlanProgressStatus.inProgress);
     expect(reconfirmed?.payloadSha256, package.payloadSha256);
-    expect(find.text('Plan güncellendi'), findsNothing);
+    expect(find.textContaining('Plan güncellendi'), findsNothing);
     expect(
       tester
           .widget<ChoiceChip>(
@@ -350,8 +362,16 @@ void main() {
     );
     expect(restored?.payloadSha256, 'sha256-old-content');
     expect(restored?.status, LessonPlanProgressStatus.completed);
-    expect(find.text('Plan güncellendi'), findsOneWidget);
+    expect(find.textContaining('Plan güncellendi'), findsWidgets);
   });
+}
+
+Future<void> _expandTracking(WidgetTester tester) async {
+  if (find.widgetWithText(ChoiceChip, 'Başlanmadı').evaluate().isNotEmpty) {
+    return;
+  }
+  await tester.tap(find.text('İsteğe bağlı takip'));
+  await tester.pumpAndSettle();
 }
 
 LessonPlanPackage _package(
