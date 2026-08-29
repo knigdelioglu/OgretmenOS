@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../data/preferences/legacy_migration_decision_repository.dart';
 import '../../domain/models/instruction_context_models.dart';
 import '../../domain/models/weekly_plan_models.dart';
 import '../../domain/repositories/instruction_context_repository.dart';
 import '../../domain/services/assignment_lesson_timeline_service.dart';
 import '../../domain/services/assignment_progress_cursor_service.dart';
+import '../../domain/services/legacy_teacher_state_migration_service.dart';
 import '../shared/feature_widgets.dart';
 import '../shared/interaction_polish.dart';
 
@@ -16,6 +18,8 @@ class TeachingSchedulePage extends StatefulWidget {
     required this.timeline,
     required this.courseId,
     required this.grade,
+    this.legacyMigration,
+    this.legacyMigrationDecision,
   });
 
   final InstructionContextRepository repository;
@@ -23,6 +27,8 @@ class TeachingSchedulePage extends StatefulWidget {
   final AssignmentLessonTimelineService timeline;
   final String courseId;
   final int grade;
+  final LegacyTeacherStateMigrationService? legacyMigration;
+  final LegacyMigrationDecisionRepository? legacyMigrationDecision;
 
   @override
   State<TeachingSchedulePage> createState() => _TeachingSchedulePageState();
@@ -49,12 +55,53 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
     final slots = await widget.repository.getScheduleSlotsForAssignments(
       assignments.map((item) => item.id),
     );
+    final allowedOutcomeIds = plan.weeks
+        .expand((week) => week.outcomes)
+        .map((outcome) => outcome.id)
+        .toSet();
+
+    LegacyTeacherStateMigrationPreview? migrationPreview;
+    LegacyMigrationDecision? migrationDecision;
+    final migration = widget.legacyMigration;
+    final decisionRepository = widget.legacyMigrationDecision;
+    if (migration != null && decisionRepository != null) {
+      try {
+        migrationPreview = await migration.preview(
+          courseId: widget.courseId,
+          academicYear: plan.academicYear,
+          allowedOutcomeIds: allowedOutcomeIds,
+        );
+        migrationDecision = await decisionRepository.get(
+          courseId: widget.courseId,
+          academicYear: plan.academicYear,
+        );
+        if (migrationDecision != null &&
+            !assignments.any(
+              (item) => item.id == migrationDecision!.assignmentId,
+            )) {
+          await decisionRepository.clear(
+            courseId: widget.courseId,
+            academicYear: plan.academicYear,
+          );
+          migrationDecision = null;
+        }
+      } on Object {
+        // Legacy import is optional. Schedule setup must stay usable if the
+        // preview/decision preference cannot be read.
+        migrationPreview = null;
+        migrationDecision = null;
+      }
+    }
+
     return _SchedulePageData(
       academicYear: plan.academicYear,
       classes: classes,
       assignments: assignments,
       periods: periods,
       slots: slots,
+      allowedOutcomeIds: allowedOutcomeIds,
+      migrationPreview: migrationPreview,
+      migrationDecision: migrationDecision,
     );
   }
 
@@ -212,11 +259,24 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
       if (!mounted) return;
       _reload();
       showTeacherFeedback(context, 'Ders programı kaydedildi.');
+    } on ScheduleSlotConflictException catch (error) {
+      if (!mounted) return;
+      final conflictingAssignment = data.assignment(error.conflictingAssignmentId);
+      final conflictingClass = conflictingAssignment == null
+          ? null
+          : data.classFor(conflictingAssignment.classId);
+      final classLabel = conflictingClass?.displayName;
+      showTeacherFeedback(
+        context,
+        '${_weekdayLong(error.weekday)} ${error.periodNumber}. ders'
+        '${classLabel == null ? '' : ' $classLabel'} için zaten dolu.',
+        duration: const Duration(seconds: 5),
+      );
     } on Object {
       if (!mounted) return;
       showTeacherFeedback(
         context,
-        'Ders programı kaydedilemedi. Aynı saatte başka bir sınıf olabilir.',
+        'Ders programı kaydedilemedi. Tekrar deneyin.',
         duration: const Duration(seconds: 5),
       );
     }
@@ -249,6 +309,16 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
     if (confirmed != true) return;
     try {
       await widget.repository.deleteAssignment(assignment.id);
+      if (data.migrationDecision?.assignmentId == assignment.id) {
+        try {
+          await widget.legacyMigrationDecision?.clear(
+            courseId: widget.courseId,
+            academicYear: data.academicYear,
+          );
+        } on Object {
+          // Optional duplicate-import guard; deletion itself remains authoritative.
+        }
+      }
       final classStillUsed = (await widget.repository.getAssignments(
         academicYear: data.academicYear,
         activeOnly: false,
@@ -262,6 +332,94 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
     } on Object {
       if (!mounted) return;
       showTeacherFeedback(context, 'Sınıf kaldırılamadı.');
+    }
+  }
+
+  Future<void> _migrateLegacyState(_SchedulePageData data) async {
+    final migration = widget.legacyMigration;
+    final decisionRepository = widget.legacyMigrationDecision;
+    final preview = data.migrationPreview;
+    final assignments = data.courseAssignments(widget.courseId);
+    if (migration == null ||
+        decisionRepository == null ||
+        preview == null ||
+        !preview.hasMigratableData ||
+        assignments.isEmpty) {
+      return;
+    }
+
+    TeachingAssignment? selected;
+    if (assignments.length == 1) {
+      selected = assignments.first;
+    } else {
+      final assignmentId = await showModalBottomSheet<String>(
+        context: context,
+        useSafeArea: true,
+        builder: (_) => _LegacyAssignmentPicker(
+          assignments: assignments,
+          classes: data.classes,
+        ),
+      );
+      if (assignmentId == null) return;
+      selected = data.assignment(assignmentId);
+    }
+    if (selected == null || !mounted) return;
+    final className = data.classFor(selected.classId)?.displayName ?? 'seçili şube';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Eski takip $className şubesine aktarılsın mı?'),
+        content: Text(
+          '${preview.migratableRecordCount} eski kayıt bu şubeye kopyalanabilir. '
+          'Uygulama bu eşleşmeyi tahmin etmez; yalnızca seçtiğiniz şubeye kopyalar. '
+          'Eski kayıtlar silinmez.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Aktar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      final report = await migration.migrateToAssignment(
+        assignmentId: selected.id,
+        courseId: widget.courseId,
+        academicYear: data.academicYear,
+        allowedOutcomeIds: data.allowedOutcomeIds,
+      );
+      await decisionRepository.save(
+        LegacyMigrationDecision(
+          courseId: widget.courseId,
+          academicYear: data.academicYear,
+          assignmentId: selected.id,
+          decidedAt: DateTime.now(),
+        ),
+      );
+      if (!mounted) return;
+      _reload();
+      showTeacherFeedback(
+        context,
+        report.copiedCount == 0
+            ? 'Yeni kayıt yok; mevcut şube verileri korundu.'
+            : '${report.copiedCount} eski kayıt $className şubesine aktarıldı.',
+        duration: const Duration(seconds: 5),
+      );
+    } on Object {
+      if (!mounted) return;
+      showTeacherFeedback(
+        context,
+        'Eski takip verisi aktarılamadı. Hiçbir eski kayıt silinmedi.',
+        duration: const Duration(seconds: 5),
+      );
     }
   }
 
@@ -282,6 +440,11 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
           );
         }
         final data = snapshot.data!;
+        final courseAssignments = data.courseAssignments(widget.courseId);
+        final showLegacyMigration =
+            data.migrationDecision == null &&
+            data.migrationPreview?.hasMigratableData == true &&
+            courseAssignments.isNotEmpty;
         return AppPage(
           children: [
             SectionHeading(
@@ -331,7 +494,7 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
                   'Aynı dersin her şubesi kendi gerçek ilerleme konumunu tutar.',
               icon: Icons.groups_2_outlined,
             ),
-            if (data.courseAssignments(widget.courseId).isEmpty)
+            if (courseAssignments.isEmpty)
               const FeatureEmptyView(
                 icon: Icons.class_outlined,
                 title: 'Henüz sınıf eklenmedi',
@@ -339,7 +502,7 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
                     'Derse girdiğiniz şubeleri ekleyin; her şubenin programı ve ilerlemesi ayrı tutulacak.',
               )
             else
-              for (final assignment in data.courseAssignments(widget.courseId))
+              for (final assignment in courseAssignments)
                 Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.md),
                   child: _AssignmentCard(
@@ -359,6 +522,13 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
               icon: const Icon(Icons.add_rounded),
               label: const Text('Sınıf ekle'),
             ),
+            if (showLegacyMigration) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _LegacyMigrationCard(
+                preview: data.migrationPreview!,
+                onMigrate: () => _migrateLegacyState(data),
+              ),
+            ],
           ],
         );
       },
@@ -442,6 +612,102 @@ class _AssignmentCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _LegacyMigrationCard extends StatelessWidget {
+  const _LegacyMigrationCard({
+    required this.preview,
+    required this.onMigrate,
+  });
+
+  final LegacyTeacherStateMigrationPreview preview;
+  final VoidCallback onMigrate;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.move_down_outlined),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Eski takip verisi bulundu',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Bu kayıtların hangi şubeye ait olduğunu uygulama bilemez. '
+            '${preview.migratableRecordCount} kayıt yalnızca sizin seçeceğiniz bir şubeye kopyalanabilir; eski kayıtlar korunur.',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          FilledButton.tonalIcon(
+            onPressed: onMigrate,
+            icon: const Icon(Icons.call_split_rounded),
+            label: const Text('Şubeye aktar'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _LegacyAssignmentPicker extends StatelessWidget {
+  const _LegacyAssignmentPicker({
+    required this.assignments,
+    required this.classes,
+  });
+
+  final List<TeachingAssignment> assignments;
+  final List<SchoolClass> classes;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.lg,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
+          child: Text(
+            'Eski takip hangi şubeye ait?',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        for (final assignment in assignments)
+          ListTile(
+            leading: const Icon(Icons.class_outlined),
+            title: Text(_classLabel(classes, assignment.classId)),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).pop(assignment.id),
+          ),
+        const SizedBox(height: AppSpacing.sm),
+      ],
+    ),
+  );
+
+  String _classLabel(List<SchoolClass> classes, String classId) {
+    for (final item in classes) {
+      if (item.id == classId) return item.displayName;
+    }
+    return classId;
   }
 }
 
@@ -792,6 +1058,9 @@ class _SchedulePageData {
     required this.assignments,
     required this.periods,
     required this.slots,
+    required this.allowedOutcomeIds,
+    required this.migrationPreview,
+    required this.migrationDecision,
   });
 
   final String academicYear;
@@ -799,10 +1068,21 @@ class _SchedulePageData {
   final List<TeachingAssignment> assignments;
   final List<BellPeriod> periods;
   final List<LessonScheduleSlot> slots;
+  final Set<String> allowedOutcomeIds;
+  final LegacyTeacherStateMigrationPreview? migrationPreview;
+  final LegacyMigrationDecision? migrationDecision;
 
   SchoolClass? classFor(String classId) {
     for (final item in classes) {
       if (item.id == classId) return item;
+    }
+    return null;
+  }
+
+  TeachingAssignment? assignment(String? assignmentId) {
+    if (assignmentId == null) return null;
+    for (final item in assignments) {
+      if (item.id == assignmentId) return item;
     }
     return null;
   }
