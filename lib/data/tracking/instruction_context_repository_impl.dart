@@ -95,6 +95,13 @@ class SqfliteInstructionContextRepository
 
   @override
   Future<void> saveAssignment(TeachingAssignment assignment) async {
+    final schoolClass = await getClass(assignment.classId);
+    if (schoolClass == null) {
+      throw StateError('Ders atamasının sınıfı bulunamadı.');
+    }
+    if (schoolClass.academicYear != assignment.academicYear) {
+      throw StateError('Sınıf ve ders ataması akademik yılı uyuşmuyor.');
+    }
     final values = _assignmentToRow(assignment);
     final updated = await _database.update(
       'teaching_assignments',
@@ -201,19 +208,44 @@ class SqfliteInstructionContextRepository
     required String assignmentId,
     required List<LessonScheduleSlot> slots,
   }) async {
+    final assignmentRows = await _database.query(
+      'teaching_assignments',
+      columns: ['academic_year'],
+      where: 'assignment_id = ?',
+      whereArgs: [assignmentId],
+      limit: 1,
+    );
+    if (assignmentRows.isEmpty) {
+      throw StateError('Ders ataması bulunamadı.');
+    }
+    final academicYear = assignmentRows.first['academic_year']! as String;
+    final cells = <String>{};
     for (final slot in slots) {
-      if (slot.assignmentId != assignmentId) {
-        throw ArgumentError.value(
-          slot.assignmentId,
-          'slot.assignmentId',
-          'Must match assignmentId',
+      _validateSlot(slot, assignmentId);
+      final cell = '${slot.weekday}:${slot.periodNumber}';
+      if (!cells.add(cell)) {
+        throw ArgumentError('Aynı program hücresi birden fazla kez seçildi.');
+      }
+      final conflicts = await _database.query(
+        'lesson_schedule_slots',
+        columns: ['assignment_id'],
+        where:
+            'academic_year = ? AND weekday = ? AND period_number = ? AND assignment_id != ?',
+        whereArgs: [
+          academicYear,
+          slot.weekday,
+          slot.periodNumber,
+          assignmentId,
+        ],
+        limit: 1,
+      );
+      if (conflicts.isNotEmpty) {
+        throw ScheduleSlotConflictException(
+          academicYear: academicYear,
+          weekday: slot.weekday,
+          periodNumber: slot.periodNumber,
+          conflictingAssignmentId: conflicts.first['assignment_id'] as String?,
         );
-      }
-      if (slot.weekday < DateTime.monday || slot.weekday > DateTime.sunday) {
-        throw ArgumentError.value(slot.weekday, 'slot.weekday');
-      }
-      if (slot.periodNumber < 1) {
-        throw ArgumentError.value(slot.periodNumber, 'slot.periodNumber');
       }
     }
 
@@ -224,7 +256,11 @@ class SqfliteInstructionContextRepository
         whereArgs: [assignmentId],
       );
       for (final slot in slots) {
-        await txn.insert('lesson_schedule_slots', _slotToRow(slot));
+        await txn.insert(
+          'lesson_schedule_slots',
+          _slotToRow(slot, academicYear: academicYear),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
       }
     });
   }
@@ -323,9 +359,13 @@ class SqfliteInstructionContextRepository
         updatedAt: _parseRequiredDate(row['updated_at']),
       );
 
-  Map<String, Object?> _slotToRow(LessonScheduleSlot item) => {
+  Map<String, Object?> _slotToRow(
+    LessonScheduleSlot item, {
+    required String academicYear,
+  }) => {
     'slot_id': item.id,
     'assignment_id': item.assignmentId,
+    'academic_year': academicYear,
     'weekday': item.weekday,
     'period_number': item.periodNumber,
     'created_at': item.createdAt.toUtc().toIso8601String(),
@@ -350,6 +390,22 @@ class SqfliteInstructionContextRepository
     'anchored_at': item.anchoredAt.toUtc().toIso8601String(),
     'updated_at': item.updatedAt.toUtc().toIso8601String(),
   };
+
+  void _validateSlot(LessonScheduleSlot slot, String assignmentId) {
+    if (slot.assignmentId != assignmentId) {
+      throw ArgumentError.value(
+        slot.assignmentId,
+        'slot.assignmentId',
+        'Must match assignmentId',
+      );
+    }
+    if (slot.weekday < DateTime.monday || slot.weekday > DateTime.sunday) {
+      throw ArgumentError.value(slot.weekday, 'slot.weekday');
+    }
+    if (slot.periodNumber < 1) {
+      throw ArgumentError.value(slot.periodNumber, 'slot.periodNumber');
+    }
+  }
 
   void _validatePeriods(List<BellPeriod> periods) {
     final numbers = <int>{};
