@@ -1,5 +1,6 @@
 import '../models/lesson_plan_models.dart';
 import '../models/outcome_tracking_models.dart';
+import '../models/weekly_plan_models.dart';
 import '../repositories/course_knowledge_repository.dart';
 
 class WeeklyLessonPlanSelection {
@@ -43,6 +44,37 @@ class WeeklyLessonPlanSelection {
   final int packageHour;
 
   bool get beginsInSelectedWeek => packageStartHour >= segmentStartHour;
+}
+
+/// Canonical curriculum position for an instruction-hour ordinal even when
+/// that hour intentionally has no single-lesson package (for example school
+/// based planning). This keeps timetable truth independent from lesson-package
+/// availability.
+class InstructionOrdinalLocation {
+  const InstructionOrdinalLocation({
+    required this.instructionOrdinal,
+    required this.weekNumber,
+    required this.weekHour,
+    required this.segmentType,
+    required this.themeTitle,
+    this.blockId,
+    this.blockTitle,
+  });
+
+  final int instructionOrdinal;
+  final int weekNumber;
+  final int weekHour;
+  final WeeklyPlanSegmentType segmentType;
+  final String themeTitle;
+  final String? blockId;
+  final String? blockTitle;
+
+  bool get isSchoolBasedPlanning =>
+      segmentType == WeeklyPlanSegmentType.schoolBasedPlanning;
+
+  String get teacherTitle => isSchoolBasedPlanning
+      ? 'Okul temelli planlama'
+      : (blockTitle?.trim().isNotEmpty == true ? blockTitle! : themeTitle);
 }
 
 class LessonPlanWorkflowService {
@@ -130,10 +162,10 @@ class LessonPlanWorkflowService {
     return List<WeeklyLessonPlanSelection>.unmodifiable(selections);
   }
 
-  Future<WeeklyLessonPlanSelection?> selectionForInstructionOrdinal(
+  InstructionOrdinalLocation? locationForInstructionOrdinal(
     AnnualOutcomePlan annualPlan,
     int instructionOrdinal,
-  ) async {
+  ) {
     if (instructionOrdinal < 1) return null;
     var remaining = instructionOrdinal;
     for (final summary in annualPlan.weeks) {
@@ -143,14 +175,40 @@ class LessonPlanWorkflowService {
         remaining -= hours;
         continue;
       }
-      final selections = await plansForWeek(
-        annualPlan,
-        summary.week.weekNumber,
-      );
-      for (final selection in selections) {
-        if (selection.weekHour == remaining) return selection;
+
+      var weekHourCursor = 0;
+      for (final segment in summary.week.segments) {
+        final segmentEnd = weekHourCursor + segment.hours;
+        if (remaining <= segmentEnd) {
+          return InstructionOrdinalLocation(
+            instructionOrdinal: instructionOrdinal,
+            weekNumber: summary.week.weekNumber,
+            weekHour: remaining,
+            segmentType: segment.type,
+            themeTitle: segment.theme.title,
+            blockId: segment.block?.id,
+            blockTitle: segment.block?.title,
+          );
+        }
+        weekHourCursor = segmentEnd;
       }
       return null;
+    }
+    return null;
+  }
+
+  Future<WeeklyLessonPlanSelection?> selectionForInstructionOrdinal(
+    AnnualOutcomePlan annualPlan,
+    int instructionOrdinal,
+  ) async {
+    final location = locationForInstructionOrdinal(
+      annualPlan,
+      instructionOrdinal,
+    );
+    if (location == null) return null;
+    final selections = await plansForWeek(annualPlan, location.weekNumber);
+    for (final selection in selections) {
+      if (selection.weekHour == location.weekHour) return selection;
     }
     return null;
   }
