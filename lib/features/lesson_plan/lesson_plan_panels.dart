@@ -172,6 +172,15 @@ class _WeeklyLessonPlanPanelState extends State<WeeklyLessonPlanPanel> {
                     ),
                   ],
                 ),
+                if (progress != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Ders programı bağlamı yok; sıra yalnız isteğe bağlı takip kayıtlarından türetilir.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
                 if (staleCount > 0 || allCompleted) ...[
                   const SizedBox(height: AppSpacing.sm),
                   Text(
@@ -379,10 +388,13 @@ class _WeeklyPlanRow extends StatelessWidget {
                               ),
                         ),
                         if (isCurrent)
-                          _TimelineBadge(label: 'ŞU AN', color: scheme.primary),
+                          _TimelineBadge(
+                            label: 'SIRADAKİ',
+                            color: scheme.primary,
+                          ),
                         if (!isCurrent && isNext)
                           _TimelineBadge(
-                            label: 'SONRAKİ',
+                            label: 'ARDINDAN',
                             color: scheme.secondary,
                           ),
                       ],
