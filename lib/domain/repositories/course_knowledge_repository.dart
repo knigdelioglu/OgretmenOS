@@ -32,7 +32,12 @@ abstract interface class FormTemplateKnowledgeRepository {
 }
 
 extension FormTemplateKnowledgeRepositoryAccess on CourseKnowledgeRepository {
-  Future<FormDefinition?> getFormDefinitionIfAvailable(String formId) {
+  /// Resolves a form definition when the runtime exposes the optional
+  /// `form_templates` capability; otherwise returns the legacy-safe fallback.
+  ///
+  /// Keeping this as an extension lets existing lightweight repository fakes
+  /// compile unchanged while exposing the canonical API to feature code.
+  Future<FormDefinition?> getFormDefinition(String formId) {
     final repository = this;
     if (repository is FormTemplateKnowledgeRepository) {
       return (repository as FormTemplateKnowledgeRepository).getFormDefinition(
@@ -40,6 +45,10 @@ extension FormTemplateKnowledgeRepositoryAccess on CourseKnowledgeRepository {
       );
     }
     return Future.value(null);
+  }
+
+  Future<FormDefinition?> getFormDefinitionIfAvailable(String formId) {
+    return getFormDefinition(formId);
   }
 }
 

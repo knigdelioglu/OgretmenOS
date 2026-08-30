@@ -337,10 +337,12 @@ void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
   ''');
   for (final row in rows) {
     final formId = row['form_id'];
+    final metadataTitle = row['title']?.toString().trim() ?? '';
     _check(
-      (row['title']?.toString().trim() ?? '').isNotEmpty,
+      metadataTitle.isNotEmpty,
       '$formId kullanıcı başlığı boş',
     );
+    _check(metadataTitle != formId, '$formId kullanıcı başlığı teknik ID olamaz');
     final schemaVersion = row['schema_version']?.toString() ?? '';
     _check(schemaVersion == '1.0', '$formId desteklenmeyen schema_version');
     final status = row['render_status']?.toString() ?? '';
@@ -356,12 +358,22 @@ void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
       (template['title']?.toString().trim() ?? '').isNotEmpty,
       '$formId template başlığı boş',
     );
+    _check(
+      template['title'].toString().trim() != formId,
+      '$formId template başlığı teknik ID olamaz',
+    );
     final sections = template['sections'];
-    _check(sections is List, '$formId sections liste değil');
+    _check(
+      sections is List && sections.isNotEmpty,
+      '$formId sections boş veya liste değil',
+    );
     for (final section in sections as List) {
       _check(section is Map, '$formId section nesne değil');
       final elements = (section as Map)['elements'];
-      _check(elements is List, '$formId elements liste değil');
+      _check(
+        elements is List && elements.isNotEmpty,
+        '$formId elements boş veya liste değil',
+      );
       for (final element in elements as List) {
         _check(element is Map, '$formId element nesne değil');
         final type = (element as Map)['type']?.toString() ?? '';

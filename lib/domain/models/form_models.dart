@@ -382,11 +382,19 @@ class TableFormElement extends FormElement {
 class RubricCriterion {
   const RubricCriterion({required this.label, required this.descriptors});
 
-  factory RubricCriterion.fromJson(Map<String, dynamic> json) =>
-      RubricCriterion(
-        label: _optionalText(json['label']) ?? '',
-        descriptors: _stringList(json['descriptors']),
-      );
+  factory RubricCriterion.fromJson(Map<String, dynamic> json) {
+    final rawDescriptors = json['descriptors'];
+    final descriptors = rawDescriptors is Map
+        ? rawDescriptors.values
+              .map((value) => value?.toString().trim() ?? '')
+              .where((value) => value.isNotEmpty)
+              .toList(growable: false)
+        : _stringList(rawDescriptors);
+    return RubricCriterion(
+      label: _optionalText(json['label']) ?? '',
+      descriptors: descriptors,
+    );
+  }
 
   final String label;
   final List<String> descriptors;

@@ -98,23 +98,33 @@ bool isRuntimeDatabaseSchemaCompatible(
 /// Returns whether an already installed runtime is byte-contract equivalent to
 /// the bundled package identity that the app is about to open.
 ///
-/// Lesson-plan row count is included explicitly even though a canonical source
-/// change should also alter the fingerprint. This keeps additive runtime
-/// capabilities fail-closed if a malformed package reuses an old fingerprint.
+/// Lesson-plan and enabled form-template row counts are included explicitly
+/// even though a canonical source change should also alter the fingerprint.
+/// This keeps additive runtime capabilities fail-closed if a malformed package
+/// reuses an old fingerprint.
 bool runtimePackageIdentityMatches(
   RuntimeManifest local,
   RuntimeManifest expected,
-) =>
-    local.runtimePackageVersion == expected.runtimePackageVersion &&
-    local.schemaVersion == expected.schemaVersion &&
-    local.courseId == expected.courseId &&
-    local.canonicalContentFingerprint == expected.canonicalContentFingerprint &&
-    local.validationStatus == expected.validationStatus &&
-    local.rowCounts['lesson_plan_packages'] ==
-        expected.rowCounts['lesson_plan_packages'];
+) {
+  if (local.runtimePackageVersion != expected.runtimePackageVersion ||
+      local.schemaVersion != expected.schemaVersion ||
+      local.courseId != expected.courseId ||
+      local.canonicalContentFingerprint !=
+          expected.canonicalContentFingerprint ||
+      local.validationStatus != expected.validationStatus ||
+      local.rowCounts['lesson_plan_packages'] !=
+          expected.rowCounts['lesson_plan_packages']) {
+    return false;
+  }
+  if (expected.hasCapability('form_templates')) {
+    return local.hasCapability('form_templates') &&
+        local.rowCounts['form_templates'] ==
+            expected.rowCounts['form_templates'];
+  }
+  return true;
+}
 
 bool runtimePackageRequiresInstall(
   RuntimeManifest local,
   RuntimeManifest expected,
-) =>
-    !runtimePackageIdentityMatches(local, expected);
+) => !runtimePackageIdentityMatches(local, expected);

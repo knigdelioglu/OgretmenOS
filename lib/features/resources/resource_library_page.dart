@@ -739,7 +739,7 @@ class _Forms extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      forms[i].title,
+                      _friendlyFormTitle(forms[i]),
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -802,6 +802,12 @@ String _friendlyFormType(model.Form form) {
     'dereceli_puanlama_anahtari_link' => 'Dereceli puanlama anahtarı',
     _ => 'Değerlendirme formu',
   };
+}
+
+String _friendlyFormTitle(model.Form form) {
+  final title = form.title.trim();
+  if (title.isEmpty || title == form.id.trim()) return 'Değerlendirme formu';
+  return title;
 }
 
 class _Assessments extends StatelessWidget {

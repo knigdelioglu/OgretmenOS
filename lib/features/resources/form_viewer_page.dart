@@ -39,7 +39,7 @@ class _FormViewerPageState extends State<FormViewerPage> {
   }
 
   Future<FormDefinition?> _load() async {
-    final definition = await widget.repository.getFormDefinitionIfAvailable(
+    final definition = await widget.repository.getFormDefinition(
       widget.form.id,
     );
     _definition = definition;
@@ -108,7 +108,7 @@ class _FormViewerPageState extends State<FormViewerPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.form.title)),
+    appBar: AppBar(title: Text(_metadataTitle(widget.form))),
     body: FutureBuilder<FormDefinition?>(
       future: _future,
       builder: (context, snapshot) {
@@ -200,6 +200,12 @@ class _FormViewerPageState extends State<FormViewerPage> {
       },
     ),
   );
+}
+
+String _metadataTitle(model.Form form) {
+  final title = form.title.trim();
+  if (title.isEmpty || title == form.id.trim()) return 'Değerlendirme formu';
+  return title;
 }
 
 class _FormPdfPreviewPage extends StatelessWidget {

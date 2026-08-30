@@ -609,6 +609,11 @@ class _PlanResourceSection extends StatelessWidget {
                         resourceId: index < resourceIds.length
                             ? resourceIds[index]
                             : null,
+                        formId:
+                            category == ResourceCategory.forms &&
+                                index < resourceIds.length
+                            ? resourceIds[index]
+                            : null,
                         category: category,
                       ),
                     ),

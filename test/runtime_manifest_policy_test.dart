@@ -42,25 +42,25 @@ void main() {
 
   test('manifest runtime_status taşıyorsa freshness doğrudan doğrulanır', () {
     final manifest = validManifest()..['runtime_status'] = 'RUNTIME_FRESH';
-    expect(
-      () => validateRuntimeFreshnessEvidence(manifest),
-      returnsNormally,
-    );
+    expect(() => validateRuntimeFreshnessEvidence(manifest), returnsNormally);
   });
 
-  test('compiler validation raporu current canonical runtime freshness kanıtıdır', () {
-    const report = '''
+  test(
+    'compiler validation raporu current canonical runtime freshness kanıtıdır',
+    () {
+      const report = '''
 | Check | Status | Detail |
 | source fingerprint status | PASS | RUNTIME_FRESH |
 ''';
-    expect(
-      () => validateRuntimeFreshnessEvidence(
-        validManifest(),
-        validationReport: report,
-      ),
-      returnsNormally,
-    );
-  });
+      expect(
+        () => validateRuntimeFreshnessEvidence(
+          validManifest(),
+          validationReport: report,
+        ),
+        returnsNormally,
+      );
+    },
+  );
 
   test('freshness kanıtı yoksa build-time doğrulama reddedilir', () {
     expect(
@@ -79,18 +79,12 @@ void main() {
 
   test('canonical fingerprint eksikse manifest reddedilir', () {
     final manifest = validManifest()..['canonical_content_fingerprint'] = '';
-    expect(
-      () => validateRuntimeManifest(manifest),
-      throwsA(isA<StateError>()),
-    );
+    expect(() => validateRuntimeManifest(manifest), throwsA(isA<StateError>()));
   });
 
   test('desteklenmeyen schema major reddedilir', () {
     final manifest = validManifest()..['schema_version'] = '2.0.0';
-    expect(
-      () => validateRuntimeManifest(manifest),
-      throwsA(isA<StateError>()),
-    );
+    expect(() => validateRuntimeManifest(manifest), throwsA(isA<StateError>()));
   });
 
   test('aynı runtime identity yeniden kurulum gerektirmez', () {
@@ -126,4 +120,23 @@ void main() {
 
     expect(runtimePackageRequiresInstall(local, expected), isTrue);
   });
+
+  test(
+    'form template capability ve row count drift yeniden kurulum gerektirir',
+    () {
+      final localManifest = validManifest()
+        ..['capabilities'] = {'form_templates': true}
+        ..['row_counts'] = {'lesson_plan_packages': 88, 'form_templates': 0};
+      final expectedManifest = validManifest()
+        ..['capabilities'] = {'form_templates': true}
+        ..['row_counts'] = {'lesson_plan_packages': 88, 'form_templates': 28};
+      expect(
+        runtimePackageRequiresInstall(
+          RuntimeManifest.fromJson(localManifest),
+          RuntimeManifest.fromJson(expectedManifest),
+        ),
+        isTrue,
+      );
+    },
+  );
 }

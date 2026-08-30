@@ -717,7 +717,9 @@ class _HourProgressCard extends StatelessWidget {
                   : 'Bu seçim yalnızca kişisel takip kaydıdır. ŞU AN ve planlanan ders konumu ders programından hesaplanır; burada bir seçim yapmak zorunda değilsiniz.',
               style: TextStyle(
                 height: 1.4,
-                color: stale ? scheme.onErrorContainer : scheme.onSurfaceVariant,
+                color: stale
+                    ? scheme.onErrorContainer
+                    : scheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -868,6 +870,11 @@ class _SinglePlanResourceSection extends StatelessWidget {
                       ResourceNavigationContext(
                         themeId: themeId,
                         resourceId: index < resourceIds.length
+                            ? resourceIds[index]
+                            : null,
+                        formId:
+                            category == ResourceCategory.forms &&
+                                index < resourceIds.length
                             ? resourceIds[index]
                             : null,
                         category: category,

@@ -36,9 +36,7 @@
       "instructions": "Kendi beğeni ölçütlerinizi belirleyerek Mercan Kız masalını değerlendiriniz. Çalışmanızı en doğru yansıtan ölçüt cümlesini yazıp uygun dereceyi işaretleyiniz.",
       "options": ["Her zaman", "Bazen", "Hiçbir zaman"],
       "items": [
-        "Masaldaki olayların tutarlı olduğunu düşünüyorum.",
-        "Kendi ölçütüm 1", "Kendi ölçütüm 2", "Kendi ölçütüm 3",
-        "Kendi ölçütüm 4", "Kendi ölçütüm 5", "Kendi ölçütüm 6"
+        "Masaldaki olayların tutarlı olduğunu düşünüyorum."
       ]
     },
     "FORM_T1_YAZMA_KONTROL": {
