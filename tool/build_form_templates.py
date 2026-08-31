@@ -18,6 +18,13 @@ SCHEMA_VERSION = "1.0"
 READY = "ready"
 NEEDS_REVIEW = "needs_review"
 POLICY_PATH = Path(__file__).with_name("form_templates") / "form_template_policy.json"
+AUTHORITATIVE_PROVENANCE_FIELDS = {
+    "source_id",
+    "printed_page",
+    "pdf_page",
+    "verification_status",
+    "source_locator",
+}
 
 
 def _identity(labels: list[str]) -> dict[str, Any]:
@@ -233,6 +240,30 @@ def _provenance(row: sqlite3.Row, index_form: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _merge_catalog_provenance(
+    canonical: dict[str, Any],
+    supplied: dict[str, Any],
+) -> tuple[dict[str, Any], bool]:
+    """Merge descriptive catalog evidence without letting it rewrite authority.
+
+    Source identity, canonical page coordinates, verification status and the
+    canonical locator belong to the runtime/index. Catalogs may repeat them for
+    readability, but a conflicting repeated value is evidence corruption and
+    must fail closed.
+    """
+    merged = dict(canonical)
+    authority_conflict = False
+    for key, value in supplied.items():
+        if key in AUTHORITATIVE_PROVENANCE_FIELDS:
+            supplied_value = str(value or "").strip()
+            canonical_value = str(canonical.get(key) or "").strip()
+            if supplied_value and supplied_value != canonical_value:
+                authority_conflict = True
+            continue
+        merged[key] = value
+    return merged, authority_conflict
+
+
 def _provenance_review_reason(
     provenance: dict[str, Any],
     *,
@@ -248,9 +279,11 @@ def _provenance_review_reason(
     source_id = str(provenance.get("source_id", "")).strip()
     indexed_source_id = str(forms_index.get("source_id", "")).strip()
     verification_status = str(provenance.get("verification_status", "")).strip()
+    # A descriptive catalog `source_page` is useful metadata but is not
+    # authoritative enough to make a form ready on its own. Readiness needs a
+    # locator/page that came from the canonical runtime/index.
     locator_values = (
         provenance.get("source_locator"),
-        provenance.get("source_page"),
         provenance.get("printed_page"),
         provenance.get("pdf_page"),
     )
@@ -350,13 +383,20 @@ def build(args: argparse.Namespace) -> dict[str, int]:
                 spec_provenance = spec.get("provenance") or {}
                 if not isinstance(spec_provenance, dict):
                     raise ValueError(f"Catalog provenance nesne olmalı: {form_id}")
-                provenance.update(spec_provenance)
-                review_reason = _provenance_review_reason(
+                provenance, authority_conflict = _merge_catalog_provenance(
                     provenance,
-                    row=row,
-                    forms_index=forms_index,
-                    content_was_explicitly_provided=bool(spec.get("provenance")),
-                    policy=policy,
+                    spec_provenance,
+                )
+                review_reason = (
+                    "invalid_source_provenance"
+                    if authority_conflict
+                    else _provenance_review_reason(
+                        provenance,
+                        row=row,
+                        forms_index=forms_index,
+                        content_was_explicitly_provided=bool(spec.get("provenance")),
+                        policy=policy,
+                    )
                 )
                 status = NEEDS_REVIEW if review_reason else READY
             else:
