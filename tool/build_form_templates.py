@@ -249,7 +249,8 @@ def _merge_catalog_provenance(
     Source identity, canonical page coordinates, verification status and the
     canonical locator belong to the runtime/index. Catalogs may repeat them for
     readability, but a conflicting repeated value is evidence corruption and
-    must fail closed.
+    must fail closed. `source_page` remains descriptive transcription evidence;
+    it cannot upgrade source identity or verification status.
     """
     merged = dict(canonical)
     authority_conflict = False
@@ -279,11 +280,9 @@ def _provenance_review_reason(
     source_id = str(provenance.get("source_id", "")).strip()
     indexed_source_id = str(forms_index.get("source_id", "")).strip()
     verification_status = str(provenance.get("verification_status", "")).strip()
-    # A descriptive catalog `source_page` is useful metadata but is not
-    # authoritative enough to make a form ready on its own. Readiness needs a
-    # locator/page that came from the canonical runtime/index.
     locator_values = (
         provenance.get("source_locator"),
+        provenance.get("source_page"),
         provenance.get("printed_page"),
         provenance.get("pdf_page"),
     )
@@ -470,9 +469,6 @@ def build(args: argparse.Namespace) -> dict[str, int]:
 
     manifest = _load_json(manifest_path)
     capabilities = manifest.setdefault("capabilities", {})
-    # The capability advertises usable structured forms, not merely the
-    # existence of a metadata row for every form. A package whose entire form
-    # catalog needs review must remain explicitly unavailable to the UI.
     capabilities["form_templates"] = counts[READY] > 0
     manifest.setdefault("row_counts", {})["form_templates"] = sum(counts.values())
     manifest["form_template_schema_versions"] = [SCHEMA_VERSION]
