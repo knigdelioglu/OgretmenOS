@@ -81,7 +81,11 @@
 ## Form Template Projection
 
 - Schema version: `1.0`
-- Ready templates: `12`
-- Needs review: `16`
+- Ready templates: `27`
+- Needs review: `1`
 - Foreign key integrity: `PASS`
 - JSON parse and element validation: runtime verifier
+
+### Needs-review reasons
+
+- `FORM_BOB_11_GENEL_GOZLEM`: `missing_source_structure`

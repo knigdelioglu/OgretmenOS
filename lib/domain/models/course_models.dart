@@ -73,6 +73,8 @@ class RuntimeManifest {
     required this.timelineUnresolvedFields,
     this.capabilities = const {},
     this.assessmentPayloadCapabilities = const {},
+    this.formTemplateStatusCounts = const {},
+    this.formTemplateReviewReasons = const {},
   });
 
   factory RuntimeManifest.fromJson(Map<String, dynamic> json) {
@@ -105,6 +107,28 @@ class RuntimeManifest {
     final assessmentCapabilities = readCapabilities(
       json['assessment_payload_capabilities'],
     );
+    Map<String, int> readCounts(Object? raw) {
+      final values = <String, int>{};
+      if (raw is Map) {
+        for (final entry in raw.entries) {
+          final value = nullableInt(entry.value);
+          if (value != null) values[entry.key.toString()] = value;
+        }
+      }
+      return values;
+    }
+
+    Map<String, String> readReasons(Object? raw) {
+      final values = <String, String>{};
+      if (raw is Map) {
+        for (final entry in raw.entries) {
+          final value = nullableString(entry.value?.toString());
+          if (value != null) values[entry.key.toString()] = value;
+        }
+      }
+      return values;
+    }
+
     return RuntimeManifest(
       runtimePackageVersion: json['runtime_package_version']?.toString() ?? '',
       schemaVersion: json['schema_version']?.toString() ?? '',
@@ -117,6 +141,10 @@ class RuntimeManifest {
       timelineUnresolvedFields: unresolved,
       capabilities: capabilities,
       assessmentPayloadCapabilities: assessmentCapabilities,
+      formTemplateStatusCounts: readCounts(json['form_template_status_counts']),
+      formTemplateReviewReasons: readReasons(
+        json['form_template_review_reasons'],
+      ),
     );
   }
 
@@ -130,6 +158,8 @@ class RuntimeManifest {
   final Map<String, Object?> timelineUnresolvedFields;
   final Map<String, bool> capabilities;
   final Map<String, bool> assessmentPayloadCapabilities;
+  final Map<String, int> formTemplateStatusCounts;
+  final Map<String, String> formTemplateReviewReasons;
 
   bool get isCompatible =>
       isSupportedRuntimeCourse(courseId) &&

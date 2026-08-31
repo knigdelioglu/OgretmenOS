@@ -59,7 +59,9 @@ class _AssignmentAwareWeeklyLessonPlanSectionState
   }
 
   @override
-  void didUpdateWidget(covariant AssignmentAwareWeeklyLessonPlanSection oldWidget) {
+  void didUpdateWidget(
+    covariant AssignmentAwareWeeklyLessonPlanSection oldWidget,
+  ) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.annualPlan != widget.annualPlan ||
         oldWidget.weekNumber != widget.weekNumber ||
@@ -101,7 +103,9 @@ class _AssignmentAwareWeeklyLessonPlanSectionState
 
     ScheduledLessonOccurrence? latest;
     for (final assignment in data.assignments) {
-      final previous = data.timeline.positionFor(assignment.id)?.previousOccurrence;
+      final previous = data.timeline
+          .positionFor(assignment.id)
+          ?.previousOccurrence;
       if (previous == null) continue;
       if (latest == null || previous.startsAt.isAfter(latest.startsAt)) {
         latest = previous;
@@ -115,7 +119,17 @@ class _AssignmentAwareWeeklyLessonPlanSectionState
   Widget build(BuildContext context) => FutureBuilder<_AssignmentSectionData>(
     future: _future,
     builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData) {
+      if (snapshot.hasError) {
+        return Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.md),
+          child: FeatureErrorView(
+            message: 'Sınıf ve ders programı okunamadı.',
+            onRetry: _reload,
+          ),
+        );
+      }
+      if (snapshot.connectionState != ConnectionState.done &&
+          !snapshot.hasData) {
         return const SizedBox.shrink();
       }
       final data = snapshot.data;
@@ -158,7 +172,9 @@ class _AssignmentAwareWeeklyLessonPlanSectionState
       final selectedId = data.assignment(_manualAssignmentId ?? '') != null
           ? _manualAssignmentId
           : autoId;
-      final assignment = selectedId == null ? null : data.assignment(selectedId);
+      final assignment = selectedId == null
+          ? null
+          : data.assignment(selectedId);
       if (assignment == null) return const SizedBox.shrink();
       final schoolClass = data.classFor(assignment.classId);
       final position = data.timeline.positionFor(assignment.id);
@@ -182,14 +198,16 @@ class _AssignmentAwareWeeklyLessonPlanSectionState
                   menuChildren: [
                     for (final item in data.assignments)
                       MenuItemButton(
-                        onPressed: () => setState(() => _manualAssignmentId = item.id),
+                        onPressed: () =>
+                            setState(() => _manualAssignmentId = item.id),
                         leadingIcon: Icon(
                           item.id == assignment.id
                               ? Icons.check_rounded
                               : Icons.class_outlined,
                         ),
                         child: Text(
-                          data.classFor(item.classId)?.displayName ?? item.classId,
+                          data.classFor(item.classId)?.displayName ??
+                              item.classId,
                         ),
                       ),
                   ],
@@ -207,6 +225,7 @@ class _AssignmentAwareWeeklyLessonPlanSectionState
             instructionContext: widget.instructionContext,
             progressRepository: widget.progressRepository,
             onChanged: _reload,
+            onConfigureSchedule: widget.onConfigureSchedule,
             onOpenResources: widget.onOpenResources,
           ),
         ],
@@ -227,6 +246,7 @@ class _AssignmentWeeklyPlanPanel extends StatefulWidget {
     required this.instructionContext,
     required this.progressRepository,
     required this.onChanged,
+    this.onConfigureSchedule,
     this.onOpenResources,
   });
 
@@ -240,6 +260,7 @@ class _AssignmentWeeklyPlanPanel extends StatefulWidget {
   final InstructionContextRepository instructionContext;
   final AssignmentLessonProgressRepository progressRepository;
   final VoidCallback onChanged;
+  final VoidCallback? onConfigureSchedule;
   final ResourceNavigationCallback? onOpenResources;
 
   @override
@@ -247,7 +268,8 @@ class _AssignmentWeeklyPlanPanel extends StatefulWidget {
       _AssignmentWeeklyPlanPanelState();
 }
 
-class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> {
+class _AssignmentWeeklyPlanPanelState
+    extends State<_AssignmentWeeklyPlanPanel> {
   late Future<_AssignmentPanelData> _future;
 
   @override
@@ -271,17 +293,22 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
   Future<_AssignmentPanelData> _load() async {
     final workflow = LessonPlanWorkflowService(repository: widget.repository);
     final selectedWeek = widget.annualPlan.week(widget.weekNumber)?.week;
+    final configuredSlots = await widget.instructionContext
+        .getScheduleSlotsForAssignments([widget.assignment.id]);
+    final bellPeriods = await widget.instructionContext.getBellPeriods();
+    final expectedWeeklyHours = widget.annualPlan.weeklyPlan.weeklyLessonHours;
 
     final rows = <_ScheduledPlanRow>[];
     var scheduledOccurrenceCount = 0;
     var scheduleProjected = false;
     if (widget.position != null && selectedWeek != null) {
       scheduleProjected = true;
-      final occurrences = widget.timelineSnapshot.occurrencesForAssignmentBetween(
-        assignmentId: widget.assignment.id,
-        start: selectedWeek.start,
-        end: selectedWeek.end,
-      );
+      final occurrences = widget.timelineSnapshot
+          .occurrencesForAssignmentBetween(
+            assignmentId: widget.assignment.id,
+            start: selectedWeek.start,
+            end: selectedWeek.end,
+          );
       scheduledOccurrenceCount = occurrences.length;
       for (final occurrence in occurrences) {
         final location = workflow.locationForInstructionOrdinal(
@@ -333,7 +360,8 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
     final progressService = AssignmentLessonProgressService(
       repository: widget.progressRepository,
     );
-    final resolved = <AssignmentLessonProgressKey, AssignmentLessonProgressResolution>{};
+    final resolved =
+        <AssignmentLessonProgressKey, AssignmentLessonProgressResolution>{};
     for (final row in rows) {
       final selection = row.selection;
       if (selection == null) continue;
@@ -375,6 +403,9 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
       ),
       scheduleProjected: scheduleProjected,
       scheduledOccurrenceCount: scheduledOccurrenceCount,
+      configuredScheduleSlotCount: configuredSlots.length,
+      expectedWeeklyHours: expectedWeeklyHours,
+      bellPeriodCount: bellPeriods.length,
     );
   }
 
@@ -448,14 +479,27 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
   Widget build(BuildContext context) => FutureBuilder<_AssignmentPanelData>(
     future: _future,
     builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData) {
+      if (snapshot.hasError) {
+        return Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.md),
+          child: StatusPanel(
+            icon: Icons.error_outline,
+            title: 'Ders planı yüklenemedi',
+            message: 'Bu şubenin ders programı ve planı okunamadı.',
+            tone: StatusTone.error,
+            action: FilledButton.tonal(
+              onPressed: () => setState(() => _future = _load()),
+              child: const Text('Tekrar dene'),
+            ),
+          ),
+        );
+      }
+      if (snapshot.connectionState != ConnectionState.done &&
+          !snapshot.hasData) {
         return const SizedBox.shrink();
       }
       final data = snapshot.data;
       if (data == null) return const SizedBox.shrink();
-      if (data.rows.isEmpty && !data.scheduleProjected) {
-        return const SizedBox.shrink();
-      }
       final position = widget.position;
       final planned = position?.plannedOrdinal ?? 0;
       final actual = position?.actualOrdinal ?? planned;
@@ -463,7 +507,8 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
       final currentOccurrence = widget.timelineSnapshot.currentOccurrence;
       final scheme = Theme.of(context).colorScheme;
       final canonicalWeekHours =
-          widget.annualPlan.week(widget.weekNumber)?.week.plannedLessonHours ?? 0;
+          widget.annualPlan.week(widget.weekNumber)?.week.plannedLessonHours ??
+          0;
       final scheduleChangedWeekShape =
           data.scheduleProjected &&
           data.scheduledOccurrenceCount != canonicalWeekHours;
@@ -491,23 +536,25 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
                         children: [
                           Text(
                             'Bu haftanın ders planı',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             widget.schoolClass?.displayName ?? 'Sınıf',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w700,
+                                ),
                           ),
                         ],
                       ),
                     ),
                     Text(
-                      '${data.scheduledOccurrenceCount} ders saati',
+                      data.scheduleProjected
+                          ? '${data.scheduledOccurrenceCount} ders saati'
+                          : '${data.rows.length} ders planı',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
@@ -515,6 +562,15 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
                     ),
                   ],
                 ),
+                if (!data.scheduleReady) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _IncompleteScheduleNotice(
+                    configuredSlotCount: data.configuredScheduleSlotCount,
+                    expectedWeeklyHours: data.expectedWeeklyHours,
+                    bellPeriodCount: data.bellPeriodCount,
+                    onConfigure: widget.onConfigureSchedule,
+                  ),
+                ],
                 if (scheduleChangedWeekShape) ...[
                   const SizedBox(height: AppSpacing.sm),
                   Text(
@@ -548,13 +604,16 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
                                     : delta < 0
                                     ? '${-delta} ders saati geride'
                                     : '$delta ders saati ileride',
-                                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
+                                style: Theme.of(context).textTheme.labelLarge
+                                    ?.copyWith(fontWeight: FontWeight.w800),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                _positionSummary(data, planned: planned, actual: actual),
+                                _positionSummary(
+                                  data,
+                                  planned: planned,
+                                  actual: actual,
+                                ),
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ],
@@ -571,7 +630,9 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
                 const SizedBox(height: AppSpacing.sm),
                 if (data.rows.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.md,
+                    ),
                     child: Text(
                       data.scheduledOccurrenceCount == 0
                           ? 'Takvime göre bu hafta bu şubede ders yok.'
@@ -587,18 +648,17 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
                       builder: (context) {
                         final row = data.rows[index];
                         final selection = row.selection;
-                        final ordinal = row.occurrence?.plannedOrdinal ??
+                        final ordinal =
+                            row.occurrence?.plannedOrdinal ??
                             (selection == null
                                 ? row.location?.instructionOrdinal ?? 0
                                 : _instructionOrdinalForSelection(selection));
                         final resolution = selection == null
                             ? const AssignmentLessonProgressResolution.none()
-                            : data.resolutions[
-                                    AssignmentLessonProgressKey(
-                                      packageId: selection.package.packageId,
-                                      packageHour: selection.packageHour,
-                                    )
-                                  ] ??
+                            : data.resolutions[AssignmentLessonProgressKey(
+                                    packageId: selection.package.packageId,
+                                    packageHour: selection.packageHour,
+                                  )] ??
                                   const AssignmentLessonProgressResolution.none();
                         final isActual = ordinal > 0 && ordinal == actual;
                         final isPlanned = ordinal > 0 && ordinal == planned;
@@ -611,12 +671,15 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
                           selection: selection,
                           location: row.location,
                           occurrence: row.occurrence,
-                          weekOccurrenceIndex:
-                              row.occurrence == null ? null : index + 1,
+                          weekOccurrenceIndex: row.occurrence == null
+                              ? null
+                              : index + 1,
                           selectedCalendarWeekNumber: widget.weekNumber,
                           resolution: resolution,
                           schedulePassed:
-                              data.scheduleProjected && ordinal > 0 && ordinal < planned,
+                              data.scheduleProjected &&
+                              ordinal > 0 &&
+                              ordinal < planned,
                           isCurrentTime: isCurrentTime,
                           isActual: isActual,
                           isPlanned: isPlanned,
@@ -669,6 +732,92 @@ class _AssignmentWeeklyPlanPanelState extends State<_AssignmentWeeklyPlanPanel> 
   }
 }
 
+class _IncompleteScheduleNotice extends StatelessWidget {
+  const _IncompleteScheduleNotice({
+    required this.configuredSlotCount,
+    required this.expectedWeeklyHours,
+    required this.bellPeriodCount,
+    required this.onConfigure,
+  });
+
+  final int configuredSlotCount;
+  final int expectedWeeklyHours;
+  final int bellPeriodCount;
+  final VoidCallback? onConfigure;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final missingBellPeriods = bellPeriodCount == 0;
+    final message = missingBellPeriods
+        ? 'Zil saatleri tanımlanmadığı için ŞİMDİ ve SONRAKİ DERS üretilemiyor.'
+        : '$configuredSlotCount / $expectedWeeklyHours ders saati tanımlı. '
+              'Program tamamlanana kadar aşağıdaki planlar yalnız kanonik haftalık içerik olarak gösterilir; '
+              'timetable gerçeği olarak kullanılmaz.';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                missingBellPeriods
+                    ? Icons.access_time_outlined
+                    : Icons.info_outline,
+                color: scheme.onSecondaryContainer,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      missingBellPeriods
+                          ? 'Zil saatleri eksik'
+                          : 'Ders programı tamamlanmadı',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: scheme.onSecondaryContainer,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      message,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSecondaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (onConfigure != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.tonalIcon(
+                onPressed: onConfigure,
+                icon: const Icon(Icons.edit_calendar_outlined),
+                label: const Text('Sınıfları ve programı ayarla'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _AssignmentPlanRow extends StatelessWidget {
   const _AssignmentPlanRow({
     required this.selection,
@@ -718,7 +867,8 @@ class _AssignmentPlanRow extends StatelessWidget {
               resolution.record?.status != LessonPlanProgressStatus.notStarted
         ? resolution.record!.status.teacherLabel
         : null;
-    final contextualStatus = explicitStatus ??
+    final contextualStatus =
+        explicitStatus ??
         (schedulePassed
             ? 'Programa göre geçildi'
             : selection == null && location?.isSchoolBasedPlanning == true
@@ -789,59 +939,64 @@ class _AssignmentPlanRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
-                  SizedBox(
-                    width: 142,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: AppSpacing.sm,
-                          runSpacing: AppSpacing.xs,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text(
-                              rowLabel,
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                color: emphasized
-                                    ? scheme.primary
-                                    : scheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w800,
+                  Flexible(
+                    fit: FlexFit.loose,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 142),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: AppSpacing.sm,
+                            runSpacing: AppSpacing.xs,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                rowLabel,
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(
+                                      color: emphasized
+                                          ? scheme.primary
+                                          : scheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.w800,
+                                    ),
                               ),
-                            ),
-                            if (badge != null)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 7,
-                                  vertical: 3,
+                              if (badge != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 7,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: scheme.primary.withValues(
+                                      alpha: 0.10,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    badge,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          color: scheme.primary,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 0.35,
+                                        ),
+                                  ),
                                 ),
-                                decoration: BoxDecoration(
-                                  color: scheme.primary.withValues(alpha: 0.10),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  badge,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelSmall
-                                      ?.copyWith(
-                                        color: scheme.primary,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 0.35,
-                                      ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        if (scheduleLabel != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            scheduleLabel,
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
+                            ],
                           ),
+                          if (scheduleLabel != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              scheduleLabel,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(color: scheme.onSurfaceVariant),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
@@ -851,32 +1006,33 @@ class _AssignmentPlanRow extends StatelessWidget {
                       children: [
                         Text(
                           title,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            height: 1.25,
-                          ),
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                height: 1.25,
+                              ),
                         ),
                         if (shiftedFromCanonicalWeek) ...[
                           const SizedBox(height: AppSpacing.xs),
                           Text(
                             'Takvim kayması · plan sırası $canonicalWeek. hafta, $canonicalHour. ders',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
                           ),
                         ],
                         if (contextualStatus != null) ...[
                           const SizedBox(height: AppSpacing.xs),
                           Text(
                             contextualStatus,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: resolution.isStale
-                                  ? scheme.error
-                                  : scheme.onSurfaceVariant,
-                              fontWeight: resolution.isStale
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: resolution.isStale
+                                      ? scheme.error
+                                      : scheme.onSurfaceVariant,
+                                  fontWeight: resolution.isStale
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                ),
                           ),
                         ],
                       ],
@@ -931,7 +1087,10 @@ class _ActualPositionSheetState extends State<_ActualPositionSheet> {
 
   Future<List<_PositionOption>> _load() async {
     final workflow = LessonPlanWorkflowService(repository: widget.repository);
-    final lower = math.max(1, math.min(widget.actualOrdinal, widget.plannedOrdinal) - 12);
+    final lower = math.max(
+      1,
+      math.min(widget.actualOrdinal, widget.plannedOrdinal) - 12,
+    );
     final upper = math.max(widget.plannedOrdinal + 4, widget.actualOrdinal + 2);
     final options = <_PositionOption>[];
     for (var ordinal = lower; ordinal <= upper; ordinal++) {
@@ -954,7 +1113,8 @@ class _ActualPositionSheetState extends State<_ActualPositionSheet> {
               : packageTitle != null && packageTitle.isNotEmpty
               ? packageTitle
               : location.teacherTitle,
-          subtitle: '${location.weekNumber}. hafta · ${location.weekHour}. ders saati',
+          subtitle:
+              '${location.weekNumber}. hafta · ${location.weekHour}. ders saati',
         ),
       );
     }
@@ -972,9 +1132,9 @@ class _ActualPositionSheetState extends State<_ActualPositionSheet> {
         children: [
           Text(
             'Şu anda hangi derstesiniz?',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: AppSpacing.xs),
           const Text(
@@ -982,9 +1142,9 @@ class _ActualPositionSheetState extends State<_ActualPositionSheet> {
           ),
           const SizedBox(height: AppSpacing.md),
           OutlinedButton.icon(
-            onPressed: () => Navigator.of(context).pop(
-              const _PositionChoice.followSchedule(),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).pop(const _PositionChoice.followSchedule()),
             icon: const Icon(Icons.sync_rounded),
             label: const Text('Programa yeniden eşitle'),
           ),
@@ -1008,7 +1168,9 @@ class _ActualPositionSheetState extends State<_ActualPositionSheet> {
                       RadioListTile<int>(
                         value: 0,
                         title: const Text('Henüz başlamadım'),
-                        subtitle: const Text('Gerçek ilerleme ders planının başında'),
+                        subtitle: const Text(
+                          'Gerçek ilerleme ders planının başında',
+                        ),
                       ),
                       for (final option in snapshot.data!)
                         RadioListTile<int>(
@@ -1098,6 +1260,9 @@ class _AssignmentPanelData {
     required this.plannedLocation,
     required this.scheduleProjected,
     required this.scheduledOccurrenceCount,
+    required this.configuredScheduleSlotCount,
+    required this.expectedWeeklyHours,
+    required this.bellPeriodCount,
   });
 
   final List<_ScheduledPlanRow> rows;
@@ -1109,6 +1274,14 @@ class _AssignmentPanelData {
   final InstructionOrdinalLocation? plannedLocation;
   final bool scheduleProjected;
   final int scheduledOccurrenceCount;
+  final int configuredScheduleSlotCount;
+  final int expectedWeeklyHours;
+  final int bellPeriodCount;
+
+  bool get scheduleReady =>
+      expectedWeeklyHours > 0 &&
+      configuredScheduleSlotCount == expectedWeeklyHours &&
+      bellPeriodCount > 0;
 }
 
 String _weekdayShort(int weekday) => switch (weekday) {

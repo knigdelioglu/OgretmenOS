@@ -37,7 +37,8 @@ class CurrentScheduledLessonCard extends StatefulWidget {
       _CurrentScheduledLessonCardState();
 }
 
-class _CurrentScheduledLessonCardState extends State<CurrentScheduledLessonCard> {
+class _CurrentScheduledLessonCardState
+    extends State<CurrentScheduledLessonCard> {
   late Future<_CurrentLessonCardData?> _future;
 
   @override
@@ -180,6 +181,18 @@ class _CurrentScheduledLessonCardState extends State<CurrentScheduledLessonCard>
   Widget build(BuildContext context) => FutureBuilder<_CurrentLessonCardData?>(
     future: _future,
     builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return StatusPanel(
+          icon: Icons.error_outline,
+          title: 'ŞİMDİ / SONRAKİ DERS yüklenemedi',
+          message: 'Ders programı okunamadı. Lütfen yeniden deneyin.',
+          tone: StatusTone.error,
+          action: TextButton(
+            onPressed: () => setState(() => _future = _load()),
+            child: const Text('Tekrar dene'),
+          ),
+        );
+      }
       final data = snapshot.data;
       if (data == null) return const SizedBox.shrink();
       final scheme = Theme.of(context).colorScheme;
@@ -200,14 +213,16 @@ class _CurrentScheduledLessonCardState extends State<CurrentScheduledLessonCard>
       return Padding(
         padding: const EdgeInsets.only(bottom: AppSpacing.md),
         child: Card(
-          color: isCurrent ? scheme.primaryContainer : scheme.secondaryContainer,
+          color: isCurrent
+              ? scheme.primaryContainer
+              : scheme.secondaryContainer,
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isCurrent ? 'ŞİMDİKİ DERS' : 'SONRAKİ DERS',
+                  isCurrent ? 'ŞİMDİ' : 'SONRAKİ DERS',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: isCurrent
                         ? scheme.onPrimaryContainer
@@ -226,16 +241,14 @@ class _CurrentScheduledLessonCardState extends State<CurrentScheduledLessonCard>
                         children: [
                           Text(
                             className,
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w900,
-                            ),
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.w900),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             timeLabel,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(fontWeight: FontWeight.w700),
                           ),
                         ],
                       ),
@@ -254,9 +267,8 @@ class _CurrentScheduledLessonCardState extends State<CurrentScheduledLessonCard>
                           data.delta < 0
                               ? '${-data.delta} ders geride'
                               : '${data.delta} ders ileride',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                       ),
                   ],

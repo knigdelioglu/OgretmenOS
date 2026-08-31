@@ -333,7 +333,10 @@
     "1.0"
   ],
   "form_template_status_counts": {
-    "ready": 12,
-    "needs_review": 16
+    "ready": 27,
+    "needs_review": 1
+  },
+  "form_template_review_reasons": {
+    "FORM_BOB_11_GENEL_GOZLEM": "missing_source_structure"
   }
 }

@@ -68,6 +68,120 @@ class FormDefinition {
   final List<FormSection> sections;
   final Map<String, dynamic> provenance;
 
+  /// Returns structural issues that would make screen/PDF rendering unsafe.
+  ///
+  /// Parsing remains permissive so a newer runtime can still be inspected, but
+  /// callers must validate a template before treating it as renderable.
+  List<String> get validationErrors {
+    final errors = <String>[];
+    if (!supportedFormSchemaVersions.contains(schemaVersion)) {
+      errors.add('desteklenmeyen schema_version: $schemaVersion');
+    }
+    if (schemaVersion.trim().isEmpty) errors.add('schema_version boş');
+    if (title.trim().isEmpty) errors.add('title boş');
+    if (sections.isEmpty) errors.add('sections boş');
+    for (var sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+      final section = sections[sectionIndex];
+      if (section.elements.isEmpty) {
+        errors.add('section[$sectionIndex] boş');
+      }
+      for (
+        var elementIndex = 0;
+        elementIndex < section.elements.length;
+        elementIndex++
+      ) {
+        final element = section.elements[elementIndex];
+        final location = 'section[$sectionIndex].element[$elementIndex]';
+        switch (element) {
+          case HeadingFormElement value:
+            if (value.text.trim().isEmpty) errors.add('$location heading boş');
+          case ParagraphFormElement value:
+            if (value.text.trim().isEmpty) {
+              errors.add('$location paragraph boş');
+            }
+          case IdentityFieldsFormElement value:
+            if (value.fields.isEmpty) {
+              errors.add('$location identityFields boş');
+            }
+            if (value.fields.any((field) => field.label.trim().isEmpty)) {
+              errors.add('$location identityFields etiketi boş');
+            }
+          case FreeTextFormElement value:
+            if (value.lines < 1 || value.lines > 200) {
+              errors.add('$location freeText satır sayısı geçersiz');
+            }
+          case ChecklistFormElement value:
+            if (value.items.isEmpty ||
+                value.items.any((item) => item.trim().isEmpty)) {
+              errors.add('$location checklist maddeleri eksik');
+            }
+          case RatingScaleFormElement value:
+            final optionCount = value.displayOptions.length;
+            if (value.items.isEmpty ||
+                value.items.any((item) => item.trim().isEmpty) ||
+                value.min > value.max ||
+                value.max - value.min > 20 ||
+                optionCount != value.max - value.min + 1 ||
+                value.displayOptions.any((option) => option.trim().isEmpty)) {
+              errors.add(
+                '$location ratingScale aralığı veya maddeleri geçersiz',
+              );
+            }
+          case TableFormElement value:
+            if (value.columns.isEmpty ||
+                value.columns.any(
+                  (column) => column.label.trim().isEmpty || column.flex < 1,
+                )) {
+              errors.add('$location table sütunları eksik');
+            }
+            if (value.rows.any((row) => row.length != value.columns.length)) {
+              errors.add('$location table satır/sütun sayısı uyuşmuyor');
+            }
+          case RubricFormElement value:
+            if (value.levels.length < 2 ||
+                value.levels.any((level) => level.trim().isEmpty) ||
+                value.criteria.isEmpty ||
+                value.criteria.any(
+                  (criterion) =>
+                      criterion.label.trim().isEmpty ||
+                      criterion.descriptors.length != value.levels.length ||
+                      criterion.descriptors.any(
+                        (descriptor) => descriptor.trim().isEmpty,
+                      ),
+                )) {
+              errors.add('$location rubric düzey/descriptor yapısı geçersiz');
+            }
+          case NoteFormElement value:
+            if (value.text.trim().isEmpty) errors.add('$location note boş');
+          case SignatureFormElement value:
+            if (value.fields.isEmpty ||
+                value.fields.any((field) => field.trim().isEmpty)) {
+              errors.add('$location signature alanları eksik');
+            }
+          case SpacerFormElement value:
+            if (value.height < 1 || value.height > 1000) {
+              errors.add('$location spacer yüksekliği geçersiz');
+            }
+          case UnknownFormElement _:
+            // Both screen and PDF renderers expose an explicit fallback note.
+            // Keeping the template renderable prevents an unknown future
+            // element from becoming a blank form or a hard crash.
+            break;
+        }
+      }
+    }
+    return errors;
+  }
+
+  void validate() {
+    final errors = validationErrors;
+    if (errors.isNotEmpty) {
+      throw FormDefinitionException(
+        'Form render edilemez: ${errors.join('; ')}',
+      );
+    }
+  }
+
   Map<String, dynamic> toJson() => {
     'schema_version': schemaVersion,
     'title': title,
@@ -286,6 +400,8 @@ class RatingScaleFormElement extends FormElement {
 
   List<String> get displayOptions => options.isNotEmpty
       ? options
+      : (min > max || max - min > 100)
+      ? const []
       : [for (var value = min; value <= max; value++) '$value'];
 
   @override
@@ -366,6 +482,14 @@ class TableFormElement extends FormElement {
   final List<List<String>> rows;
   final bool header;
 
+  List<List<String>> get normalizedRows => [
+    for (final row in rows)
+      [
+        for (var index = 0; index < columns.length; index++)
+          index < row.length ? row[index] : '',
+      ],
+  ];
+
   @override
   String get type => 'table';
 
@@ -399,6 +523,11 @@ class RubricCriterion {
   final String label;
   final List<String> descriptors;
 
+  List<String> normalizedDescriptors(int levelCount) => [
+    for (var index = 0; index < levelCount; index++)
+      index < descriptors.length ? descriptors[index] : '',
+  ];
+
   Map<String, dynamic> toJson() => {'label': label, 'descriptors': descriptors};
 }
 
@@ -421,6 +550,11 @@ class RubricFormElement extends FormElement {
   final String? label;
   final List<String> levels;
   final List<RubricCriterion> criteria;
+
+  List<List<String>> get normalizedRows => [
+    for (final criterion in criteria)
+      [criterion.label, ...criterion.normalizedDescriptors(levels.length)],
+  ];
 
   @override
   String get type => 'rubric';

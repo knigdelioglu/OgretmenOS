@@ -60,12 +60,22 @@ class _IdentityFields extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (fields.isEmpty) return const SizedBox.shrink();
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final field in fields)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _LabeledLine(label: field.label),
+            ),
+        ],
+      );
+    }
     final children = fields
         .map(
-          (field) => ConstrainedBox(
-            constraints: BoxConstraints(minWidth: compact ? 180 : 220),
-            child: _LabeledLine(label: field.label),
-          ),
+          (field) =>
+              SizedBox(width: 240, child: _LabeledLine(label: field.label)),
         )
         .toList(growable: false);
     return Wrap(spacing: 20, runSpacing: 14, children: children);
@@ -79,8 +89,15 @@ class _LabeledLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w600)),
+      Flexible(
+        child: Text(
+          '$label: ',
+          softWrap: true,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
       const Expanded(child: Divider(color: Colors.black54)),
     ],
   );
@@ -246,11 +263,14 @@ class _DocumentTable extends StatelessWidget {
     if (element.columns.isEmpty) {
       return const _Note(text: 'Bu tablonun sütun bilgisi bulunmuyor.');
     }
+    if (element.normalizedRows.isEmpty && !element.header) {
+      return const _Note(text: 'Bu tabloda gösterilecek satır bulunmuyor.');
+    }
     if (compact) {
       return _CompactRows(
         label: element.label,
         columns: element.columns.map((column) => column.label).toList(),
-        rows: element.rows,
+        rows: element.normalizedRows,
       );
     }
     return _TableFrame(
@@ -274,7 +294,7 @@ class _DocumentTable extends StatelessWidget {
                   ),
               ],
             ),
-          for (final row in element.rows)
+          for (final row in element.normalizedRows)
             TableRow(
               children: [
                 for (var i = 0; i < element.columns.length; i++)
@@ -303,9 +323,7 @@ class _Rubric extends StatelessWidget {
     if (element.criteria.isEmpty || element.levels.isEmpty) {
       return const _Note(text: 'Bu rubriğin ölçüt veya düzey bilgisi eksik.');
     }
-    final rows = element.criteria
-        .map((criterion) => [criterion.label, ...criterion.descriptors])
-        .toList(growable: false);
+    final rows = element.normalizedRows;
     final columns = ['Ölçüt', ...element.levels];
     if (compact) {
       return _CompactRows(label: element.label, columns: columns, rows: rows);
@@ -368,23 +386,24 @@ class _CompactRows extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (var i = 0; i < columns.length; i++)
-                  if (i < rows[rowIndex].length && rows[rowIndex][i].isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text: '${columns[i]}: ',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            TextSpan(text: rows[rowIndex][i]),
-                          ],
-                        ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '${columns[i]}: ',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          TextSpan(
+                            text: rows[rowIndex][i].isEmpty
+                                ? '—'
+                                : rows[rowIndex][i],
+                          ),
+                        ],
                       ),
                     ),
+                  ),
               ],
             ),
           ),
@@ -456,13 +475,11 @@ class _Signatures extends StatelessWidget {
   final bool compact;
 
   @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 24,
-    runSpacing: 20,
-    children: [
+  Widget build(BuildContext context) {
+    final children = [
       for (final field in fields)
         SizedBox(
-          width: compact ? 180 : 220,
+          width: compact ? double.infinity : 220,
           child: Column(
             children: [
               const SizedBox(height: 36),
@@ -471,6 +488,12 @@ class _Signatures extends StatelessWidget {
             ],
           ),
         ),
-    ],
-  );
+    ];
+    return compact
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children,
+          )
+        : Wrap(spacing: 24, runSpacing: 20, children: children);
+  }
 }

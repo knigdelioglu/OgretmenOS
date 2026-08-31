@@ -79,15 +79,22 @@ class TeachingCourseContextService {
     final periodByNumber = {
       for (final period in periods) period.periodNumber: period,
     };
-    var exceptions = plan.scheduleExceptions;
+    var exceptions = plan.scheduleExceptions
+        .where(
+          (exception) => exception.appliesToAcademicYear(plan.academicYear),
+        )
+        .toList(growable: false);
     final exceptionRepository = scheduleExceptions;
     if (exceptionRepository != null) {
       final stored = await exceptionRepository.getForAcademicYear(
         plan.academicYear,
       );
-      if (stored.isNotEmpty) {
-        exceptions = List.unmodifiable([...exceptions, ...stored]);
-      }
+      exceptions = List.unmodifiable([
+        ...exceptions,
+        ...stored.where(
+          (exception) => exception.appliesToAcademicYear(plan.academicYear),
+        ),
+      ]);
     }
 
     final today = DateTime(

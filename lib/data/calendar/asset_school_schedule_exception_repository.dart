@@ -38,7 +38,10 @@ class AssetSchoolScheduleExceptionRepository
   }
 
   Future<List<SchoolScheduleException>> _load(String academicYear) async {
-    final index = _decodeMap(await _bundle.loadString(_indexAsset), _indexAsset);
+    final index = _decodeMap(
+      await _bundle.loadString(_indexAsset),
+      _indexAsset,
+    );
     final calendars = _list(index['calendars']);
     Map<String, dynamic>? selected;
     for (final raw in calendars) {
@@ -63,10 +66,7 @@ class AssetSchoolScheduleExceptionRepository
         throw StateError('Tekrarlanan schedule exception id: $id');
       }
       final date = _date(item['date'], 'schedule_exceptions[].date');
-      final label = _requiredText(
-        item['label'],
-        'schedule_exceptions[].label',
-      );
+      final label = _requiredText(item['label'], 'schedule_exceptions[].label');
       final startMinute = _optionalMinute(
         item['start_minute'],
         fallback: 0,
@@ -92,6 +92,7 @@ class AssetSchoolScheduleExceptionRepository
           id: id,
           date: date,
           label: label,
+          academicYear: academicYear,
           startMinute: startMinute,
           endMinute: endMinute,
         ),

@@ -4,5 +4,6 @@ CREATE TABLE form_templates (
   template_json TEXT NOT NULL,
   instructions TEXT,
   render_status TEXT NOT NULL CHECK (render_status IN ('ready', 'needs_review')),
-  provenance_json TEXT NOT NULL DEFAULT '{}'
+  provenance_json TEXT NOT NULL DEFAULT '{}',
+  review_reason TEXT
 );

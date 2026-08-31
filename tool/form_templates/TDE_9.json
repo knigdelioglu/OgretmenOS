@@ -1,0 +1,262 @@
+{
+  "schema_version": "1.0",
+  "course_id": "TDE_9",
+  "source_basis": "Resmî TDE 9 ders kitabındaki basılı form ve soru seti sayfaları",
+  "templates": {
+    "FORM_IN_T1_YAZMA_CRITERIA": {
+      "kind": "table",
+      "label": "Dörtlükleri betimleme tablosu",
+      "identity_fields": ["Adı Soyadı", "Sınıfı", "Numarası", "Tarih"],
+      "columns": [
+        {"label": "Dörtlük", "flex": 1},
+        {"label": "Dörtlüğü betimlerken değineceğiniz duygu ve düşünceler", "flex": 4},
+        {"label": "Dörtlükte değineceğiniz değerler", "flex": 3}
+      ],
+      "rows": [["1", "", ""], ["2", "", ""], ["3", "", ""], ["4", "", ""], ["5", "", ""], ["6", "", ""]],
+      "extra_elements": [
+        {"type": "freeText", "label": "Dörtlüklerin düzyazıya çevrilmiş şekilleri ile San’at adlı şiirin dörtlüklerini anlatım özellikleri bakımından karşılaştırınız.", "lines": 8}
+      ],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_9 ders kitabı s.54"}
+    },
+    "FORM_IN_T1_KONUSMA_CRITERIA": {
+      "kind": "table",
+      "label": "Konuşma değerlendirme ölçütleri",
+      "identity_fields": ["Adı Soyadı", "Sınıfı", "Numarası", "Tarih"],
+      "columns": [{"label": "Ölçüt", "flex": 2}, {"label": "Açıklama", "flex": 6}],
+      "rows": [
+        ["Planlama", "Konuşmaya etkili bir giriş yapma, konuşmayı sürdürme ve etkili bir şekilde tamamlama."],
+        ["Düşünsel Süreçleri Kontrol Etme", "Şapkanın simgelediği görüşe uygun örnekler sunma; düşünceleri konuşmanın ana fikri etrafında ifade etme; fikirleri tekrara düşmeden sunma."],
+        ["Söz Varlığı", "Bağlama uygun zengin bir kelime hazinesi kullanma; dilimize henüz yerleşmemiş yabancı kelimelerin yerine Türkçe kelimeleri kullanma."],
+        ["Organizasyon", "Duygu ve düşünceleri tutarlı bir biçimde organize etme."],
+        ["Akıcılık", "İşitilebilir bir ses tonuyla, gereksiz ses tekrarına düşmeden akıcı konuşma; vurgu ve tonlamaya dikkat etme."],
+        ["Beden Dili", "Jest ve mimikleri etkili kullanma ve dinleyicilerle yeterli göz teması kurma."],
+        ["İş Birliği", "Takımda yapılan görev paylaşımı doğrultusunda seçilen şapkanın temsil ettiği görevi yerine getirme."],
+        ["Zaman Yönetimi", "Konuşmada süreyi etkin bir şekilde kullanma."]
+      ],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_9 ders kitabı s.65"}
+    },
+    "FORM_IN_T1_TEMA_SONU_TEST": {
+      "kind": "prompts",
+      "prompts": [
+        "1. Uzun İnce Bir Yoldayım türküsünün sizde uyandırdığı çağrışımları yazınız.",
+        "2. Türküde yer alan açık ve örtük iletileri yazınız.",
+        "3. ‘İki kapılı bir han’ imgesinin anlamını açıklayınız; türküde yer alan iki imgenin kazandığı anlamı yazınız.",
+        "4. Türkünün en beğendiğiniz bölümlerini gerekçeleriyle yazınız.",
+        "5. Ahmet Haşim’in şiirine hâkim olan duyguyu yazınız.",
+        "6. Ahmet Haşim’in şiirine koymak istediğiniz başlığı yazınız.",
+        "7. Verilen şiirlerde imge, edebî söyleyiş, konuşma dili, açık ileti, gerçek anlam ve teşbih özelliklerini taşıyan şiirleri belirleyiniz.",
+        "8. İsmail Çetişli’nin edebiyatın sanat oluşuna ilişkin metni yazma amacını yazınız.",
+        "9. Mehmet Emin Yurdakul’un şiiri ile İsmail Çetişli’nin edebiyat görüşleri arasındaki ilişkiyi gerekçeleriyle açıklayınız.",
+        "10. Verilen infografiğin sizde uyandırdığı duyguları dile getiren edebî veya öğretici bir metin yazınız. Metin türünüzü belirtiniz."
+      ],
+      "lines": [4, 4, 6, 4, 3, 3, 5, 4, 5, 12],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_9 ders kitabı s.67-70"}
+    },
+    "FORM_IN_T2_KONUSMA_CRITERIA": {
+      "kind": "table",
+      "label": "Karakter sunumu değerlendirme ölçütleri",
+      "identity_fields": ["Adı Soyadı", "Sınıfı", "Numarası", "Tarih"],
+      "columns": [{"label": "Ölçüt", "flex": 2}, {"label": "Açıklama", "flex": 6}],
+      "rows": [
+        ["Planlama", "Sunuma etkili bir giriş yapma, konuşmayı sürdürme ve etkili bir şekilde tamamlama; sunumu planlama ve plana uygun gerçekleştirme."],
+        ["Düşünsel Süreçleri Kontrol Etme", "Sunumu amaca uygun örneklerle destekleme; karakterin fiziksel ve ruhsal özelliklerini tutarlı kurgulama; karakteri tekrara düşmeden kurgulama."],
+        ["Söz Varlığı", "Görüşleri destekleyen bağlama uygun sözcükler kullanma; yabancı kelimelerin yerine Türkçe kelimeleri kullanma."],
+        ["Akıcılık", "İşitilebilir ses tonuyla, gereksiz ses tekrarına düşmeden ve vurgu-tonlamaya dikkat ederek sunma."],
+        ["Beden Dili", "Jest ve mimikleri etkili kullanma, dinleyicilerle yeterli göz teması kurma."],
+        ["İş Birliği", "Sunumda görüşleri destekleyen sözcükleri kullanma ve takım içindeki sorumluluğu yerine getirme."],
+        ["Zaman Yönetimi", "Süreyi etkili kullanarak sunumu gerçekleştirme."],
+        ["İçerik Kurgusu", "Açık ve örtük iletilere yer verme; karakteri millî ve manevî değerlerle zenginleştirme; karşılaştırma, betimleme ve benzetmeden yararlanma; dil bilgisi kurallarına uyma."]
+      ],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_9 ders kitabı s.127"}
+    },
+    "FORM_IN_T2_YAZMA_CRITERIA": {
+      "kind": "table",
+      "label": "Şiir yazma değerlendirme ölçütleri",
+      "identity_fields": ["Adı Soyadı", "Sınıfı", "Numarası", "Tarih"],
+      "columns": [{"label": "Ölçüt", "flex": 2}, {"label": "Açıklama", "flex": 6}],
+      "rows": [
+        ["Planlama", "Yazılı ürünü bir plan doğrultusunda oluşturma."],
+        ["Temaya Uygunluk", "Yazılı üründe dinlediği şiirin temasına uygun duyguları yansıtma."],
+        ["İmge ve Çağrışım Kullanımı", "Yazılı ürünün anlamını zenginleştiren imgelerden yararlanma; kelimeleri okurda çağrışım uyandıracak şekilde kullanma."],
+        ["Açık ve Örtük İletiler", "Temaya uygun açık ve örtük iletilerle ana duyguyu yansıtma."],
+        ["Söz Varlığı", "Bağlama uygun sözcüklerle ürünü zenginleştirme; Türkçe karşılıkları kullanma."],
+        ["Ritim ve Ahenk", "Ses tekrarları ve ses benzerlikleriyle, dizelerdeki hece eşitliğiyle ritim ve ahenk oluşturma."],
+        ["Akıcılık", "Bölümler arası geçişleri başarıyla yaparak ürünün kolay okunmasını sağlama."],
+        ["Şiirin Sunumu", "Şiiri doğru telaffuz ederek, vurgu-tonlamaya ve beden diline dikkat ederek sunma."]
+      ],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_9 ders kitabı s.141"}
+    },
+    "FORM_IN_T2_TEMA_SONU_TEST": {
+      "kind": "prompts",
+      "prompts": [
+        "1. Mithat Cemal Kuntay’ın Söz Namustur adlı anıyı yazma amacını yazınız.",
+        "2. Anıdaki ifadeden hareketle Mehmet Akif Ersoy’un kişilik özellikleriyle ilgili çıkarımlarınızı yazınız.",
+        "3. Anıda yer alan açık ve örtük iletileri yazınız.",
+        "4. Anının ana fikrini yazınız.",
+        "5. Mithat Cemal Kuntay’ın duygusal durumundaki değişimleri ve bu değişimlerin ana fikre etkisini değerlendiriniz.",
+        "6. Veda adlı iki şiirin sizde uyandırdığı duyguları yazınız.",
+        "7. Aynı ad, tema ve şekil özelliklerine rağmen iki şiiri farklı kılan özellikleri yazınız.",
+        "8. Beğendiğiniz Veda şiirini seçip gerekçenizi yazınız.",
+        "9. Bizans Definesi metninin olay örgüsü, kişi, zaman ve mekân özelliklerini inceleyiniz.",
+        "10. Gönül Hanım adlı romanın teması ve konusunu yazınız.",
+        "11. Gönül Hanım’ın karakter özelliklerini ve bu özelliklerin romana etkisini açıklayınız."
+      ],
+      "lines": [4, 5, 4, 4, 6, 4, 5, 4, 7, 4, 6],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_9 ders kitabı s.143-149"}
+    },
+    "FORM_IN_T2_OGRENME_GUNLUGU": {
+      "kind": "prompts",
+      "prompts": [
+        "Bu temada öğrendiğiniz en ilginç bilgi neydi?",
+        "Bu temada öğrendiğiniz hangi bilgileri günlük hayatınızda kullanabilirsiniz?",
+        "Hangi konu hakkında daha fazla bilgi edinmek isterdiniz?",
+        "Anlam Arayışı temasına başlarken sahip olduğunuz duygu ve düşüncelerle tema sonundaki duygu ve düşünceleriniz arasında ne gibi değişiklikler oldu?"
+      ],
+      "lines": [5, 5, 5, 7],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_9 ders kitabı s.149"}
+    },
+    "FORM_IN_T3_KONUSMA_CRITERIA": {
+      "kind": "table",
+      "label": "Mekân sunumu değerlendirme ölçütleri",
+      "identity_fields": ["Adı Soyadı", "Sınıfı", "Numarası", "Tarih"],
+      "columns": [{"label": "Ölçüt", "flex": 2}, {"label": "Açıklama", "flex": 6}],
+      "rows": [
+        ["Organizasyon", "Sunuma etkili bir giriş yaparak sunumu sürdürme ve etkili biçimde tamamlama."],
+        ["İçerik", "Seçilen hikâyenin mekânını başarılı yansıtma; hikâye mekânını kendi çevresiyle yeniden kurgulama; düşünceleri ana fikir etrafında ifade etme; anlatım bozukluğundan kaçınma."],
+        ["Bilgi Toplama", "Sunumu bağlama uygun görsel ve işitsel araçlarla zenginleştirme; güvenilir bilgi kaynaklarından yararlanma ve fikrî mülkiyet haklarına dikkat etme."],
+        ["Söz Varlığı", "Bağlama uygun sözcüklerle sunumu zenginleştirme; Türkçe karşılıkları kullanma."],
+        ["Akıcılık ve Anlatım", "İşitilebilir ses tonuyla, gereksiz tekrar olmadan, vurgu ve tonlamaya dikkat ederek sunma."],
+        ["Beden Dili", "Jest ve mimikleri etkili kullanma ve dinleyicilerle yeterli göz teması kurma."],
+        ["Slayt Gösterisi", "Slaytı görsel ve işitsel araçlarla zenginleştirme; kısa ve anlamlı ifadeler, gözü yormayan arka plan, yazı karakteri ve renkler kullanma."],
+        ["Zaman Yönetimi", "Sunumda süreyi etkin bir şekilde kullanma."]
+      ],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_9 ders kitabı s.195"}
+    },
+    "FORM_IN_T3_YAZMA_CRITERIA": {
+      "kind": "table",
+      "label": "İnfografik değerlendirme ölçütleri",
+      "identity_fields": ["Adı Soyadı", "Sınıfı", "Numarası", "Tarih"],
+      "columns": [{"label": "Ölçüt", "flex": 2}, {"label": "Açıklama", "flex": 6}],
+      "rows": [
+        ["Organizasyon", "İnfografik metinde bilgileri etkili bir şekilde düzenleme."],
+        ["İçerik", "Belgeselin içeriğini infografik metinde doğru ve tam olarak yansıtma."],
+        ["Bilgi Toplama", "Belgeselde verilen bilgileri araştırma sonuçlarıyla zenginleştirme."],
+        ["Söz Varlığı", "Deyim, atasözü ve kalıplaşmış ifadelerden yararlanarak anlatımı zenginleştirme."],
+        ["Görsel Kullanımı", "İnfografik metni görsellerle zenginleştirme."],
+        ["Yazım ve Noktalama", "Yazım ve noktalama kurallarına uyma."],
+        ["Özgünlük ve Güvenilirlik", "Güvenilir kaynaklardan yararlanma ve kendi yorumunu katarak özgün içerik oluşturma."],
+        ["Üslup", "Belgesel metnin üslubunu koruma; benzetme, karşılaştırma ve örneklemeden yararlanma."]
+      ],
+      "extra_elements": [
+        {"type": "freeText", "label": "Nevruz adlı belgeseldeki bilgileri, hazırlıkları ve kutlamaları hatırlayarak infografik metninizi yazınız.", "lines": 12}
+      ],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_9 ders kitabı s.205-206"}
+    },
+    "FORM_IN_T3_TEMA_SONU_TEST": {
+      "kind": "prompts",
+      "prompts": [
+        "1. Karanlıksız adlı hikâyedeki karakterlerin özelliklerini yazınız.",
+        "2. Hikâyedeki ana karakterin dikkat çeken özelliğini yazınız.",
+        "3. Hikâyedeki yardımcı karakter hakkındaki düşüncelerinizi yazınız.",
+        "4. Hikâyedeki çatışmayı yazınız.",
+        "5. Karakter özelliklerinin çatışma unsurlarını nasıl şekillendirdiğini gerekçeleriyle yazınız.",
+        "6. Hikâyenin konusu, yer ve zaman özelliklerini nasıl etkilemiştir? Yazınız.",
+        "7. Hikâyenin temasını yazınız.",
+        "8. Hikâyenin çözüm bölümünü siz olsaydınız nasıl kurgulardınız? Yazınız.",
+        "9. Verilen hikâye bölümlerini bakış açısı, anlatıcı, zaman ve mekân bakımından öğrencilerle eşleştirip tabloyu doldurunuz.",
+        "10. Demir’in okuduğu hikâye parçasına kişiler arası çatışma ekleyerek yeniden yazınız.",
+        "11. Nerdesin şiirinin temasını ve şairin ruh hâlini açıklayınız.",
+        "12. Nerdesin kelimesinin tekrarının şiirin anlamına katkısını yazınız.",
+        "13. Şiirin nazım birimi, ölçü, redif, kafiye türü ve kafiye düzenini yazınız.",
+        "14. Tema, yapı ve ahenk unsurlarını koruyarak şiire üçüncü bir dörtlük yazınız.",
+        "15. Üvercinka şiirindeki imge ve çağrışımları açıklayınız.",
+        "16. Üvercinka şiirini inceleyen eleştirmenin görüşünü desteklemek için metindeki hangi ifadelerden yararlanılabileceğini yazınız.",
+        "17. Cenap Şahabettin’in İskenderiye’den adlı metni yazma amacını söyleyiniz.",
+        "18. Gezi yazılarında yazarın kendi deneyimlerinden söz ettiği görüşünün metinle desteklenip desteklenmediğini gerekçelendiriniz.",
+        "19. Üvercinka şiirinin şairi ile İskenderiye’den metninin yazarının Afrika kıtasına ilişkin aktarımlarını neden farklı edebî türlerle yazdıklarını gerekçelendiriniz."
+      ],
+      "lines": [4, 4, 4, 3, 5, 5, 3, 6, 7, 8, 4, 4, 5, 8, 6, 6, 4, 5, 6],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_9 ders kitabı s.207-210"}
+    },
+    "FORM_IN_T3_OGRENME_GUNLUGU": {
+      "kind": "prompts",
+      "prompts": [
+        "Bu temada öğrendiğiniz en ilginç bilgi neydi?",
+        "Hangi konu hakkında daha fazla bilgi edinmek isterdiniz?",
+        "Bu temada öğrendiğiniz hangi bilgileri günlük hayatınızda kullanabilirsiniz?",
+        "Anlamın Yapı Taşları temasına başlarken sahip olduğunuz duygu ve düşüncelerle tema sonundaki duygu ve düşünceleriniz arasında ne gibi değişiklikler oldu?"
+      ],
+      "lines": [5, 5, 5, 7],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_9 ders kitabı s.211"}
+    },
+    "FORM_IN_T4_KONUSMA_CRITERIA": {
+      "kind": "table",
+      "label": "Dilimizin Zenginlikleri sunumu değerlendirme ölçütleri",
+      "identity_fields": ["Adı Soyadı", "Sınıfı", "Numarası", "Tarih"],
+      "columns": [{"label": "Ölçüt", "flex": 2}, {"label": "Açıklama", "flex": 6}],
+      "rows": [
+        ["Planlama", "Sunuma etkili bir giriş yapma, konuşmayı sürdürme ve etkili biçimde tamamlama."],
+        ["Düşünsel Süreçleri Kontrol Etme", "Sosyal medya dilindeki hatalara uygun örnekler verme; düşünceleri ana fikir etrafında ve tekrara düşmeden sunma."],
+        ["Söz Varlığı", "Görüşleri destekleyen bağlama uygun sözcükler ve Türkçe karşılıklar kullanma."],
+        ["Akıcılık", "İşitilebilir ses tonuyla, gereksiz ses tekrarı olmadan, vurgu ve tonlamaya dikkat ederek sunma."],
+        ["Beden Dili", "Jest ve mimikleri etkili kullanma, dinleyicilerle yeterli düzeyde göz teması kurma."],
+        ["İş Birliği", "Sunumda takım içindeki sorumluluğu yerine getirme."],
+        ["Zaman Yönetimi", "Sunumda süreyi etkili ve verimli bir şekilde kullanma."]
+      ],
+      "extra_elements": [{"type": "freeText", "label": "Dilin Zenginliği temasında edindiğiniz bilgileri ve üsluba ilişkin çıkarımlarınızı yazınız.", "lines": 8}],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_9 ders kitabı s.279-280"}
+    },
+    "FORM_IN_T4_YAZMA_CRITERIA": {
+      "kind": "table",
+      "label": "Otobiyografi yazma değerlendirme ölçütleri",
+      "identity_fields": ["Adı Soyadı", "Sınıfı", "Numarası", "Tarih"],
+      "columns": [{"label": "Ölçüt", "flex": 2}, {"label": "Açıklama", "flex": 6}],
+      "rows": [
+        ["Planlama", "Yazılı ürüne etkili bir giriş yapma, yazıyı sürdürme ve etkili bir şekilde tamamlama."],
+        ["Düşünsel Süreçleri Kontrol Etme", "Otobiyografide yer alan olayları akışına uygun ifade etme; yazılı ürünü tekrara düşmeden tamamlama."],
+        ["Söz Varlığı", "Görüşleri destekleyen bağlama uygun sözcükleri ve Türkçe kelimeleri kullanma."],
+        ["Akıcılık", "Bölümler arası geçişleri başarıyla yaparak yazılı ürünün kolay okunmasını sağlama."],
+        ["Yazım ve Noktalama", "Yazım kurallarına uyma ve noktalama işaretlerini kullanma."]
+      ],
+      "extra_elements": [
+        {"type": "freeText", "label": "Biyografilerin ortak özelliklerini yazınız.", "lines": 5},
+        {"type": "freeText", "label": "Otobiyografinizde yer vermek istediğiniz bilgileri sıralayınız.", "lines": 5},
+        {"type": "freeText", "label": "Sizin için önemli olan bilgileri 3. kişi anlatıcısıyla yeniden yazınız.", "lines": 8}
+      ],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_9 ders kitabı s.294-295"}
+    },
+    "FORM_IN_T4_TEMA_SONU_TEST": {
+      "kind": "prompts",
+      "prompts": [
+        "1. Edmond Dantès ile ilgili anlatılan bilgileri söyleyiniz.",
+        "2. Edmond Dantès’in Monte Cristo Kontu olması hayatını nasıl değiştirmiştir? Örneklerle yazınız.",
+        "3. If Şatosu’na geri dönmesinin gerekçelerini açıklayınız.",
+        "4. Geçmişte kendisine yapılanları ortaya çıkarmak istemesinin nedenlerini açıklayınız.",
+        "5. Olayların geçtiği zaman ve mekânın özelliklerini yazınız.",
+        "6. Edmond Dantès’in mekânlarla kurduğu duygusal bağların yaşam serüvenindeki rolünü açıklayınız.",
+        "7. Kullanılan bakış açısını ve bunun nesnellik/okur yorumu üzerindeki katkısını yazınız.",
+        "8. Gönül Hanım romanının temasını ve konusunu yazınız.",
+        "9. Yazarın Gönül Hanım romanını yazma amacını seçenekler arasından gerekçelendirerek belirleyiniz.",
+        "10. Okunan bölümün romanın serim, düğüm veya çözüm bölümünden hangisi olduğunu gerekçelendiriniz.",
+        "11. Roman özeti ile bölümünü dil ve anlatım, üslup ve yazılış amacı bakımından karşılaştırınız.",
+        "12. Hangi metnin daha etkileyici olduğuna karar verip gerekçenizi yazınız.",
+        "13. Gönül Hanım’ın karakter özelliklerini yazınız.",
+        "14. Gönül Hanım’ın karakter özelliklerinin olayların akışına ve diğer karakterlere etkisini açıklayınız.",
+        "15. Gönül Hanım’ın karakter özelliklerinin Türk tarihi ve kültürü hakkındaki görüşlerinize etkisini yazınız."
+      ],
+      "lines": [4, 5, 5, 5, 4, 5, 5, 4, 5, 5, 8, 5, 6, 6, 6],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_9 ders kitabı s.296-301"}
+    },
+    "FORM_IN_T4_OGRENME_GUNLUGU": {
+      "kind": "prompts",
+      "prompts": [
+        "Bu temada öğrendiğiniz en ilginç bilgi neydi?",
+        "Bu temada öğrendiğiniz hangi bilgileri günlük hayatınızda kullanabilirsiniz?",
+        "Hangi konu hakkında daha fazla bilgi edinmek isterdiniz?",
+        "Dilin Zenginliği temasına başlarken sahip olduğunuz duygu ve düşüncelerle tema sonundaki duygu ve düşünceleriniz arasında ne gibi değişiklikler oldu?"
+      ],
+      "lines": [5, 5, 5, 7],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_9 ders kitabı s.302"}
+    }
+  }
+}

@@ -8,72 +8,156 @@ import 'package:ogretmen_os/domain/services/teaching_course_context_service.dart
 
 void main() {
   group('schedule exceptions', () {
-    test('full-day exception removes the lesson from assignment ordinal', () async {
-      final repository = MemoryInstructionContextRepository();
-      final now = DateTime(2026, 10, 29, 8, 20);
-      await _seedSingleAssignment(
-        repository,
-        courseId: 'TDE_9',
-        assignmentId: 'a9',
-        classId: 'c9',
-        slots: const [
-          (DateTime.monday, 1),
-          (DateTime.tuesday, 1),
-          (DateTime.wednesday, 1),
-          (DateTime.thursday, 1),
-          (DateTime.friday, 1),
-        ],
-        periods: const [BellPeriod(periodNumber: 1, startMinute: 480, endMinute: 520)],
-      );
-      final plan = _plan(
-        courseId: 'TDE_9',
-        start: DateTime(2026, 10, 26),
-        end: DateTime(2026, 10, 30),
-      );
-      final timeline = AssignmentLessonTimelineService(
-        instructionContext: repository,
-        weeklyPlanning: _FixedWeeklyPlanningService(plan),
-        scheduleExceptions: MemorySchoolScheduleExceptionRepository([
-          SchoolScheduleException(
-            id: 'republic-day',
-            date: DateTime(2026, 10, 29),
-            label: 'Cumhuriyet Bayramı',
-          ),
-        ]),
-      );
+    test('exception repository akademik yıl kapsamını korur', () async {
+      final repository = MemorySchoolScheduleExceptionRepository([
+        SchoolScheduleException(
+          id: 'current-year',
+          academicYear: '2026-2027',
+          date: DateTime(2026, 10, 29),
+          label: 'Bu yıl',
+        ),
+        SchoolScheduleException(
+          id: 'next-year',
+          academicYear: '2027-2028',
+          date: DateTime(2027, 10, 29),
+          label: 'Sonraki yıl',
+        ),
+      ]);
 
-      final snapshot = await timeline.resolve(
-        academicYear: _academicYear,
-        courseId: 'TDE_9',
-        now: now,
+      expect(
+        (await repository.getForAcademicYear(
+          '2026-2027',
+        )).map((item) => item.id),
+        ['current-year'],
       );
-      final position = snapshot.positionFor('a9');
-
-      expect(snapshot.currentOccurrence, isNull);
-      expect(position, isNotNull);
-      expect(position!.plannedOrdinal, 3);
-      expect(position.previousOccurrence?.date, DateTime(2026, 10, 28));
-      expect(position.nextOccurrence?.date, DateTime(2026, 10, 30));
-      expect(position.nextOccurrence?.plannedOrdinal, 4);
+      expect(
+        (await repository.getForAcademicYear(
+          '2027-2028',
+        )).map((item) => item.id),
+        ['next-year'],
+      );
     });
 
-    test('partial-day exception cancels only overlapping bell periods', () async {
+    test(
+      'full-day exception removes the lesson from assignment ordinal',
+      () async {
+        final repository = MemoryInstructionContextRepository();
+        final now = DateTime(2026, 10, 29, 8, 20);
+        await _seedSingleAssignment(
+          repository,
+          courseId: 'TDE_9',
+          assignmentId: 'a9',
+          classId: 'c9',
+          slots: const [
+            (DateTime.monday, 1),
+            (DateTime.tuesday, 1),
+            (DateTime.wednesday, 1),
+            (DateTime.thursday, 1),
+            (DateTime.friday, 1),
+          ],
+          periods: const [
+            BellPeriod(periodNumber: 1, startMinute: 480, endMinute: 520),
+          ],
+        );
+        final plan = _plan(
+          courseId: 'TDE_9',
+          start: DateTime(2026, 10, 26),
+          end: DateTime(2026, 10, 30),
+        );
+        final timeline = AssignmentLessonTimelineService(
+          instructionContext: repository,
+          weeklyPlanning: _FixedWeeklyPlanningService(plan),
+          scheduleExceptions: MemorySchoolScheduleExceptionRepository([
+            SchoolScheduleException(
+              id: 'republic-day',
+              date: DateTime(2026, 10, 29),
+              label: 'Cumhuriyet Bayramı',
+            ),
+          ]),
+        );
+
+        final snapshot = await timeline.resolve(
+          academicYear: _academicYear,
+          courseId: 'TDE_9',
+          now: now,
+        );
+        final position = snapshot.positionFor('a9');
+
+        expect(snapshot.currentOccurrence, isNull);
+        expect(position, isNotNull);
+        expect(position!.plannedOrdinal, 3);
+        expect(position.previousOccurrence?.date, DateTime(2026, 10, 28));
+        expect(position.nextOccurrence?.date, DateTime(2026, 10, 30));
+        expect(position.nextOccurrence?.plannedOrdinal, 4);
+      },
+    );
+
+    test(
+      'partial-day exception cancels only overlapping bell periods',
+      () async {
+        final repository = MemoryInstructionContextRepository();
+        await _seedSingleAssignment(
+          repository,
+          courseId: 'TDE_9',
+          assignmentId: 'a9',
+          classId: 'c9',
+          slots: const [
+            (DateTime.monday, 1),
+            (DateTime.tuesday, 1),
+            (DateTime.wednesday, 1),
+            (DateTime.wednesday, 2),
+            (DateTime.friday, 1),
+          ],
+          periods: const [
+            BellPeriod(periodNumber: 1, startMinute: 540, endMinute: 580),
+            BellPeriod(periodNumber: 2, startMinute: 810, endMinute: 850),
+          ],
+        );
+        final timeline = AssignmentLessonTimelineService(
+          instructionContext: repository,
+          weeklyPlanning: _FixedWeeklyPlanningService(
+            _plan(
+              courseId: 'TDE_9',
+              start: DateTime(2026, 10, 26),
+              end: DateTime(2026, 10, 30),
+            ),
+          ),
+          scheduleExceptions: MemorySchoolScheduleExceptionRepository([
+            SchoolScheduleException(
+              id: 'republic-day-eve',
+              date: DateTime(2026, 10, 28),
+              label: 'Cumhuriyet Bayramı arifesi',
+              startMinute: 13 * 60,
+              endMinute: 24 * 60,
+            ),
+          ]),
+        );
+
+        final snapshot = await timeline.resolve(
+          academicYear: _academicYear,
+          courseId: 'TDE_9',
+          now: DateTime(2026, 10, 28, 13, 40),
+        );
+        final position = snapshot.positionFor('a9')!;
+
+        expect(snapshot.currentOccurrence, isNull);
+        expect(position.plannedOrdinal, 3);
+        expect(position.previousOccurrence?.period.periodNumber, 1);
+        expect(position.nextOccurrence?.date, DateTime(2026, 10, 30));
+        expect(position.nextOccurrence?.plannedOrdinal, 4);
+      },
+    );
+
+    test('başka akademik yıl istisnası mevcut planı iptal etmez', () async {
       final repository = MemoryInstructionContextRepository();
       await _seedSingleAssignment(
         repository,
         courseId: 'TDE_9',
         assignmentId: 'a9',
         classId: 'c9',
-        slots: const [
-          (DateTime.monday, 1),
-          (DateTime.tuesday, 1),
-          (DateTime.wednesday, 1),
-          (DateTime.wednesday, 2),
-          (DateTime.friday, 1),
-        ],
+        slots: const [(DateTime.wednesday, 1)],
         periods: const [
-          BellPeriod(periodNumber: 1, startMinute: 540, endMinute: 580),
-          BellPeriod(periodNumber: 2, startMinute: 810, endMinute: 850),
+          BellPeriod(periodNumber: 1, startMinute: 480, endMinute: 520),
         ],
       );
       final timeline = AssignmentLessonTimelineService(
@@ -83,89 +167,90 @@ void main() {
             courseId: 'TDE_9',
             start: DateTime(2026, 10, 26),
             end: DateTime(2026, 10, 30),
+            scheduleExceptions: [
+              SchoolScheduleException(
+                id: 'next-year',
+                academicYear: '2027-2028',
+                date: DateTime(2026, 10, 28),
+                label: 'Başka yıl',
+              ),
+            ],
           ),
         ),
-        scheduleExceptions: MemorySchoolScheduleExceptionRepository([
-          SchoolScheduleException(
-            id: 'republic-day-eve',
-            date: DateTime(2026, 10, 28),
-            label: 'Cumhuriyet Bayramı arifesi',
-            startMinute: 13 * 60,
-            endMinute: 24 * 60,
-          ),
-        ]),
       );
 
       final snapshot = await timeline.resolve(
         academicYear: _academicYear,
         courseId: 'TDE_9',
-        now: DateTime(2026, 10, 28, 13, 40),
+        now: DateTime(2026, 10, 28, 8, 10),
       );
-      final position = snapshot.positionFor('a9')!;
 
-      expect(snapshot.currentOccurrence, isNull);
-      expect(position.plannedOrdinal, 3);
-      expect(position.previousOccurrence?.period.periodNumber, 1);
-      expect(position.nextOccurrence?.date, DateTime(2026, 10, 30));
-      expect(position.nextOccurrence?.plannedOrdinal, 4);
+      expect(snapshot.currentOccurrence, isNotNull);
+      expect(snapshot.currentOccurrence!.plannedOrdinal, 1);
     });
   });
 
   group('automatic cross-course context', () {
-    test('before a lesson, preferred course is the next scheduled course', () async {
-      final repository = MemoryInstructionContextRepository();
-      await _seedTwoCourses(repository);
-      final service = TeachingCourseContextService(
-        instructionContext: repository,
-        weeklyPlanning: _FixedWeeklyPlanningService(
-          _plan(
-            courseId: 'TDE_9',
-            start: DateTime(2026, 10, 26),
-            end: DateTime(2026, 10, 30),
+    test(
+      'before a lesson, preferred course is the next scheduled course',
+      () async {
+        final repository = MemoryInstructionContextRepository();
+        await _seedTwoCourses(repository);
+        final service = TeachingCourseContextService(
+          instructionContext: repository,
+          weeklyPlanning: _FixedWeeklyPlanningService(
+            _plan(
+              courseId: 'TDE_9',
+              start: DateTime(2026, 10, 26),
+              end: DateTime(2026, 10, 30),
+            ),
           ),
-        ),
-      );
+        );
 
-      final snapshot = await service.resolve(
-        now: DateTime(2026, 10, 28, 13, 0),
-      );
+        final snapshot = await service.resolve(
+          now: DateTime(2026, 10, 28, 13, 0),
+        );
 
-      expect(snapshot.hasCurrentLesson, isFalse);
-      expect(snapshot.nextCourseId, 'TDE_10');
-      expect(snapshot.nextAssignmentId, 'a10');
-      expect(snapshot.preferredCourseId, 'TDE_10');
-      expect(snapshot.nextStartsAt, DateTime(2026, 10, 28, 13, 30));
-    });
+        expect(snapshot.hasCurrentLesson, isFalse);
+        expect(snapshot.nextCourseId, 'TDE_10');
+        expect(snapshot.nextAssignmentId, 'a10');
+        expect(snapshot.preferredCourseId, 'TDE_10');
+        expect(snapshot.nextStartsAt, DateTime(2026, 10, 28, 13, 30));
+      },
+    );
 
-    test('full-day exception suppresses current and next course for that day', () async {
-      final repository = MemoryInstructionContextRepository();
-      await _seedTwoCourses(repository);
-      final service = TeachingCourseContextService(
-        instructionContext: repository,
-        weeklyPlanning: _FixedWeeklyPlanningService(
-          _plan(
-            courseId: 'TDE_9',
-            start: DateTime(2026, 10, 26),
-            end: DateTime(2026, 10, 30),
+    test(
+      'full-day exception suppresses current and next course for that day',
+      () async {
+        final repository = MemoryInstructionContextRepository();
+        await _seedTwoCourses(repository);
+        final service = TeachingCourseContextService(
+          instructionContext: repository,
+          weeklyPlanning: _FixedWeeklyPlanningService(
+            _plan(
+              courseId: 'TDE_9',
+              start: DateTime(2026, 10, 26),
+              end: DateTime(2026, 10, 30),
+            ),
           ),
-        ),
-        scheduleExceptions: MemorySchoolScheduleExceptionRepository([
-          SchoolScheduleException(
-            id: 'closed',
-            date: DateTime(2026, 10, 28),
-            label: 'Okul kapalı',
-          ),
-        ]),
-      );
+          scheduleExceptions: MemorySchoolScheduleExceptionRepository([
+            SchoolScheduleException(
+              id: 'closed',
+              date: DateTime(2026, 10, 28),
+              label: 'Okul kapalı',
+            ),
+          ]),
+        );
 
-      final snapshot = await service.resolve(
-        now: DateTime(2026, 10, 28, 8, 30),
-      );
+        final snapshot = await service.resolve(
+          now: DateTime(2026, 10, 28, 8, 30),
+        );
 
-      expect(snapshot.currentCourseId, isNull);
-      expect(snapshot.nextCourseId, isNull);
-      expect(snapshot.preferredCourseId, isNull);
-    });
+        expect(snapshot.currentCourseId, isNull);
+        expect(snapshot.nextCourseId, isNull);
+        expect(snapshot.preferredCourseId, isNull);
+      },
+    );
 
     test('incomplete assignment schedule is ignored', () async {
       final repository = MemoryInstructionContextRepository();
@@ -241,6 +326,7 @@ AnnualWeeklyPlan _plan({
   required String courseId,
   required DateTime start,
   required DateTime end,
+  List<SchoolScheduleException> scheduleExceptions = const [],
 }) => AnnualWeeklyPlan(
   academicYear: _academicYear,
   courseId: courseId,
@@ -259,6 +345,7 @@ AnnualWeeklyPlan _plan({
     ),
   ],
   currentWeekNumber: 1,
+  scheduleExceptions: scheduleExceptions,
 );
 
 Future<void> _seedSingleAssignment(
@@ -299,7 +386,9 @@ Future<void> _seedSingleAssignment(
   );
 }
 
-Future<void> _seedTwoCourses(MemoryInstructionContextRepository repository) async {
+Future<void> _seedTwoCourses(
+  MemoryInstructionContextRepository repository,
+) async {
   final now = DateTime(2026, 8, 1);
   await repository.replaceBellPeriods(const [
     BellPeriod(periodNumber: 1, startMinute: 540, endMinute: 580),
@@ -371,10 +460,7 @@ Future<void> _seedTwoCourses(MemoryInstructionContextRepository repository) asyn
   );
 }
 
-List<LessonScheduleSlot> _slots(
-  String assignmentId,
-  List<(int, int)> values,
-) {
+List<LessonScheduleSlot> _slots(String assignmentId, List<(int, int)> values) {
   final now = DateTime(2026, 8, 1);
   return [
     for (var index = 0; index < values.length; index++)

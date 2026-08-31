@@ -333,7 +333,8 @@
     "1.0"
   ],
   "form_template_status_counts": {
-    "ready": 16,
-    "needs_review": 19
-  }
+    "ready": 35,
+    "needs_review": 0
+  },
+  "form_template_review_reasons": {}
 }

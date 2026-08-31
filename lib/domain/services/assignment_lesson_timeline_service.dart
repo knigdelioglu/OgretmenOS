@@ -74,14 +74,21 @@ class AssignmentLessonTimelineService {
         .where((slot) => completeAssignmentIds.contains(slot.assignmentId))
         .toList(growable: false);
 
-    var exceptions = plan.scheduleExceptions;
+    var exceptions = plan.scheduleExceptions
+        .where((exception) => exception.appliesToAcademicYear(academicYear))
+        .toList(growable: false);
     final exceptionRepository = scheduleExceptions;
     if (exceptionRepository != null) {
       try {
-        final stored = await exceptionRepository.getForAcademicYear(academicYear);
-        if (stored.isNotEmpty) {
-          exceptions = List.unmodifiable([...exceptions, ...stored]);
-        }
+        final stored = await exceptionRepository.getForAcademicYear(
+          academicYear,
+        );
+        exceptions = List.unmodifiable([
+          ...exceptions,
+          ...stored.where(
+            (exception) => exception.appliesToAcademicYear(academicYear),
+          ),
+        ]);
       } on Object {
         // Calendar exceptions are part of schedule truth. If that authority
         // cannot be read, do not invent a current/next lesson from the regular
@@ -152,8 +159,8 @@ class AssignmentLessonTimelineService {
 
       final cursor = await instructionContext.getProgressCursor(assignment.id);
       final mode = cursor?.mode ?? AssignmentProgressMode.followSchedule;
-      final resolvedActual = cursor?.actualOrdinalForPlanned(plannedOrdinal) ??
-          plannedOrdinal;
+      final resolvedActual =
+          cursor?.actualOrdinalForPlanned(plannedOrdinal) ?? plannedOrdinal;
       final actualOrdinal = resolvedActual < 0 ? 0 : resolvedActual;
       positions[assignment.id] = AssignmentTimelinePosition(
         assignmentId: assignment.id,

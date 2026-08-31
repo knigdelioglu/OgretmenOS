@@ -69,6 +69,10 @@ void main() {
       ),
       throwsA(isA<UnsupportedFormSchemaException>()),
     );
+    expect(
+      () => const FormDefinition(schemaVersion: '9.0', title: 'Form').validate(),
+      throwsA(isA<FormDefinitionException>()),
+    );
   });
 
   test('bilinmeyen element tipi güvenli fallback üretir', () {
@@ -86,5 +90,77 @@ void main() {
     final element = definition.sections.single.elements.single;
     expect(element, isA<UnknownFormElement>());
     expect(element.toJson()['type'], 'futureElement');
+    expect(definition.validationErrors, isEmpty);
   });
+
+  test('render sözleşmesi bozuk tablo, rubrik ve boş formu reddeder', () {
+    final definition = FormDefinition(
+      schemaVersion: '1.0',
+      title: 'Bozuk form',
+      sections: [
+        FormSection(
+          elements: [
+            const TableFormElement(
+              columns: [
+                FormTableColumn(label: 'A'),
+                FormTableColumn(label: 'B'),
+              ],
+              rows: [
+                ['tek hücre'],
+              ],
+            ),
+            const RubricFormElement(
+              levels: ['İyi', 'Geliştirilmeli'],
+              criteria: [
+                RubricCriterion(label: 'Ölçüt', descriptors: ['tek açıklama']),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+
+    expect(
+      definition.validationErrors,
+      containsAll([
+        contains('table satır/sütun'),
+        contains('rubric düzey/descriptor'),
+      ]),
+    );
+    expect(definition.validate, throwsA(isA<FormDefinitionException>()));
+    expect(
+      () => const FormDefinition(schemaVersion: '1.0', title: 'Boş').validate(),
+      throwsA(isA<FormDefinitionException>()),
+    );
+  });
+
+  test(
+    'tablo ve rubrik satırları renderer için güvenli biçimde normalize edilir',
+    () {
+      const table = TableFormElement(
+        columns: [
+          FormTableColumn(label: 'A'),
+          FormTableColumn(label: 'B'),
+        ],
+        rows: [
+          ['1'],
+          ['1', '2', 'fazla'],
+        ],
+      );
+      const rubric = RubricFormElement(
+        levels: ['İyi', 'Geliştirilmeli'],
+        criteria: [
+          RubricCriterion(label: 'Ölçüt', descriptors: ['Açıklama']),
+        ],
+      );
+
+      expect(table.normalizedRows, [
+        ['1', ''],
+        ['1', '2'],
+      ]);
+      expect(rubric.normalizedRows, [
+        ['Ölçüt', 'Açıklama', ''],
+      ]);
+    },
+  );
 }

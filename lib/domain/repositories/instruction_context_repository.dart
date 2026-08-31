@@ -45,7 +45,8 @@ abstract interface class InstructionContextRepository {
   Future<void> deleteProgressCursor(String assignmentId);
 }
 
-class MemoryInstructionContextRepository implements InstructionContextRepository {
+class MemoryInstructionContextRepository
+    implements InstructionContextRepository {
   final Map<String, SchoolClass> _classes = {};
   final Map<String, TeachingAssignment> _assignments = {};
   final Map<int, BellPeriod> _periods = {};
@@ -54,14 +55,15 @@ class MemoryInstructionContextRepository implements InstructionContextRepository
 
   @override
   Future<List<SchoolClass>> getClasses(String academicYear) async {
-    final items = _classes.values
-        .where((item) => item.academicYear == academicYear)
-        .toList(growable: false)
-      ..sort((a, b) {
-        final gradeCompare = a.grade.compareTo(b.grade);
-        if (gradeCompare != 0) return gradeCompare;
-        return a.displayName.compareTo(b.displayName);
-      });
+    final items =
+        _classes.values
+            .where((item) => item.academicYear == academicYear)
+            .toList(growable: false)
+          ..sort((a, b) {
+            final gradeCompare = a.grade.compareTo(b.grade);
+            if (gradeCompare != 0) return gradeCompare;
+            return a.displayName.compareTo(b.displayName);
+          });
     return items;
   }
 
@@ -70,11 +72,17 @@ class MemoryInstructionContextRepository implements InstructionContextRepository
 
   @override
   Future<void> saveClass(SchoolClass schoolClass) async {
+    _validateClass(schoolClass);
+    final existing = _classes[schoolClass.id];
+    if (existing != null && existing.academicYear != schoolClass.academicYear) {
+      throw StateError('Sınıfın akademik yılı değiştirilemez.');
+    }
     final duplicate = _classes.values.any(
       (item) =>
           item.id != schoolClass.id &&
           item.academicYear == schoolClass.academicYear &&
-          item.displayName.toUpperCase() == schoolClass.displayName.toUpperCase(),
+          item.displayName.trim().toUpperCase() ==
+              schoolClass.displayName.trim().toUpperCase(),
     );
     if (duplicate) {
       throw StateError('Aynı akademik yılda aynı sınıf/şube zaten var.');
@@ -100,13 +108,16 @@ class MemoryInstructionContextRepository implements InstructionContextRepository
     String? courseId,
     bool activeOnly = true,
   }) async {
-    final items = _assignments.values.where((item) {
-      if (item.academicYear != academicYear) return false;
-      if (courseId != null && item.courseId != courseId) return false;
-      if (activeOnly && !item.isActive) return false;
-      return true;
-    }).toList(growable: false)
-      ..sort((a, b) => a.id.compareTo(b.id));
+    final items =
+        _assignments.values
+            .where((item) {
+              if (item.academicYear != academicYear) return false;
+              if (courseId != null && item.courseId != courseId) return false;
+              if (activeOnly && !item.isActive) return false;
+              return true;
+            })
+            .toList(growable: false)
+          ..sort((a, b) => a.id.compareTo(b.id));
     return items;
   }
 
@@ -116,12 +127,20 @@ class MemoryInstructionContextRepository implements InstructionContextRepository
 
   @override
   Future<void> saveAssignment(TeachingAssignment assignment) async {
+    _validateAssignment(assignment);
     final schoolClass = _classes[assignment.classId];
     if (schoolClass == null) {
       throw StateError('Ders atamasının sınıfı bulunamadı.');
     }
     if (schoolClass.academicYear != assignment.academicYear) {
       throw StateError('Sınıf ve ders ataması akademik yılı uyuşmuyor.');
+    }
+    final existing = _assignments[assignment.id];
+    if (existing != null &&
+        (existing.academicYear != assignment.academicYear ||
+            existing.courseId != assignment.courseId ||
+            existing.classId != assignment.classId)) {
+      throw StateError('Ders atamasının kapsam kimliği değiştirilemez.');
     }
     final duplicate = _assignments.values.any(
       (item) =>
@@ -160,7 +179,9 @@ class MemoryInstructionContextRepository implements InstructionContextRepository
     }
     _periods
       ..clear()
-      ..addEntries(periods.map((period) => MapEntry(period.periodNumber, period)));
+      ..addEntries(
+        periods.map((period) => MapEntry(period.periodNumber, period)),
+      );
   }
 
   @override
@@ -197,10 +218,18 @@ class MemoryInstructionContextRepository implements InstructionContextRepository
       throw StateError('Ders ataması bulunamadı.');
     }
     final cells = <String>{};
+    final slotIds = <String>{};
     for (final slot in slots) {
       _validateSlot(slot, assignmentId);
       if (!_periods.containsKey(slot.periodNumber)) {
         throw StateError('${slot.periodNumber}. ders saati tanımlı değil.');
+      }
+      if (!slotIds.add(slot.id)) {
+        throw ArgumentError('Aynı program kaydı birden fazla kez seçildi.');
+      }
+      final otherSlot = _slots[slot.id];
+      if (otherSlot != null && otherSlot.assignmentId != assignmentId) {
+        throw StateError('Program kaydı kimliği başka bir şubeye ait.');
       }
       final cell = '${slot.weekday}:${slot.periodNumber}';
       if (!cells.add(cell)) {
@@ -252,6 +281,9 @@ class MemoryInstructionContextRepository implements InstructionContextRepository
   }
 
   void _validateSlot(LessonScheduleSlot slot, String assignmentId) {
+    if (slot.id.trim().isEmpty) {
+      throw ArgumentError.value(slot.id, 'slot.id');
+    }
     if (slot.assignmentId != assignmentId) {
       throw ArgumentError.value(
         slot.assignmentId,
@@ -264,6 +296,29 @@ class MemoryInstructionContextRepository implements InstructionContextRepository
     }
     if (slot.periodNumber < 1) {
       throw ArgumentError.value(slot.periodNumber, 'slot.periodNumber');
+    }
+  }
+
+  void _validateClass(SchoolClass schoolClass) {
+    if (schoolClass.id.trim().isEmpty ||
+        schoolClass.academicYear.trim().isEmpty) {
+      throw ArgumentError('Sınıf kimliği ve akademik yıl boş olamaz.');
+    }
+    if (schoolClass.grade < 1 || schoolClass.grade > 12) {
+      throw ArgumentError.value(schoolClass.grade, 'grade');
+    }
+    if (schoolClass.section.trim().isEmpty ||
+        schoolClass.displayName.trim().isEmpty) {
+      throw ArgumentError('Sınıf/şube adı boş olamaz.');
+    }
+  }
+
+  void _validateAssignment(TeachingAssignment assignment) {
+    if (assignment.id.trim().isEmpty ||
+        assignment.academicYear.trim().isEmpty ||
+        assignment.courseId.trim().isEmpty ||
+        assignment.classId.trim().isEmpty) {
+      throw ArgumentError('Ders ataması kapsam alanları boş olamaz.');
     }
   }
 

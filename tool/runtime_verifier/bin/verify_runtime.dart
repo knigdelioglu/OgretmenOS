@@ -294,8 +294,8 @@ void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
     return;
   }
   _check(
-    capabilities['form_templates'] == true,
-    'FULL_RUNTIME form_templates capability true olmalı',
+    capabilities['form_templates'] is bool,
+    'form_templates capability boolean olmalı',
   );
   _check(
     _tableExists(database, 'form_templates'),
@@ -315,6 +315,16 @@ void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
   );
 
   const allowedStatuses = {'ready', 'needs_review'};
+  const allowedReviewReasons = {
+    'missing_source_structure',
+    'ambiguous_columns',
+    'ambiguous_scale',
+    'missing_rubric_levels',
+    'missing_rubric_descriptors',
+    'unresolved_form_reference',
+    'unsupported_layout',
+    'insufficient_canonical_evidence',
+  };
   const allowedTypes = {
     'heading',
     'paragraph',
@@ -330,7 +340,7 @@ void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
   };
   final rows = database.select('''
     SELECT ft.form_id, ft.schema_version, ft.template_json,
-           ft.render_status, ft.provenance_json, f.title
+           ft.render_status, ft.provenance_json, ft.review_reason, f.title
     FROM form_templates ft
     INNER JOIN forms f ON f.form_id = ft.form_id
     ORDER BY ft.form_id
@@ -347,8 +357,30 @@ void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
     _check(schemaVersion == '1.0', '$formId desteklenmeyen schema_version');
     final status = row['render_status']?.toString() ?? '';
     _check(allowedStatuses.contains(status), '$formId render_status geçersiz');
+    final reviewReason = row['review_reason']?.toString().trim();
+    if (status == 'needs_review') {
+      _check(
+        reviewReason != null && reviewReason.isNotEmpty,
+        '$formId needs_review reason eksik',
+      );
+      _check(
+        allowedReviewReasons.contains(reviewReason),
+        '$formId needs_review reason geçersiz: $reviewReason',
+      );
+    } else {
+      _check(
+        reviewReason == null || reviewReason.isEmpty,
+        '$formId ready form review reason taşıyor',
+      );
+    }
     final provenance = _decodeMap(row['provenance_json']?.toString() ?? '');
     _check(provenance.isNotEmpty, '$formId provenance boş');
+    _check(
+      status == 'needs_review'
+          ? provenance['review_reason'] == reviewReason
+          : provenance['review_reason'] == null,
+      '$formId provenance review_reason ile kayıt uyuşmuyor',
+    );
     final template = _decodeMap(row['template_json']?.toString() ?? '');
     _check(
       template['schema_version'] == schemaVersion,
@@ -361,6 +393,11 @@ void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
     _check(
       template['title'].toString().trim() != formId,
       '$formId template başlığı teknik ID olamaz',
+    );
+    _check(
+      template['provenance'] is Map &&
+          (template['provenance'] as Map).isNotEmpty,
+      '$formId template provenance boş',
     );
     final sections = template['sections'];
     _check(
@@ -387,6 +424,14 @@ void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
             columns is List && columns.isNotEmpty,
             '$formId table columns boş',
           );
+          final tableRows = element['rows'];
+          _check(tableRows is List, '$formId table rows liste değil');
+          for (final tableRow in tableRows as List) {
+            _check(
+              tableRow is List && tableRow.length == (columns as List).length,
+              '$formId table satır/sütun sayısı uyuşmuyor',
+            );
+          }
         }
         if (type == 'rubric') {
           final criteria = element['criteria'];
@@ -398,10 +443,75 @@ void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
                 levels.isNotEmpty,
             '$formId rubric ölçüt/düzey boş',
           );
+          for (final criterion in criteria as List) {
+            _check(criterion is Map, '$formId rubric ölçüt nesne değil');
+            final descriptors = (criterion as Map)['descriptors'];
+            _check(
+              descriptors is List && descriptors.length == (levels as List).length,
+              '$formId rubric descriptor/düzey sayısı uyuşmuyor',
+            );
+          }
+        }
+        if (type == 'ratingScale') {
+          final options = element['options'];
+          final items = element['items'];
+          _check(
+            options is List && options.isNotEmpty &&
+                items is List && items.isNotEmpty,
+            '$formId ratingScale seçenek/ölçüt boş',
+          );
+          final min = int.tryParse(element['min']?.toString() ?? '');
+          final max = int.tryParse(element['max']?.toString() ?? '');
+          _check(
+            min != null && max != null && min <= max &&
+                max - min + 1 == (options as List).length,
+            '$formId ratingScale aralığı seçeneklerle uyuşmuyor',
+          );
         }
       }
     }
   }
+  final readyCount = _countWhere(
+    database,
+    'form_templates',
+    "render_status = 'ready'",
+    const [],
+  );
+  _check(
+    capabilities['form_templates'] == (readyCount > 0),
+    'form_templates capability hazır şablonlarla uyuşmuyor',
+  );
+  final statusCounts = <String, int>{};
+  for (final row in database.select(
+    'SELECT render_status, COUNT(*) AS count FROM form_templates '
+    'GROUP BY render_status',
+  )) {
+    statusCounts[row['render_status'].toString()] = row['count'] as int;
+  }
+  final manifestCounts = manifest['form_template_status_counts'];
+  _check(
+    manifestCounts is Map &&
+        (manifestCounts['ready'] ?? 0) == (statusCounts['ready'] ?? 0) &&
+        (manifestCounts['needs_review'] ?? 0) ==
+            (statusCounts['needs_review'] ?? 0),
+    'form_template_status_counts runtime ile uyuşmuyor',
+  );
+  final manifestReasons = manifest['form_template_review_reasons'];
+  final runtimeReasons = <String, String>{};
+  for (final row in database.select(
+    'SELECT form_id, review_reason FROM form_templates '
+    "WHERE render_status = 'needs_review' ORDER BY form_id",
+  )) {
+    runtimeReasons[row['form_id'].toString()] = row['review_reason'].toString();
+  }
+  _check(
+    manifestReasons is Map &&
+        manifestReasons.length == runtimeReasons.length &&
+        runtimeReasons.entries.every(
+          (entry) => manifestReasons[entry.key] == entry.value,
+        ),
+    'form_template_review_reasons runtime ile uyuşmuyor',
+  );
 }
 
 void _verifySequence(ResultSet sequence) {

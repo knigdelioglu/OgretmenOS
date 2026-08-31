@@ -139,4 +139,32 @@ void main() {
       );
     },
   );
+
+  test(
+    'form template durum ve review reason drift yeniden kurulum gerektirir',
+    () {
+      final localManifest = validManifest()
+        ..['capabilities'] = {'form_templates': true}
+        ..['row_counts'] = {'lesson_plan_packages': 88, 'form_templates': 28}
+        ..['form_template_status_counts'] = {'ready': 27, 'needs_review': 1}
+        ..['form_template_review_reasons'] = {
+          'FORM_X': 'missing_source_structure',
+        };
+      final expectedManifest = validManifest()
+        ..['capabilities'] = {'form_templates': true}
+        ..['row_counts'] = {'lesson_plan_packages': 88, 'form_templates': 28}
+        ..['form_template_status_counts'] = {'ready': 27, 'needs_review': 1}
+        ..['form_template_review_reasons'] = {
+          'FORM_X': 'insufficient_canonical_evidence',
+        };
+
+      expect(
+        runtimePackageRequiresInstall(
+          RuntimeManifest.fromJson(localManifest),
+          RuntimeManifest.fromJson(expectedManifest),
+        ),
+        isTrue,
+      );
+    },
+  );
 }

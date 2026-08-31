@@ -129,7 +129,7 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
     if (data.classes.any(
       (item) =>
           item.academicYear == data.academicYear &&
-          item.displayName.toUpperCase() == displayName.toUpperCase(),
+          item.displayName.trim().toUpperCase() == displayName.toUpperCase(),
     )) {
       if (mounted) showTeacherFeedback(context, '$displayName zaten ekli.');
       return;
@@ -606,8 +606,6 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
                             ),
                         ],
                       ),
-                    if (data.periods.isNotEmpty)
-                      const SizedBox(height: AppSpacing.md),
                     FilledButton.tonalIcon(
                       onPressed: () => _editBellPeriods(data),
                       icon: const Icon(Icons.schedule_rounded),
@@ -693,8 +691,11 @@ class _AssignmentCard extends StatelessWidget {
         final day = a.weekday.compareTo(b.weekday);
         return day != 0 ? day : a.periodNumber.compareTo(b.periodNumber);
       });
-    final incomplete =
-        ordered.isNotEmpty && ordered.length != expectedWeeklyHours;
+    final incomplete = ordered.length != expectedWeeklyHours;
+    final byWeekday = <int, int>{};
+    for (final slot in ordered) {
+      byWeekday.update(slot.weekday, (count) => count + 1, ifAbsent: () => 1);
+    }
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -719,14 +720,7 @@ class _AssignmentCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
-            if (ordered.isEmpty)
-              Text(
-                'Ders programı henüz girilmedi.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              )
-            else ...[
+            if (ordered.isNotEmpty) ...[
               Wrap(
                 spacing: AppSpacing.sm,
                 runSpacing: AppSpacing.sm,
@@ -739,17 +733,46 @@ class _AssignmentCard extends StatelessWidget {
                     ),
                 ],
               ),
-              if (incomplete) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Program eksik: ${ordered.length}/$expectedWeeklyHours ders saati tanımlı.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.error,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
             ],
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Haftalık dağılım',
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            if (byWeekday.isEmpty)
+              Text(
+                'Henüz ders saati eklenmedi.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              )
+            else
+              Wrap(
+                spacing: AppSpacing.md,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  for (final entry in byWeekday.entries)
+                    Text(
+                      '${_weekdayLong(entry.key)}: ${entry.value}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                ],
+              ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              incomplete
+                  ? '${ordered.length} / $expectedWeeklyHours ders saati · program tamamlanmalı'
+                  : '${ordered.length} / $expectedWeeklyHours ders saati ✓',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: incomplete
+                    ? Theme.of(context).colorScheme.error
+                    : Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: AppSpacing.md),
             FilledButton.tonalIcon(
               onPressed: onEdit,

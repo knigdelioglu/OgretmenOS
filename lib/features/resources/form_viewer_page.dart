@@ -42,6 +42,7 @@ class _FormViewerPageState extends State<FormViewerPage> {
     final definition = await widget.repository.getFormDefinition(
       widget.form.id,
     );
+    definition?.validate();
     _definition = definition;
     return definition;
   }

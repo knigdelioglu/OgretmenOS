@@ -116,10 +116,28 @@ bool runtimePackageIdentityMatches(
           expected.rowCounts['lesson_plan_packages']) {
     return false;
   }
-  if (expected.hasCapability('form_templates')) {
-    return local.hasCapability('form_templates') &&
-        local.rowCounts['form_templates'] ==
-            expected.rowCounts['form_templates'];
+  final expectedHasFormTemplates = expected.hasCapability('form_templates');
+  if (local.hasCapability('form_templates') != expectedHasFormTemplates) {
+    return false;
+  }
+  if (expectedHasFormTemplates) {
+    if (!local.hasCapability('form_templates') ||
+        local.rowCounts['form_templates'] !=
+            expected.rowCounts['form_templates']) {
+      return false;
+    }
+    if (!_mapsEqual(
+      local.formTemplateStatusCounts,
+      expected.formTemplateStatusCounts,
+    )) {
+      return false;
+    }
+    if (!_mapsEqual(
+      local.formTemplateReviewReasons,
+      expected.formTemplateReviewReasons,
+    )) {
+      return false;
+    }
   }
   return true;
 }
@@ -128,3 +146,13 @@ bool runtimePackageRequiresInstall(
   RuntimeManifest local,
   RuntimeManifest expected,
 ) => !runtimePackageIdentityMatches(local, expected);
+
+bool _mapsEqual<K, V>(Map<K, V> left, Map<K, V> right) {
+  if (left.length != right.length) return false;
+  for (final entry in left.entries) {
+    if (!right.containsKey(entry.key) || right[entry.key] != entry.value) {
+      return false;
+    }
+  }
+  return true;
+}

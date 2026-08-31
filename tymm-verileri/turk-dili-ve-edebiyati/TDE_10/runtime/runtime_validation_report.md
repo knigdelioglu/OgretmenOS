@@ -81,7 +81,7 @@
 ## Form Template Projection
 
 - Schema version: `1.0`
-- Ready templates: `16`
-- Needs review: `19`
+- Ready templates: `35`
+- Needs review: `0`
 - Foreign key integrity: `PASS`
 - JSON parse and element validation: runtime verifier

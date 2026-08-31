@@ -500,6 +500,7 @@ class CourseDatabaseDataSource {
         'Form şablonu ile kayıt şema sürümü uyuşmuyor.',
       );
     }
+    definition.validate();
     return definition;
   }
 

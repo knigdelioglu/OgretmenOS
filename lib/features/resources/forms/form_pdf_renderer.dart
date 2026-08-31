@@ -13,6 +13,7 @@ class FormPdfRenderer {
   final FormPdfFontLoader? fontLoader;
 
   Future<Uint8List> generate(FormDefinition definition) async {
+    definition.validate();
     final load = fontLoader ?? rootBundle.load;
     final fontData = await load('assets/fonts/Roboto-Variable.ttf');
     final regular = pw.Font.ttf(fontData);
@@ -121,19 +122,18 @@ class FormPdfRenderer {
       for (final field in element.fields)
         pw.SizedBox(
           width: 220,
-          child: pw.Row(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text(
-                '${field.label}: ',
+                field.label,
                 style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
               ),
-              pw.Expanded(
-                child: pw.Container(
-                  height: 14,
-                  decoration: const pw.BoxDecoration(
-                    border: pw.Border(
-                      bottom: pw.BorderSide(color: PdfColors.grey700),
-                    ),
+              pw.Container(
+                height: 14,
+                decoration: const pw.BoxDecoration(
+                  border: pw.Border(
+                    bottom: pw.BorderSide(color: PdfColors.grey700),
                   ),
                 ),
               ),
@@ -202,37 +202,42 @@ class FormPdfRenderer {
     ],
   );
 
-  pw.Widget _ratingScale(RatingScaleFormElement element) =>
-      pw.TableHelper.fromTextArray(
-        headers: ['Ölçüt', ...element.displayOptions],
-        data: [
-          for (final item in element.items)
-            [item, for (final _ in element.displayOptions) '○'],
-        ],
-        headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
-        cellStyle: const pw.TextStyle(fontSize: 8),
-        headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
-        cellAlignments: {
-          for (var index = 1; index <= element.displayOptions.length; index++)
-            index: pw.Alignment.center,
-        },
-        columnWidths: {
-          0: const pw.FlexColumnWidth(5),
-          for (var index = 1; index <= element.displayOptions.length; index++)
-            index: const pw.FlexColumnWidth(1),
-        },
-      );
+  pw.Widget _ratingScale(RatingScaleFormElement element) {
+    final options = element.displayOptions;
+    final table = pw.TableHelper.fromTextArray(
+      headers: ['Ölçüt', ...options],
+      data: [
+        for (final item in element.items) [item, for (final _ in options) '○'],
+      ],
+      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
+      cellStyle: const pw.TextStyle(fontSize: 8),
+      headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+      cellAlignments: {
+        for (var index = 1; index <= options.length; index++)
+          index: pw.Alignment.center,
+      },
+      columnWidths: {
+        0: const pw.FlexColumnWidth(5),
+        for (var index = 1; index <= options.length; index++)
+          index: const pw.FlexColumnWidth(1),
+      },
+    );
+    return _labelled(element.label, table);
+  }
 
   pw.Widget _table(TableFormElement element) {
     if (element.columns.isEmpty) {
       return _note('Bu tablonun sütun bilgisi bulunmuyor.');
     }
-    return pw.TableHelper.fromTextArray(
+    if (element.normalizedRows.isEmpty && !element.header) {
+      return _note('Bu tabloda gösterilecek satır bulunmuyor.');
+    }
+    final table = pw.TableHelper.fromTextArray(
       headers: element.header
           ? element.columns.map((column) => column.label).toList()
           : null,
       headerCount: element.header ? 1 : 0,
-      data: element.rows,
+      data: element.normalizedRows,
       headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
       cellStyle: const pw.TextStyle(fontSize: 8),
       headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
@@ -241,18 +246,16 @@ class FormPdfRenderer {
           i: pw.FlexColumnWidth(element.columns[i].flex.toDouble()),
       },
     );
+    return _labelled(element.label, table);
   }
 
   pw.Widget _rubric(RubricFormElement element) {
     if (element.levels.isEmpty || element.criteria.isEmpty) {
       return _note('Bu rubriğin ölçüt veya düzey bilgisi eksik.');
     }
-    return pw.TableHelper.fromTextArray(
+    final table = pw.TableHelper.fromTextArray(
       headers: ['Ölçüt', ...element.levels],
-      data: [
-        for (final criterion in element.criteria)
-          [criterion.label, ...criterion.descriptors],
-      ],
+      data: element.normalizedRows,
       headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 7),
       cellStyle: const pw.TextStyle(fontSize: 7),
       headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
@@ -262,7 +265,23 @@ class FormPdfRenderer {
           index: const pw.FlexColumnWidth(3),
       },
     );
+    return _labelled(element.label, table);
   }
+
+  pw.Widget _labelled(String? label, pw.Widget child) => pw.Column(
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+      if (label case final value?)
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 5),
+          child: pw.Text(
+            value,
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+          ),
+        ),
+      child,
+    ],
+  );
 
   pw.Widget _note(String text) => pw.Container(
     padding: const pw.EdgeInsets.all(8),

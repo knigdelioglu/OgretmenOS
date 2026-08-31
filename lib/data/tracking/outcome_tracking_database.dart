@@ -233,6 +233,20 @@ class OutcomeTrackingDatabase {
 
   static Future<void> _migrateScheduleSlotsToAcademicYear(Database db) async {
     await db.transaction((txn) async {
+      final invalidSlots = await txn.rawQuery('''
+        SELECT s.slot_id
+        FROM lesson_schedule_slots s
+        LEFT JOIN teaching_assignments a
+          ON a.assignment_id = s.assignment_id
+        WHERE a.assignment_id IS NULL OR TRIM(a.academic_year) = ''
+        LIMIT 1
+      ''');
+      if (invalidSlots.isNotEmpty) {
+        throw StateError(
+          'Program kaydı akademik yıla güvenli biçimde bağlanamıyor; '
+          'migration durduruldu.',
+        );
+      }
       await _createScheduleSlots(txn, tableName: 'lesson_schedule_slots_v5');
       await txn.execute('''
         INSERT INTO lesson_schedule_slots_v5 (
@@ -309,8 +323,7 @@ class SqfliteOutcomeTrackingRepository implements OutcomeTrackingRepository {
   }) async {
     await _database.delete(
       'outcome_tracking',
-      where:
-          'academic_year = ? AND outcome_id = ? AND planned_week_number = ?',
+      where: 'academic_year = ? AND outcome_id = ? AND planned_week_number = ?',
       whereArgs: [academicYear, outcomeId, plannedWeekNumber],
     );
   }

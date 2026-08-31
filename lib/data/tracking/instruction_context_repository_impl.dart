@@ -33,18 +33,39 @@ class SqfliteInstructionContextRepository
 
   @override
   Future<void> saveClass(SchoolClass schoolClass) async {
-    final values = _classToRow(schoolClass);
-    final updated = await _database.update(
+    _validateClass(schoolClass);
+    final existing = await getClass(schoolClass.id);
+    if (existing != null && existing.academicYear != schoolClass.academicYear) {
+      throw StateError('Sınıfın akademik yılı değiştirilemez.');
+    }
+    final duplicates = await _database.query(
       'school_classes',
-      values,
-      where: 'class_id = ?',
-      whereArgs: [schoolClass.id],
+      columns: ['class_id'],
+      where:
+          'academic_year = ? AND TRIM(UPPER(display_name)) = UPPER(?) AND class_id != ?',
+      whereArgs: [
+        schoolClass.academicYear,
+        schoolClass.displayName.trim(),
+        schoolClass.id,
+      ],
+      limit: 1,
     );
-    if (updated == 0) {
+    if (duplicates.isNotEmpty) {
+      throw StateError('Aynı akademik yılda aynı sınıf/şube zaten var.');
+    }
+    final values = _classToRow(schoolClass);
+    if (existing == null) {
       await _database.insert(
         'school_classes',
         values,
         conflictAlgorithm: ConflictAlgorithm.abort,
+      );
+    } else {
+      await _database.update(
+        'school_classes',
+        values,
+        where: 'class_id = ?',
+        whereArgs: [schoolClass.id],
       );
     }
   }
@@ -95,6 +116,7 @@ class SqfliteInstructionContextRepository
 
   @override
   Future<void> saveAssignment(TeachingAssignment assignment) async {
+    _validateAssignment(assignment);
     final schoolClass = await getClass(assignment.classId);
     if (schoolClass == null) {
       throw StateError('Ders atamasının sınıfı bulunamadı.');
@@ -102,18 +124,26 @@ class SqfliteInstructionContextRepository
     if (schoolClass.academicYear != assignment.academicYear) {
       throw StateError('Sınıf ve ders ataması akademik yılı uyuşmuyor.');
     }
+    final existing = await getAssignment(assignment.id);
+    if (existing != null &&
+        (existing.academicYear != assignment.academicYear ||
+            existing.courseId != assignment.courseId ||
+            existing.classId != assignment.classId)) {
+      throw StateError('Ders atamasının kapsam kimliği değiştirilemez.');
+    }
     final values = _assignmentToRow(assignment);
-    final updated = await _database.update(
-      'teaching_assignments',
-      values,
-      where: 'assignment_id = ?',
-      whereArgs: [assignment.id],
-    );
-    if (updated == 0) {
+    if (existing == null) {
       await _database.insert(
         'teaching_assignments',
         values,
         conflictAlgorithm: ConflictAlgorithm.abort,
+      );
+    } else {
+      await _database.update(
+        'teaching_assignments',
+        values,
+        where: 'assignment_id = ?',
+        whereArgs: [assignment.id],
       );
     }
   }
@@ -220,8 +250,22 @@ class SqfliteInstructionContextRepository
     }
     final academicYear = assignmentRows.first['academic_year']! as String;
     final cells = <String>{};
+    final slotIds = <String>{};
     for (final slot in slots) {
       _validateSlot(slot, assignmentId);
+      if (!slotIds.add(slot.id)) {
+        throw ArgumentError('Aynı program kaydı birden fazla kez seçildi.');
+      }
+      final periodRows = await _database.query(
+        'bell_periods',
+        columns: ['period_number'],
+        where: 'period_number = ?',
+        whereArgs: [slot.periodNumber],
+        limit: 1,
+      );
+      if (periodRows.isEmpty) {
+        throw StateError('${slot.periodNumber}. ders saati tanımlı değil.');
+      }
       final cell = '${slot.weekday}:${slot.periodNumber}';
       if (!cells.add(cell)) {
         throw ArgumentError('Aynı program hücresi birden fazla kez seçildi.');
@@ -392,6 +436,9 @@ class SqfliteInstructionContextRepository
   };
 
   void _validateSlot(LessonScheduleSlot slot, String assignmentId) {
+    if (slot.id.trim().isEmpty) {
+      throw ArgumentError.value(slot.id, 'slot.id');
+    }
     if (slot.assignmentId != assignmentId) {
       throw ArgumentError.value(
         slot.assignmentId,
@@ -404,6 +451,29 @@ class SqfliteInstructionContextRepository
     }
     if (slot.periodNumber < 1) {
       throw ArgumentError.value(slot.periodNumber, 'slot.periodNumber');
+    }
+  }
+
+  void _validateClass(SchoolClass schoolClass) {
+    if (schoolClass.id.trim().isEmpty ||
+        schoolClass.academicYear.trim().isEmpty) {
+      throw ArgumentError('Sınıf kimliği ve akademik yıl boş olamaz.');
+    }
+    if (schoolClass.grade < 1 || schoolClass.grade > 12) {
+      throw ArgumentError.value(schoolClass.grade, 'grade');
+    }
+    if (schoolClass.section.trim().isEmpty ||
+        schoolClass.displayName.trim().isEmpty) {
+      throw ArgumentError('Sınıf/şube adı boş olamaz.');
+    }
+  }
+
+  void _validateAssignment(TeachingAssignment assignment) {
+    if (assignment.id.trim().isEmpty ||
+        assignment.academicYear.trim().isEmpty ||
+        assignment.courseId.trim().isEmpty ||
+        assignment.classId.trim().isEmpty) {
+      throw ArgumentError('Ders ataması kapsam alanları boş olamaz.');
     }
   }
 

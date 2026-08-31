@@ -47,6 +47,18 @@ void main() {
         'provenance_json': '{}',
       });
       expect((await source.getFormDefinition('F1'))?.title, 'Gerçek Form');
+      final malformed = const FormDefinition(
+        schemaVersion: '1.0',
+        title: 'Bozuk Form',
+        sections: [FormSection()],
+      );
+      await database.update('form_templates', {
+        'template_json': jsonEncode(malformed.toJson()),
+      });
+      expect(
+        () => source.getFormDefinition('F1'),
+        throwsA(isA<FormDefinitionException>()),
+      );
       await database.update('form_templates', {
         'render_status': 'needs_review',
       });

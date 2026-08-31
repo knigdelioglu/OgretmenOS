@@ -217,6 +217,310 @@
         "Temada tahlil ettiğiniz metinlerdeki olayları, kahramanları, duygu ve düşünceleri günlük hayatınızla bağdaştırabildiniz mi? Gerekçelendirerek açıklayınız."
       ],
       "lines": [4, 4, 4, 4]
+    },
+    "FORM_T1_YANSITMA": {
+      "kind": "prompts",
+      "identity_fields": ["Tarih"],
+      "prompts": [
+        "Bu temada öğrendiğiniz en önemli bilgiyi ve bu bilginin sizin için neden önemli olduğunu açıklayınız.",
+        "Tartışma sırasında fark ettiğiniz yeni fikirleri ve etkinliğin öğrenme sürecinize katkısını yazınız."
+      ],
+      "lines": [8, 6],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_10 ders kitabı s.79"}
+    },
+    "FORM_T1_TEMA_TEST": {
+      "kind": "prompts",
+      "prompts": [
+        "1. Geçmişten günümüze geleneklerin değişim ve dönüşüm sürecinin milletlerin tarih sahnesinde kalıcılığına etkisini açıklayınız.",
+        "2. Bilim ve teknolojinin etkisiyle değişen geleneklerin gelecekte hangi biçimlerde görülebileceğine ilişkin tahminlerinizi yazınız.",
+        "3. Metinde geleneklerin bozulması veya değiştirilmesi üzerine yapılan çalışmaların asıl amacına ilişkin çıkarımlarınızı yazınız.",
+        "4. Sözlü ve yazılı geleneklerin değişim ve dönüşüme karşı dirençlerini karşılaştırınız.",
+        "5. Sözlü gelenek unsurlarının korunmasında gençlere düşen sorumlulukları gerekçeleriyle değerlendiriniz.",
+        "6. Türkistan’dan Balkanlara uzanan gezi planında sözlü edebiyat ürünlerinin hangi temel özelliklerine odaklanıldığını yazınız.",
+        "7. Gezi planının amacını seçerek seçiminizi gerekçelendiriniz.",
+        "8. Türk kültürüne ait sözlü edebiyat ürünlerini coğrafi ve sosyo-kültürel özelliklere göre nasıl sınıflandırabileceğinizi yazınız.",
+        "9. Türk kültürüne ait sözlü edebiyat ürünlerinin hangi bölgede daha uzun süre korunacağını gerekçesiyle öngörünüz.",
+        "10. Açıklama ve grafikten ulaşılamayacak yargıyı belirleyiniz.",
+        "11. Masalların kişiliğimiz üzerindeki etkisini açıklayınız.",
+        "12. Masallar aracılığıyla çocukların kazanabileceği olumlu özellikleri metinden örneklerle ifade ediniz."
+      ],
+      "lines": [6, 5, 5, 6, 6, 5, 5, 6, 5, 4, 5, 6],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_10 ders kitabı s.80-83"}
+    },
+    "FORM_T2_GAZEL_GUNLUK": {
+      "kind": "prompts",
+      "identity_fields": ["Tarih"],
+      "prompts": [
+        "Bu bölümde gazel hakkında öğrendiklerim",
+        "‘Döne döne’ redifli gazelde beğendiklerim veya beğenmediklerim",
+        "Divan şiirinde işlenen aşk anlayışını günümüzdekiyle karşılaştırdığımda ulaştığım sonuçlar",
+        "Gazelin günlük hayatı yansıtıp yansıtmadığına dair düşüncelerim",
+        "Gazeldeki ritim ve ahenge dair düşüncelerim",
+        "Şaire sormak istediklerim"
+      ],
+      "lines": [5, 5, 6, 5, 5, 5],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_10 ders kitabı s.111"}
+    },
+    "FORM_T2_PODCAST_YANSITMA": {
+      "kind": "prompts",
+      "prompts": [
+        "Podcast hazırlama sürecindeki deneyimlerinizi, duygu ve düşüncelerinizi aktaran kısa bir paragraf yazınız.",
+        "Kelimelerin Ritmi temasında ilk defa karşılaştığınız üç kavramı yazınız.",
+        "Kelimelerin Ritmi temasında öğrendiğiniz dört bilgiyi yazınız.",
+        "Kelimelerin Ritmi temasında aklınıza takılan bir soruyu yazınız."
+      ],
+      "lines": [7, 3, 5, 4],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_10 ders kitabı s.148-149"}
+    },
+    "FORM_T2_TEMA_TEST": {
+      "kind": "prompts",
+      "prompts": [
+        "1. Mazmunların günümüz şiirini etkileyip etkilemediğini gerekçeleriyle açıklayınız.",
+        "2. Divan şiirindeki mazmunlarla çağdaş şiirdeki sembol ve metaforların işlevini karşılaştırınız.",
+        "3. Mazmun, sembol ve metaforlarla ilgili metinden ulaşılabilecek yargıyı belirleyiniz.",
+        "4. Karışık verilen beyitleri gazel yazma kurallarına göre sıralayınız ve ilk beyti gerekçelendiriniz.",
+        "5. Karışık verilen beyitleri gazel yazma kurallarına göre sıralayınız ve son beyti gerekçelendiriniz.",
+        "6. Klasik Türk edebiyatı ile Türk musikisi arasındaki ilişkiyi açıklayınız.",
+        "7. Mohaç Türküsü ile belgeselin aynı konuyu farklı biçimlerde ele almasının sebeplerini örneklerle açıklayınız.",
+        "8. Belgesel şiir türünde ifade edilseydi ne gibi değişiklikler olacağını gerekçeleriyle yazınız.",
+        "9. Verilen infografik bilgilerinin metindeki düşünceyi destekleyip desteklemediğini işaretleyip gerekçelendiriniz.",
+        "10. Divan şiiri ile halk şiirinin etkileşimini metinden hareketle açıklayınız.",
+        "11. İnfografikteki bilgileri metinle karşılaştırarak desteklenmeyen yargıları gerekçelendiriniz."
+      ],
+      "lines": [5, 6, 4, 6, 6, 5, 6, 5, 7, 5, 6],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_10 ders kitabı s.150-153"}
+    },
+    "FORM_T3_YAZMA_OZ": {
+      "kind": "rating",
+      "identity_fields": ["Adı Soyadı", "Numarası"],
+      "options": ["Evet", "Kısmen", "Hayır"],
+      "items": [
+        "Fabl için uygun bir tema belirledim.",
+        "Yazacağım fablın amacını ve hedef kitlesini belirledim.",
+        "Anlam ve çağrışım derinliği bulunan, ahenkli ve sosyal hayatla ilişkilendirebileceğim kelimeleri not ettim.",
+        "Fablda özgün ifadelere yer verdim.",
+        "Fablı yazarken Türkçenin dil ve anlatım özelliklerine dikkat ettim.",
+        "Fablı yazarken bağdaşıklık ögelerine, yazım kurallarına ve noktalama işaretlerine dikkat ettim.",
+        "Dikkat çekici bir başlık kullandım.",
+        "Fablı yazarken serim, düğüm, çözüm ve öğüt bölümlerine dikkat ettim.",
+        "Fablda vermek istediğim mesajı öğüt bölümünde açık veya örtük biçimde dile getirdim.",
+        "Fablın öğüt bölümünde olumlu tutum ve değerleri vurguladım."
+      ],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_10 ders kitabı s.227"}
+    },
+    "FORM_T3_YAZMA_AKRAN": {
+      "kind": "prompts",
+      "identity_fields": ["Çalışmayı yapan öğrenci", "Çalışmanın adı"],
+      "prompts": [
+        "Bu çalışmanın en iyi yönü",
+        "Bu çalışmanın beğendiğim diğer üç yönü",
+        "Bu çalışmanın geliştirilmesi gerektiğini düşündüğüm üç yönü"
+      ],
+      "lines": [4, 6, 6],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_10 ders kitabı s.228"}
+    },
+    "FORM_T3_TEMA_GUNLUK": {
+      "kind": "prompts",
+      "identity_fields": ["Tarih"],
+      "prompts": [
+        "Bu süreçte öğrendiklerim",
+        "Kendimi geliştirmek için çaba harcadığım konular",
+        "Bu süreçte ilerleme kaydettiğimi düşündüğüm konular",
+        "İlgimi çeken ve araştırmayı düşündüğüm konular",
+        "Pekiştirmem gereken konular",
+        "İş birliği yaparak öğrendiklerim ve grubumun başarısına katkılarım",
+        "Daha ayrıntılı incelediğim konular",
+        "Bu süreçte öğrendiğim bilgilerden gelecekte kullanabileceklerim"
+      ],
+      "lines": [4, 4, 4, 4, 4, 5, 4, 4],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_10 ders kitabı s.229"}
+    },
+    "FORM_T3_TEMA_TEST": {
+      "kind": "prompts",
+      "prompts": [
+        "1. Atatürk Kurtuluş Savaşında metninin yapma destan olduğunu gösteren özellikleri yazınız.",
+        "2. Destanın konusunu göz önünde bulundurarak yazılma sebeplerini açıklayınız.",
+        "3. Metinle ilgili ulaşılabilecek yargıyı belirleyiniz.",
+        "4. Sözlerin Çağrışımsal Gücü oyununda II. grubun 15 puan alarak kazanabileceği diyaloğu belirleyiniz.",
+        "5. I. grubun 10, II. grubun 5 puan alacağı bir oyun diyaloğu oluşturunuz.",
+        "6. İkinci metnin ana fikrini yazınız.",
+        "7. Metinlerin dil ve anlatımındaki farklılığın temel sebebini yazınız.",
+        "8. Birinci metinle ilgili söylenebilecek yargıyı belirleyiniz.",
+        "9. Mesneviyle ilgili bilgileri sebep-sonuç ilişkisi oluşturacak şekilde eşleştirip cümleleri yazınız.",
+        "10. Fabl türünün çizgi filmlerde kullanılmasının çocukların bilişsel gelişimine katkılarını açıklayınız.",
+        "11. Fablların çocukların dünyasında yer edinme sebeplerini yazınız."
+      ],
+      "lines": [5, 5, 4, 5, 6, 4, 4, 4, 7, 6, 5],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_10 ders kitabı s.230-233"}
+    },
+    "FORM_T4_OKUMA_GUNLUK": {
+      "kind": "prompts",
+      "identity_fields": ["Tarih"],
+      "prompts": [
+        "Bu süreçte öğrendiklerim",
+        "Kendimi geliştirmek için çaba harcadığım konular",
+        "Bu süreçte ilerleme kaydettiğimi düşündüğüm konular",
+        "İlgimi çeken ve araştırmayı düşündüğüm konular",
+        "Pekiştirmem gereken konular",
+        "İş birliği yaparak öğrendiklerim ve grubumun başarısına katkılarım",
+        "Daha ayrıntılı incelediğim konular",
+        "Bu süreçte öğrendiğim bilgilerden gelecekte kullanabileceklerim"
+      ],
+      "lines": [4, 4, 4, 4, 4, 5, 4, 4],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_10 ders kitabı s.263"}
+    },
+    "FORM_T4_TEMA_TEST": {
+      "kind": "prompts",
+      "prompts": [
+        "1. Dede Korkut hikâyelerinden verilen metinlerin içeriğini yansıtan ifadeleri seçerek boşluklara yazınız.",
+        "2. Verilen metinlerde doğanın ele alınışıyla ilgili değerlendirmelerinizi yazınız.",
+        "3. Verilen metinlerde aileyle ilgili değerlere örnekler veriniz.",
+        "4. ‘Sakallı bozaç renkli çayır kuşu öttüğünde’ ifadesinden Oğuz Türklerinin günlük yaşamıyla ilgili ulaşılabilecek bilgiyi belirleyiniz.",
+        "5. Öğrencilerin olay anlatıcılığı hakkındaki düşüncelerini kabul edilir, kısmen kabul edilir veya kabul edilmez olarak değerlendiriniz.",
+        "6. Türk edebiyatındaki değişimin uzun bir zaman diliminde gerçekleşmesinin sebeplerini yazınız.",
+        "7. Şiirdeki değişimi ifade etmeyen özelliği belirleyiniz.",
+        "8. Çoban ile Bülbül şiirinde Millî Edebiyat Dönemi’ni yansıtan özellikleri tespit ediniz."
+      ],
+      "lines": [6, 5, 5, 4, 7, 6, 4, 7],
+      "provenance": {"content_basis": "verified_printed_form_transcription", "source_page": "TDE_10 ders kitabı s.307-310"}
+    },
+    "LINK_T1_KONUSMA_DPA": {
+      "kind": "rubric",
+      "identity_fields": ["Grup adı", "Değerlendirilen çalışma", "Tarih"],
+      "label": "Şiir Dinletisi Dereceli Puanlama Anahtarı",
+      "levels": ["Oldukça iyi", "Kabul edilebilir", "Geliştirilmeli"],
+      "criteria": [
+        {"label": "Şiir seçiminin temaya uygunluğu", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Dikkat çekici giriş ve planlı sunum", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Şiirleri özgün üslupla seslendirme", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Görsel/işitsel ögeler", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Beden dili", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Mekân kullanımı", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Vurgu-tonlama", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Olumlu tutum", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Süre", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Planı tamamlama", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Türkçenin doğru kullanımı", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]}
+      ],
+      "provenance": {"content_basis": "accepted_strong_copy_canonical_form", "registry_artifact_id": "TDE10_KONUSMA_RUBRIC", "source_link_id": "LINK_T1_KONUSMA_DPA", "source_acceptance": "STRONG_COPY_ACCEPTED_FOR_STRUCTURE_AND_CRITERIA", "external_exact_payload_identity": "UNVERIFIED_AUTH_GATED_PROVENANCE_ONLY", "materialization_status": "ACCEPTED_STRONG_COPY_CANONICAL_FORM"}
+    },
+    "LINK_T2_PODCAST_DPA": {
+      "kind": "rubric",
+      "identity_fields": ["Değerlendirilen kişi", "Tarih"],
+      "label": "Podcast Dereceli Puanlama Anahtarı",
+      "levels": ["Oldukça iyi", "Kabul edilebilir", "Geliştirilmeli"],
+      "criteria": [
+        {"label": "İçeriğin anlam ve amaca uygunluğu", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Dil ve anlatım", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "İşitsel ögelerin kullanımı", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Özgünlük", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Vurgu-tonlama ve akıcılık", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Podcast akışı ve süre", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]}
+      ],
+      "provenance": {"content_basis": "accepted_strong_copy_canonical_form", "registry_artifact_id": "TDE10_KONUSMA_RUBRIC", "source_link_id": "LINK_T2_PODCAST_DPA", "source_acceptance": "STRONG_COPY_ACCEPTED_FOR_STRUCTURE_AND_CRITERIA", "external_exact_payload_identity": "UNVERIFIED_AUTH_GATED_PROVENANCE_ONLY", "materialization_status": "ACCEPTED_STRONG_COPY_CANONICAL_FORM"}
+    },
+    "LINK_T3_KONUSMA_DPA": {
+      "kind": "rubric",
+      "identity_fields": ["Değerlendirilen grup", "Tarih"],
+      "label": "Türk Destanları Sunumu Dereceli Puanlama Anahtarı",
+      "levels": ["Oldukça iyi", "Kabul edilebilir", "Geliştirilmeli"],
+      "criteria": [
+        {"label": "İçeriğe uygunluk ve doğruluk", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Hedef kitleye uygun dil", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Beden dili", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Ses kontrolü", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Türkçenin doğru kullanımı", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Vurgu-tonlama", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Sunum organizasyonu ve süre", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]}
+      ],
+      "provenance": {"content_basis": "accepted_strong_copy_canonical_form", "registry_artifact_id": "TDE10_KONUSMA_RUBRIC", "source_link_id": "LINK_T3_KONUSMA_DPA", "source_acceptance": "STRONG_COPY_ACCEPTED_FOR_STRUCTURE_AND_CRITERIA", "external_exact_payload_identity": "UNVERIFIED_AUTH_GATED_PROVENANCE_ONLY", "materialization_status": "ACCEPTED_STRONG_COPY_CANONICAL_FORM"}
+    },
+    "LINK_T4_KONUSMA_DPA": {
+      "kind": "rubric",
+      "identity_fields": ["Değerlendirilen grup", "Tarih"],
+      "label": "Dede Korkut Canlandırma Dereceli Puanlama Anahtarı",
+      "levels": ["Oldukça iyi", "Kabul edilebilir", "Geliştirilmeli"],
+      "criteria": [
+        {"label": "Uygun hikâye ve özgün yorum", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Plana uygun canlandırma", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Beden dili", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Metnin bağlamına bağlılık", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "İletişim ve görgü", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Görsel/işitsel ögeler", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Mekân kullanımı", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Süre", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Türkçenin doğru ve millî bilinçle kullanımı", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]}
+      ],
+      "provenance": {"content_basis": "accepted_strong_copy_canonical_form", "registry_artifact_id": "TDE10_KONUSMA_RUBRIC", "source_link_id": "LINK_T4_KONUSMA_DPA", "source_acceptance": "STRONG_COPY_ACCEPTED_FOR_STRUCTURE_AND_CRITERIA", "external_exact_payload_identity": "UNVERIFIED_AUTH_GATED_PROVENANCE_ONLY", "materialization_status": "ACCEPTED_STRONG_COPY_CANONICAL_FORM"}
+    },
+    "LINK_T1_YAZMA_DPA": {
+      "kind": "rubric",
+      "identity_fields": ["Değerlendirilen öğrenci", "Tarih"],
+      "label": "Film Şeridi Dereceli Puanlama Anahtarı",
+      "levels": ["Oldukça iyi", "Kabul edilebilir", "Geliştirilmeli"],
+      "criteria": [
+        {"label": "Akıcılık", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Görsel ögeler", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Karakter tasarımı", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Senaryo", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Olay akışı", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Estetik", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Dil ve anlatım", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "İçeriği zenginleştirme", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Yazım-noktalama", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Olumlu tutum/değerler", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]}
+      ],
+      "provenance": {"content_basis": "accepted_strong_copy_canonical_form", "registry_artifact_id": "TDE10_KONUSMA_RUBRIC", "source_link_id": "LINK_T1_YAZMA_DPA", "source_acceptance": "STRONG_COPY_ACCEPTED_FOR_STRUCTURE_AND_CRITERIA", "external_exact_payload_identity": "UNVERIFIED_AUTH_GATED_PROVENANCE_ONLY", "materialization_status": "ACCEPTED_STRONG_COPY_CANONICAL_FORM"}
+    },
+    "LINK_T2_YAZMA_DPA": {
+      "kind": "rubric",
+      "identity_fields": ["Değerlendirilen öğrenci", "Tarih"],
+      "label": "Metin Dönüştürme Dereceli Puanlama Anahtarı",
+      "levels": ["Oldukça iyi", "Kabul edilebilir", "Geliştirilmeli"],
+      "criteria": [
+        {"label": "Temel anlamın korunması", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Edebî tür özellikleri", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Dil ve anlatım", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Özgünlük", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Görsel/işitsel ögeler", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Yazım ve noktalama", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Metin bütünlüğü", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]}
+      ],
+      "provenance": {"content_basis": "accepted_strong_copy_canonical_form", "registry_artifact_id": "TDE10_KONUSMA_RUBRIC", "source_link_id": "LINK_T2_YAZMA_DPA", "source_acceptance": "STRONG_COPY_ACCEPTED_FOR_STRUCTURE_AND_CRITERIA", "external_exact_payload_identity": "UNVERIFIED_AUTH_GATED_PROVENANCE_ONLY", "materialization_status": "ACCEPTED_STRONG_COPY_CANONICAL_FORM"}
+    },
+    "LINK_T3_YAZMA_DPA": {
+      "kind": "rubric",
+      "identity_fields": ["Değerlendirilen öğrenci", "Tarih"],
+      "label": "Fabl Yazma Dereceli Puanlama Anahtarı",
+      "levels": ["Oldukça iyi", "Kabul edilebilir", "Geliştirilmeli"],
+      "criteria": [
+        {"label": "Özgünlük", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Biçim/tür özellikleri", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Ahenk", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Etkileyicilik", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Dil ve anlatım", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Söz varlığı", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Estetik", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Dil bilgisi", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]}
+      ],
+      "provenance": {"content_basis": "accepted_strong_copy_canonical_form", "registry_artifact_id": "TDE10_KONUSMA_RUBRIC", "source_link_id": "LINK_T3_YAZMA_DPA", "source_acceptance": "STRONG_COPY_ACCEPTED_FOR_STRUCTURE_AND_CRITERIA", "external_exact_payload_identity": "UNVERIFIED_AUTH_GATED_PROVENANCE_ONLY", "materialization_status": "ACCEPTED_STRONG_COPY_CANONICAL_FORM"}
+    },
+    "LINK_T4_YAZMA_DPA": {
+      "kind": "rubric",
+      "identity_fields": ["Değerlendirilen öğrenci", "Tarih"],
+      "label": "Hikâyeyi Şiire Dönüştürme Dereceli Puanlama Anahtarı",
+      "levels": ["Oldukça iyi", "Kabul edilebilir", "Geliştirilmeli"],
+      "criteria": [
+        {"label": "Hikâye temasının şiire aktarılması", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "İçeriğe uygunluk", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Etkileyicilik", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Şiir dilinin etkili kullanımı", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Bağlama uygun söz varlığı", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Özgün üslup", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Estetik unsurlar", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]},
+        {"label": "Dil bilgisi", "descriptors": ["Ölçüt tam, doğru ve etkili biçimde karşılanmıştır.", "Ölçüt büyük ölçüde karşılanmıştır; sınırlı eksikler vardır.", "Ölçüt sınırlı ölçüde karşılanmıştır; belirgin eksikler vardır."]}
+      ],
+      "provenance": {"content_basis": "accepted_strong_copy_canonical_form", "registry_artifact_id": "TDE10_KONUSMA_RUBRIC", "source_link_id": "LINK_T4_YAZMA_DPA", "source_acceptance": "STRONG_COPY_ACCEPTED_FOR_STRUCTURE_AND_CRITERIA", "external_exact_payload_identity": "UNVERIFIED_AUTH_GATED_PROVENANCE_ONLY", "materialization_status": "ACCEPTED_STRONG_COPY_CANONICAL_FORM"}
     }
   }
 }

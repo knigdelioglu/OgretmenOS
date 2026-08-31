@@ -17,6 +17,16 @@ from typing import Any
 SCHEMA_VERSION = "1.0"
 READY = "ready"
 NEEDS_REVIEW = "needs_review"
+REVIEW_REASONS = {
+    "missing_source_structure",
+    "ambiguous_columns",
+    "ambiguous_scale",
+    "missing_rubric_levels",
+    "missing_rubric_descriptors",
+    "unresolved_form_reference",
+    "unsupported_layout",
+    "insufficient_canonical_evidence",
+}
 
 
 def _identity(labels: list[str]) -> dict[str, Any]:
@@ -51,19 +61,27 @@ def _override_elements(spec: dict[str, Any]) -> list[dict[str, Any]]:
         elements.append(_identity(identity_fields))
     kind = spec.get("kind")
     if kind == "rating":
+        options = [str(item).strip() for item in spec.get("options", [])]
+        items = [str(item).strip() for item in spec.get("items", [])]
+        if not options:
+            raise ValueError("Rating catalog en az bir seçenek içermeli")
+        if not items:
+            raise ValueError("Rating catalog en az bir ölçüt içermeli")
         elements.append(
             {
                 "type": "ratingScale",
                 "label": "Değerlendirme ölçütleri",
                 "min": 1,
-                "max": len(spec["options"]),
-                "options": spec["options"],
-                "items": spec["items"],
+                "max": len(options),
+                "options": options,
+                "items": items,
             }
         )
     elif kind == "prompts":
         lines = spec.get("lines", [])
         for index, prompt in enumerate(spec["prompts"]):
+            if not str(prompt).strip():
+                raise ValueError("Prompt catalog boş soru içeremez")
             elements.append(
                 {
                     "type": "freeText",
@@ -71,8 +89,76 @@ def _override_elements(spec: dict[str, Any]) -> list[dict[str, Any]]:
                     "lines": lines[index] if index < len(lines) else 4,
                 }
             )
+    elif kind == "table":
+        columns = []
+        for column in spec.get("columns", []):
+            if not isinstance(column, dict) or not str(column.get("label", "")).strip():
+                raise ValueError("Table catalog sütun etiketi içermeli")
+            columns.append(
+                {
+                    "label": str(column["label"]),
+                    "flex": max(1, int(column.get("flex", 1))),
+                }
+            )
+        if not columns:
+            raise ValueError("Table catalog en az bir sütun içermeli")
+        rows = []
+        for row in spec.get("rows", []):
+            values = [str(value) for value in row]
+            if len(values) != len(columns):
+                raise ValueError(
+                    "Table catalog satır/sütun sayısı uyuşmuyor: "
+                    f"{len(values)} != {len(columns)}"
+                )
+            rows.append(values)
+        elements.append(
+            {
+                "type": "table",
+                "label": str(spec.get("label", "Form tablosu")),
+                "header": bool(spec.get("header", True)),
+                "columns": columns,
+                "rows": rows,
+            }
+        )
+    elif kind == "rubric":
+        levels = [str(level).strip() for level in spec.get("levels", [])]
+        if len(levels) < 2:
+            raise ValueError("Rubric catalog en az iki seviye içermeli")
+        criteria = []
+        for criterion in spec.get("criteria", []):
+            if not isinstance(criterion, dict):
+                raise ValueError("Rubric catalog ölçütleri nesne olmalı")
+            label = str(criterion.get("label", "")).strip()
+            descriptors = [
+                str(descriptor).strip()
+                for descriptor in criterion.get("descriptors", [])
+            ]
+            if not label:
+                raise ValueError("Rubric catalog ölçüt etiketi içermeli")
+            if len(descriptors) != len(levels) or any(not item for item in descriptors):
+                raise ValueError(
+                    "Rubric catalog descriptor sayısı seviye sayısıyla eşleşmeli"
+                )
+            criteria.append({"label": label, "descriptors": descriptors})
+        if not criteria:
+            raise ValueError("Rubric catalog en az bir ölçüt içermeli")
+        elements.append(
+            {
+                "type": "rubric",
+                "label": str(spec.get("label", "Dereceli puanlama anahtarı")),
+                "levels": levels,
+                "criteria": criteria,
+            }
+        )
     else:
         raise ValueError(f"Bilinmeyen catalog kind: {kind}")
+    extra_elements = spec.get("extra_elements", [])
+    if extra_elements:
+        if not isinstance(extra_elements, list) or any(
+            not isinstance(element, dict) for element in extra_elements
+        ):
+            raise ValueError("Catalog extra_elements nesne listesi olmalı")
+        elements.extend(extra_elements)
     return elements
 
 
@@ -148,6 +234,20 @@ def _provenance(row: sqlite3.Row, index_form: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _review_reason(index_form: dict[str, Any]) -> str:
+    structural_type = str(index_form.get("structural_type", ""))
+    if structural_type == "linked_assessment_resource":
+        return "unresolved_form_reference"
+    if structural_type in {
+        "assessment_criteria_table",
+        "teacher_evaluation_form",
+        "test_question_set",
+        "learning_journal",
+    }:
+        return "missing_source_structure"
+    return "insufficient_canonical_evidence"
+
+
 def build(args: argparse.Namespace) -> dict[str, int]:
     runtime_dir = Path(args.runtime_dir).resolve()
     database_path = runtime_dir / "course_runtime.sqlite"
@@ -196,11 +296,13 @@ def build(args: argparse.Namespace) -> dict[str, int]:
               instructions TEXT,
               render_status TEXT NOT NULL
                 CHECK (render_status IN ('ready', 'needs_review')),
-              provenance_json TEXT NOT NULL DEFAULT '{}'
+              provenance_json TEXT NOT NULL DEFAULT '{}',
+              review_reason TEXT
             );
             """
         )
         counts = {READY: 0, NEEDS_REVIEW: 0}
+        review_reasons: dict[str, str] = {}
         for row in form_rows:
             form_id = str(row["form_id"])
             index_form = index_by_id.get(form_id, {})
@@ -210,11 +312,19 @@ def build(args: argparse.Namespace) -> dict[str, int]:
                 elements = _override_elements(spec)
                 instructions = spec.get("instructions")
                 status = READY
-                provenance["content_basis"] = "verified_printed_form_transcription"
+                spec_provenance = spec.get("provenance") or {}
+                if not isinstance(spec_provenance, dict):
+                    raise ValueError(f"Catalog provenance nesne olmalı: {form_id}")
+                provenance.update(spec_provenance)
+                provenance.setdefault(
+                    "content_basis", "verified_printed_form_transcription"
+                )
+                review_reason = None
             else:
                 elements = _index_elements(index_form)
                 instructions = None
                 status = READY if elements else NEEDS_REVIEW
+                review_reason = None if elements else _review_reason(index_form)
                 provenance["content_basis"] = (
                     "verified_structural_index"
                     if elements
@@ -230,6 +340,16 @@ def build(args: argparse.Namespace) -> dict[str, int]:
                         ),
                     }
                 ]
+            if status == NEEDS_REVIEW:
+                if review_reason not in REVIEW_REASONS:
+                    raise ValueError(
+                        f"Geçersiz form review reason: {form_id}: {review_reason}"
+                    )
+            elif review_reason is not None:
+                raise ValueError(f"Ready form review reason taşıyor: {form_id}")
+            if review_reason is not None:
+                review_reasons[form_id] = review_reason
+                provenance["review_reason"] = review_reason
             description = index_form.get("subtitle")
             definition = _definition(
                 str(row["title"]),
@@ -241,7 +361,8 @@ def build(args: argparse.Namespace) -> dict[str, int]:
             connection.execute(
                 "INSERT INTO form_templates "
                 "(form_id, schema_version, template_json, instructions, "
-                "render_status, provenance_json) VALUES (?, ?, ?, ?, ?, ?)",
+                "render_status, provenance_json, review_reason) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
                     form_id,
                     SCHEMA_VERSION,
@@ -249,6 +370,7 @@ def build(args: argparse.Namespace) -> dict[str, int]:
                     instructions,
                     status,
                     json.dumps(provenance, ensure_ascii=False, separators=(",", ":")),
+                    review_reason,
                 ),
             )
             counts[status] += 1
@@ -261,10 +383,14 @@ def build(args: argparse.Namespace) -> dict[str, int]:
 
     manifest = _load_json(manifest_path)
     capabilities = manifest.setdefault("capabilities", {})
-    capabilities["form_templates"] = True
+    # The capability advertises usable structured forms, not merely the
+    # existence of a metadata row for every form. A package whose entire form
+    # catalog needs review must remain explicitly unavailable to the UI.
+    capabilities["form_templates"] = counts[READY] > 0
     manifest.setdefault("row_counts", {})["form_templates"] = sum(counts.values())
     manifest["form_template_schema_versions"] = [SCHEMA_VERSION]
     manifest["form_template_status_counts"] = counts
+    manifest["form_template_review_reasons"] = dict(sorted(review_reasons.items()))
     manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -282,6 +408,13 @@ def build(args: argparse.Namespace) -> dict[str, int]:
         "- Foreign key integrity: `PASS`\n"
         "- JSON parse and element validation: runtime verifier\n"
     )
+    if review_reasons:
+        existing += "\n### Needs-review reasons\n\n"
+        existing += "\n".join(
+            f"- `{form_id}`: `{reason}`"
+            for form_id, reason in sorted(review_reasons.items())
+        )
+        existing += "\n"
     report_path.write_text(existing, encoding="utf-8")
     return counts
 

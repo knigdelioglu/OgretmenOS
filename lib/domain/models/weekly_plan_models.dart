@@ -26,6 +26,7 @@ class SchoolScheduleException {
     required this.id,
     required this.date,
     required this.label,
+    this.academicYear,
     this.startMinute = 0,
     this.endMinute = 24 * 60,
   });
@@ -33,10 +34,14 @@ class SchoolScheduleException {
   final String id;
   final DateTime date;
   final String label;
+  final String? academicYear;
 
   /// Local minute-of-day range. End is exclusive.
   final int startMinute;
   final int endMinute;
+
+  bool appliesToAcademicYear(String targetAcademicYear) =>
+      academicYear == null || academicYear == targetAcademicYear;
 
   bool get isFullDay => startMinute == 0 && endMinute == 24 * 60;
 
@@ -50,8 +55,7 @@ class SchoolScheduleException {
         candidateDate.day != date.day) {
       return false;
     }
-    return candidateStartMinute < endMinute &&
-        candidateEndMinute > startMinute;
+    return candidateStartMinute < endMinute && candidateEndMinute > startMinute;
   }
 }
 
