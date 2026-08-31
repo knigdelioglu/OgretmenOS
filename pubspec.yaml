@@ -1,7 +1,7 @@
 name: ogretmen_os
 description: "Offline-first TYMM Teacher OS runtime for multiple courses and grades."
 publish_to: 'none'
-version: 1.0.2+4
+version: 1.0.3+5
 
 environment:
   sdk: ^3.12.2
