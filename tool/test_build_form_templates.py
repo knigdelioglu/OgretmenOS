@@ -165,18 +165,21 @@ class FormTemplateEvidenceTest(unittest.TestCase):
         self.assertEqual(row[:2], ("needs_review", "invalid_source_provenance"))
         self.assertEqual(row[2]["source_id"], "source-1")
 
-    def test_catalog_source_page_alone_cannot_supply_canonical_locator(self):
+    def test_catalog_source_page_may_describe_verified_canonical_source(self):
         result, row = self._build(
             {
                 "content_basis": "verified_printed_form_transcription",
-                "source_page": "catalog-only s.12",
+                "source_page": "catalog transcription s.12",
             },
             printed_page=None,
             pdf_page=None,
             source_locator=None,
         )
-        self.assertEqual(result, {"ready": 0, "needs_review": 1})
-        self.assertEqual(row[:2], ("needs_review", "missing_verification_evidence"))
+        self.assertEqual(result, {"ready": 1, "needs_review": 0})
+        self.assertEqual(row[:2], ("ready", None))
+        self.assertEqual(row[2]["source_id"], "source-1")
+        self.assertEqual(row[2]["verification_status"], "VERIFIED")
+        self.assertEqual(row[2]["source_page"], "catalog transcription s.12")
 
 
 if __name__ == "__main__":
