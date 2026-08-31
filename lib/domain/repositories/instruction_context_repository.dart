@@ -7,6 +7,11 @@ abstract interface class InstructionContextRepository {
 
   Future<void> saveClass(SchoolClass schoolClass);
 
+  Future<void> createClassWithAssignment({
+    required SchoolClass schoolClass,
+    required TeachingAssignment assignment,
+  });
+
   Future<void> deleteClass(String classId);
 
   Future<List<TeachingAssignment>> getAssignments({
@@ -91,6 +96,25 @@ class MemoryInstructionContextRepository
   }
 
   @override
+  Future<void> createClassWithAssignment({
+    required SchoolClass schoolClass,
+    required TeachingAssignment assignment,
+  }) async {
+    _validateClass(schoolClass);
+    _validateAssignment(assignment);
+    if (assignment.classId != schoolClass.id) {
+      throw StateError('Ders ataması oluşturulan sınıfa ait olmalı.');
+    }
+    if (assignment.academicYear != schoolClass.academicYear) {
+      throw StateError('Sınıf ve ders ataması akademik yılı uyuşmuyor.');
+    }
+    _validateNewClass(schoolClass);
+    _validateNewAssignment(assignment);
+    _classes[schoolClass.id] = schoolClass;
+    _assignments[assignment.id] = assignment;
+  }
+
+  @override
   Future<void> deleteClass(String classId) async {
     final assignmentIds = _assignments.values
         .where((item) => item.classId == classId)
@@ -153,6 +177,37 @@ class MemoryInstructionContextRepository
       throw StateError('Bu ders bu sınıfa zaten atanmış.');
     }
     _assignments[assignment.id] = assignment;
+  }
+
+  void _validateNewClass(SchoolClass schoolClass) {
+    final existing = _classes[schoolClass.id];
+    if (existing != null) {
+      throw StateError('Sınıf kimliği zaten kullanılıyor.');
+    }
+    final duplicate = _classes.values.any(
+      (item) =>
+          item.academicYear == schoolClass.academicYear &&
+          item.displayName.trim().toUpperCase() ==
+              schoolClass.displayName.trim().toUpperCase(),
+    );
+    if (duplicate) {
+      throw StateError('Aynı akademik yılda aynı sınıf/şube zaten var.');
+    }
+  }
+
+  void _validateNewAssignment(TeachingAssignment assignment) {
+    if (_assignments.containsKey(assignment.id)) {
+      throw StateError('Ders ataması kimliği zaten kullanılıyor.');
+    }
+    final duplicate = _assignments.values.any(
+      (item) =>
+          item.academicYear == assignment.academicYear &&
+          item.courseId == assignment.courseId &&
+          item.classId == assignment.classId,
+    );
+    if (duplicate) {
+      throw StateError('Bu ders bu sınıfa zaten atanmış.');
+    }
   }
 
   @override

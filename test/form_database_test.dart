@@ -35,6 +35,12 @@ void main() {
       final definition = const FormDefinition(
         schemaVersion: '1.0',
         title: 'Gerçek Form',
+        provenance: {
+          'content_basis': 'verified_printed_form_transcription',
+          'source_id': 'canonical-test-source',
+          'source_page': 's.1',
+          'verification_status': 'VERIFIED',
+        },
         sections: [
           FormSection(elements: [ParagraphFormElement(text: 'İçerik')]),
         ],
@@ -50,12 +56,39 @@ void main() {
       final malformed = const FormDefinition(
         schemaVersion: '1.0',
         title: 'Bozuk Form',
+        provenance: {
+          'content_basis': 'verified_printed_form_transcription',
+          'source_id': 'canonical-test-source',
+          'source_page': 's.1',
+          'verification_status': 'VERIFIED',
+        },
         sections: [FormSection()],
       );
       await database.update('form_templates', {
         'template_json': jsonEncode(malformed.toJson()),
       });
-      expect(
+      await expectLater(
+        () => source.getFormDefinition('F1'),
+        throwsA(isA<FormDefinitionException>()),
+      );
+      await database.update('form_templates', {
+        'template_json': jsonEncode(
+          const FormDefinition(
+            schemaVersion: '1.0',
+            title: 'Kanıtı Bozuk Form',
+            provenance: {
+              'content_basis': 'generated_guess',
+              'source_id': 'canonical-test-source',
+              'source_page': 's.1',
+              'verification_status': 'VERIFIED',
+            },
+            sections: [
+              FormSection(elements: [ParagraphFormElement(text: 'İçerik')]),
+            ],
+          ).toJson(),
+        ),
+      });
+      await expectLater(
         () => source.getFormDefinition('F1'),
         throwsA(isA<FormDefinitionException>()),
       );

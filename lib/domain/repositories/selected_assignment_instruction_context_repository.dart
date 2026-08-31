@@ -26,6 +26,18 @@ class SelectedAssignmentInstructionContextRepository
       delegate.saveClass(schoolClass);
 
   @override
+  Future<void> createClassWithAssignment({
+    required SchoolClass schoolClass,
+    required TeachingAssignment assignment,
+  }) {
+    _requireSelected(assignment.id);
+    return delegate.createClassWithAssignment(
+      schoolClass: schoolClass,
+      assignment: assignment,
+    );
+  }
+
+  @override
   Future<void> deleteClass(String classId) => delegate.deleteClass(classId);
 
   @override

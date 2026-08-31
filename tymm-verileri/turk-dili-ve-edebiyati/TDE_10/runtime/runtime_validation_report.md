@@ -81,7 +81,34 @@
 ## Form Template Projection
 
 - Schema version: `1.0`
-- Ready templates: `35`
-- Needs review: `0`
+- Ready templates: `11`
+- Needs review: `24`
 - Foreign key integrity: `PASS`
 - JSON parse and element validation: runtime verifier
+
+### Needs-review reasons
+
+- `FORM_T1_EXIT_321`: `missing_verification_evidence`
+- `FORM_T1_KONUSMA_AKRAN`: `missing_verification_evidence`
+- `FORM_T1_MASAL_OZ`: `missing_verification_evidence`
+- `FORM_T1_YAZMA_AKRAN`: `missing_verification_evidence`
+- `FORM_T1_YAZMA_KONTROL`: `missing_verification_evidence`
+- `FORM_T2_YAZMA_AKRAN`: `missing_verification_evidence`
+- `FORM_T2_YAZMA_KONTROL`: `missing_verification_evidence`
+- `FORM_T3_FABL_DINLEME_KONTROL`: `missing_verification_evidence`
+- `FORM_T3_KONUSMA_AKRAN`: `missing_verification_evidence`
+- `FORM_T3_KONUSMA_OZ`: `missing_verification_evidence`
+- `FORM_T4_DINLEME_OZ`: `missing_verification_evidence`
+- `FORM_T4_KONUSMA_AKRAN`: `missing_verification_evidence`
+- `FORM_T4_KONUSMA_OZ`: `missing_verification_evidence`
+- `FORM_T4_TEMA_GUNLUK`: `missing_verification_evidence`
+- `FORM_T4_YAZMA_AKRAN`: `missing_verification_evidence`
+- `FORM_T4_YAZMA_KONTROL`: `missing_verification_evidence`
+- `LINK_T1_KONUSMA_DPA`: `invalid_source_provenance`
+- `LINK_T1_YAZMA_DPA`: `invalid_source_provenance`
+- `LINK_T2_PODCAST_DPA`: `invalid_source_provenance`
+- `LINK_T2_YAZMA_DPA`: `invalid_source_provenance`
+- `LINK_T3_KONUSMA_DPA`: `invalid_source_provenance`
+- `LINK_T3_YAZMA_DPA`: `invalid_source_provenance`
+- `LINK_T4_KONUSMA_DPA`: `invalid_source_provenance`
+- `LINK_T4_YAZMA_DPA`: `invalid_source_provenance`

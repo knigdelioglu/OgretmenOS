@@ -17,16 +17,7 @@ from typing import Any
 SCHEMA_VERSION = "1.0"
 READY = "ready"
 NEEDS_REVIEW = "needs_review"
-REVIEW_REASONS = {
-    "missing_source_structure",
-    "ambiguous_columns",
-    "ambiguous_scale",
-    "missing_rubric_levels",
-    "missing_rubric_descriptors",
-    "unresolved_form_reference",
-    "unsupported_layout",
-    "insufficient_canonical_evidence",
-}
+POLICY_PATH = Path(__file__).with_name("form_templates") / "form_template_policy.json"
 
 
 def _identity(labels: list[str]) -> dict[str, Any]:
@@ -224,6 +215,14 @@ def _load_json(path: Path) -> dict[str, Any]:
     return decoded
 
 
+def _load_policy() -> dict[str, set[str]]:
+    raw = _load_json(POLICY_PATH)
+    return {
+        key: {str(value) for value in raw.get(key, [])}
+        for key in ("ready_content_bases", "verified_statuses", "review_reasons")
+    }
+
+
 def _provenance(row: sqlite3.Row, index_form: dict[str, Any]) -> dict[str, Any]:
     return {
         "source_id": row["source_id"],
@@ -232,6 +231,42 @@ def _provenance(row: sqlite3.Row, index_form: dict[str, Any]) -> dict[str, Any]:
         "verification_status": row["verification_status"],
         "source_locator": index_form.get("source_locator"),
     }
+
+
+def _provenance_review_reason(
+    provenance: dict[str, Any],
+    *,
+    row: sqlite3.Row,
+    forms_index: dict[str, Any],
+    content_was_explicitly_provided: bool,
+    policy: dict[str, set[str]],
+) -> str | None:
+    if not content_was_explicitly_provided:
+        return "missing_verification_evidence"
+
+    content_basis = str(provenance.get("content_basis", "")).strip()
+    source_id = str(provenance.get("source_id", "")).strip()
+    indexed_source_id = str(forms_index.get("source_id", "")).strip()
+    verification_status = str(provenance.get("verification_status", "")).strip()
+    locator_values = (
+        provenance.get("source_locator"),
+        provenance.get("source_page"),
+        provenance.get("printed_page"),
+        provenance.get("pdf_page"),
+    )
+    has_locator = any(str(value).strip() for value in locator_values if value is not None)
+
+    if content_basis not in policy["ready_content_bases"]:
+        return "invalid_source_provenance"
+    if not source_id or (indexed_source_id and source_id != indexed_source_id):
+        return "invalid_source_provenance"
+    if str(row["source_id"] or "").strip() != source_id:
+        return "invalid_source_provenance"
+    if not has_locator:
+        return "missing_verification_evidence"
+    if verification_status not in policy["verified_statuses"]:
+        return "invalid_source_provenance"
+    return None
 
 
 def _review_reason(index_form: dict[str, Any]) -> str:
@@ -257,6 +292,7 @@ def build(args: argparse.Namespace) -> dict[str, int]:
         raise FileNotFoundError(f"Runtime paketi eksik: {runtime_dir}")
 
     forms_index = _load_json(Path(args.forms_index))
+    policy = _load_policy()
     if forms_index.get("course_id") != args.course_id:
         raise ValueError("forms index course_id uyuşmuyor")
     index_by_id = {
@@ -311,25 +347,36 @@ def build(args: argparse.Namespace) -> dict[str, int]:
             if spec is not None:
                 elements = _override_elements(spec)
                 instructions = spec.get("instructions")
-                status = READY
                 spec_provenance = spec.get("provenance") or {}
                 if not isinstance(spec_provenance, dict):
                     raise ValueError(f"Catalog provenance nesne olmalı: {form_id}")
                 provenance.update(spec_provenance)
-                provenance.setdefault(
-                    "content_basis", "verified_printed_form_transcription"
+                review_reason = _provenance_review_reason(
+                    provenance,
+                    row=row,
+                    forms_index=forms_index,
+                    content_was_explicitly_provided=bool(spec.get("provenance")),
+                    policy=policy,
                 )
-                review_reason = None
+                status = NEEDS_REVIEW if review_reason else READY
             else:
                 elements = _index_elements(index_form)
                 instructions = None
-                status = READY if elements else NEEDS_REVIEW
-                review_reason = None if elements else _review_reason(index_form)
-                provenance["content_basis"] = (
-                    "verified_structural_index"
-                    if elements
-                    else "metadata_only_structure_unresolved"
+                provenance["content_basis"] = "verified_structural_index" if elements else (
+                    "metadata_only_structure_unresolved"
                 )
+                review_reason = (
+                    _review_reason(index_form)
+                    if not elements
+                    else _provenance_review_reason(
+                        provenance,
+                        row=row,
+                        forms_index=forms_index,
+                        content_was_explicitly_provided=True,
+                        policy=policy,
+                    )
+                )
+                status = NEEDS_REVIEW if review_reason else READY
             if not elements:
                 elements = [
                     {
@@ -341,7 +388,7 @@ def build(args: argparse.Namespace) -> dict[str, int]:
                     }
                 ]
             if status == NEEDS_REVIEW:
-                if review_reason not in REVIEW_REASONS:
+                if review_reason not in policy["review_reasons"]:
                     raise ValueError(
                         f"Geçersiz form review reason: {form_id}: {review_reason}"
                     )

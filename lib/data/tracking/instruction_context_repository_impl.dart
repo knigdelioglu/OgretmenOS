@@ -71,6 +71,79 @@ class SqfliteInstructionContextRepository
   }
 
   @override
+  Future<void> createClassWithAssignment({
+    required SchoolClass schoolClass,
+    required TeachingAssignment assignment,
+  }) async {
+    _validateClass(schoolClass);
+    _validateAssignment(assignment);
+    if (assignment.classId != schoolClass.id) {
+      throw StateError('Ders ataması oluşturulan sınıfa ait olmalı.');
+    }
+    if (assignment.academicYear != schoolClass.academicYear) {
+      throw StateError('Sınıf ve ders ataması akademik yılı uyuşmuyor.');
+    }
+
+    await _database.transaction((txn) async {
+      final classById = await txn.query(
+        'school_classes',
+        columns: ['class_id'],
+        where: 'class_id = ?',
+        whereArgs: [schoolClass.id],
+        limit: 1,
+      );
+      if (classById.isNotEmpty) {
+        throw StateError('Sınıf kimliği zaten kullanılıyor.');
+      }
+      final duplicateClass = await txn.query(
+        'school_classes',
+        columns: ['class_id'],
+        where: 'academic_year = ? AND TRIM(UPPER(display_name)) = UPPER(?)',
+        whereArgs: [schoolClass.academicYear, schoolClass.displayName.trim()],
+        limit: 1,
+      );
+      if (duplicateClass.isNotEmpty) {
+        throw StateError('Aynı akademik yılda aynı sınıf/şube zaten var.');
+      }
+      final assignmentById = await txn.query(
+        'teaching_assignments',
+        columns: ['assignment_id'],
+        where: 'assignment_id = ?',
+        whereArgs: [assignment.id],
+        limit: 1,
+      );
+      if (assignmentById.isNotEmpty) {
+        throw StateError('Ders ataması kimliği zaten kullanılıyor.');
+      }
+      final duplicateAssignment = await txn.query(
+        'teaching_assignments',
+        columns: ['assignment_id'],
+        where: 'academic_year = ? AND course_id = ? AND class_id = ?',
+        whereArgs: [
+          assignment.academicYear,
+          assignment.courseId,
+          assignment.classId,
+        ],
+        limit: 1,
+      );
+      if (duplicateAssignment.isNotEmpty) {
+        throw StateError('Bu ders bu sınıfa zaten atanmış.');
+      }
+
+      await txn.insert(
+        'school_classes',
+        _classToRow(schoolClass),
+        conflictAlgorithm: ConflictAlgorithm.abort,
+      );
+      await txn.insert(
+        'teaching_assignments',
+        _assignmentToRow(assignment),
+        conflictAlgorithm: ConflictAlgorithm.abort,
+      );
+    });
+  }
+
+  @override
   Future<void> deleteClass(String classId) async {
     await _database.delete(
       'school_classes',

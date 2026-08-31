@@ -28,6 +28,7 @@ class FormPdfRenderer {
     document.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
+        maxPages: 200,
         margin: const pw.EdgeInsets.all(FormDocumentLayout.pageMarginPoints),
         footer: (context) => pw.Align(
           alignment: pw.Alignment.centerRight,
@@ -88,6 +89,9 @@ class FormPdfRenderer {
   }
 
   List<pw.Widget> _renderElement(FormElement element) {
+    if (element case final TableFormElement table) {
+      return _renderTableElements(table);
+    }
     final widget = switch (element) {
       HeadingFormElement value => pw.Text(
         value.text,
@@ -101,7 +105,7 @@ class FormPdfRenderer {
       FreeTextFormElement value => _freeText(value),
       ChecklistFormElement value => _checklist(value),
       RatingScaleFormElement value => _ratingScale(value),
-      TableFormElement value => _table(value),
+      TableFormElement value => _tableChunk(value, value.normalizedRows),
       RubricFormElement value => _rubric(value),
       NoteFormElement value => _note(value.text),
       SignatureFormElement value => _signatures(value),
@@ -225,29 +229,68 @@ class FormPdfRenderer {
     return _labelled(element.label, table);
   }
 
-  pw.Widget _table(TableFormElement element) {
+  List<pw.Widget> _renderTableElements(TableFormElement element) {
     if (element.columns.isEmpty) {
-      return _note('Bu tablonun sütun bilgisi bulunmuyor.');
+      return [
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 12),
+          child: _note('Bu tablonun sütun bilgisi bulunmuyor.'),
+        ),
+      ];
     }
-    if (element.normalizedRows.isEmpty && !element.header) {
-      return _note('Bu tabloda gösterilecek satır bulunmuyor.');
+    final rows = element.normalizedRows;
+    if (rows.isEmpty && !element.header) {
+      return [
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 12),
+          child: _note('Bu tabloda gösterilecek satır bulunmuyor.'),
+        ),
+      ];
     }
-    final table = pw.TableHelper.fromTextArray(
-      headers: element.header
-          ? element.columns.map((column) => column.label).toList()
-          : null,
-      headerCount: element.header ? 1 : 0,
-      data: element.normalizedRows,
-      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
-      cellStyle: const pw.TextStyle(fontSize: 8),
-      headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
-      columnWidths: {
-        for (var i = 0; i < element.columns.length; i++)
-          i: pw.FlexColumnWidth(element.columns[i].flex.toDouble()),
-      },
-    );
-    return _labelled(element.label, table);
+    if (rows.isEmpty) {
+      return [
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 12),
+          child: _labelled(element.label, _tableChunk(element, rows)),
+        ),
+      ];
+    }
+    final chunkSize = element.columns.length >= 6 ? 10 : 40;
+    return [
+      for (var start = 0; start < rows.length; start += chunkSize)
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 12),
+          child: _labelled(
+            start == 0 ? element.label : null,
+            _tableChunk(
+              element,
+              rows.sublist(
+                start,
+                start + chunkSize < rows.length
+                    ? start + chunkSize
+                    : rows.length,
+              ),
+            ),
+          ),
+        ),
+    ];
   }
+
+  pw.Widget _tableChunk(TableFormElement element, List<List<String>> rows) =>
+      pw.TableHelper.fromTextArray(
+        headers: element.header
+            ? element.columns.map((column) => column.label).toList()
+            : null,
+        headerCount: element.header ? 1 : 0,
+        data: rows,
+        headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
+        cellStyle: const pw.TextStyle(fontSize: 8),
+        headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+        columnWidths: {
+          for (var i = 0; i < element.columns.length; i++)
+            i: pw.FlexColumnWidth(element.columns[i].flex.toDouble()),
+        },
+      );
 
   pw.Widget _rubric(RubricFormElement element) {
     if (element.levels.isEmpty || element.criteria.isEmpty) {

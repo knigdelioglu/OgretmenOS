@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -11,123 +12,181 @@ const _expectedLessonPlanInstructionHours = 172;
 const _minimumLessonPlanRuntimePackageVersion = '1.3.0';
 const _minimumLessonPlanSchemaVersion = '1.2.0';
 
+class RuntimeSyncRequest {
+  const RuntimeSyncRequest({
+    required this.courseId,
+    required this.sourceRoot,
+    required this.targetRoot,
+    this.sourceCommit,
+    this.requireLessonPlans = false,
+    this.catalogPath,
+  });
+
+  final String courseId;
+  final String sourceRoot;
+  final String targetRoot;
+  final String? sourceCommit;
+  final bool requireLessonPlans;
+  final String? catalogPath;
+}
+
 Future<void> main(List<String> args) async {
   try {
     final courseId = _valueFor(args, '--course') ?? 'TDE_9';
-    final descriptor = runtimeForCourse(courseId);
-    if (descriptor.isCurriculumOnly) {
-      throw StateError(
-        '$courseId curriculum-only pakettir; tool/build_curriculum_only_runtime.py kullanın.',
-      );
-    }
-
-    final requireLessonPlans = args.contains('--require-lesson-plans');
     final sourceCommit = _valueFor(args, '--source-commit');
-    if (sourceCommit != null &&
-        !RegExp(r'^[0-9a-fA-F]{40}$').hasMatch(sourceCommit)) {
-      throw StateError('Geçersiz TYMM source commit SHA: $sourceCommit');
-    }
-
     final sourceRoot =
         _valueFor(args, '--source-root') ??
         '/Users/kadir/Desktop/tymm/courses/$courseId/runtime';
+    final descriptor = runtimeForCourse(courseId);
     final targetRoot =
         _valueFor(args, '--target-root') ?? descriptor.runtimeRoot;
 
-    final sourceManifest = File(p.join(sourceRoot, 'runtime_manifest.json'));
-    final sourceDatabase = File(p.join(sourceRoot, 'course_runtime.sqlite'));
-    final sourceValidationReport = File(
-      p.join(sourceRoot, 'runtime_validation_report.md'),
+    await syncRuntimePackage(
+      RuntimeSyncRequest(
+        courseId: courseId,
+        sourceRoot: sourceRoot,
+        targetRoot: targetRoot,
+        sourceCommit: sourceCommit,
+        requireLessonPlans: args.contains('--require-lesson-plans'),
+        catalogPath: _valueFor(args, '--catalog'),
+      ),
     );
-    if (!sourceManifest.existsSync()) {
-      throw StateError('Runtime manifest bulunamadı: ${sourceManifest.path}');
-    }
-    if (!sourceDatabase.existsSync()) {
-      throw StateError('Runtime SQLite bulunamadı: ${sourceDatabase.path}');
-    }
+  } catch (error, stackTrace) {
+    stderr.writeln('RUNTIME_SYNC: FAIL');
+    stderr.writeln(error);
+    stderr.writeln(stackTrace);
+    exitCode = 1;
+  }
+}
 
-    final manifestJson = jsonDecode(await sourceManifest.readAsString());
-    if (manifestJson is! Map<String, dynamic>) {
-      throw StateError('Runtime manifest JSON nesnesi olmalı.');
-    }
-    if (manifestJson['course_id'] != courseId) {
-      throw StateError(
-        'İstenen course_id ile runtime uyuşmuyor: '
-        '$courseId/${manifestJson['course_id']}',
-      );
-    }
-    final validationReport = sourceValidationReport.existsSync()
-        ? await sourceValidationReport.readAsString()
-        : null;
-    validateRuntimeFreshnessEvidence(
-      manifestJson,
-      validationReport: validationReport,
+Future<void> syncRuntimePackage(
+  RuntimeSyncRequest request, {
+  FutureOr<void> Function(Directory stagingDirectory)? beforeStagingValidation,
+}) async {
+  final courseId = request.courseId;
+  final descriptor = runtimeForCourse(courseId);
+  if (descriptor.isCurriculumOnly) {
+    throw StateError(
+      '$courseId curriculum-only pakettir; tool/build_curriculum_only_runtime.py kullanın.',
     );
+  }
+  final sourceCommit = request.sourceCommit;
+  if (sourceCommit != null &&
+      !RegExp(r'^[0-9a-fA-F]{40}$').hasMatch(sourceCommit)) {
+    throw StateError('Geçersiz TYMM source commit SHA: $sourceCommit');
+  }
 
-    if (requireLessonPlans) {
-      _validateLessonPlanManifest(manifestJson, courseId);
-    }
-    await _validateRuntimeDatabase(
-      sourceDatabase.path,
-      manifestJson,
-      requireLessonPlans: requireLessonPlans,
+  final sourceRoot = Directory(request.sourceRoot).absolute.path;
+  final targetRoot = Directory(request.targetRoot).absolute.path;
+  final sourceManifest = File(p.join(sourceRoot, 'runtime_manifest.json'));
+  final sourceDatabase = File(p.join(sourceRoot, 'course_runtime.sqlite'));
+  final sourceValidationReport = File(
+    p.join(sourceRoot, 'runtime_validation_report.md'),
+  );
+  if (!sourceManifest.existsSync()) {
+    throw StateError('Runtime manifest bulunamadı: ${sourceManifest.path}');
+  }
+  if (!sourceDatabase.existsSync()) {
+    throw StateError('Runtime SQLite bulunamadı: ${sourceDatabase.path}');
+  }
+
+  final manifestJson = jsonDecode(await sourceManifest.readAsString());
+  if (manifestJson is! Map<String, dynamic>) {
+    throw StateError('Runtime manifest JSON nesnesi olmalı.');
+  }
+  if (manifestJson['course_id'] != courseId) {
+    throw StateError(
+      'İstenen course_id ile runtime uyuşmuyor: '
+      '$courseId/${manifestJson['course_id']}',
     );
+  }
+  final validationReport = sourceValidationReport.existsSync()
+      ? await sourceValidationReport.readAsString()
+      : null;
+  validateRuntimeFreshnessEvidence(
+    manifestJson,
+    validationReport: validationReport,
+  );
+  if (request.requireLessonPlans) {
+    _validateLessonPlanManifest(manifestJson, courseId);
+  }
+  await _validateRuntimeDatabase(
+    sourceDatabase.path,
+    manifestJson,
+    requireLessonPlans: request.requireLessonPlans,
+  );
 
-    final targetDirectory = Directory(targetRoot);
-    await targetDirectory.create(recursive: true);
-    final targetDatabase = File(p.join(targetRoot, 'course_runtime.sqlite'));
-    final targetManifest = File(p.join(targetRoot, 'runtime_manifest.json'));
-    final targetValidationReport = File(
-      p.join(targetRoot, 'runtime_validation_report.md'),
-    );
-
-    await _replaceFromSource(sourceDatabase, targetDatabase);
-    await _replaceFromSource(sourceManifest, targetManifest);
+  final targetDirectory = Directory(targetRoot);
+  final stagingDirectory = Directory('$targetRoot.staging');
+  final backupDirectory = Directory('$targetRoot.backup');
+  final packageManifest = File(
+    p.join(targetDirectory.parent.path, 'package_manifest.json'),
+  );
+  final stagedPackageManifest = File('$targetRoot.package_manifest.staging');
+  final packageManifestBackup = File('$targetRoot.package_manifest.backup');
+  await _removeIfExists(stagingDirectory);
+  await _removeIfExists(backupDirectory);
+  await _removeIfExists(stagedPackageManifest);
+  await _removeIfExists(packageManifestBackup);
+  var committed = false;
+  try {
+    await stagingDirectory.create(recursive: true);
+    await _copyToDirectory(sourceDatabase, stagingDirectory);
+    await _copyToDirectory(sourceManifest, stagingDirectory);
     if (sourceValidationReport.existsSync()) {
-      await _replaceFromSource(sourceValidationReport, targetValidationReport);
-    } else if (targetValidationReport.existsSync()) {
-      await targetValidationReport.delete();
-    }
-
-    if (!await _filesEqual(sourceDatabase, targetDatabase)) {
-      throw StateError('Runtime SQLite hedef doğrulaması başarısız.');
-    }
-    if (!await _filesEqual(sourceManifest, targetManifest)) {
-      throw StateError('Runtime manifest hedef doğrulaması başarısız.');
-    }
-    if (sourceValidationReport.existsSync() &&
-        !await _filesEqual(sourceValidationReport, targetValidationReport)) {
-      throw StateError(
-        'Runtime validation report hedef doğrulaması başarısız.',
-      );
+      await _copyToDirectory(sourceValidationReport, stagingDirectory);
     }
 
     await _projectFormTemplates(
       courseId: courseId,
       sourceRuntimeRoot: sourceRoot,
-      targetRoot: targetRoot,
+      targetRoot: stagingDirectory.path,
+      catalogPath: request.catalogPath,
+    );
+    final stagedManifest = File(
+      p.join(stagingDirectory.path, 'runtime_manifest.json'),
     );
     final projectedManifestJson = jsonDecode(
-      await targetManifest.readAsString(),
+      await stagedManifest.readAsString(),
     );
     if (projectedManifestJson is! Map<String, dynamic>) {
       throw StateError('Projected runtime manifest JSON nesnesi olmalı.');
     }
-    await _validateRuntimeDatabase(
-      targetDatabase.path,
-      projectedManifestJson,
-      requireLessonPlans: requireLessonPlans,
+    await beforeStagingValidation?.call(stagingDirectory);
+    final stagedReport = File(
+      p.join(stagingDirectory.path, 'runtime_validation_report.md'),
     );
-    await _updatePackageManifest(
-      targetRoot: targetRoot,
+    validateRuntimeFreshnessEvidence(
+      projectedManifestJson,
+      validationReport: stagedReport.existsSync()
+          ? await stagedReport.readAsString()
+          : null,
+    );
+    await _validateRuntimeDatabase(
+      p.join(stagingDirectory.path, 'course_runtime.sqlite'),
+      projectedManifestJson,
+      requireLessonPlans: request.requireLessonPlans,
+    );
+    await _stagePackageManifest(
+      source: packageManifest,
+      destination: stagedPackageManifest,
       runtimeManifest: projectedManifestJson,
       sourceCommit: sourceCommit,
-      requireLessonPlans: requireLessonPlans,
+      requireLessonPlans: request.requireLessonPlans,
     );
+    await _atomicSwap(
+      staging: stagingDirectory,
+      target: targetDirectory,
+      backup: backupDirectory,
+      stagedPackageManifest: stagedPackageManifest,
+      packageManifest: packageManifest,
+      packageManifestBackup: packageManifestBackup,
+    );
+    committed = true;
 
     stdout.writeln('RUNTIME_SYNC: PASS');
     stdout.writeln('COURSE_ID: $courseId');
-    stdout.writeln('TARGET_ROOT: $targetRoot');
+    stdout.writeln('TARGET_ROOT: ${request.targetRoot}');
     if (sourceCommit != null) {
       stdout.writeln('TYMM_SOURCE_COMMIT: $sourceCommit');
     }
@@ -136,7 +195,7 @@ Future<void> main(List<String> args) async {
     );
     stdout.writeln('SCHEMA_VERSION: ${manifestJson['schema_version']}');
     stdout.writeln('VALIDATION_STATUS: ${manifestJson['validation_status']}');
-    if (requireLessonPlans) {
+    if (request.requireLessonPlans) {
       stdout.writeln(
         'LESSON_PLAN_PACKAGES: ${manifestJson['lesson_plan_package_count']}',
       );
@@ -148,11 +207,13 @@ Future<void> main(List<String> args) async {
         '${(manifestJson['lesson_plan_validation'] as Map)['status']}',
       );
     }
-  } catch (error, stackTrace) {
-    stderr.writeln('RUNTIME_SYNC: FAIL');
-    stderr.writeln(error);
-    stderr.writeln(stackTrace);
-    exitCode = 1;
+  } finally {
+    if (!committed) {
+      await _removeIfExists(stagingDirectory);
+      await _removeIfExists(stagedPackageManifest);
+      await _removeIfExists(backupDirectory);
+      await _removeIfExists(packageManifestBackup);
+    }
   }
 }
 
@@ -160,6 +221,7 @@ Future<void> _projectFormTemplates({
   required String courseId,
   required String sourceRuntimeRoot,
   required String targetRoot,
+  String? catalogPath,
 }) async {
   final projectRoot = Directory.current.absolute.path;
   final script = p.join(projectRoot, 'tool', 'build_form_templates.py');
@@ -173,12 +235,9 @@ Future<void> _projectFormTemplates({
   if (!File(formsIndex).existsSync()) {
     throw StateError('Canonical form index bulunamadı: $formsIndex');
   }
-  final catalog = p.join(
-    projectRoot,
-    'tool',
-    'form_templates',
-    '$courseId.json',
-  );
+  final catalog =
+      catalogPath ??
+      p.join(projectRoot, 'tool', 'form_templates', '$courseId.json');
   final arguments = <String>[
     script,
     '--course-id',
@@ -384,20 +443,15 @@ Future<void> _validateRuntimeDatabase(
   }
 }
 
-Future<void> _updatePackageManifest({
-  required String targetRoot,
+Future<void> _stagePackageManifest({
+  required File source,
+  required File destination,
   required Map<String, dynamic> runtimeManifest,
   required String? sourceCommit,
   required bool requireLessonPlans,
 }) async {
-  final packageManifest = File(
-    p.join(Directory(targetRoot).parent.path, 'package_manifest.json'),
-  );
-  if (!packageManifest.existsSync()) {
-    return;
-  }
-
-  final decoded = jsonDecode(await packageManifest.readAsString());
+  if (!source.existsSync()) return;
+  final decoded = jsonDecode(await source.readAsString());
   if (decoded is! Map<String, dynamic>) {
     throw StateError('package_manifest.json JSON nesnesi olmalı.');
   }
@@ -429,10 +483,16 @@ Future<void> _updatePackageManifest({
     decoded['lesson_plan_validated_commit_sha'] =
         validation['validated_commit_sha'];
   }
+  if (runtimeManifest['form_template_status_counts'] is Map) {
+    decoded['form_template_status_counts'] =
+        runtimeManifest['form_template_status_counts'];
+    decoded['form_template_review_reasons'] =
+        runtimeManifest['form_template_review_reasons'] ?? <String, dynamic>{};
+  }
 
-  await _replaceText(
-    packageManifest,
+  await destination.writeAsString(
     '${const JsonEncoder.withIndent('  ').convert(decoded)}\n',
+    flush: true,
   );
 }
 
@@ -444,49 +504,63 @@ String? _valueFor(List<String> args, String name) {
   return args[index + 1];
 }
 
-Future<void> _replaceFromSource(File source, File destination) async {
-  final temporary = File('${destination.path}.sync-tmp');
-  if (temporary.existsSync()) {
-    await temporary.delete();
-  }
-  await source.copy(temporary.path);
-  if (!await _filesEqual(source, temporary)) {
-    await temporary.delete();
-    throw StateError('Staging dosyası kaynakla uyuşmuyor: ${destination.path}');
-  }
-  if (destination.existsSync()) {
-    await destination.delete();
-  }
-  await temporary.rename(destination.path);
+Future<void> _copyToDirectory(File source, Directory destination) async {
+  await source.copy(p.join(destination.path, p.basename(source.path)));
 }
 
-Future<void> _replaceText(File destination, String content) async {
-  final temporary = File('${destination.path}.sync-tmp');
-  if (temporary.existsSync()) {
-    await temporary.delete();
+Future<void> _removeIfExists(FileSystemEntity entity) async {
+  if (!await entity.exists()) return;
+  if (entity is Directory) {
+    await entity.delete(recursive: true);
+  } else {
+    await entity.delete();
   }
-  await temporary.writeAsString(content, flush: true);
-  if (destination.existsSync()) {
-    await destination.delete();
-  }
-  await temporary.rename(destination.path);
 }
 
-Future<bool> _filesEqual(File source, File target) async {
-  if (!source.existsSync() || !target.existsSync()) {
-    return false;
-  }
-  if (await source.length() != await target.length()) {
-    return false;
-  }
-  final sourceBytes = await source.readAsBytes();
-  final targetBytes = await target.readAsBytes();
-  for (var index = 0; index < sourceBytes.length; index++) {
-    if (sourceBytes[index] != targetBytes[index]) {
-      return false;
+Future<void> _atomicSwap({
+  required Directory staging,
+  required Directory target,
+  required Directory backup,
+  required File stagedPackageManifest,
+  required File packageManifest,
+  required File packageManifestBackup,
+}) async {
+  var targetMoved = false;
+  var packageMoved = false;
+  var stagingMoved = false;
+  var stagedPackageMoved = false;
+  try {
+    if (await target.exists()) {
+      await target.rename(backup.path);
+      targetMoved = true;
     }
+    if (await packageManifest.exists()) {
+      await packageManifest.rename(packageManifestBackup.path);
+      packageMoved = true;
+    }
+    await staging.rename(target.path);
+    stagingMoved = true;
+    if (await stagedPackageManifest.exists()) {
+      await stagedPackageManifest.rename(packageManifest.path);
+      stagedPackageMoved = true;
+    }
+    await _removeIfExists(backup);
+    await _removeIfExists(packageManifestBackup);
+  } catch (_) {
+    if (stagedPackageMoved) {
+      await _removeIfExists(packageManifest);
+    }
+    if (packageMoved && await packageManifestBackup.exists()) {
+      await packageManifestBackup.rename(packageManifest.path);
+    }
+    if (stagingMoved) {
+      await _removeIfExists(target);
+    }
+    if (targetMoved && await backup.exists()) {
+      await backup.rename(target.path);
+    }
+    rethrow;
   }
-  return true;
 }
 
 bool _versionAtLeast(String actual, String minimum) {

@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "ready_content_bases": [
+    "verified_printed_form_transcription",
+    "verified_structural_index"
+  ],
+  "verified_statuses": [
+    "VERIFIED",
+    "LOCAL_PDF_PAGE_STRUCTURE_VERIFIED"
+  ],
+  "review_reasons": [
+    "missing_source_structure",
+    "ambiguous_columns",
+    "ambiguous_scale",
+    "missing_rubric_levels",
+    "missing_rubric_descriptors",
+    "unresolved_form_reference",
+    "unsupported_layout",
+    "insufficient_canonical_evidence",
+    "missing_verification_evidence",
+    "invalid_source_provenance"
+  ]
+}

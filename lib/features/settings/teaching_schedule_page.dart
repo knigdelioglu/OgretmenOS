@@ -141,8 +141,8 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
     final assignmentId =
         'assignment_${_safeId(data.academicYear)}_${_safeId(targetCourse.courseId)}_$suffix';
     try {
-      await widget.repository.saveClass(
-        SchoolClass(
+      await widget.repository.createClassWithAssignment(
+        schoolClass: SchoolClass(
           id: classId,
           academicYear: data.academicYear,
           grade: draft.grade,
@@ -151,9 +151,7 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
           createdAt: now,
           updatedAt: now,
         ),
-      );
-      await widget.repository.saveAssignment(
-        TeachingAssignment(
+        assignment: TeachingAssignment(
           id: assignmentId,
           academicYear: data.academicYear,
           courseId: targetCourse.courseId,

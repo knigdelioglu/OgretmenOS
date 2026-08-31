@@ -4,6 +4,7 @@ import '../../domain/models/course_models.dart';
 import '../../domain/models/form_models.dart';
 import '../../domain/models/planning_models.dart';
 import '../../domain/performance_instrumentation.dart';
+import '../../domain/runtime/form_template_policy.dart';
 import '../../domain/services/sequence_navigation.dart';
 
 class CourseDatabaseDataSource {
@@ -483,7 +484,12 @@ class CourseDatabaseDataSource {
     if (!await _hasTable('form_templates')) return null;
     final rows = await _database.query(
       'form_templates',
-      columns: ['schema_version', 'template_json', 'render_status'],
+      columns: [
+        'schema_version',
+        'template_json',
+        'render_status',
+        'provenance_json',
+      ],
       where: 'form_id = ?',
       whereArgs: [formId],
       limit: 1,
@@ -501,6 +507,7 @@ class CourseDatabaseDataSource {
       );
     }
     definition.validate();
+    FormTemplatePolicy.validateReadyProvenance(definition.provenance);
     return definition;
   }
 

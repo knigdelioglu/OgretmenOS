@@ -388,20 +388,19 @@ class _CompactRows extends StatelessWidget {
                 for (var i = 0; i < columns.length; i++)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 6),
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: '${columns[i]}: ',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          TextSpan(
-                            text: rows[rowIndex][i].isEmpty
-                                ? '—'
-                                : rows[rowIndex][i],
-                          ),
-                        ],
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          columns[i],
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        Text(
+                          rows[rowIndex][i].isEmpty
+                              ? '—'
+                              : rows[rowIndex][i],
+                        ),
+                      ],
                     ),
                   ),
               ],

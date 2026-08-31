@@ -26,8 +26,9 @@ class MemorySchoolScheduleExceptionRepository
     final end = DateTime(endYear, 8, 31, 23, 59, 59, 999);
     final result = _items
         .where((item) {
-          if (item.academicYear != null)
+          if (item.academicYear != null) {
             return item.academicYear == academicYear;
+          }
           final date = DateTime(item.date.year, item.date.month, item.date.day);
           return !date.isBefore(start) && !date.isAfter(end);
         })

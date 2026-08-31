@@ -155,7 +155,13 @@ void main() {
         courseId: 'TDE_9',
         assignmentId: 'a9',
         classId: 'c9',
-        slots: const [(DateTime.wednesday, 1)],
+        slots: const [
+          (DateTime.monday, 1),
+          (DateTime.tuesday, 1),
+          (DateTime.wednesday, 1),
+          (DateTime.thursday, 1),
+          (DateTime.friday, 1),
+        ],
         periods: const [
           BellPeriod(periodNumber: 1, startMinute: 480, endMinute: 520),
         ],
@@ -186,7 +192,7 @@ void main() {
       );
 
       expect(snapshot.currentOccurrence, isNotNull);
-      expect(snapshot.currentOccurrence!.plannedOrdinal, 1);
+      expect(snapshot.currentOccurrence!.plannedOrdinal, 3);
     });
   });
 

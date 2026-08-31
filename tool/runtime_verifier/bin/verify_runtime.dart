@@ -113,7 +113,8 @@ Future<void> main(List<String> args) async {
     if (dataMode == 'CURRICULUM_ONLY') {
       _verifyCurriculumOnly(database, counts, packageManifest, manifestMap);
     } else {
-      _verifyFullRuntime(database, manifestMap);
+      final policy = _loadFormTemplatePolicy(projectRoot.path);
+      _verifyFullRuntime(database, manifestMap, policy);
     }
   } finally {
     database.close();
@@ -220,7 +221,11 @@ void _verifyCurriculumOnly(
   }
 }
 
-void _verifyFullRuntime(Database database, Map<String, dynamic> manifest) {
+void _verifyFullRuntime(
+  Database database,
+  Map<String, dynamic> manifest,
+  Map<String, Set<String>> formTemplatePolicy,
+) {
   final verificationCandidates = database.select('''
     SELECT b.theme_id, b.block_id
     FROM blocks b
@@ -279,10 +284,14 @@ void _verifyFullRuntime(Database database, Map<String, dynamic> manifest) {
         0,
     'theme ölçme bağlama yok',
   );
-  _verifyFormTemplates(database, manifest);
+  _verifyFormTemplates(database, manifest, formTemplatePolicy);
 }
 
-void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
+void _verifyFormTemplates(
+  Database database,
+  Map<String, dynamic> manifest,
+  Map<String, Set<String>> policy,
+) {
   final formCount = _count(database, 'forms');
   final capabilities = manifest['capabilities'];
   _check(capabilities is Map, 'runtime capabilities eksik');
@@ -315,16 +324,6 @@ void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
   );
 
   const allowedStatuses = {'ready', 'needs_review'};
-  const allowedReviewReasons = {
-    'missing_source_structure',
-    'ambiguous_columns',
-    'ambiguous_scale',
-    'missing_rubric_levels',
-    'missing_rubric_descriptors',
-    'unresolved_form_reference',
-    'unsupported_layout',
-    'insufficient_canonical_evidence',
-  };
   const allowedTypes = {
     'heading',
     'paragraph',
@@ -348,11 +347,11 @@ void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
   for (final row in rows) {
     final formId = row['form_id'];
     final metadataTitle = row['title']?.toString().trim() ?? '';
+    _check(metadataTitle.isNotEmpty, '$formId kullanıcı başlığı boş');
     _check(
-      metadataTitle.isNotEmpty,
-      '$formId kullanıcı başlığı boş',
+      metadataTitle != formId,
+      '$formId kullanıcı başlığı teknik ID olamaz',
     );
-    _check(metadataTitle != formId, '$formId kullanıcı başlığı teknik ID olamaz');
     final schemaVersion = row['schema_version']?.toString() ?? '';
     _check(schemaVersion == '1.0', '$formId desteklenmeyen schema_version');
     final status = row['render_status']?.toString() ?? '';
@@ -364,7 +363,7 @@ void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
         '$formId needs_review reason eksik',
       );
       _check(
-        allowedReviewReasons.contains(reviewReason),
+        policy['review_reasons']!.contains(reviewReason),
         '$formId needs_review reason geçersiz: $reviewReason',
       );
     } else {
@@ -375,6 +374,30 @@ void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
     }
     final provenance = _decodeMap(row['provenance_json']?.toString() ?? '');
     _check(provenance.isNotEmpty, '$formId provenance boş');
+    if (status == 'ready') {
+      final contentBasis = provenance['content_basis']?.toString().trim() ?? '';
+      _check(
+        policy['ready_content_bases']!.contains(contentBasis),
+        '$formId ready content_basis canonical değil',
+      );
+      _check(
+        (provenance['source_id']?.toString().trim() ?? '').isNotEmpty,
+        '$formId ready source_id eksik',
+      );
+      final hasLocator = [
+        provenance['source_locator'],
+        provenance['source_page'],
+        provenance['printed_page'],
+        provenance['pdf_page'],
+      ].any((value) => value?.toString().trim().isNotEmpty ?? false);
+      _check(hasLocator, '$formId ready source locator/page eksik');
+      _check(
+        policy['verified_statuses']!.contains(
+          provenance['verification_status']?.toString().trim(),
+        ),
+        '$formId ready verification_status geçersiz',
+      );
+    }
     _check(
       status == 'needs_review'
           ? provenance['review_reason'] == reviewReason
@@ -399,6 +422,18 @@ void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
           (template['provenance'] as Map).isNotEmpty,
       '$formId template provenance boş',
     );
+    if (status == 'ready') {
+      final templateProvenance = Map<String, dynamic>.from(
+        template['provenance'] as Map,
+      );
+      _check(
+        templateProvenance['content_basis'] == provenance['content_basis'] &&
+            templateProvenance['source_id'] == provenance['source_id'] &&
+            templateProvenance['verification_status'] ==
+                provenance['verification_status'],
+        '$formId template/provenance kanıtı uyuşmuyor',
+      );
+    }
     final sections = template['sections'];
     _check(
       sections is List && sections.isNotEmpty,
@@ -447,7 +482,8 @@ void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
             _check(criterion is Map, '$formId rubric ölçüt nesne değil');
             final descriptors = (criterion as Map)['descriptors'];
             _check(
-              descriptors is List && descriptors.length == (levels as List).length,
+              descriptors is List &&
+                  descriptors.length == (levels as List).length,
               '$formId rubric descriptor/düzey sayısı uyuşmuyor',
             );
           }
@@ -456,14 +492,18 @@ void _verifyFormTemplates(Database database, Map<String, dynamic> manifest) {
           final options = element['options'];
           final items = element['items'];
           _check(
-            options is List && options.isNotEmpty &&
-                items is List && items.isNotEmpty,
+            options is List &&
+                options.isNotEmpty &&
+                items is List &&
+                items.isNotEmpty,
             '$formId ratingScale seçenek/ölçüt boş',
           );
           final min = int.tryParse(element['min']?.toString() ?? '');
           final max = int.tryParse(element['max']?.toString() ?? '');
           _check(
-            min != null && max != null && min <= max &&
+            min != null &&
+                max != null &&
+                min <= max &&
                 max - min + 1 == (options as List).length,
             '$formId ratingScale aralığı seçeneklerle uyuşmuyor',
           );
@@ -538,6 +578,26 @@ Map<String, dynamic> _decodeMap(String text) {
   final decoded = jsonDecode(text);
   if (decoded is! Map) throw StateError('JSON nesnesi bekleniyordu');
   return Map<String, dynamic>.from(decoded);
+}
+
+Map<String, Set<String>> _loadFormTemplatePolicy(String projectRoot) {
+  final policyFile = File(
+    p.join(projectRoot, 'tool', 'form_templates', 'form_template_policy.json'),
+  );
+  _check(policyFile.existsSync(), 'form template policy bulunamadı');
+  final decoded = jsonDecode(policyFile.readAsStringSync());
+  _check(decoded is Map, 'form template policy nesne olmalı');
+  final policy = <String, Set<String>>{};
+  for (final key in const [
+    'ready_content_bases',
+    'verified_statuses',
+    'review_reasons',
+  ]) {
+    final values = (decoded as Map)[key];
+    _check(values is List, 'form template policy.$key liste olmalı');
+    policy[key] = values.map<String>((value) => value.toString()).toSet();
+  }
+  return policy;
 }
 
 void _checkFreshnessEvidence(
