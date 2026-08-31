@@ -62,6 +62,7 @@ Future<void> main(List<String> args) async {
 Future<void> syncRuntimePackage(
   RuntimeSyncRequest request, {
   FutureOr<void> Function(Directory stagingDirectory)? beforeStagingValidation,
+  FutureOr<void> Function()? beforeBackupCleanup,
 }) async {
   final courseId = request.courseId;
   final descriptor = runtimeForCourse(courseId);
@@ -181,6 +182,7 @@ Future<void> syncRuntimePackage(
       stagedPackageManifest: stagedPackageManifest,
       packageManifest: packageManifest,
       packageManifestBackup: packageManifestBackup,
+      beforeBackupCleanup: beforeBackupCleanup,
     );
     committed = true;
 
@@ -524,11 +526,15 @@ Future<void> _atomicSwap({
   required File stagedPackageManifest,
   required File packageManifest,
   required File packageManifestBackup,
+  FutureOr<void> Function()? beforeBackupCleanup,
 }) async {
   var targetMoved = false;
   var packageMoved = false;
   var stagingMoved = false;
   var stagedPackageMoved = false;
+
+  // Everything inside this block is pre-commit. Any failure must restore the
+  // previous generation before the error escapes.
   try {
     if (await target.exists()) {
       await target.rename(backup.path);
@@ -544,8 +550,6 @@ Future<void> _atomicSwap({
       await stagedPackageManifest.rename(packageManifest.path);
       stagedPackageMoved = true;
     }
-    await _removeIfExists(backup);
-    await _removeIfExists(packageManifestBackup);
   } catch (_) {
     if (stagedPackageMoved) {
       await _removeIfExists(packageManifest);
@@ -560,6 +564,30 @@ Future<void> _atomicSwap({
       await backup.rename(target.path);
     }
     rethrow;
+  }
+
+  // Commit point: target runtime + package manifest are now the new generation.
+  // Backup cleanup is deliberately best-effort. A cleanup failure must never
+  // roll back or delete the already-valid committed target.
+  await _bestEffortCleanup(
+    'post-commit cleanup hook',
+    () async => beforeBackupCleanup?.call(),
+  );
+  await _bestEffortCleanup('runtime backup', () => _removeIfExists(backup));
+  await _bestEffortCleanup(
+    'package manifest backup',
+    () => _removeIfExists(packageManifestBackup),
+  );
+}
+
+Future<void> _bestEffortCleanup(
+  String label,
+  FutureOr<void> Function() action,
+) async {
+  try {
+    await action();
+  } catch (error) {
+    stderr.writeln('RUNTIME_SYNC_CLEANUP_WARNING [$label]: $error');
   }
 }
 
