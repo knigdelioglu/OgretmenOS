@@ -10,6 +10,17 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 void main() {
   sqfliteFfiInit();
 
+  test('form projector canonical authority Python regressions pass', () async {
+    final result = await Process.run('python3', [
+      'tool/test_build_form_templates.py',
+    ]);
+    expect(
+      result.exitCode,
+      0,
+      reason: 'stdout:\n${result.stdout}\nstderr:\n${result.stderr}',
+    );
+  });
+
   for (final courseId in const ['TDE_9', 'TDE_10']) {
     test('$courseId form status ve UI evidence contractı eşleşir', () async {
       final descriptor = runtimeForCourse(courseId);
