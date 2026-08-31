@@ -66,6 +66,55 @@ void main() {
   });
 
   test(
+    'post-commit cleanup hatası geçerli yeni targetı rollback etmez',
+    () async {
+      await _withRuntimeFixture((fixture) async {
+        final beforeManifest = await fixture.targetManifest.readAsBytes();
+        await sync.syncRuntimePackage(
+          sync.RuntimeSyncRequest(
+            courseId: 'TDE_9',
+            sourceRoot: fixture.sourceRuntime.path,
+            targetRoot: fixture.targetRuntime.path,
+            catalogPath: fixture.catalog.path,
+          ),
+          beforeBackupCleanup: () {
+            throw const FileSystemException('injected cleanup failure');
+          },
+        );
+
+        final afterManifest = await fixture.targetManifest.readAsBytes();
+        expect(afterManifest, isNot(beforeManifest));
+        expect(
+          await fixture.targetDatabase.readAsBytes(),
+          isNot(fixture.oldDatabaseBytes),
+        );
+        final runtimeManifest =
+            jsonDecode(await fixture.targetManifest.readAsString())
+                as Map<String, dynamic>;
+        final packageManifest =
+            jsonDecode(await fixture.packageManifest.readAsString())
+                as Map<String, dynamic>;
+        expect(
+          packageManifest['runtime_canonical_content_fingerprint'],
+          runtimeManifest['canonical_content_fingerprint'],
+        );
+        expect(runtimeManifest['form_template_status_counts'], {
+          'ready': 0,
+          'needs_review': 28,
+        });
+        expect(
+          await Directory('${fixture.targetRuntime.path}.staging').exists(),
+          isFalse,
+        );
+        expect(
+          await Directory('${fixture.targetRuntime.path}.backup').exists(),
+          isFalse,
+        );
+      });
+    },
+  );
+
+  test(
     'başarılı sync tutarlı staged package üretir ve stale temp temizler',
     () async {
       await _withRuntimeFixture((fixture) async {

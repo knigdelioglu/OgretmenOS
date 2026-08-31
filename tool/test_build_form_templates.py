@@ -15,7 +15,16 @@ SPEC.loader.exec_module(PROJECTOR)
 
 
 class FormTemplateEvidenceTest(unittest.TestCase):
-    def _build(self, provenance=None):
+    def _build(
+        self,
+        provenance=None,
+        *,
+        canonical_source_id="source-1",
+        printed_page="12",
+        pdf_page="13",
+        verification_status="VERIFIED",
+        source_locator=None,
+    ):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             database_path = root / "course_runtime.sqlite"
@@ -27,7 +36,14 @@ class FormTemplateEvidenceTest(unittest.TestCase):
             )
             connection.execute(
                 "INSERT INTO forms VALUES (?, ?, ?, ?, ?, ?)",
-                ("F1", "Canonical form", "source-1", "12", "13", "VERIFIED"),
+                (
+                    "F1",
+                    "Canonical form",
+                    canonical_source_id,
+                    printed_page,
+                    pdf_page,
+                    verification_status,
+                ),
             )
             connection.commit()
             connection.close()
@@ -39,13 +55,32 @@ class FormTemplateEvidenceTest(unittest.TestCase):
                 json.dumps(
                     {
                         "course_id": "TDE_TEST",
-                        "source_id": "source-1",
-                        "forms": [{"form_id": "F1", "structural_type": "custom"}],
+                        "source_id": canonical_source_id,
+                        "forms": [
+                            {
+                                "form_id": "F1",
+                                "structural_type": "custom",
+                                **(
+                                    {"source_locator": source_locator}
+                                    if source_locator is not None
+                                    else {}
+                                ),
+                            }
+                        ],
                     }
                 ),
                 encoding="utf-8",
             )
-            catalog = {"course_id": "TDE_TEST", "templates": {"F1": {"kind": "rating", "options": ["Evet"], "items": ["Ölçüt"]}}}
+            catalog = {
+                "course_id": "TDE_TEST",
+                "templates": {
+                    "F1": {
+                        "kind": "rating",
+                        "options": ["Evet"],
+                        "items": ["Ölçüt"],
+                    }
+                },
+            }
             if provenance is not None:
                 catalog["templates"]["F1"]["provenance"] = provenance
             catalog_path = root / "catalog.json"
@@ -59,10 +94,13 @@ class FormTemplateEvidenceTest(unittest.TestCase):
                     catalog=str(catalog_path),
                 )
             )
-            row = sqlite3.connect(database_path).execute(
-                "SELECT render_status, review_reason FROM form_templates WHERE form_id = 'F1'"
+            connection = sqlite3.connect(database_path)
+            row = connection.execute(
+                "SELECT render_status, review_reason, provenance_json "
+                "FROM form_templates WHERE form_id = 'F1'"
             ).fetchone()
-            return result, row
+            connection.close()
+            return result, (row[0], row[1], json.loads(row[2]))
 
     def test_valid_evidence_is_ready(self):
         result, row = self._build(
@@ -74,12 +112,14 @@ class FormTemplateEvidenceTest(unittest.TestCase):
             }
         )
         self.assertEqual(result, {"ready": 1, "needs_review": 0})
-        self.assertEqual(row, ("ready", None))
+        self.assertEqual(row[:2], ("ready", None))
+        self.assertEqual(row[2]["source_id"], "source-1")
+        self.assertEqual(row[2]["verification_status"], "VERIFIED")
 
     def test_missing_evidence_cannot_be_ready(self):
         result, row = self._build()
         self.assertEqual(result, {"ready": 0, "needs_review": 1})
-        self.assertEqual(row, ("needs_review", "missing_verification_evidence"))
+        self.assertEqual(row[:2], ("needs_review", "missing_verification_evidence"))
 
     def test_invalid_status_and_guessed_basis_are_not_ready(self):
         for provenance in [
@@ -98,7 +138,48 @@ class FormTemplateEvidenceTest(unittest.TestCase):
         ]:
             result, row = self._build(provenance)
             self.assertEqual(result, {"ready": 0, "needs_review": 1})
-            self.assertEqual(row, ("needs_review", "invalid_source_provenance"))
+            self.assertEqual(row[:2], ("needs_review", "invalid_source_provenance"))
+
+    def test_catalog_cannot_upgrade_canonical_verification_status(self):
+        result, row = self._build(
+            {
+                "content_basis": "verified_printed_form_transcription",
+                "source_page": "s.12",
+                "verification_status": "VERIFIED",
+            },
+            verification_status="UNVERIFIED",
+        )
+        self.assertEqual(result, {"ready": 0, "needs_review": 1})
+        self.assertEqual(row[:2], ("needs_review", "invalid_source_provenance"))
+        self.assertEqual(row[2]["verification_status"], "UNVERIFIED")
+
+    def test_catalog_cannot_replace_canonical_source_identity(self):
+        result, row = self._build(
+            {
+                "content_basis": "verified_printed_form_transcription",
+                "source_id": "other-source",
+                "source_page": "s.12",
+            }
+        )
+        self.assertEqual(result, {"ready": 0, "needs_review": 1})
+        self.assertEqual(row[:2], ("needs_review", "invalid_source_provenance"))
+        self.assertEqual(row[2]["source_id"], "source-1")
+
+    def test_catalog_source_page_may_describe_verified_canonical_source(self):
+        result, row = self._build(
+            {
+                "content_basis": "verified_printed_form_transcription",
+                "source_page": "catalog transcription s.12",
+            },
+            printed_page=None,
+            pdf_page=None,
+            source_locator=None,
+        )
+        self.assertEqual(result, {"ready": 1, "needs_review": 0})
+        self.assertEqual(row[:2], ("ready", None))
+        self.assertEqual(row[2]["source_id"], "source-1")
+        self.assertEqual(row[2]["verification_status"], "VERIFIED")
+        self.assertEqual(row[2]["source_page"], "catalog transcription s.12")
 
 
 if __name__ == "__main__":
