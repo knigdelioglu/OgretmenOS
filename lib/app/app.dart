@@ -20,6 +20,7 @@ import '../features/shared/interaction_polish.dart';
 import '../features/this_week/continuity_this_week_page.dart';
 import 'app_dependencies.dart';
 import 'resource_navigation.dart';
+import '../features/shared/adaptive_surfaces.dart';
 import 'theme/app_theme.dart';
 
 class TeacherOsApp extends StatefulWidget {
@@ -611,51 +612,60 @@ class _AppShellState extends State<_AppShell> {
           children: pages,
         );
 
+        final shellBody = useRail
+            ? Row(
+                children: [
+                  AppViewport(
+                    top: false,
+                    right: false,
+                    child: NavigationRail(
+                      selectedIndex: widget.selectedIndex,
+                      onDestinationSelected: widget.onDestinationChanged,
+                      extended: extendedRail,
+                      minWidth: 72,
+                      minExtendedWidth: 176,
+                      labelType: extendedRail
+                          ? NavigationRailLabelType.none
+                          : compactLabels
+                          ? NavigationRailLabelType.selected
+                          : NavigationRailLabelType.all,
+                      groupAlignment: -0.86,
+                      destinations: const [
+                        NavigationRailDestination(
+                          icon: Icon(Icons.today_outlined),
+                          selectedIcon: Icon(Icons.today),
+                          label: Text('Bu Hafta'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.view_timeline_outlined),
+                          selectedIcon: Icon(Icons.view_timeline),
+                          label: Text('Plan'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.library_books_outlined),
+                          selectedIcon: Icon(Icons.library_books),
+                          label: Text('Kaynaklar'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  VerticalDivider(
+                    width: 1,
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                  Expanded(child: content),
+                ],
+              )
+            : content;
+
         return Scaffold(
-          body: useRail
-              ? Row(
-                  children: [
-                    SafeArea(
-                      right: false,
-                      child: NavigationRail(
-                        selectedIndex: widget.selectedIndex,
-                        onDestinationSelected: widget.onDestinationChanged,
-                        extended: extendedRail,
-                        minWidth: 72,
-                        minExtendedWidth: 176,
-                        labelType: extendedRail
-                            ? NavigationRailLabelType.none
-                            : compactLabels
-                            ? NavigationRailLabelType.selected
-                            : NavigationRailLabelType.all,
-                        groupAlignment: -0.86,
-                        destinations: const [
-                          NavigationRailDestination(
-                            icon: Icon(Icons.today_outlined),
-                            selectedIcon: Icon(Icons.today),
-                            label: Text('Bu Hafta'),
-                          ),
-                          NavigationRailDestination(
-                            icon: Icon(Icons.view_timeline_outlined),
-                            selectedIcon: Icon(Icons.view_timeline),
-                            label: Text('Plan'),
-                          ),
-                          NavigationRailDestination(
-                            icon: Icon(Icons.library_books_outlined),
-                            selectedIcon: Icon(Icons.library_books),
-                            label: Text('Kaynaklar'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    VerticalDivider(
-                      width: 1,
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                    ),
-                    Expanded(child: content),
-                  ],
-                )
-              : content,
+          body: AppViewport(
+            top: true,
+            bottom: false,
+            left: false,
+            right: false,
+            child: shellBody,
+          ),
           bottomNavigationBar: useRail
               ? null
               : NavigationBar(

@@ -12,6 +12,7 @@ import '../../domain/services/bell_schedule_builder.dart';
 import '../../domain/services/legacy_teacher_state_migration_service.dart';
 import '../shared/feature_widgets.dart';
 import '../shared/interaction_polish.dart';
+import '../shared/adaptive_surfaces.dart';
 
 class TeachingSchedulePage extends StatefulWidget {
   const TeachingSchedulePage({
@@ -114,10 +115,8 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
   void _reload() => setState(() => _future = _load());
 
   Future<void> _addClass(_SchedulePageData data) async {
-    final draft = await showModalBottomSheet<_ClassDraft>(
+    final draft = await showAppModalBottomSheet<_ClassDraft>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
       builder: (_) => _AddClassSheet(initialGrade: widget.grade),
     );
     if (draft == null || draft.section.trim().isEmpty) return;
@@ -182,10 +181,8 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
   }
 
   Future<void> _editBellPeriods(_SchedulePageData data) async {
-    final periods = await showModalBottomSheet<List<BellPeriod>>(
+    final periods = await showAppModalBottomSheet<List<BellPeriod>>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
       builder: (_) => _BellPeriodsSheet(initial: data.periods),
     );
     if (periods == null) return;
@@ -221,10 +218,8 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
       occupied[_ScheduleCell(slot.weekday, slot.periodNumber)] =
           slot.assignmentId;
     }
-    final selected = await showModalBottomSheet<Set<_ScheduleCell>>(
+    final selected = await showAppModalBottomSheet<Set<_ScheduleCell>>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
       builder: (_) => _AssignmentScheduleSheet(
         periods: data.periods,
         expectedWeeklyHours: data.weeklyLessonHours,
@@ -405,9 +400,9 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
     TeachingAssignment assignment,
   ) async {
     final schoolClass = data.classFor(assignment.classId);
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         title: Text('${schoolClass?.displayName ?? 'Sınıf'} kaldırılsın mı?'),
         content: const Text(
           'Bu sınıfın ders programı ve sınıfa bağlı yeni ilerleme kayıtları kaldırılır.',
@@ -470,9 +465,8 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
     if (assignments.length == 1) {
       selected = assignments.first;
     } else {
-      final assignmentId = await showModalBottomSheet<String>(
+      final assignmentId = await showAppModalBottomSheet<String>(
         context: context,
-        useSafeArea: true,
         builder: (_) => _LegacyAssignmentPicker(
           assignments: assignments,
           classes: data.classes,
@@ -485,9 +479,9 @@ class _TeachingSchedulePageState extends State<TeachingSchedulePage> {
     final className =
         data.classFor(selected.classId)?.displayName ?? 'seçili şube';
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAppDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         title: Text('Eski takip $className şubesine aktarılsın mı?'),
         content: Text(
           '${preview.migratableRecordCount} eski kayıt bu şubeye kopyalanabilir. '
@@ -838,35 +832,40 @@ class _LegacyAssignmentPicker extends StatelessWidget {
   final List<SchoolClass> classes;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.lg,
-            AppSpacing.lg,
-            AppSpacing.sm,
-          ),
-          child: Text(
-            'Eski takip hangi şubeye ait?',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-          ),
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.sm,
         ),
-        for (final assignment in assignments)
-          ListTile(
-            leading: const Icon(Icons.class_outlined),
-            title: Text(_classLabel(classes, assignment.classId)),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => Navigator.of(context).pop(assignment.id),
-          ),
-        const SizedBox(height: AppSpacing.sm),
-      ],
-    ),
+        child: Text(
+          'Eski takip hangi şubeye ait?',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+      ),
+      Flexible(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final assignment in assignments)
+              ListTile(
+                leading: const Icon(Icons.class_outlined),
+                title: Text(_classLabel(classes, assignment.classId)),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.of(context).pop(assignment.id),
+              ),
+          ],
+        ),
+      ),
+      const SizedBox(height: AppSpacing.sm),
+    ],
   );
 
   String _classLabel(List<SchoolClass> classes, String classId) {
@@ -916,68 +915,72 @@ class _AddClassSheetState extends State<_AddClassSheet> {
       AppSpacing.lg,
       AppSpacing.lg,
       AppSpacing.lg,
-      MediaQuery.viewInsetsOf(context).bottom + AppSpacing.lg,
+      AppSpacing.lg,
     ),
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 520),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Sınıf ekle',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Sınıf düzeyini ve şubeyi seçin.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            DropdownButtonFormField<int>(
-              initialValue: _grade,
-              decoration: const InputDecoration(
-                labelText: 'Sınıf düzeyi',
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                for (var grade = 9; grade <= 12; grade++)
-                  DropdownMenuItem<int>(
-                    value: grade,
-                    child: Text('$grade. sınıf'),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Flexible(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Sınıf ekle',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Sınıf düzeyini ve şubeyi seçin.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                DropdownButtonFormField<int>(
+                  initialValue: _grade,
+                  decoration: const InputDecoration(
+                    labelText: 'Sınıf düzeyi',
+                    border: OutlineInputBorder(),
                   ),
+                  items: [
+                    for (var grade = 9; grade <= 12; grade++)
+                      DropdownMenuItem<int>(
+                        value: grade,
+                        child: Text('$grade. sınıf'),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setState(() => _grade = value);
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: _controller,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    labelText: 'Şube',
+                    hintText: 'A',
+                    border: const OutlineInputBorder(),
+                    errorText: _sectionError,
+                  ),
+                  onChanged: (_) {
+                    if (_sectionError != null) {
+                      setState(() => _sectionError = null);
+                    }
+                  },
+                  onSubmitted: (_) => _submit(),
+                ),
               ],
-              onChanged: (value) {
-                if (value != null) setState(() => _grade = value);
-              },
             ),
-            const SizedBox(height: AppSpacing.md),
-            TextField(
-              controller: _controller,
-              autofocus: true,
-              textCapitalization: TextCapitalization.characters,
-              textInputAction: TextInputAction.done,
-              decoration: InputDecoration(
-                labelText: 'Şube',
-                hintText: 'A',
-                border: const OutlineInputBorder(),
-                errorText: _sectionError,
-              ),
-              onChanged: (_) {
-                if (_sectionError != null) {
-                  setState(() => _sectionError = null);
-                }
-              },
-              onSubmitted: (_) => _submit(),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            FilledButton(onPressed: _submit, child: const Text('Ekle')),
-          ],
+          ),
         ),
-      ),
+        const SizedBox(height: AppSpacing.md),
+        FilledButton(onPressed: _submit, child: const Text('Ekle')),
+      ],
     ),
   );
 
@@ -1054,136 +1057,133 @@ class _BellPeriodsSheetState extends State<_BellPeriodsSheet> {
       AppSpacing.lg,
       AppSpacing.lg,
       AppSpacing.lg,
-      MediaQuery.viewInsetsOf(context).bottom + AppSpacing.lg,
+      AppSpacing.lg,
     ),
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 720),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            widget.initial.isEmpty
-                ? 'Ders saatlerini tanımla'
-                : 'Ders saatlerini düzenle',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Birkaç bilgiyi cevaplayın; saatleri sizin için oluşturalım.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Flexible(
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                _startTimeField(context),
-                const SizedBox(height: AppSpacing.md),
-                DropdownButtonFormField<int>(
-                  key: ValueKey('lesson-count-$_lessonCount'),
-                  initialValue: _lessonCount,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Bir günde toplam ders',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: [
-                    for (final count in _lessonCountOptions)
-                      DropdownMenuItem<int>(
-                        value: count,
-                        child: Text('$count ders'),
-                      ),
-                  ],
-                  onChanged: (value) {
-                    if (value == null) return;
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          widget.initial.isEmpty
+              ? 'Ders saatlerini tanımla'
+              : 'Ders saatlerini düzenle',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Birkaç bilgiyi cevaplayın; saatleri sizin için oluşturalım.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Flexible(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              _startTimeField(context),
+              const SizedBox(height: AppSpacing.md),
+              DropdownButtonFormField<int>(
+                key: ValueKey('lesson-count-$_lessonCount'),
+                initialValue: _lessonCount,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Bir günde toplam ders',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  for (final count in _lessonCountOptions)
+                    DropdownMenuItem<int>(
+                      value: count,
+                      child: Text('$count ders'),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _lessonCount = value;
+                    if (_lessonsBeforeLunch >= value) {
+                      _lessonsBeforeLunch = value - 1;
+                    }
+                    _formError = null;
+                  });
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              DropdownButtonFormField<int>(
+                key: ValueKey(
+                  'before-lunch-$_lessonCount-$_lessonsBeforeLunch',
+                ),
+                initialValue: _lessonsBeforeLunch,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Öğle arasından önce kaç ders saati var?',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  for (var count = 1; count < _lessonCount; count++)
+                    DropdownMenuItem<int>(
+                      value: count,
+                      child: Text('$count ders'),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
                     setState(() {
-                      _lessonCount = value;
-                      if (_lessonsBeforeLunch >= value) {
-                        _lessonsBeforeLunch = value - 1;
-                      }
+                      _lessonsBeforeLunch = value;
                       _formError = null;
                     });
-                  },
+                  }
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                controller: _lunchController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: InputDecoration(
+                  labelText: 'Öğle arası',
+                  suffixText: 'dakika',
+                  border: const OutlineInputBorder(),
+                  errorText: _lunchError,
                 ),
-                const SizedBox(height: AppSpacing.md),
-                DropdownButtonFormField<int>(
-                  key: ValueKey(
-                    'before-lunch-$_lessonCount-$_lessonsBeforeLunch',
-                  ),
-                  initialValue: _lessonsBeforeLunch,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Öğle arasından önce kaç ders saati var?',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: [
-                    for (var count = 1; count < _lessonCount; count++)
-                      DropdownMenuItem<int>(
-                        value: count,
-                        child: Text('$count ders'),
-                      ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _lessonsBeforeLunch = value;
-                        _formError = null;
-                      });
-                    }
-                  },
+                onChanged: (_) => _clearFieldErrors(),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                controller: _durationController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: InputDecoration(
+                  labelText: 'Bir ders kaç dakika?',
+                  suffixText: 'dakika',
+                  helperText: 'Başlangıç değeri: 40 dakika',
+                  border: const OutlineInputBorder(),
+                  errorText: _durationError,
                 ),
-                const SizedBox(height: AppSpacing.md),
-                TextField(
-                  controller: _lunchController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: InputDecoration(
-                    labelText: 'Öğle arası',
-                    suffixText: 'dakika',
-                    border: const OutlineInputBorder(),
-                    errorText: _lunchError,
+                onChanged: (_) => _clearFieldErrors(),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _schedulePreview(context),
+              if (_formError != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  _formError!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontWeight: FontWeight.w700,
                   ),
-                  onChanged: (_) => _clearFieldErrors(),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                TextField(
-                  controller: _durationController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: InputDecoration(
-                    labelText: 'Bir ders kaç dakika?',
-                    suffixText: 'dakika',
-                    helperText: 'Başlangıç değeri: 40 dakika',
-                    border: const OutlineInputBorder(),
-                    errorText: _durationError,
-                  ),
-                  onChanged: (_) => _clearFieldErrors(),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                _schedulePreview(context),
-                if (_formError != null) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    _formError!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
               ],
-            ),
+            ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          FilledButton(
-            onPressed: _save,
-            child: const Text('Saatleri oluştur ve kaydet'),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        FilledButton(
+          onPressed: _save,
+          child: const Text('Saatleri oluştur ve kaydet'),
+        ),
+      ],
     ),
   );
 
@@ -1391,104 +1391,101 @@ class _AssignmentScheduleSheetState extends State<_AssignmentScheduleSheet> {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.all(AppSpacing.lg),
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 680),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Haftalık ders programı',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Haftalık ders programı',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Bu ders haftada ${widget.expectedWeeklyHours} saat. '
+          'Tam program için ${widget.expectedWeeklyHours} saat seçin. '
+          'Dolu görünen saat başka bir ders/sınıfa atanmıştır.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          '${_selected.length}/${widget.expectedWeeklyHours} saat seçildi',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: _canSave
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.error,
+            fontWeight: FontWeight.w800,
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Bu ders haftada ${widget.expectedWeeklyHours} saat. '
-            'Tam program için ${widget.expectedWeeklyHours} saat seçin. '
-            'Dolu görünen saat başka bir ders/sınıfa atanmıştır.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            '${_selected.length}/${widget.expectedWeeklyHours} saat seçildi',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: _canSave
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.error,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Flexible(
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                for (
-                  var weekday = DateTime.monday;
-                  weekday <= DateTime.friday;
-                  weekday++
-                ) ...[
-                  Text(
-                    _weekdayLong(weekday),
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Flexible(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (
+                var weekday = DateTime.monday;
+                weekday <= DateTime.friday;
+                weekday++
+              ) ...[
+                Text(
+                  _weekdayLong(weekday),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.sm,
-                    children: [
-                      for (final period in widget.periods)
-                        Builder(
-                          builder: (context) {
-                            final cell = _ScheduleCell(
-                              weekday,
-                              period.periodNumber,
-                            );
-                            final occupied = widget.occupied.contains(cell);
-                            return FilterChip(
-                              selected: _selected.contains(cell),
-                              onSelected: occupied
-                                  ? null
-                                  : (selected) => setState(() {
-                                      if (selected) {
-                                        _selected.add(cell);
-                                      } else {
-                                        _selected.remove(cell);
-                                      }
-                                    }),
-                              label: Text(
-                                occupied
-                                    ? '${period.periodNumber}. ders · dolu'
-                                    : '${period.periodNumber}. ders',
-                              ),
-                            );
-                          },
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    for (final period in widget.periods)
+                      Builder(
+                        builder: (context) {
+                          final cell = _ScheduleCell(
+                            weekday,
+                            period.periodNumber,
+                          );
+                          final occupied = widget.occupied.contains(cell);
+                          return FilterChip(
+                            selected: _selected.contains(cell),
+                            onSelected: occupied
+                                ? null
+                                : (selected) => setState(() {
+                                    if (selected) {
+                                      _selected.add(cell);
+                                    } else {
+                                      _selected.remove(cell);
+                                    }
+                                  }),
+                            label: Text(
+                              occupied
+                                  ? '${period.periodNumber}. ders · dolu'
+                                  : '${period.periodNumber}. ders',
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.lg),
               ],
-            ),
+            ],
           ),
-          if (_selected.isNotEmpty)
-            TextButton.icon(
-              onPressed: () => setState(_selected.clear),
-              icon: const Icon(Icons.restart_alt_rounded),
-              label: const Text('Programı temizle'),
-            ),
-          FilledButton(
-            onPressed: _canSave
-                ? () => Navigator.of(context).pop(_selected)
-                : null,
-            child: const Text('Kaydet'),
+        ),
+        if (_selected.isNotEmpty)
+          TextButton.icon(
+            onPressed: () => setState(_selected.clear),
+            icon: const Icon(Icons.restart_alt_rounded),
+            label: const Text('Programı temizle'),
           ),
-        ],
-      ),
+        FilledButton(
+          onPressed: _canSave
+              ? () => Navigator.of(context).pop(_selected)
+              : null,
+          child: const Text('Kaydet'),
+        ),
+      ],
     ),
   );
 }

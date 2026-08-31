@@ -15,6 +15,7 @@ import '../lesson_plan/lesson_plan_panels.dart';
 import '../outcomes/outcome_detail_page.dart';
 import '../shared/feature_widgets.dart';
 import '../shared/interaction_polish.dart';
+import '../shared/adaptive_surfaces.dart';
 import '../shared/process_component_summary.dart';
 
 class ThisWeekPage extends StatefulWidget {
@@ -86,10 +87,8 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
     AnnualOutcomePlan plan,
     int selectedWeekNumber,
   ) async {
-    final weekNumber = await showModalBottomSheet<int>(
+    final weekNumber = await showAppModalBottomSheet<int>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
       builder: (_) =>
           _WeekPickerSheet(plan: plan, selectedWeekNumber: selectedWeekNumber),
     );
@@ -178,10 +177,8 @@ class _ThisWeekPageState extends State<ThisWeekPage> {
   }
 
   Future<void> _editQuickNote(TrackedOutcome item) async {
-    final note = await showModalBottomSheet<String>(
+    final note = await showAppModalBottomSheet<String>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
       builder: (_) => _QuickNoteSheet(initialText: item.teacherNote ?? ''),
     );
     if (note == null) return;
@@ -1136,7 +1133,7 @@ class _QuickNoteSheetState extends State<_QuickNoteSheet> {
       AppSpacing.lg,
       AppSpacing.lg,
       AppSpacing.lg,
-      MediaQuery.viewInsetsOf(context).bottom + AppSpacing.lg,
+      AppSpacing.lg,
     ),
     child: Column(
       mainAxisSize: MainAxisSize.min,
@@ -1160,22 +1157,31 @@ class _QuickNoteSheetState extends State<_QuickNoteSheet> {
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        TextField(
-          controller: _controller,
-          autofocus: true,
-          minLines: 2,
-          maxLines: 5,
-          textInputAction: TextInputAction.newline,
-          decoration: const InputDecoration(
-            hintText: 'Örn. son etkinlik gelecek derste tamamlanacak',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          'Boş kaydedersen mevcut not silinir.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+        Flexible(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: _controller,
+                  autofocus: true,
+                  minLines: 2,
+                  maxLines: 5,
+                  textInputAction: TextInputAction.newline,
+                  decoration: const InputDecoration(
+                    hintText: 'Örn. son etkinlik gelecek derste tamamlanacak',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Boş kaydedersen mevcut not silinir.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.lg),

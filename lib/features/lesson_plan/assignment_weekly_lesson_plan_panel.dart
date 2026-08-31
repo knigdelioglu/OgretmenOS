@@ -16,6 +16,7 @@ import '../../domain/services/assignment_lesson_timeline_service.dart';
 import '../../domain/services/assignment_progress_cursor_service.dart';
 import '../../domain/services/lesson_plan_workflow_service.dart';
 import '../shared/feature_widgets.dart';
+import '../shared/adaptive_surfaces.dart';
 import 'single_lesson_plan_page.dart';
 
 class AssignmentAwareWeeklyLessonPlanSection extends StatefulWidget {
@@ -421,10 +422,8 @@ class _AssignmentWeeklyPlanPanelState
   Future<void> _correctPosition(_AssignmentPanelData data) async {
     final position = widget.position;
     if (position == null) return;
-    final choice = await showModalBottomSheet<_PositionChoice>(
+    final choice = await showAppModalBottomSheet<_PositionChoice>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
       builder: (_) => _ActualPositionSheet(
         annualPlan: widget.annualPlan,
         repository: widget.repository,
@@ -1124,68 +1123,65 @@ class _ActualPositionSheetState extends State<_ActualPositionSheet> {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.all(AppSpacing.lg),
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 680),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Şu anda hangi derstesiniz?',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          const Text(
-            'Yalnız programdan sapma olduğunda düzeltmeniz yeterli. Sonraki derslerde fark korunur.',
-          ),
-          const SizedBox(height: AppSpacing.md),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.of(
-              context,
-            ).pop(const _PositionChoice.followSchedule()),
-            icon: const Icon(Icons.sync_rounded),
-            label: const Text('Programa yeniden eşitle'),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Flexible(
-            child: FutureBuilder<List<_PositionOption>>(
-              future: _future,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                return RadioGroup<int>(
-                  groupValue: widget.actualOrdinal,
-                  onChanged: (value) {
-                    if (value == null) return;
-                    Navigator.of(context).pop(_PositionChoice.actual(value));
-                  },
-                  child: ListView(
-                    shrinkWrap: true,
-                    children: [
-                      RadioListTile<int>(
-                        value: 0,
-                        title: const Text('Henüz başlamadım'),
-                        subtitle: const Text(
-                          'Gerçek ilerleme ders planının başında',
-                        ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Şu anda hangi derstesiniz?',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        const Text(
+          'Yalnız programdan sapma olduğunda düzeltmeniz yeterli. Sonraki derslerde fark korunur.',
+        ),
+        const SizedBox(height: AppSpacing.md),
+        OutlinedButton.icon(
+          onPressed: () => Navigator.of(
+            context,
+          ).pop(const _PositionChoice.followSchedule()),
+          icon: const Icon(Icons.sync_rounded),
+          label: const Text('Programa yeniden eşitle'),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Flexible(
+          child: FutureBuilder<List<_PositionOption>>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              return RadioGroup<int>(
+                groupValue: widget.actualOrdinal,
+                onChanged: (value) {
+                  if (value == null) return;
+                  Navigator.of(context).pop(_PositionChoice.actual(value));
+                },
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    RadioListTile<int>(
+                      value: 0,
+                      title: const Text('Henüz başlamadım'),
+                      subtitle: const Text(
+                        'Gerçek ilerleme ders planının başında',
                       ),
-                      for (final option in snapshot.data!)
-                        RadioListTile<int>(
-                          value: option.ordinal,
-                          title: Text(option.title),
-                          subtitle: Text(option.subtitle),
-                        ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                    ),
+                    for (final option in snapshot.data!)
+                      RadioListTile<int>(
+                        value: option.ordinal,
+                        title: Text(option.title),
+                        subtitle: Text(option.subtitle),
+                      ),
+                  ],
+                ),
+              );
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     ),
   );
 }

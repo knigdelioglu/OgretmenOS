@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/models/course_models.dart' as model;
+import 'adaptive_surfaces.dart';
 
 class AppSpacing {
   const AppSpacing._();
@@ -31,44 +32,47 @@ class AppPage extends StatelessWidget {
   final double maxWidth;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final horizontalPadding = constraints.maxWidth >= 840 ? 32.0 : 16.0;
-      final pageChildren = [
-        if (topTrailing != null) ...[
-          Align(alignment: Alignment.centerRight, child: topTrailing!),
-          const SizedBox(height: AppSpacing.sm),
-        ],
-        ...children,
-      ];
-      final content = ListView(
-        controller: controller,
-        physics: onRefresh == null
-            ? const ClampingScrollPhysics()
-            : const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(
-          horizontalPadding,
-          AppSpacing.lg,
-          horizontalPadding,
-          AppSpacing.xxl,
-        ),
-        children: pageChildren,
-      );
-      final scrollable = onRefresh == null
-          ? content
-          : RefreshIndicator(onRefresh: onRefresh!, child: content);
-      final width = constraints.maxWidth < maxWidth
-          ? constraints.maxWidth
-          : maxWidth;
-      return Align(
-        alignment: Alignment.topCenter,
-        child: SizedBox(
-          width: width,
-          height: constraints.maxHeight,
-          child: scrollable,
-        ),
-      );
-    },
+  Widget build(BuildContext context) => AppViewport(
+    top: false,
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final horizontalPadding = constraints.maxWidth >= 840 ? 32.0 : 16.0;
+        final pageChildren = [
+          if (topTrailing != null) ...[
+            Align(alignment: Alignment.centerRight, child: topTrailing!),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          ...children,
+        ];
+        final content = ListView(
+          controller: controller,
+          physics: onRefresh == null
+              ? const ClampingScrollPhysics()
+              : const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            AppSpacing.lg,
+            horizontalPadding,
+            AppSpacing.xxl,
+          ),
+          children: pageChildren,
+        );
+        final scrollable = onRefresh == null
+            ? content
+            : RefreshIndicator(onRefresh: onRefresh!, child: content);
+        final width = constraints.maxWidth < maxWidth
+            ? constraints.maxWidth
+            : maxWidth;
+        return Align(
+          alignment: Alignment.topCenter,
+          child: SizedBox(
+            width: width,
+            height: constraints.maxHeight,
+            child: scrollable,
+          ),
+        );
+      },
+    ),
   );
 }
 

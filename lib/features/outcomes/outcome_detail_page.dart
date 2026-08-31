@@ -11,6 +11,7 @@ import '../../domain/services/outcome_planning_service.dart';
 import '../block/block_detail_page.dart';
 import '../shared/feature_widgets.dart';
 import '../shared/interaction_polish.dart';
+import '../shared/adaptive_surfaces.dart';
 import 'outcome_presentation.dart';
 
 class OutcomeDetailPage extends StatefulWidget {
@@ -670,10 +671,10 @@ class _OutcomeDetailPageState extends State<OutcomeDetailPage>
       return;
     }
     var selected = targets.first.week.weekNumber;
-    final target = await showDialog<int>(
+    final target = await showAppDialog<int>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (context, setDialogState) => AppAlertDialog(
           title: const Text('Sonraki haftaya taşı'),
           content: DropdownButtonFormField<int>(
             initialValue: selected,

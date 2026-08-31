@@ -74,6 +74,48 @@ void main() {
       isTrue,
     );
   });
+
+  testWidgets('düşük landscape viewportta sınıf ekle actionı erişilebilir', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1024, 600);
+    tester.view.devicePixelRatio = 1;
+    tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 48);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      tester.view.resetViewPadding();
+      tester.view.resetViewInsets();
+    });
+
+    final repository = MemoryInstructionContextRepository();
+    await _pumpSchedule(tester, repository, _EmptyWeeklyPlanning());
+    final openClassSheet = find.widgetWithText(FilledButton, 'Sınıf ekle');
+    final pageScroll = find.byType(ListView).first;
+    for (
+      var attempt = 0;
+      attempt < 6 && openClassSheet.evaluate().isEmpty;
+      attempt++
+    ) {
+      await tester.drag(pageScroll, const Offset(0, -240));
+      await tester.pumpAndSettle();
+    }
+    expect(openClassSheet, findsOneWidget);
+    await tester.tap(openClassSheet);
+    await tester.pumpAndSettle();
+
+    final action = find.widgetWithText(FilledButton, 'Ekle');
+    expect(action, findsOneWidget);
+    expect(tester.getRect(action).bottom, lessThanOrEqualTo(600));
+    expect(tester.takeException(), isNull);
+
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(action);
+    await tester.pumpAndSettle();
+    expect(tester.getRect(action).bottom, lessThanOrEqualTo(300));
+    expect(tester.takeException(), isNull);
+  });
 }
 
 void _phone(WidgetTester tester) {
