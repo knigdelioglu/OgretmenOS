@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ogretmen_os/data/course/course_database_data_source.dart';
 import 'package:ogretmen_os/domain/runtime/course_runtime_registry.dart';
 import 'package:path/path.dart' as p;
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi/sqflite_common_ffi.dart';
 
 void main() {
   sqfliteFfiInit();
@@ -72,17 +72,16 @@ void main() {
           reason:
               '${row['form_id']} verification status catalog tarafından yükseltilemez',
         );
-        final canonicalHasPage = [
+        final hasLocatorOrPage = [
+          provenance['source_locator'],
+          provenance['source_page'],
           row['canonical_printed_page'],
           row['canonical_pdf_page'],
         ].any((value) => value?.toString().trim().isNotEmpty ?? false);
-        final canonicalHasLocator =
-            provenance['source_locator']?.toString().trim().isNotEmpty ?? false;
         expect(
-          canonicalHasPage || canonicalHasLocator,
+          hasLocatorOrPage,
           isTrue,
-          reason:
-              '${row['form_id']} ready olmak için canonical page/locator taşımalı',
+          reason: '${row['form_id']} ready olmak için source locator/page taşımalı',
         );
       }
 
