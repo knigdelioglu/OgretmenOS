@@ -336,9 +336,9 @@
     "canonical_entities": 328,
     "teacher_guides": 4,
     "teacher_guide_sections": 28,
-    "teacher_guide_units": 94,
-    "teacher_guide_items": 283,
-    "teacher_guide_item_relations": 3750,
+    "teacher_guide_units": 163,
+    "teacher_guide_items": 352,
+    "teacher_guide_item_relations": 4662,
     "form_templates": 43
   },
   "timeline_resolution": "BLOCK_TIME_RESOLVED",
@@ -414,21 +414,37 @@
       "canonical_entities": 328,
       "teacher_guides": 4,
       "teacher_guide_sections": 28,
-      "teacher_guide_units": 94,
-      "teacher_guide_items": 283,
-      "teacher_guide_item_relations": 3750
+      "teacher_guide_units": 163,
+      "teacher_guide_items": 352,
+      "teacher_guide_item_relations": 4662
+    },
+    "pedagogy_overlay": {
+      "available": true,
+      "architecture_version": "2.2.0",
+      "projection_version": "1.2.0+pedagogy-v2.2-profile",
+      "profile_schema_version": "1.0.0",
+      "source_tymm_commit": "dc12e50ccf2e2e27e7a4a1d06793a9b8c0fb091a",
+      "source_mode": "CANONICAL_RUNTIME_PLUS_V2_PROFILE",
+      "themes": [
+        "TEMA_02",
+        "TEMA_03",
+        "TEMA_04"
+      ],
+      "sections": 21,
+      "blocks": 69,
+      "canonical_task_items_reused": 216
     }
   },
   "teacher_guide_validation": {
     "status": "PASS",
     "scope": "COURSE",
     "source_bound": true,
-    "content_fingerprint": "sha256:c5ae313525bfd92cf43cf00ec9f3017966db1eb6bd7610f8f824ce85ac228f96",
+    "content_fingerprint": "sha256:b977366380149e43a03f5369a52b1d0e471920f4089d5577fcb09b568b275a0d",
     "canonical_content_fingerprint": "67507026f1019f3e014eec12e89c266a662723ead48cf92ca07539a66ca59a95",
     "source_validation_status": "PASS_WITH_WARNINGS",
     "seal_path": "runtime/teacher_guide_validation_seal.json",
-    "seal_sha256": "1d6623a73c34cd8233eca4f5e9078b47c87ac7006ce1b3ae330f4066db732d7c",
-    "projection_version": "1.0.0"
+    "seal_sha256": "e8c18b501c4faa56a7f88d70032654a5ee75e100812becc33f802303adb16c67",
+    "projection_version": "1.2.0+pedagogy-v2.2-profile"
   },
   "form_template_schema_versions": [
     "1.0"

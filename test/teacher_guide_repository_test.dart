@@ -242,102 +242,172 @@ void main() {
     },
   );
 
-  test(
-    'TDE_11 canonical runtime guide zincirini repository üzerinden okur',
-    () async {
-      final runtimeRoot =
-          '${Directory.current.path}/tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime';
-      final manifest = RuntimeManifest.fromJson(
+  test('TDE_11 V2.2 additive runtime canonical katmanı korur', () async {
+    final runtimeRoot =
+        '${Directory.current.path}/tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime';
+    final manifestMap =
         jsonDecode(
               await File('$runtimeRoot/runtime_manifest.json').readAsString(),
             )
-            as Map<String, dynamic>,
-      );
-      final packageManifest =
-          jsonDecode(
-                await File(
-                  '${Directory.current.path}/tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json',
-                ).readAsString(),
-              )
-              as Map<String, dynamic>;
-      expect(packageManifest['data_mode'], 'FULL_RUNTIME');
-      expect(packageManifest['textbook_status'], 'AVAILABLE');
-      expect(packageManifest['lesson_plan_package_count'], 88);
-      expect(packageManifest['lesson_plan_instruction_hours'], 172);
-      expect(packageManifest['lesson_plan_validation_status'], 'VERIFIED');
-      expect(packageManifest['lesson_plan_source_payload_parity'], isFalse);
-      final database = await databaseFactoryFfi.openDatabase(
-        '$runtimeRoot/course_runtime.sqlite',
-        options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
-      );
-      addTearDown(database.close);
-      final repository = CourseKnowledgeRepositoryImpl(
-        dataSource: CourseDatabaseDataSource(database),
-        manifest: manifest,
-        teacherGuideDataSource: TeacherGuideDatabaseDataSource(database),
-      );
+            as Map<String, dynamic>;
+    final manifest = RuntimeManifest.fromJson(manifestMap);
+    final packageManifest =
+        jsonDecode(
+              await File(
+                '${Directory.current.path}/tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json',
+              ).readAsString(),
+            )
+            as Map<String, dynamic>;
+    expect(packageManifest['data_mode'], 'FULL_RUNTIME');
+    expect(packageManifest['textbook_status'], 'AVAILABLE');
+    expect(packageManifest['lesson_plan_package_count'], 88);
+    expect(packageManifest['lesson_plan_instruction_hours'], 172);
+    expect(packageManifest['lesson_plan_validation_status'], 'VERIFIED');
+    expect(packageManifest['lesson_plan_source_payload_parity'], isFalse);
+    expect(
+      packageManifest['teacher_guide_source_commit'],
+      'dc12e50ccf2e2e27e7a4a1d06793a9b8c0fb091a',
+    );
+    final overlay = Map<String, dynamic>.from(
+      manifestMap['teacher_guide_capabilities'] is Map
+          ? ((manifestMap['teacher_guide_capabilities']
+                    as Map)['pedagogy_overlay']
+                as Map)
+          : const <String, dynamic>{},
+    );
+    expect(overlay['available'], isTrue);
+    expect(overlay['architecture_version'], '2.2.0');
+    expect(overlay['projection_version'], '1.2.0+pedagogy-v2.2-profile');
+    expect(
+      overlay['source_tymm_commit'],
+      'dc12e50ccf2e2e27e7a4a1d06793a9b8c0fb091a',
+    );
+    expect(overlay['themes'], ['TEMA_02', 'TEMA_03', 'TEMA_04']);
+    expect(overlay['sections'], 21);
+    expect(overlay['blocks'], 69);
+    expect(overlay['canonical_task_items_reused'], 216);
+    final database = await databaseFactoryFfi.openDatabase(
+      '$runtimeRoot/course_runtime.sqlite',
+      options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
+    );
+    addTearDown(database.close);
+    final repository = CourseKnowledgeRepositoryImpl(
+      dataSource: CourseDatabaseDataSource(database),
+      manifest: manifest,
+      teacherGuideDataSource: TeacherGuideDatabaseDataSource(database),
+    );
 
-      final capability = await repository.getTeacherGuideCapability();
-      expect(capability.available, isTrue);
-      expect(capability.guideCount, 4);
-      expect(capability.sectionCount, 28);
-      expect(capability.unitCount, 94);
-      expect(capability.itemCount, 283);
-      expect(capability.relationCount, 3750);
+    final capability = await repository.getTeacherGuideCapability();
+    expect(capability.available, isTrue);
+    expect(capability.guideCount, 4);
+    expect(capability.sectionCount, 28);
+    expect(capability.unitCount, 163);
+    expect(capability.itemCount, 352);
+    expect(
+      capability.relationCount,
+      manifest.rowCounts['teacher_guide_item_relations'],
+    );
 
-      final guide = await repository.getTeacherGuideForScope(
-        scopeType: 'theme',
-        scopeId: 'TEMA_01',
-      );
-      expect(guide, isNotNull);
-      final sections = await repository.getTeacherGuideSections(guide!.guideId);
-      expect(sections, hasLength(7));
-      final units = await repository.getTeacherGuideUnits(
-        sections.first.sectionId,
-      );
-      expect(units, isNotEmpty);
-      final items = await repository.getTeacherGuideItems(units.first.unitId);
-      expect(items, isNotEmpty);
-      expect(
-        items.first.canonicalPayloadSha256,
-        matches(RegExp(r'^[0-9a-f]{64}$')),
-      );
+    expect(
+      (await database.rawQuery(
+        "SELECT COUNT(*) AS count FROM teacher_guide_units WHERE unit_id NOT LIKE '__pedv2_unit__%'",
+      )).single['count'],
+      94,
+    );
+    expect(
+      (await database.rawQuery(
+        "SELECT COUNT(*) AS count FROM teacher_guide_items WHERE item_id NOT LIKE '__pedv2_block__%'",
+      )).single['count'],
+      283,
+    );
+    expect(
+      (await database.rawQuery(
+        "SELECT COUNT(*) AS count FROM teacher_guide_item_relations WHERE item_id NOT LIKE '__pedv2_block__%'",
+      )).single['count'],
+      3750,
+    );
+    expect(
+      (await database.rawQuery(
+        "SELECT COUNT(*) AS count FROM teacher_guide_units WHERE unit_id LIKE '__pedv2_unit__%'",
+      )).single['count'],
+      69,
+    );
+    expect(
+      (await database.rawQuery(
+        "SELECT COUNT(*) AS count FROM teacher_guide_items WHERE item_id LIKE '__pedv2_block__%'",
+      )).single['count'],
+      69,
+    );
+    expect(await database.rawQuery('PRAGMA foreign_key_check'), isEmpty);
 
-      final activityItems = await repository.getTeacherGuideItemsForEntity(
+    final v22ItemId = (await database.rawQuery(
+      "SELECT item_id FROM teacher_guide_items WHERE item_id LIKE '__pedv2_block__%' ORDER BY item_id LIMIT 1",
+    )).single['item_id']!.toString();
+    final v22Item = await repository.getTeacherGuideItem(v22ItemId);
+    expect(v22Item, isNotNull);
+    expect(v22Item!.itemType, 'ÖĞRETMEN_REHBERİ_V2_2');
+    final guidance = v22Item.teacherGuidance as Map;
+    expect(guidance['öğretmen_hamleleri'], isNotEmpty);
+    expect(guidance['takip_soruları'], isNotEmpty);
+    expect(guidance['tahtaya_yaz'], isNotEmpty);
+    expect(v22Item.commonMisconceptions, isNotEmpty);
+    expect(v22Item.assessmentEvidence, isNotEmpty);
+    expect(v22Item.differentiation.support, isNotEmpty);
+    expect(v22Item.differentiation.enrichment, isNotEmpty);
+    expect(v22Item.canonicalPayloadSha256, matches(RegExp(r'^[0-9a-f]{64}$')));
+
+    final guide = await repository.getTeacherGuideForScope(
+      scopeType: 'theme',
+      scopeId: 'TEMA_01',
+    );
+    expect(guide, isNotNull);
+    final sections = await repository.getTeacherGuideSections(guide!.guideId);
+    expect(sections, hasLength(7));
+    final units = await repository.getTeacherGuideUnits(
+      sections.first.sectionId,
+    );
+    expect(units, isNotEmpty);
+    final items = await repository.getTeacherGuideItems(units.first.unitId);
+    expect(items, isNotEmpty);
+    expect(
+      items.first.canonicalPayloadSha256,
+      matches(RegExp(r'^[0-9a-f]{64}$')),
+    );
+
+    final activityItems = await repository.getTeacherGuideItemsForEntity(
+      targetType: 'activity',
+      targetId: 'T1_ACT_01_OKUMA_YONETIM',
+    );
+    expect(activityItems, isNotEmpty);
+    expect(
+      await repository.getTeacherGuideItemsForEntity(
         targetType: 'activity',
-        targetId: 'T1_ACT_01_OKUMA_YONETIM',
-      );
-      expect(activityItems, isNotEmpty);
-      expect(
-        await repository.getTeacherGuideItemsForEntity(
-          targetType: 'activity',
-          targetId: 'NOT_A_CANONICAL_ACTIVITY',
-        ),
-        isEmpty,
-      );
+        targetId: 'NOT_A_CANONICAL_ACTIVITY',
+      ),
+      isEmpty,
+    );
 
-      final formItems = await repository.getTeacherGuideItemsForEntity(
-        targetType: 'form',
-        targetId: 'FORM_T1_P035_OZ_DEGERLENDIRME_01',
-      );
-      expect(formItems, isNotEmpty);
-      expect(
-        await repository.getForm('FORM_T1_P035_OZ_DEGERLENDIRME_01'),
-        isNotNull,
-      );
-      expect(
-        (await repository.getFormTemplateStatus(
-          'FORM_T1_P035_OZ_DEGERLENDIRME_01',
-        ))?.isReady,
-        isTrue,
-      );
-      final externalStatus = await repository.getFormTemplateStatus(
-        'LINK_T1_KONUSMA_DPA',
-      );
-      expect(externalStatus?.isExternalReference, isTrue);
-      expect(externalStatus?.targetUrlCandidates, isNotEmpty);
-    },
-  );
+    final formItems = await repository.getTeacherGuideItemsForEntity(
+      targetType: 'form',
+      targetId: 'FORM_T1_P035_OZ_DEGERLENDIRME_01',
+    );
+    expect(formItems, isNotEmpty);
+    expect(
+      await repository.getForm('FORM_T1_P035_OZ_DEGERLENDIRME_01'),
+      isNotNull,
+    );
+    expect(
+      (await repository.getFormTemplateStatus(
+        'FORM_T1_P035_OZ_DEGERLENDIRME_01',
+      ))?.isReady,
+      isTrue,
+    );
+    final externalStatus = await repository.getFormTemplateStatus(
+      'LINK_T1_KONUSMA_DPA',
+    );
+    expect(externalStatus?.isExternalReference, isTrue);
+    expect(externalStatus?.targetUrlCandidates, isNotEmpty);
+  });
 }
 
 CourseKnowledgeRepositoryImpl _repository(Database database) =>

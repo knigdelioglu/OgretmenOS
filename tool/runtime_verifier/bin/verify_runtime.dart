@@ -327,8 +327,8 @@ void _verifyTeacherGuide(
       validation['content_fingerprint']?.toString().trim() ?? '';
   final expectedTeacherGuideFingerprint =
       validationContentFingerprint.startsWith('sha256:')
-          ? validationContentFingerprint.substring('sha256:'.length)
-          : validationContentFingerprint;
+      ? validationContentFingerprint.substring('sha256:'.length)
+      : validationContentFingerprint;
   _checkValue(
     seal['teacher_guide_content_fingerprint'],
     expectedTeacherGuideFingerprint,
@@ -397,6 +397,114 @@ void _verifyTeacherGuide(
   _verifyTeacherGuideRelations(database);
   _verifyTeacherGuideSequence(database);
   _verifyTeacherGuideItems(database);
+  _verifyTeacherGuidePedagogyOverlay(database, manifest);
+}
+
+const _v22ArchitectureVersion = '2.2.0';
+const _v22ProjectionVersion = '1.2.0+pedagogy-v2.2-profile';
+const _v22SourceCommit = 'dc12e50ccf2e2e27e7a4a1d06793a9b8c0fb091a';
+const _v22Themes = ['TEMA_02', 'TEMA_03', 'TEMA_04'];
+
+void _verifyTeacherGuidePedagogyOverlay(
+  Database database,
+  Map<String, dynamic> manifest,
+) {
+  final capabilities = manifest['teacher_guide_capabilities'];
+  if (capabilities is! Map || capabilities['pedagogy_overlay'] == null) {
+    return;
+  }
+  final overlay = capabilities['pedagogy_overlay'];
+  _check(overlay is Map, 'pedagogy_overlay metadata nesne değil');
+  final metadata = overlay as Map;
+  _check(
+    metadata['available'] == true,
+    'pedagogy_overlay kullanılabilir değil',
+  );
+  _checkValue(
+    metadata['architecture_version'],
+    _v22ArchitectureVersion,
+    'pedagogy_overlay architecture version',
+  );
+  _checkValue(
+    metadata['projection_version'],
+    _v22ProjectionVersion,
+    'pedagogy_overlay projection version',
+  );
+  _checkValue(
+    metadata['source_tymm_commit'],
+    _v22SourceCommit,
+    'pedagogy_overlay source TYMM commit',
+  );
+  _checkValue(
+    metadata['source_mode'],
+    'CANONICAL_RUNTIME_PLUS_V2_PROFILE',
+    'pedagogy_overlay source mode',
+  );
+  final themes = metadata['themes'];
+  _check(
+    themes is List &&
+        themes.map((value) => value.toString()).toList().join('|') ==
+            _v22Themes.join('|'),
+    'pedagogy_overlay themes',
+  );
+  _checkValue(metadata['sections'], 21, 'pedagogy_overlay sections');
+  _checkValue(metadata['blocks'], 69, 'pedagogy_overlay blocks');
+  _checkValue(
+    metadata['canonical_task_items_reused'],
+    216,
+    'pedagogy_overlay canonical task items',
+  );
+
+  _checkValue(
+    _countWhere(database, 'teacher_guide_units', 'unit_id LIKE ?', [
+      '__pedv2_unit__%',
+    ]),
+    69,
+    'V2.2 synthetic unit sayısı',
+  );
+  _checkValue(
+    _countWhere(database, 'teacher_guide_items', 'item_id LIKE ?', [
+      '__pedv2_block__%',
+    ]),
+    69,
+    'V2.2 synthetic item sayısı',
+  );
+  _checkValue(
+    _countWhere(database, 'teacher_guide_units', 'unit_id NOT LIKE ?', [
+      '__pedv2_unit__%',
+    ]),
+    94,
+    'canonical unit sayısı',
+  );
+  _checkValue(
+    _countWhere(database, 'teacher_guide_items', 'item_id NOT LIKE ?', [
+      '__pedv2_block__%',
+    ]),
+    283,
+    'canonical item sayısı',
+  );
+  _checkValue(
+    _countWhere(
+      database,
+      'teacher_guide_item_relations',
+      'item_id NOT LIKE ?',
+      ['__pedv2_block__%'],
+    ),
+    3750,
+    'canonical relation sayısı',
+  );
+  final rawCounts = manifest['row_counts'];
+  _check(rawCounts is Map, 'V2.2 row_counts eksik');
+  _checkValue(
+    _count(database, 'teacher_guide_units'),
+    (rawCounts['teacher_guide_units'] as num).toInt(),
+    'V2.2 toplam unit sayısı',
+  );
+  _checkValue(
+    _count(database, 'teacher_guide_items'),
+    (rawCounts['teacher_guide_items'] as num).toInt(),
+    'V2.2 toplam item sayısı',
+  );
 }
 
 void _verifyTeacherGuideRelations(Database database) {

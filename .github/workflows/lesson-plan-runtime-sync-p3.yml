@@ -132,22 +132,75 @@ jobs:
           print('TDE11 Teacher Guide V2.2 projection contract: PASS')
           PY
 
-      - name: Set up Dart for runtime verifier
-        uses: dart-lang/setup-dart@v1
+      - name: Set up Flutter and its Dart SDK
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
-          sdk: stable
+          channel: stable
+          cache: true
+
+      - name: Verify projector idempotence
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > "$RUNNER_TEMP/v22-before.json"
+          import hashlib, json, os, sqlite3
+          from pathlib import Path
+
+          runtime = Path(os.environ['TDE11_RUNTIME'])
+          package = Path(os.environ['TDE11_PACKAGE'])
+          db = sqlite3.connect(runtime / 'course_runtime.sqlite')
+          try:
+              snapshot = {
+                  'manifest': hashlib.sha256((runtime / 'runtime_manifest.json').read_bytes()).hexdigest(),
+                  'seal': hashlib.sha256((runtime / 'teacher_guide_validation_seal.json').read_bytes()).hexdigest(),
+                  'package': hashlib.sha256(package.read_bytes()).hexdigest(),
+                  'units': db.execute("SELECT unit_id, unit_order FROM teacher_guide_units ORDER BY unit_id").fetchall(),
+                  'items': db.execute("SELECT item_id, unit_id, canonical_payload_sha256 FROM teacher_guide_items ORDER BY item_id").fetchall(),
+                  'relations': db.execute("SELECT item_id, target_type, target_id, relation_type, relation_order FROM teacher_guide_item_relations ORDER BY item_id, relation_order, target_type, target_id, relation_type").fetchall(),
+              }
+          finally:
+              db.close()
+          print(json.dumps(snapshot, sort_keys=True))
+          PY
+
+          python3 tool/project_teacher_guide_pedagogy_v2.py \
+            --course-id TDE_11 \
+            --runtime-dir "$TDE11_RUNTIME" \
+            --profiles "$V22_PROFILE" \
+            --package-manifest "$TDE11_PACKAGE" \
+            --expected-canonical-fingerprint "$EXPECTED_CANONICAL_FINGERPRINT" \
+            --expected-teacher-guide-fingerprint "$EXPECTED_BASE_TEACHER_FINGERPRINT"
+
+          python3 - <<'PY'
+          import hashlib, json, os, sqlite3
+          from pathlib import Path
+
+          runtime = Path(os.environ['TDE11_RUNTIME'])
+          package = Path(os.environ['TDE11_PACKAGE'])
+          db = sqlite3.connect(runtime / 'course_runtime.sqlite')
+          try:
+              after = {
+                  'manifest': hashlib.sha256((runtime / 'runtime_manifest.json').read_bytes()).hexdigest(),
+                  'seal': hashlib.sha256((runtime / 'teacher_guide_validation_seal.json').read_bytes()).hexdigest(),
+                  'package': hashlib.sha256(package.read_bytes()).hexdigest(),
+                  'units': db.execute("SELECT unit_id, unit_order FROM teacher_guide_units ORDER BY unit_id").fetchall(),
+                  'items': db.execute("SELECT item_id, unit_id, canonical_payload_sha256 FROM teacher_guide_items ORDER BY item_id").fetchall(),
+                  'relations': db.execute("SELECT item_id, target_type, target_id, relation_type, relation_order FROM teacher_guide_item_relations ORDER BY item_id, relation_order, target_type, target_id, relation_type").fetchall(),
+              }
+              assert db.execute("SELECT COUNT(*) FROM teacher_guide_units WHERE unit_id LIKE '__pedv2_unit__%'").fetchone()[0] == 69
+              assert db.execute("SELECT COUNT(*) FROM teacher_guide_items WHERE item_id LIKE '__pedv2_block__%'").fetchone()[0] == 69
+              assert db.execute('PRAGMA foreign_key_check').fetchall() == []
+          finally:
+              db.close()
+          before = json.loads(Path(os.environ['RUNNER_TEMP']) .joinpath('v22-before.json').read_text())
+          assert after == before, 'V2.2 projector is not idempotent'
+          print('TDE11 Teacher Guide V2.2 idempotence: PASS')
+          PY
 
       - name: Verify runtime with ÖğretmenOS verifier
         working-directory: tool/runtime_verifier
         run: |
           dart pub get
           dart run bin/verify_runtime.dart --course TDE_11
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
-        with:
-          channel: stable
-          cache: true
 
       - name: Run application regression suite
         run: |
