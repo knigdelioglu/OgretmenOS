@@ -6,7 +6,7 @@
   "data_mode": "FULL_RUNTIME",
   "textbook_status": "AVAILABLE",
   "tymm_source_repository": "knigdelioglu/tymm",
-  "tymm_source_commit": "296a1b41de17a4f0c2ae78a27e3a5cd3b6d6b482",
+  "tymm_source_commit": "6785d28bd5c22bfad7c8a73d8162fa81cae62d6b",
   "curriculum_path": "curriculum",
   "runtime_path": "runtime",
   "process_component_resolution_path": "curriculum/curriculum_process_component_resolution.json",

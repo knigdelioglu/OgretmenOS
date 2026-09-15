@@ -175,6 +175,56 @@ void main() {
     expect(find.text('Öğretmen rehberinde aç'), findsNothing);
   });
 
+  testWidgets('unit switch saves dirty note against the previous guide item', (
+    tester,
+  ) async {
+    _useSize(tester, const Size(412, 915));
+    final notes = _MemoryNotes();
+
+    await tester.pumpWidget(
+      _viewerApp(assignmentId: 'assignment-A', notes: notes),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'Gözlem notu');
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final unitDropdown = find.byType(DropdownButtonFormField<String>).at(1);
+    await tester.tap(unitDropdown);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Modelleme').last);
+    await tester.pumpAndSettle();
+
+    expect(notes.saved, isNotEmpty);
+    expect(notes.saved.first.guideItemId, 'ITEM_OBSERVATION');
+    expect(notes.saved.first.note, 'Gözlem notu');
+    expect(find.text('Modeli değiştir'), findsWidgets);
+    final noteField = tester.widget<TextField>(find.byType(TextField).last);
+    expect(noteField.controller?.text ?? '', isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dispose flushes a pending note before debounce fires', (
+    tester,
+  ) async {
+    _useSize(tester, const Size(412, 915));
+    final notes = _MemoryNotes();
+
+    await tester.pumpWidget(
+      _viewerApp(assignmentId: 'assignment-A', notes: notes),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'Kapanış notu');
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+    await tester.pump();
+
+    expect(notes.saved, isNotEmpty);
+    expect(notes.saved.last.guideItemId, 'ITEM_OBSERVATION');
+    expect(notes.saved.last.note, 'Kapanış notu');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('failed note save is visible instead of silent loss', (
     tester,
   ) async {
@@ -294,6 +344,22 @@ class _GuideRepository
     ),
   );
 
+  static const modelUnit = TeacherGuideUnit(
+    unitId: 'UNIT_MODEL',
+    sectionId: 'SECTION_EXPERIMENT',
+    order: 2,
+    title: 'Modelleme',
+    pageLocator: '43',
+    sourceLocator: 'physics_textbook#43',
+    contentStatus: 'VERIFIED',
+    purpose: ['Modelle', 'Karşılaştır'],
+    provenance: TeacherGuideProvenance(
+      sourceIds: ['physics_textbook'],
+      sourceLocators: ['printed p. 43'],
+      contentClass: 'PEDAGOGICAL_ENRICHMENT',
+    ),
+  );
+
   static const observation = TeacherGuideItem(
     itemId: 'ITEM_OBSERVATION',
     unitId: 'UNIT_OBSERVATION',
@@ -335,7 +401,7 @@ class _GuideRepository
 
   static const modelItem = TeacherGuideItem(
     itemId: 'ITEM_MODEL',
-    unitId: 'UNIT_OBSERVATION',
+    unitId: 'UNIT_MODEL',
     order: 2,
     title: 'Modeli değiştir',
     label: 'Modeli değiştir',
@@ -449,7 +515,7 @@ class _GuideRepository
           canonicalEntityCount: 5,
           guideCount: 1,
           sectionCount: 1,
-          unitCount: 1,
+          unitCount: 2,
           itemCount: 2,
           relationCount: 0,
           schemaVersion: '1.0.0',
@@ -479,17 +545,25 @@ class _GuideRepository
 
   @override
   Future<List<TeacherGuideUnit>> getTeacherGuideUnits(String sectionId) async =>
-      sectionId == section.sectionId && guideAvailable ? const [unit] : [];
-
-  @override
-  Future<TeacherGuideUnit?> getTeacherGuideUnit(String unitId) async =>
-      unitId == unit.unitId && guideAvailable ? unit : null;
-
-  @override
-  Future<List<TeacherGuideItem>> getTeacherGuideItems(String unitId) async =>
-      unitId == unit.unitId && guideAvailable
-      ? const [observation, modelItem]
+      sectionId == section.sectionId && guideAvailable
+      ? const [unit, modelUnit]
       : [];
+
+  @override
+  Future<TeacherGuideUnit?> getTeacherGuideUnit(String unitId) async {
+    if (!guideAvailable) return null;
+    if (unitId == unit.unitId) return unit;
+    if (unitId == modelUnit.unitId) return modelUnit;
+    return null;
+  }
+
+  @override
+  Future<List<TeacherGuideItem>> getTeacherGuideItems(String unitId) async {
+    if (!guideAvailable) return const [];
+    if (unitId == unit.unitId) return const [observation];
+    if (unitId == modelUnit.unitId) return const [modelItem];
+    return const [];
+  }
 
   @override
   Future<TeacherGuideItem?> getTeacherGuideItem(String itemId) async =>
