@@ -1,0 +1,40 @@
+name: TMP6 Export Validated Teacher Guide Fix
+
+on:
+  push:
+    branches:
+      - fix/teacher-guide-note-state
+    paths:
+      - .github/workflows/tmp6-export-validated-fix.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: |
+          python3 tool/tmp_teacher_guide_note_fix.py
+          python3 tool/tmp_teacher_guide_note_lint_fix.py
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+      - run: dart format lib/features/resources/teacher_guide_viewer_page.dart test/teacher_guide_viewer_test.dart
+      - name: Bundle exact validated patch payload
+        run: |
+          mkdir -p validated-fix
+          cp --parents \
+            lib/features/resources/teacher_guide_viewer_page.dart \
+            test/teacher_guide_viewer_test.dart \
+            tool/rebuild_curriculum_only_runtimes.py \
+            .github/workflows/flutter-ci.yml \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json \
+            validated-fix/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: validated-teacher-guide-fix
+          path: validated-fix
