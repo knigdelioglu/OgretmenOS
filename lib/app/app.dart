@@ -213,8 +213,15 @@ class _TeacherOsAppState extends State<TeacherOsApp>
     theme: AppTheme.light(),
     darkTheme: AppTheme.dark(),
     themeMode: ThemeMode.system,
-    builder: (context, child) =>
-        AppFocusDismissRegion(child: child ?? const SizedBox.shrink()),
+    builder: (context, child) => SafeArea(
+      key: const ValueKey('app-system-viewport-safe-area'),
+      top: false,
+      left: true,
+      right: true,
+      bottom: true,
+      maintainBottomViewPadding: true,
+      child: AppFocusDismissRegion(child: child ?? const SizedBox.shrink()),
+    ),
     home: FutureBuilder<AppDependencies>(
       future: _dependenciesFuture,
       builder: (context, snapshot) {
