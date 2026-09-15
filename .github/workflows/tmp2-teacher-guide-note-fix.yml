@@ -1,0 +1,81 @@
+name: TMP2 Teacher Guide Note Fix
+
+on:
+  push:
+    branches:
+      - fix/teacher-guide-note-state
+    paths:
+      - .github/workflows/tmp2-teacher-guide-note-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply deterministic fixes
+        run: python3 tool/tmp_teacher_guide_note_fix.py
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: |
+          flutter pub get
+          (cd tool/runtime_verifier && dart pub get)
+
+      - name: Format changed Dart files
+        run: dart format lib/features/resources/teacher_guide_viewer_page.dart test/teacher_guide_viewer_test.dart
+
+      - name: Static analysis
+        run: |
+          flutter analyze
+          (cd tool/runtime_verifier && dart analyze)
+
+      - name: Teacher Guide viewer regression tests
+        run: flutter test test/teacher_guide_viewer_test.dart --reporter expanded
+
+      - name: Full Flutter tests against committed runtimes
+        run: flutter test --reporter expanded
+
+      - name: Verify full TDE11 runtime
+        working-directory: tool/runtime_verifier
+        run: dart run bin/verify_runtime.dart --course TDE_11
+
+      - name: Verify TDE12 curriculum rebuild helper
+        run: |
+          python3 tool/rebuild_curriculum_only_runtimes.py
+          (cd tool/runtime_verifier && dart run bin/verify_runtime.dart --course TDE_12)
+          git checkout -- tymm-verileri/turk-dili-ve-edebiyati/TDE_12/runtime
+
+      - name: Diff check
+        run: git diff --check
+
+      - name: Commit validated fixes and remove temporary runners
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/tmp-teacher-guide-note-fix.yml
+          git rm .github/workflows/tmp2-teacher-guide-note-fix.yml
+          git rm tool/tmp_teacher_guide_note_fix.py
+          git add \
+            lib/features/resources/teacher_guide_viewer_page.dart \
+            test/teacher_guide_viewer_test.dart \
+            tool/rebuild_curriculum_only_runtimes.py \
+            .github/workflows/flutter-ci.yml \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json
+          git diff --cached --check
+          git commit -m 'fix: preserve teacher guide note identity and runtime CI truth'
+          git push origin HEAD:fix/teacher-guide-note-state
