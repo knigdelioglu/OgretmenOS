@@ -37,15 +37,15 @@ jobs:
           python - <<'PY'
           import base64
           import os
+          import re
           from pathlib import Path
 
           app = Path('lib/app/app.dart')
           text = app.read_text(encoding='utf-8')
-          old = """    builder: (context, child) =>
-              AppFocusDismissRegion(child: child ?? const SizedBox.shrink()),"""
-          if old not in text:
-              old = """    builder: (context, child) =>
-          AppFocusDismissRegion(child: child ?? const SizedBox.shrink()),"""
+          pattern = re.compile(
+              r"    builder: \(context, child\) =>\s*"
+              r"AppFocusDismissRegion\(child: child \?\? const SizedBox\.shrink\(\)\),"
+          )
           new = """    builder: (context, child) => SafeArea(
             key: const ValueKey('app-system-viewport-safe-area'),
             top: false,
@@ -57,9 +57,10 @@ jobs:
               child: child ?? const SizedBox.shrink(),
             ),
           ),"""
-          if old not in text:
-              raise SystemExit('Expected current app builder not found; refusing to patch stale code.')
-          app.write_text(text.replace(old, new, 1), encoding='utf-8')
+          text, count = pattern.subn(new, text, count=1)
+          if count != 1:
+              raise SystemExit(f'Expected exactly one current app builder; found {count}.')
+          app.write_text(text, encoding='utf-8')
           Path('test/system_viewport_safe_area_test.dart').write_bytes(
               base64.b64decode(os.environ['SAFE_AREA_TEST_B64'])
           )
