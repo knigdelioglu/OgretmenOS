@@ -149,13 +149,14 @@ jobs:
           package = Path(os.environ['TDE11_PACKAGE'])
           db = sqlite3.connect(runtime / 'course_runtime.sqlite')
           try:
+              rows = lambda query: [list(row) for row in db.execute(query)]
               snapshot = {
                   'manifest': hashlib.sha256((runtime / 'runtime_manifest.json').read_bytes()).hexdigest(),
                   'seal': hashlib.sha256((runtime / 'teacher_guide_validation_seal.json').read_bytes()).hexdigest(),
                   'package': hashlib.sha256(package.read_bytes()).hexdigest(),
-                  'units': db.execute("SELECT unit_id, unit_order FROM teacher_guide_units ORDER BY unit_id").fetchall(),
-                  'items': db.execute("SELECT item_id, unit_id, canonical_payload_sha256 FROM teacher_guide_items ORDER BY item_id").fetchall(),
-                  'relations': db.execute("SELECT item_id, target_type, target_id, relation_type, relation_order FROM teacher_guide_item_relations ORDER BY item_id, relation_order, target_type, target_id, relation_type").fetchall(),
+                  'units': rows("SELECT unit_id, unit_order FROM teacher_guide_units ORDER BY unit_id"),
+                  'items': rows("SELECT item_id, unit_id, canonical_payload_sha256 FROM teacher_guide_items ORDER BY item_id"),
+                  'relations': rows("SELECT item_id, target_type, target_id, relation_type, relation_order FROM teacher_guide_item_relations ORDER BY item_id, relation_order, target_type, target_id, relation_type"),
               }
           finally:
               db.close()
@@ -178,20 +179,21 @@ jobs:
           package = Path(os.environ['TDE11_PACKAGE'])
           db = sqlite3.connect(runtime / 'course_runtime.sqlite')
           try:
+              rows = lambda query: [list(row) for row in db.execute(query)]
               after = {
                   'manifest': hashlib.sha256((runtime / 'runtime_manifest.json').read_bytes()).hexdigest(),
                   'seal': hashlib.sha256((runtime / 'teacher_guide_validation_seal.json').read_bytes()).hexdigest(),
                   'package': hashlib.sha256(package.read_bytes()).hexdigest(),
-                  'units': db.execute("SELECT unit_id, unit_order FROM teacher_guide_units ORDER BY unit_id").fetchall(),
-                  'items': db.execute("SELECT item_id, unit_id, canonical_payload_sha256 FROM teacher_guide_items ORDER BY item_id").fetchall(),
-                  'relations': db.execute("SELECT item_id, target_type, target_id, relation_type, relation_order FROM teacher_guide_item_relations ORDER BY item_id, relation_order, target_type, target_id, relation_type").fetchall(),
+                  'units': rows("SELECT unit_id, unit_order FROM teacher_guide_units ORDER BY unit_id"),
+                  'items': rows("SELECT item_id, unit_id, canonical_payload_sha256 FROM teacher_guide_items ORDER BY item_id"),
+                  'relations': rows("SELECT item_id, target_type, target_id, relation_type, relation_order FROM teacher_guide_item_relations ORDER BY item_id, relation_order, target_type, target_id, relation_type"),
               }
               assert db.execute("SELECT COUNT(*) FROM teacher_guide_units WHERE unit_id LIKE '__pedv2_unit__%'").fetchone()[0] == 69
               assert db.execute("SELECT COUNT(*) FROM teacher_guide_items WHERE item_id LIKE '__pedv2_block__%'").fetchone()[0] == 69
               assert db.execute('PRAGMA foreign_key_check').fetchall() == []
           finally:
               db.close()
-          before = json.loads(Path(os.environ['RUNNER_TEMP']) .joinpath('v22-before.json').read_text())
+          before = json.loads((Path(os.environ['RUNNER_TEMP']) / 'v22-before.json').read_text())
           assert after == before, 'V2.2 projector is not idempotent'
           print('TDE11 Teacher Guide V2.2 idempotence: PASS')
           PY
