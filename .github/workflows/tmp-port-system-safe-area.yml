@@ -1,0 +1,109 @@
+name: TMP Port System Viewport Safe Area
+
+on:
+  push:
+    branches:
+      - fix/system-viewport-safe-area
+    paths:
+      - '.github/workflows/tmp-port-system-safe-area.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  port-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Port safe-area contract onto current app shell
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          app = Path('lib/app/app.dart')
+          text = app.read_text(encoding='utf-8')
+          old = """    builder: (context, child) =>\n        AppFocusDismissRegion(child: child ?? const SizedBox.shrink()),"""
+          new = """    builder: (context, child) => SafeArea(\n      key: const ValueKey('app-system-viewport-safe-area'),\n      top: false,\n      left: true,\n      right: true,\n      bottom: true,\n      maintainBottomViewPadding: true,\n      child: AppFocusDismissRegion(\n        child: child ?? const SizedBox.shrink(),\n      ),\n    ),"""
+          if old not in text:
+              raise SystemExit('Expected current app builder not found; refusing to patch stale code.')
+          app.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          test = Path('test/system_viewport_safe_area_test.dart')
+          test.write_text("""import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:ogretmen_os/app/app.dart';
+import 'package:ogretmen_os/app/app_dependencies.dart';
+import 'package:ogretmen_os/features/shared/interaction_polish.dart';
+
+void main() {
+  testWidgets('app reserves system viewport insets without replacing focus handling', (
+    tester,
+  ) async {
+    final pending = Completer<AppDependencies>();
+
+    await tester.pumpWidget(
+      TeacherOsApp(courseLoader: (_) => pending.future),
+    );
+    await tester.pump();
+
+    final finder = find.byKey(
+      const ValueKey('app-system-viewport-safe-area'),
+    );
+    expect(finder, findsOneWidget);
+
+    final safeArea = tester.widget<SafeArea>(finder);
+    expect(safeArea.top, isFalse);
+    expect(safeArea.left, isTrue);
+    expect(safeArea.right, isTrue);
+    expect(safeArea.bottom, isTrue);
+    expect(safeArea.maintainBottomViewPadding, isTrue);
+    expect(find.byType(AppFocusDismissRegion), findsOneWidget);
+  });
+}
+""", encoding='utf-8')
+          PY
+
+      - name: Format
+        run: dart format lib/app/app.dart test/system_viewport_safe_area_test.dart
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Targeted regression
+        run: flutter test test/system_viewport_safe_area_test.dart --reporter expanded
+
+      - name: Full regression
+        run: flutter test --reporter expanded
+
+      - name: Diff check
+        run: git diff --check
+
+      - name: Commit validated source changes
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/app/app.dart test/system_viewport_safe_area_test.dart
+          if git diff --cached --quiet; then
+            echo 'No source changes to commit.'
+            exit 0
+          fi
+          git commit -m 'fix(ui): preserve system viewport safe area'
+          git push origin HEAD:fix/system-viewport-safe-area
