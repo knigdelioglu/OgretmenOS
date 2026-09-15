@@ -1,34 +1,41 @@
-name: Lesson Plan Runtime Sync P3
+name: Teacher Guide V2.2 Runtime Projection
 
 on:
   push:
     branches:
       - main
-      - feat/lesson-plan-runtime-sync-p3
     paths:
       - '.github/workflows/lesson-plan-runtime-sync-p3.yml'
-      - 'tool/sync_course_runtime.dart'
       - 'tool/project_teacher_guide_pedagogy_v2.py'
+      - 'tool/teacher_guide/teacher_guide_v2_profiles.json'
+      - 'tool/runtime_verifier/**'
       - 'lib/domain/runtime/runtime_manifest_policy.dart'
       - 'lib/data/course/course_database_installer.dart'
+      - 'lib/data/course/teacher_guide_database_data_source.dart'
+      - 'lib/domain/models/teacher_guide_models.dart'
+      - 'lib/features/resources/teacher_guide_viewer_page.dart'
+      - 'test/**teacher_guide**'
       - 'test/runtime_manifest_policy_test.dart'
-      - 'test/lesson_plan_runtime_package_integration_test.dart'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: lesson-plan-runtime-sync-p3-${{ github.ref }}
+  group: teacher-guide-v2-2-${{ github.ref }}
   cancel-in-progress: false
 
 env:
-  TYMM_REPOSITORY: knigdelioglu/tymm
-  TYMM_COMMIT: dc12e50ccf2e2e27e7a4a1d06793a9b8c0fb091a
+  TDE11_RUNTIME: tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime
+  TDE11_PACKAGE: tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json
+  V22_PROFILE: tool/teacher_guide/teacher_guide_v2_profiles.json
+  EXPECTED_CANONICAL_FINGERPRINT: 67507026f1019f3e014eec12e89c266a662723ead48cf92ca07539a66ca59a95
+  EXPECTED_BASE_TEACHER_FINGERPRINT: c5ae313525bfd92cf43cf00ec9f3017966db1eb6bd7610f8f824ce85ac228f96
+  TYMM_V22_COMMIT: dc12e50ccf2e2e27e7a4a1d06793a9b8c0fb091a
 
 jobs:
-  sync-and-verify:
-    name: Build, Sync and Verify TDE9/TDE10/TDE11
+  project-and-verify:
+    name: Project and verify TDE11 Teacher Guide V2.2
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -38,22 +45,103 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Checkout pinned TYMM source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          repository: ${{ env.TYMM_REPOSITORY }}
-          ref: ${{ env.TYMM_COMMIT }}
-          path: .p3-tymm-source
-          fetch-depth: 1
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Validate runtime projection tools
+      - name: Validate projector and vendored profile
         run: |
           python3 -m py_compile tool/project_teacher_guide_pedagogy_v2.py
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = json.loads(Path(os.environ['V22_PROFILE']).read_text(encoding='utf-8'))
+          assert p['architecture_version'] == '2.2.0'
+          assert p['source_tymm_commit'] == os.environ['TYMM_V22_COMMIT']
+          assert set(p['section_profiles']) == {'TEMA_02', 'TEMA_03', 'TEMA_04'}
+          assert set(p['phase_profiles']) == {'opening','manage','meaning','analyze_apply','reflect','assessment'}
+          print('V2.2 profile: PASS')
+          PY
+
+      - name: Verify canonical runtime precondition
+        run: |
+          python3 - <<'PY'
+          import json, os, sqlite3
+          from pathlib import Path
+          runtime = Path(os.environ['TDE11_RUNTIME'])
+          manifest = json.loads((runtime/'runtime_manifest.json').read_text(encoding='utf-8'))
+          seal = json.loads((runtime/'teacher_guide_validation_seal.json').read_text(encoding='utf-8'))
+          assert manifest['canonical_content_fingerprint'] == os.environ['EXPECTED_CANONICAL_FINGERPRINT']
+          if seal.get('projection_version') != '1.2.0+pedagogy-v2.2-profile':
+              assert seal['teacher_guide_content_fingerprint'] == os.environ['EXPECTED_BASE_TEACHER_FINGERPRINT']
+              assert seal['row_counts']['teacher_guide_units'] == 94
+              assert seal['row_counts']['teacher_guide_items'] == 283
+              assert seal['row_counts']['teacher_guide_item_relations'] == 3750
+          db = sqlite3.connect(runtime/'course_runtime.sqlite')
+          try:
+              assert db.execute("SELECT COUNT(*) FROM teacher_guide_units WHERE unit_id NOT LIKE '__pedv2_unit__%'").fetchone()[0] == 94
+              assert db.execute("SELECT COUNT(*) FROM teacher_guide_items WHERE unit_id NOT LIKE '__pedv2_unit__%'").fetchone()[0] == 283
+          finally:
+              db.close()
+          print('Canonical TDE11 teacher-guide precondition: PASS')
+          PY
+
+      - name: Project V2.2 pedagogy onto canonical runtime
+        run: |
+          python3 tool/project_teacher_guide_pedagogy_v2.py \
+            --course-id TDE_11 \
+            --runtime-dir "$TDE11_RUNTIME" \
+            --profiles "$V22_PROFILE" \
+            --package-manifest "$TDE11_PACKAGE" \
+            --expected-canonical-fingerprint "$EXPECTED_CANONICAL_FINGERPRINT" \
+            --expected-teacher-guide-fingerprint "$EXPECTED_BASE_TEACHER_FINGERPRINT"
+
+      - name: Verify V2.2 projection metadata and row contract
+        run: |
+          python3 - <<'PY'
+          import json, os, sqlite3
+          from pathlib import Path
+          runtime = Path(os.environ['TDE11_RUNTIME'])
+          manifest = json.loads((runtime/'runtime_manifest.json').read_text(encoding='utf-8'))
+          package = json.loads(Path(os.environ['TDE11_PACKAGE']).read_text(encoding='utf-8'))
+          seal = json.loads((runtime/'teacher_guide_validation_seal.json').read_text(encoding='utf-8'))
+          meta = manifest['teacher_guide_capabilities']['pedagogy_overlay']
+          assert meta['available'] is True
+          assert meta['architecture_version'] == '2.2.0'
+          assert meta['projection_version'] == '1.2.0+pedagogy-v2.2-profile'
+          assert meta['source_tymm_commit'] == os.environ['TYMM_V22_COMMIT']
+          assert meta['source_mode'] == 'CANONICAL_RUNTIME_PLUS_V2_PROFILE'
+          assert meta['themes'] == ['TEMA_02','TEMA_03','TEMA_04']
+          assert meta['sections'] == 21
+          assert meta['blocks'] == 69
+          assert meta['canonical_task_items_reused'] == 216
+          assert manifest['row_counts']['teacher_guide_units'] == 163
+          assert manifest['row_counts']['teacher_guide_items'] == 352
+          assert manifest['row_counts']['teacher_guide_item_relations'] > 3750
+          assert package['teacher_guide_source_commit'] == os.environ['TYMM_V22_COMMIT']
+          assert package['teacher_guide_capabilities']['pedagogy_overlay'] == meta
+          assert seal['pedagogy_overlay'] == meta
+          db = sqlite3.connect(runtime/'course_runtime.sqlite')
+          try:
+              assert db.execute("SELECT COUNT(*) FROM teacher_guide_units WHERE unit_id LIKE '__pedv2_unit__%'").fetchone()[0] == 69
+              assert db.execute("SELECT COUNT(*) FROM teacher_guide_items WHERE item_id LIKE '__pedv2_block__%'").fetchone()[0] == 69
+              assert db.execute("PRAGMA foreign_key_check").fetchall() == []
+          finally:
+              db.close()
+          print('TDE11 Teacher Guide V2.2 projection contract: PASS')
+          PY
+
+      - name: Set up Dart for runtime verifier
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Verify runtime with ÖğretmenOS verifier
+        working-directory: tool/runtime_verifier
+        run: |
+          dart pub get
+          dart run bin/verify_runtime.dart --course TDE_11
 
       - name: Set up Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
@@ -61,109 +149,17 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install app dependencies
-        run: flutter pub get
-
-      - name: Format and analyze sync tool
+      - name: Run application regression suite
         run: |
-          dart format tool/sync_course_runtime.dart
-          dart analyze tool/sync_course_runtime.dart
-
-      - name: Build lesson-plan-aware TYMM runtimes from pinned commit
-        working-directory: .p3-tymm-source
-        run: |
-          for course in TDE_9 TDE_10 TDE_11; do
-            python skill/tymm-material-planner/scripts/resolve_course_timeline_hours.py --knowledge-root "courses/$course"
-            python skill/tymm-material-planner/scripts/build_runtime_course_package.py build --knowledge-root "courses/$course"
-          done
-
-      - name: Sync validated runtimes into ÖğretmenOS package tree
-        run: |
-          dart run tool/sync_course_runtime.dart \
-            --course TDE_9 \
-            --source-root "$GITHUB_WORKSPACE/.p3-tymm-source/courses/TDE_9/runtime" \
-            --target-root "tymm-verileri/turk-dili-ve-edebiyati/TDE_9/runtime" \
-            --source-commit "$TYMM_COMMIT" \
-            --require-lesson-plans
-          dart run tool/sync_course_runtime.dart \
-            --course TDE_10 \
-            --source-root "$GITHUB_WORKSPACE/.p3-tymm-source/courses/TDE_10/runtime" \
-            --target-root "tymm-verileri/turk-dili-ve-edebiyati/TDE_10/runtime" \
-            --source-commit "$TYMM_COMMIT" \
-            --require-lesson-plans
-          dart run tool/sync_course_runtime.dart \
-            --course TDE_11 \
-            --source-root "$GITHUB_WORKSPACE/.p3-tymm-source/courses/TDE_11/runtime" \
-            --target-root "tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime" \
-            --source-commit "$TYMM_COMMIT" \
-            --require-lesson-plans \
-            --require-teacher-guide
-
-      - name: Project TDE11 Teacher Guide Pedagogy V2 into read-only runtime
-        run: |
-          python3 tool/project_teacher_guide_pedagogy_v2.py \
-            --course-id TDE_11 \
-            --course-root "$GITHUB_WORKSPACE/.p3-tymm-source/courses/TDE_11" \
-            --runtime-dir "$GITHUB_WORKSPACE/tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime" \
-            --package-manifest "$GITHUB_WORKSPACE/tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json"
-
-      - name: Verify synchronized package metadata
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          expected_commit = 'dc12e50ccf2e2e27e7a4a1d06793a9b8c0fb091a'
-          root = Path('tymm-verileri/turk-dili-ve-edebiyati')
-          for course in ('TDE_9', 'TDE_10', 'TDE_11'):
-              package = json.loads((root / course / 'package_manifest.json').read_text(encoding='utf-8'))
-              runtime = json.loads((root / course / 'runtime/runtime_manifest.json').read_text(encoding='utf-8'))
-              assert package['tymm_source_commit'] == expected_commit, course
-              assert package['runtime_canonical_content_fingerprint'] == runtime['canonical_content_fingerprint'], course
-              assert package['lesson_plan_package_count'] == runtime['lesson_plan_package_count'], course
-              assert package['lesson_plan_instruction_hours'] == runtime['lesson_plan_instruction_hours'], course
-              assert package['lesson_plan_validation_status'] == 'VERIFIED', course
-              assert runtime['row_counts']['lesson_plan_packages'] > 0, course
-              assert runtime['lesson_plan_capabilities']['validation_bound'] is True, course
-              assert runtime['lesson_plan_capabilities']['source_payload_parity'] is True, course
-              assert runtime['lesson_plan_capabilities']['calendar_neutral'] is True, course
-              print(f'{course} synchronized metadata: PASS')
-
-          package = json.loads((root / 'TDE_11/package_manifest.json').read_text(encoding='utf-8'))
-          runtime = json.loads((root / 'TDE_11/runtime/runtime_manifest.json').read_text(encoding='utf-8'))
-          overlay = runtime['teacher_guide_capabilities']['pedagogy_overlay']
-          assert runtime['capabilities']['teacher_guide'] is True
-          assert runtime['teacher_guide_capabilities']['validation_status'] == 'PASS'
-          assert overlay['available'] is True
-          assert overlay['projection_version'] == '1.1.0+pedagogy-v2'
-          assert overlay['overlay_count'] == 4
-          assert set(overlay['overlay_schema_versions']) == {'2.0.0', '2.2.0'}
-          assert overlay['blocks'] > 0
-          assert overlay['task_cards'] > 0
-          assert overlay['items'] == overlay['blocks'] + overlay['task_cards']
-          assert runtime['row_counts']['teacher_guide_units'] > 94
-          assert runtime['row_counts']['teacher_guide_items'] > 283
-          assert package['teacher_guide_capabilities']['pedagogy_overlay'] == overlay
-          print('TDE_11 Teacher Guide Pedagogy V2 metadata: PASS')
-          PY
-
-      - name: Verify synchronized runtimes with ÖğretmenOS verifier
-        working-directory: tool/runtime_verifier
-        run: |
-          dart pub get
-          dart run bin/verify_runtime.dart --course TDE_9
-          dart run bin/verify_runtime.dart --course TDE_10
-          dart run bin/verify_runtime.dart --course TDE_11
-
-      - name: Run application regression suite against synchronized runtimes
-        run: flutter test --reporter expanded
+          flutter pub get
+          flutter test --reporter expanded
 
       - name: Check generated diff
         run: |
           git diff --check
           git status --short
 
-      - name: Publish synchronized runtime assets to current branch
+      - name: Publish V2.2 runtime assets
         if: github.event_name == 'push'
         shell: bash
         run: |
@@ -171,25 +167,15 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
-            tymm-verileri/turk-dili-ve-edebiyati/TDE_9/runtime \
-            tymm-verileri/turk-dili-ve-edebiyati/TDE_9/package_manifest.json \
-            tymm-verileri/turk-dili-ve-edebiyati/TDE_10/runtime \
-            tymm-verileri/turk-dili-ve-edebiyati/TDE_10/package_manifest.json \
-            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime \
-            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json
+            "$TDE11_RUNTIME/course_runtime.sqlite" \
+            "$TDE11_RUNTIME/runtime_manifest.json" \
+            "$TDE11_RUNTIME/teacher_guide_validation_seal.json" \
+            "$TDE11_PACKAGE"
           if git diff --cached --quiet; then
-            echo 'Runtime assets are already synchronized.'
+            echo 'Teacher Guide V2.2 runtime is already materialized.'
             exit 0
           fi
-          git commit -m 'chore(runtime): sync TYMM and TDE11 Teacher Guide V2 [p3-sync]'
-
-          # Flutter/pub and the validation checkout may leave transient changes.
-          # Keep the generated runtime commit clean before rebasing/pushing it.
-          git restore --worktree -- \
-            analysis_options.yaml \
-            pubspec.lock \
-            tool/sync_course_runtime.dart || true
-          rm -rf .p3-tymm-source
-
+          git commit -m 'chore(runtime): materialize TDE11 Teacher Guide V2.2 [skip ci]'
+          git restore --worktree -- analysis_options.yaml pubspec.lock || true
           git pull --rebase origin "$GITHUB_REF_NAME"
           git push origin HEAD:"$GITHUB_REF_NAME"
