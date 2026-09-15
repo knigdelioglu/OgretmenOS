@@ -1,0 +1,43 @@
+name: TMP4 Teacher Guide Analyze Artifact
+
+on:
+  push:
+    branches:
+      - fix/teacher-guide-note-state
+    paths:
+      - .github/workflows/tmp4-teacher-guide-analyze-artifact.yml
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: python3 tool/tmp_teacher_guide_note_fix.py
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: dart format lib/features/resources/teacher_guide_viewer_page.dart test/teacher_guide_viewer_test.dart
+      - name: Analyze and capture
+        shell: bash
+        run: |
+          set +e
+          flutter analyze > teacher-guide-analyze.log 2>&1
+          echo $? > teacher-guide-analyze.status
+          set -e
+          cat teacher-guide-analyze.log
+      - name: Upload analyzer log
+        uses: actions/upload-artifact@v4
+        with:
+          name: teacher-guide-analyze-log
+          path: |
+            teacher-guide-analyze.log
+            teacher-guide-analyze.status
+      - name: Fail if analyzer failed
+        shell: bash
+        run: test "$(cat teacher-guide-analyze.status)" = "0"
