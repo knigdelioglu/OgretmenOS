@@ -1,0 +1,264 @@
+name: TMP Teacher Guide Note Fix
+
+on:
+  push:
+    branches: [fix/teacher-guide-note-state]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply deterministic fixes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one match, got {count}: {old[:80]!r}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          def replace_all(path: str, old: str, new: str, expected_min: int = 1) -> None:
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count < expected_min:
+                  raise SystemExit(f'{path}: expected at least {expected_min} matches, got {count}: {old!r}')
+              p.write_text(text.replace(old, new), encoding='utf-8')
+
+          viewer = 'lib/features/resources/teacher_guide_viewer_page.dart'
+          replace_once(
+              viewer,
+              "  TeacherGuideNote? _loadedNote;\n  String? _selectedSectionId;",
+              "  TeacherGuideNote? _loadedNote;\n  TeacherGuideItem? _noteItem;\n  String? _selectedSectionId;",
+          )
+          replace_once(
+              viewer,
+              "  void dispose() {\n    _noteSaveTimer?.cancel();\n    _searchController",
+              "  void dispose() {\n    _noteSaveTimer?.cancel();\n    _flushPendingNoteOnDispose();\n    _searchController",
+          )
+          replace_once(
+              viewer,
+              "        .toList(growable: false);\n  }\n\n  Future<void> _selectItem(TeacherGuideItem item, _GuideViewData data) async {",
+              """        .toList(growable: false);\n  }\n\n  Future<void> _selectSection(\n    String sectionId,\n    _GuideViewData data,\n  ) async {\n    final section = data.sectionFor(sectionId);\n    final item = section?.units\n        .expand((unit) => unit.items)\n        .firstOrNull;\n    if (item == null) return;\n    await _selectItem(item, data);\n  }\n\n  Future<void> _selectUnit(String unitId, _GuideViewData data) async {\n    final item = data.unitFor(unitId)?.items.firstOrNull;\n    if (item == null) return;\n    await _selectItem(item, data);\n  }\n\n  Future<void> _selectItem(TeacherGuideItem item, _GuideViewData data) async {""",
+          )
+          replace_once(
+              viewer,
+              "    final unitData = data.unitFor(item.unitId);\n    if (unitData == null) return;\n    if (_noteDirty && !await _saveNote()) return;",
+              "    final unitData = data.unitFor(item.unitId);\n    if (unitData == null) return;\n    _noteSaveTimer?.cancel();\n    if (_noteDirty && !await _saveNote()) return;",
+          )
+          old_load = """  Future<void> _loadNoteForSelection(TeacherGuideItem? item) async {\n    final assignmentId = widget.assignmentId;\n    final notes = widget.notesRepository;\n    final controller = _noteController;\n    if (assignmentId == null || notes == null || item == null) return;\n    final revision = ++_noteRevision;\n    try {\n      final loaded = await notes.get(\n        assignmentId: assignmentId,\n        guideItemId: item.itemId,\n      );\n      if (!mounted || revision != _noteRevision) return;\n      _noteSaving = false;\n      _noteDirty = false;\n      _loadedNote = loaded;\n      controller?.text = loaded?.note ?? '';\n      setState(() {});\n    } on Object catch (error) {\n      if (!mounted || revision != _noteRevision) return;\n      _noteError = 'Not yüklenemedi: $error';\n      setState(() {});\n    }\n  }"""
+          new_load = """  Future<void> _loadNoteForSelection(TeacherGuideItem? item) async {\n    final assignmentId = widget.assignmentId;\n    final notes = widget.notesRepository;\n    if (assignmentId == null || notes == null || item == null) return;\n    final revision = ++_noteRevision;\n    _noteItem = item;\n    _loadedNote = null;\n    _noteSaving = false;\n    _noteDirty = false;\n    _noteError = null;\n    _noteController?.text = '';\n    try {\n      final loaded = await notes.get(\n        assignmentId: assignmentId,\n        guideItemId: item.itemId,\n      );\n      if (!mounted || revision != _noteRevision) return;\n      _loadedNote = loaded;\n      _noteController?.text = loaded?.note ?? '';\n      setState(() {});\n    } on Object catch (error) {\n      if (!mounted || revision != _noteRevision) return;\n      _noteError = 'Not yüklenemedi: $error';\n      setState(() {});\n    }\n  }"""
+          replace_once(viewer, old_load, new_load)
+          replace_once(
+              viewer,
+              "  Future<bool> _saveNote() async {\n    final assignmentId = widget.assignmentId;",
+              "  Future<bool> _saveNote() async {\n    _noteSaveTimer?.cancel();\n    final assignmentId = widget.assignmentId;",
+          )
+          replace_once(
+              viewer,
+              "    final item = _currentItem;",
+              "    final item = _noteItem ?? _currentItem;",
+          )
+          replace_once(
+              viewer,
+              """  Future<void> _handleBack() async {\n    if (_noteSaving) return;\n    if (await _saveNote() && mounted) Navigator.of(context).pop();\n  }""",
+              """  void _flushPendingNoteOnDispose() {\n    final assignmentId = widget.assignmentId;\n    final notes = widget.notesRepository;\n    final item = _noteItem;\n    final controller = _noteController;\n    final hash = item?.canonicalPayloadSha256;\n    if (!_noteDirty ||\n        assignmentId == null ||\n        notes == null ||\n        item == null ||\n        controller == null ||\n        hash == null ||\n        hash.isEmpty) {\n      return;\n    }\n    final snapshot = TeacherGuideNote(\n      assignmentId: assignmentId,\n      guideItemId: item.itemId,\n      note: controller.text,\n      canonicalPayloadSha256: hash,\n      updatedAt: DateTime.now(),\n    );\n    unawaited(\n      notes.save(snapshot).onError((Object _, StackTrace __) {\n        // Route teardown cannot surface an error. Normal back navigation\n        // remains fail-visible through _saveNote(); this is a final best-effort\n        // flush for parent/lifecycle-driven disposal.\n      }),\n    );\n  }\n\n  Future<void> _handleBack() async {\n    _noteSaveTimer?.cancel();\n    if (_noteSaving) return;\n    if (await _saveNote() && mounted) Navigator.of(context).pop();\n  }""",
+          )
+          replace_once(
+              viewer,
+              """                          onSelectSection: (value) => setState(() {\n                            _selectedSectionId = value;\n                            _selectedUnitId = data.sections\n                                .firstWhere((s) => s.section.sectionId == value)\n                                .units\n                                .firstOrNull\n                                ?.unit\n                                .unitId;\n                          }),\n                          onSelectUnit: (value) => setState(() {\n                            _selectedUnitId = value;\n                            _selectedItemId = data\n                                .unitFor(value)\n                                ?.items\n                                .firstOrNull\n                                ?.itemId;\n                          }),""",
+              """                          onSelectSection: (value) =>\n                              unawaited(_selectSection(value, data)),\n                          onSelectUnit: (value) =>\n                              unawaited(_selectUnit(value, data)),""",
+          )
+          replace_once(
+              viewer,
+              """          onChanged: (value) {\n            if (value == null) return;\n            final next = data.sections.firstWhere(\n              (section) => section.section.sectionId == value,\n            );\n            setState(() {\n              _selectedSectionId = value;\n              _selectedUnitId = next.units.firstOrNull?.unit.unitId;\n              _selectedItemId =\n                  next.units.firstOrNull?.items.firstOrNull?.itemId;\n            });\n          },""",
+              """          onChanged: (value) {\n            if (value != null) unawaited(_selectSection(value, data));\n          },""",
+          )
+          replace_once(
+              viewer,
+              """            onChanged: (value) {\n              if (value == null) return;\n              final next = data.unitFor(value);\n              setState(() {\n                _selectedUnitId = value;\n                _selectedItemId = next?.items.firstOrNull?.itemId;\n              });\n            },""",
+              """            onChanged: (value) {\n              if (value != null) unawaited(_selectUnit(value, data));\n            },""",
+          )
+
+          test = 'test/teacher_guide_viewer_test.dart'
+          insert_tests = """
+
+  testWidgets(
+    'unit switch saves dirty note against the previous guide item',
+    (tester) async {
+      _useSize(tester, const Size(412, 915));
+      final notes = _MemoryNotes();
+
+      await tester.pumpWidget(
+        _viewerApp(assignmentId: 'assignment-A', notes: notes),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).last, 'Gözlem notu');
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final unitDropdown = find.byType(DropdownButtonFormField<String>).at(1);
+      await tester.tap(unitDropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Modelleme').last);
+      await tester.pumpAndSettle();
+
+      expect(notes.saved, isNotEmpty);
+      expect(notes.saved.first.guideItemId, 'ITEM_OBSERVATION');
+      expect(notes.saved.first.note, 'Gözlem notu');
+      expect(find.text('Modeli değiştir'), findsWidgets);
+      final noteField = tester.widget<TextField>(find.byType(TextField).last);
+      expect(noteField.controller?.text ?? '', isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('dispose flushes a pending note before debounce fires', (
+    tester,
+  ) async {
+    _useSize(tester, const Size(412, 915));
+    final notes = _MemoryNotes();
+
+    await tester.pumpWidget(
+      _viewerApp(assignmentId: 'assignment-A', notes: notes),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'Kapanış notu');
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+    await tester.pump();
+
+    expect(notes.saved, isNotEmpty);
+    expect(notes.saved.last.guideItemId, 'ITEM_OBSERVATION');
+    expect(notes.saved.last.note, 'Kapanış notu');
+    expect(tester.takeException(), isNull);
+  });
+"""
+          replace_once(
+              test,
+              "\n  testWidgets('failed note save is visible instead of silent loss', (",
+              insert_tests + "\n  testWidgets('failed note save is visible instead of silent loss', (",
+          )
+          model_unit = """
+
+  static const modelUnit = TeacherGuideUnit(
+    unitId: 'UNIT_MODEL',
+    sectionId: 'SECTION_EXPERIMENT',
+    order: 2,
+    title: 'Modelleme',
+    pageLocator: '43',
+    sourceLocator: 'physics_textbook#43',
+    contentStatus: 'VERIFIED',
+    purpose: ['Modelle', 'Karşılaştır'],
+    provenance: TeacherGuideProvenance(
+      sourceIds: ['physics_textbook'],
+      sourceLocators: ['printed p. 43'],
+      contentClass: 'PEDAGOGICAL_ENRICHMENT',
+    ),
+  );
+"""
+          replace_once(
+              test,
+              "\n  static const observation = TeacherGuideItem(",
+              model_unit + "\n  static const observation = TeacherGuideItem(",
+          )
+          replace_once(
+              test,
+              "    unitId: 'UNIT_OBSERVATION',\n    order: 2,\n    title: 'Modeli değiştir',",
+              "    unitId: 'UNIT_MODEL',\n    order: 2,\n    title: 'Modeli değiştir',",
+          )
+          replace_once(test, "          unitCount: 1,", "          unitCount: 2,")
+          replace_once(
+              test,
+              """  Future<List<TeacherGuideUnit>> getTeacherGuideUnits(String sectionId) async =>\n      sectionId == section.sectionId && guideAvailable ? const [unit] : [];\n\n  @override\n  Future<TeacherGuideUnit?> getTeacherGuideUnit(String unitId) async =>\n      unitId == unit.unitId && guideAvailable ? unit : null;\n\n  @override\n  Future<List<TeacherGuideItem>> getTeacherGuideItems(String unitId) async =>\n      unitId == unit.unitId && guideAvailable\n      ? const [observation, modelItem]\n      : [];""",
+              """  Future<List<TeacherGuideUnit>> getTeacherGuideUnits(String sectionId) async =>\n      sectionId == section.sectionId && guideAvailable\n      ? const [unit, modelUnit]\n      : [];\n\n  @override\n  Future<TeacherGuideUnit?> getTeacherGuideUnit(String unitId) async {\n    if (!guideAvailable) return null;\n    if (unitId == unit.unitId) return unit;\n    if (unitId == modelUnit.unitId) return modelUnit;\n    return null;\n  }\n\n  @override\n  Future<List<TeacherGuideItem>> getTeacherGuideItems(String unitId) async {\n    if (!guideAvailable) return const [];\n    if (unitId == unit.unitId) return const [observation];\n    if (unitId == modelUnit.unitId) return const [modelItem];\n    return const [];\n  }""",
+          )
+
+          rebuild = 'tool/rebuild_curriculum_only_runtimes.py'
+          replace_once(rebuild, 'COURSES = ("TDE_11", "TDE_12")', 'COURSES = ("TDE_12",)')
+
+          ci = '.github/workflows/flutter-ci.yml'
+          replace_all(
+              ci,
+              'Rebuild TDE11/TDE12 curriculum-only runtimes',
+              'Rebuild TDE12 curriculum-only runtime',
+              expected_min=4,
+          )
+          replace_once(ci, 'Verify TDE11 curriculum-only runtime', 'Verify TDE11 full runtime')
+
+          package = 'tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json'
+          replace_once(
+              package,
+              '296a1b41de17a4f0c2ae78a27e3a5cd3b6d6b482',
+              '6785d28bd5c22bfad7c8a73d8162fa81cae62d6b',
+          )
+          PY
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: |
+          flutter pub get
+          (cd tool/runtime_verifier && dart pub get)
+
+      - name: Format changed Dart files
+        run: dart format lib/features/resources/teacher_guide_viewer_page.dart test/teacher_guide_viewer_test.dart
+
+      - name: Static analysis
+        run: |
+          flutter analyze
+          (cd tool/runtime_verifier && dart analyze)
+
+      - name: Teacher Guide viewer regression tests
+        run: flutter test test/teacher_guide_viewer_test.dart --reporter expanded
+
+      - name: Full Flutter tests against committed runtimes
+        run: flutter test --reporter expanded
+
+      - name: Verify full TDE11 runtime
+        working-directory: tool/runtime_verifier
+        run: dart run bin/verify_runtime.dart --course TDE_11
+
+      - name: Verify TDE12 curriculum runtime after rebuild helper
+        run: |
+          python3 tool/rebuild_curriculum_only_runtimes.py
+          (cd tool/runtime_verifier && dart run bin/verify_runtime.dart --course TDE_12)
+          git checkout -- tymm-verileri/turk-dili-ve-edebiyati/TDE_12/runtime
+
+      - name: Diff check
+        run: git diff --check
+
+      - name: Commit validated fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            lib/features/resources/teacher_guide_viewer_page.dart \
+            test/teacher_guide_viewer_test.dart \
+            tool/rebuild_curriculum_only_runtimes.py \
+            .github/workflows/flutter-ci.yml \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json
+          git diff --cached --check
+          git commit -m 'fix: preserve teacher guide note identity and runtime CI truth'
+          git push origin HEAD:fix/teacher-guide-note-state
