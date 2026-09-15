@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ogretmen_os/app/resource_navigation.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart' as model;
+import 'package:ogretmen_os/domain/models/form_models.dart';
 import 'package:ogretmen_os/domain/models/teacher_guide_models.dart';
 import 'package:ogretmen_os/domain/models/teacher_guide_note_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
 import 'package:ogretmen_os/domain/repositories/teacher_guide_notes_repository.dart';
+import 'package:ogretmen_os/features/resources/form_reference_tile.dart';
 import 'package:ogretmen_os/features/resources/resource_library_page.dart';
 import 'package:ogretmen_os/features/resources/teacher_guide_relation_action.dart';
 import 'package:ogretmen_os/features/resources/teacher_guide_viewer_page.dart';
@@ -24,6 +26,72 @@ void main() {
       expect(find.text('hız değişimi'), findsOneWidget);
       expect(find.text('Öğretmen incelemesi gerekli'), findsOneWidget);
       expect(find.text('Gözlem kaydı'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('guide item exposes form deep-link and review summary', (
+    tester,
+  ) async {
+    _useSize(tester, const Size(412, 915));
+
+    await tester.pumpWidget(_viewerApp());
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Bağlı formlar'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text('İnceleme durumu: Öğretmen incelemesi gerekli'),
+      findsOneWidget,
+    );
+    expect(find.text('form bağlantısı: 1'), findsOneWidget);
+    expect(find.text('Bağlı formlar'), findsOneWidget);
+    expect(find.text('Gözlem Formu'), findsOneWidget);
+    expect(find.text('Hazır'), findsOneWidget);
+    expect(find.text('Formu aç'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Formu aç'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Gerçek Gözlem Formu'), findsOneWidget);
+    expect(find.text('İçerik'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'external form review state is visible and explains the boundary',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FormReferenceTile(
+              formId: _GuideRepository.linkedForm.id,
+              form: _GuideRepository.linkedForm,
+              repository: _GuideRepository(
+                templateStatus: _GuideRepository.externalFormStatus,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dış kaynak · yapı çözümlenmedi'), findsOneWidget);
+      expect(find.text('Dış kaynak durumu'), findsOneWidget);
+      await tester.tap(find.text('Dış kaynak durumu'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('resmî QR değerlendirme kaynağına işaret eder'),
+        findsOneWidget,
+      );
+      expect(find.text('Resmî hedef URL'), findsOneWidget);
+      expect(find.text('https://example.test/qr-form'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -273,10 +341,16 @@ Widget _resourcesApp({required bool available}) => MaterialApp(
 );
 
 class _GuideRepository
-    implements CourseKnowledgeRepository, TeacherGuideKnowledgeRepository {
-  _GuideRepository({this.guideAvailable = true});
+    implements
+        CourseKnowledgeRepository,
+        TeacherGuideKnowledgeRepository,
+        FormTemplateKnowledgeRepository,
+        FormTemplateStatusKnowledgeRepository,
+        FormKnowledgeRepository {
+  _GuideRepository({this.guideAvailable = true, this.templateStatus});
 
   final bool guideAvailable;
+  final FormTemplateStatus? templateStatus;
 
   static const course = model.Course(
     courseId: 'FIZIK_10',
@@ -360,6 +434,44 @@ class _GuideRepository
     ),
   );
 
+  static const linkedForm = model.Form(
+    id: 'FORM_FORCE',
+    title: 'Gözlem Formu',
+    structuralType: 'checklist',
+    assessmentType: 'checklist',
+    printedPage: 42,
+    pdfPage: 42,
+    evaluator: 'teacher',
+    sourceId: 'physics_textbook',
+    verificationStatus: 'VERIFIED',
+  );
+
+  static const linkedFormStatus = FormTemplateStatus(
+    formId: 'FORM_FORCE',
+    renderStatus: 'ready',
+    reviewReason: null,
+    provenance: {'source_page': 's. 42', 'verification_status': 'VERIFIED'},
+  );
+
+  static const externalFormStatus = FormTemplateStatus(
+    formId: 'FORM_FORCE',
+    renderStatus: 'needs_review',
+    reviewReason: 'unresolved_form_reference',
+    provenance: {
+      'target_url': 'https://example.test/qr-form',
+      'verification_status':
+          'OFFICIAL_QR_ASSESSMENT_TARGET_PRESENT_STRUCTURE_UNRESOLVED',
+    },
+  );
+
+  static const linkedFormDefinition = FormDefinition(
+    schemaVersion: '1.0',
+    title: 'Gerçek Gözlem Formu',
+    sections: [
+      FormSection(elements: [ParagraphFormElement(text: 'İçerik')]),
+    ],
+  );
+
   static const observation = TeacherGuideItem(
     itemId: 'ITEM_OBSERVATION',
     unitId: 'UNIT_OBSERVATION',
@@ -395,6 +507,13 @@ class _GuideRepository
         targetId: 'ACTIVITY_FORCE',
         relationType: 'supports',
         order: 1,
+      ),
+      TeacherGuideRelation(
+        itemId: 'ITEM_OBSERVATION',
+        targetType: 'form',
+        targetId: 'FORM_FORCE',
+        relationType: 'references',
+        order: 2,
       ),
     ],
   );
@@ -504,6 +623,18 @@ class _GuideRepository
   @override
   Future<model.TeacherPackage> getTeacherPackage(String themeId) async =>
       teacherPackage;
+
+  @override
+  Future<FormDefinition?> getFormDefinition(String formId) async =>
+      formId == linkedForm.id ? linkedFormDefinition : null;
+
+  @override
+  Future<FormTemplateStatus?> getFormTemplateStatus(String formId) async =>
+      formId == linkedForm.id ? (templateStatus ?? linkedFormStatus) : null;
+
+  @override
+  Future<model.Form?> getForm(String formId) async =>
+      formId == linkedForm.id ? linkedForm : null;
 
   @override
   Future<TeacherGuideCapability> getTeacherGuideCapability() async =>

@@ -1,0 +1,802 @@
+{
+  "schema_version": "1.0",
+  "course_id": "TDE_11",
+  "source_basis": "Resmî TDE 11 ders kitabı PDF’sindeki görünür form yapıları ve doğrulanmış sayfa/ölçüt transkripsiyonları",
+  "templates": {
+    "FORM_T1_P035_OZ_DEGERLENDIRME_01": {
+      "kind": "rating",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Sınıfı",
+        "Numarası",
+        "Tarih"
+      ],
+      "options": [
+        "Evet",
+        "Kısmen",
+        "Hayır"
+      ],
+      "items": [
+        "Grup arkadaşlarımın düşüncelerine saygı duyarak onlarla etkili iletişim kurdum.",
+        "Grupta üzerime düşen görevi zamanında tamamladım.",
+        "Grup arkadaşlarımla uyum içinde çalıştım.",
+        "Karşılaşılan sorunların çözümüne katkıda bulundum.",
+        "Çalışmamı hazırlarken arkadaşlarımın görüş ve önerilerini dikkate aldım.",
+        "Çalışmamı belirlenen süre içinde tamamladım."
+      ],
+      "instructions": "Her ölçüt için Evet, Kısmen veya Hayır seçeneğini işaretleyiniz.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.35"
+      }
+    },
+    "FORM_T1_P054_KONTROL_LISTESI_03": {
+      "kind": "rating",
+      "identity_fields": [
+        "Öğrencinin adı soyadı",
+        "Sınıfı",
+        "Numarası",
+        "Tarih"
+      ],
+      "options": [
+        "Evet",
+        "Hayır"
+      ],
+      "items": [
+        "Konuşmanın konusunu ve amacını belirledi.",
+        "Konuşmanın konusuyla ilgili gerekli gözlem, inceleme ve araştırmaları yaptı.",
+        "Konuşmaya uygun yöntem ve stratejiyi belirledi.",
+        "Konuşmanın süresini ve hedef kitlenin özelliklerini belirledi.",
+        "Konuşmayı nasıl ve hangi araçları kullanarak gerçekleştireceğine karar verdi.",
+        "Mekânın, teknik altyapının, görüntü ve sesin uygunluğunu kontrol etti.",
+        "Konuşmada iletişimin önündeki engelleri ortadan kaldırdı."
+      ],
+      "instructions": "Çalışmayı her ölçüte göre Evet veya Hayır ile değerlendiriniz.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.54"
+      }
+    },
+    "FORM_T1_P058_OZ_DEGERLENDIRME_05": {
+      "kind": "rating",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Sınıfı",
+        "Numarası",
+        "Tarih"
+      ],
+      "options": [
+        "Evet",
+        "Kısmen",
+        "Hayır"
+      ],
+      "items": [
+        "Sözlü iletişim engellerine dair araştırma yaparak bilgi topladım.",
+        "Dilin kullanım alanına (özel, mesleki, kamusal alan ve eğitim alanı) göre konuşma içeriğini belirledim.",
+        "Canlandırmamda konuşmayı başlatma, sürdürme ve bitirme ifadelerini etkili bir şekilde kullandım.",
+        "Canlandırmamı desteklemek, konuyu belirgin ve etkili kılmak için düşünceyi geliştirme yollarına başvurdum.",
+        "Türkçenin dil yapısına, işlevine ve bağdaşıklık ögelerine dikkat ettim.",
+        "Söz varlığını hedef kitleye ve bağlama uygun şekilde kullandım.",
+        "Toplumsal hassasiyet oluşturacak ögeler kullanmaktan kaçındım.",
+        "Millî ve manevi değerleri, kültürel unsurları, olumlu tutum ve değerleri vurgulamaya dikkat ettim.",
+        "Beden dilini doğru, diksiyon ve telaffuzu etkin bir şekilde kullandım.",
+        "Canlandırma süresince dinleyici ile etkileşim hâlinde olmaya özen gösterdim."
+      ],
+      "instructions": "Çalışmanızı Evet, Kısmen veya Hayır seçeneklerinden biriyle değerlendiriniz.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.58"
+      }
+    },
+    "FORM_T1_P064_GOZLEM_FORMU_07": {
+      "kind": "table",
+      "identity_fields": [
+        "Gözlem yapılan öğrenci",
+        "Sınıfı",
+        "Tarih"
+      ],
+      "label": "Gözlem ve değerlendirme",
+      "columns": [
+        {
+          "label": "Gözlem ölçütü",
+          "flex": 5
+        },
+        {
+          "label": "Gözlem sonucu",
+          "flex": 2
+        },
+        {
+          "label": "Yorumlar",
+          "flex": 3
+        }
+      ],
+      "rows": [
+        [
+          "Metni dinleme / izlemeye hazırlık yaptı.",
+          "",
+          ""
+        ],
+        [
+          "Dinleme / izleme amacını belirledi.",
+          "",
+          ""
+        ],
+        [
+          "Metnin içeriğiyle ilgili tahminde bulundu.",
+          "",
+          ""
+        ],
+        [
+          "Dinleme / izlemeyi olumsuz etkileyen iletişim engellerini ortadan kaldırdı.",
+          "",
+          ""
+        ],
+        [
+          "Metni dinleme / izleme yöntemine karar verdi.",
+          "",
+          ""
+        ],
+        [
+          "Metni dikkatini yoğunlaştırarak dinledi / izledi.",
+          "",
+          ""
+        ],
+        [
+          "Metni başkalarını rahatsız etmeden dinledi / izledi.",
+          "",
+          ""
+        ],
+        [
+          "Önemli gördüğü yerler hakkında notlar aldı.",
+          "",
+          ""
+        ]
+      ],
+      "instructions": "Dinleme / izleme sürecini gözlemleyerek sonucu ve gerekli yorumları kaydediniz.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.64"
+      }
+    },
+    "FORM_T1_P073_CIKIS_KARTI_08": {
+      "kind": "prompts",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Tarih"
+      ],
+      "prompts": [
+        "Dinleme / izleme bölümünde yaptığınız çalışmalarda iletişime dair öğrendiğiniz veya önemli bulduğunuz üç bilgiyi yazınız.",
+        "Dinleme / izleme bölümünde ilginizi çeken ve daha fazla bilgi sahibi olmak istediğiniz konularla ilgili iki soru sorunuz.",
+        "Yaptığınız çalışmalarda öğrendiklerinizle ilgili bir görüşünüzü arkadaşlarınızla paylaşınız."
+      ],
+      "lines": [
+        3,
+        2,
+        3
+      ],
+      "instructions": "Üç Yaz, İki Sor ve Bir Paylaş bölümlerini tamamlayınız.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.73"
+      }
+    },
+    "FORM_T1_P078_CIKIS_KARTI_11": {
+      "kind": "prompts",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Tarih"
+      ],
+      "prompts": [
+        "Okuduğunuz temayla ilgili öğrendiğiniz üç bilgiyi tamamlayınız.",
+        "Okuduğunuz temada ilginizi çeken ve hakkında daha fazla bilgi sahibi olmak istediğiniz konularla ilgili iki soru sorunuz.",
+        "Okuduğunuz temada öğrenmekte zorluk çektiğiniz bir konuyu paylaşınız."
+      ],
+      "lines": [
+        3,
+        2,
+        3
+      ],
+      "instructions": "Çıkış Kartı’nı tema çalışmalarınıza göre tamamlayınız.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.78"
+      }
+    },
+    "FORM_T1_P078_OZ_DEGERLENDIRME_10": {
+      "kind": "rating",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Sınıfı",
+        "Numarası",
+        "Tarih"
+      ],
+      "options": [
+        "Evet",
+        "Kısmen",
+        "Hayır"
+      ],
+      "items": [
+        "İçeriğe uygun bir taslak oluşturdum.",
+        "Göndereceğim ek belgeleri sınıflandırdım.",
+        "Göndereceğim elektronik postanın alıcısına uygun dil ve üslup belirledim.",
+        "Elektronik postamın içeriğine uygun işitsel ve görsel ögeler kullandım.",
+        "Söz varlığını hedef kitleye ve amaca uygun kullandım.",
+        "Düşünceyi geliştirme yollarına başvurdum.",
+        "Yazımın içeriğine uygun bir başlık belirledim.",
+        "Düşüncelerimi özgün ve tutarlı bir üslupla ifade etmeye özen gösterdim."
+      ],
+      "instructions": "Evet, Kısmen veya Hayır seçeneklerinden uygun olanı işaretleyiniz.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.78"
+      }
+    },
+    "FORM_T1_P079_TEMA_TEST_12": {
+      "kind": "prompts",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Sınıfı",
+        "Numarası",
+        "Tarih"
+      ],
+      "prompts": [
+        "Soru 1 — Karagöz ve Hacivat’ın belirgin özelliklerini günlük iletişim durumuna uygulayınız.",
+        "Soru 2 — Verilen diyalogda Karagöz ve Hacivat rollerini belirleyiniz.",
+        "Soru 3 — Muamma geleneğinin günümüzdeki karşılıklarını açıklayınız.",
+        "Soru 4 — Çelebi’nin geliş amacını metinden hareketle belirleyiniz.",
+        "Soru 5 — Çelebi ile Karagöz’ün rollerini değiştirerek kısa bir diyalog yazınız.",
+        "Soru 6 — Karagöz ile günümüz mizah sanatçısını karşılaştırınız.",
+        "Soru 7 — Tanpınar’ın mektup yazma amacını açıklayınız.",
+        "Soru 8 — Mektup kapanışındaki değerleri ve iletişim biçimini açıklayınız.",
+        "Soru 9 — Mektup ve roman üzerinden yazar-okur iletişimini değerlendiriniz.",
+        "Soru 10 — Dijitalleşme metninden ulaşılamayan yargıyı belirleyiniz.",
+        "Soru 11 — İletişim alışkanlıklarının değişmesini etkileyen unsurları açıklayınız.",
+        "Soru 12 — Metne göre Evet, Hayır veya Bilgi yok seçeneklerini işaretleyiniz.",
+        "Soru 13 — Çok modlu metinde şiir duygusunu aktaran unsurları açıklayınız."
+      ],
+      "lines": [
+        5,
+        4,
+        4,
+        4,
+        8,
+        6,
+        5,
+        5,
+        6,
+        4,
+        5,
+        5,
+        6
+      ],
+      "instructions": "Tema sonu sorularını ders kitabındaki metin ve görsellerden yararlanarak cevaplayınız.",
+      "provenance": {
+        "content_basis": "verified_structural_index",
+        "source_page": "TDE_11 ders kitabı s.79-83"
+      }
+    },
+    "FORM_T2_P097_KONTROL_LISTESI_01": {
+      "kind": "rating",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Sınıfı",
+        "Numarası",
+        "Tarih"
+      ],
+      "options": [
+        "Evet",
+        "Hayır"
+      ],
+      "items": [
+        "Anlamını bilmediği kelime ve kelime gruplarını not aldı.",
+        "Anlamadığı yerlerle ilgili sorular sordu.",
+        "Önemli gördüğü yerleri not etti.",
+        "Altı çizili kelimelerle kendi ön bilgileri arasında bağlantı kurdu.",
+        "Metnin akışına göre kelimelerin anlam ve yapısıyla ilgili tahminler yürüttü.",
+        "Beyin fırtınası sırasında nezaket kurallarına uygun davrandı.",
+        "Söz almada istekli ve öz güvenli davrandı."
+      ],
+      "instructions": "Her ölçüt için Evet veya Hayır seçeneğini işaretleyiniz.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.97"
+      }
+    },
+    "FORM_T2_P112_CIKIS_KARTI_02": {
+      "kind": "prompts",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Tarih"
+      ],
+      "prompts": [
+        "Metinden seçtiğiniz ifadelerin çağrışım zenginliği bakımından en çok beğendiğiniz üç yönünü yazınız.",
+        "Beğendiğiniz ifadelerin çağrışım zenginliğini ortaya çıkaracak iki soru cümlesi yazınız.",
+        "Beğendiğiniz ifadeler içinde sizi en çok etkileyeni paylaşınız."
+      ],
+      "lines": [
+        3,
+        2,
+        3
+      ],
+      "instructions": "Üç Yaz, İki Sor ve Bir Paylaş bölümlerini tamamlayınız.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.112"
+      }
+    },
+    "FORM_T2_P135_OZ_DEGERLENDIRME_04": {
+      "kind": "rating",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Sınıfı",
+        "Numarası",
+        "Tarih"
+      ],
+      "options": [
+        "Evet",
+        "Kısmen",
+        "Hayır"
+      ],
+      "items": [
+        "Türk dünyasının ortak kültürünü (dil, din, coğrafya, sanat, müzik, gelenek, görenek, giyim, yemek, millî ve manevi değerler) yansıtan uygun görseller buldum ve bunlardan hareketle Türk kültürünü tanıttım.",
+        "Kullandığım görsellerden elde ettiğim bilgilerin dayanağına ilişkin gerekçeli açıklamalar yaptım.",
+        "Konunun anlaşılmasını sağlamak için doğru sıralamada, doğru kelimeler seçerek dil farkındalığımı ortaya koyan bir söz varlığı kullandım.",
+        "Türk kültürünü gerektiği gibi tanıtabilmek ve dinleyicinin bu kültürden kendine ait olanları fark etmesini sağlamak için düşünceyi geliştirme yollarından yararlandım.",
+        "Türkçenin dil yapısına, işlevine ve bağdaşıklık ögelerine dikkat ettim.",
+        "Söz varlığını hedef kitleye ve bağlama uygun şekilde kullandım.",
+        "Konuşmamda toplumsal hassasiyet oluşturacak ögeler kullanmaktan kaçındım.",
+        "Millî ve manevi değerleri, kültürel unsurları, olumlu tutum ve değerleri vurgulamaya dikkat ettim.",
+        "Beden dilini, diksiyonu, telaffuzu doğru ve etkin bir şekilde kullandım.",
+        "Dinleyicilerle göz teması kurmaya, mekânı ve süreyi etkili kullanmaya, görgü kurallarına uygun hareket etmeye dikkat ettim."
+      ],
+      "instructions": "Evet, Kısmen veya Hayır seçeneklerinden uygun olanı işaretleyiniz.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.135"
+      }
+    },
+    "FORM_T2_P139_KONTROL_LISTESI_06": {
+      "kind": "rating",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Sınıfı",
+        "Numarası",
+        "Tarih"
+      ],
+      "options": [
+        "Evet",
+        "Hayır"
+      ],
+      "items": [
+        "Dinleme / izleme amacımı belirledim.",
+        "Metinle ilgili daha önce bildiklerimi gözden geçirdim.",
+        "Dikkatlice ve anlayarak dinlemeye / izlemeye özen gösterdim.",
+        "Sabır ve saygıyla, ön yargılardan uzak bir tutumla dinledim / izledim.",
+        "Konuşmaya başlamadan, yorum yapmadan veya soru sormadan önce anlatımın bitmesini bekledim.",
+        "Dinleme / izleme sırasında diğer dinleyicileri rahatsız edecek davranışlardan kaçındım."
+      ],
+      "instructions": "Dinleme / izleme sürecindeki davranışlarınızı Evet veya Hayır ile değerlendiriniz.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.139"
+      }
+    },
+    "FORM_T2_P143_KONTROL_LISTESI_08": {
+      "kind": "prompts",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Tarih"
+      ],
+      "prompts": [
+        "Beğeni ölçütlerim: dinlediğim / izlediğim metni değerlendirirken kullanacağım ölçütleri yazınız."
+      ],
+      "lines": [
+        8
+      ],
+      "instructions": "Kendi beğeni ölçütlerinizi yazınız ve çalışmanızı bu ölçütlere göre gözden geçiriniz.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.143"
+      }
+    },
+    "FORM_T2_P153_OZ_DEGERLENDIRME_10": {
+      "kind": "rating",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Sınıfı",
+        "Numarası",
+        "Tarih"
+      ],
+      "options": [
+        "Evet",
+        "Kısmen",
+        "Hayır"
+      ],
+      "items": [
+        "Yazdığım metinde kime, neyi nasıl ve hangi araçlarla anlatacağımı göz önünde bulundurarak plan yaptım.",
+        "Yazmaya planıma uygun ve dikkat çekici bir girişle başladım.",
+        "Metni başlatma, sürdürme ve bitirme ifadelerini etkili biçimde kullandım.",
+        "Metni desteklemek, konuyu belirgin ve etkili kılmak için anlatım biçimi ve düşünceyi geliştirme yollarına başvurdum.",
+        "Türkçenin bağdaşıklık ögelerine dikkat ederek yazdım.",
+        "Söz varlığını hedef kitleye ve bağlama uygun şekilde kullandım.",
+        "Metinde toplumsal hassasiyet oluşturacak ögeler kullanmaktan kaçındım.",
+        "Millî ve manevi değerlere, kültürel unsurlara; olumlu tutum ve değerleri vurgulamaya dikkat ettim.",
+        "Metnin içeriğine uygun bir başlık belirledim.",
+        "Duygu, düşünce ve hayallerimi özgün ve tutarlı bir üslupla ifade ettim."
+      ],
+      "instructions": "Evet, Kısmen veya Hayır seçeneklerinden uygun olanı işaretleyiniz.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.153"
+      }
+    },
+    "FORM_T2_P154_OGRENME_GUNLUGU_12": {
+      "kind": "prompts",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Tarih"
+      ],
+      "prompts": [
+        "Bu süreçte öğrendiklerim",
+        "Pekiştirmem gereken konular",
+        "Daha ayrıntılı incelemek istediğim konular",
+        "Kendimi geliştirmek için çaba harcadığım konular",
+        "Öğrendiğim ve gelecekte kullanabileceğim bilgiler"
+      ],
+      "lines": [
+        5,
+        5,
+        5,
+        5,
+        5
+      ],
+      "instructions": "Tema süresince yaptığınız çalışmalar hakkında genel bir değerlendirme yazınız.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.154"
+      }
+    },
+    "FORM_T2_P155_TEMA_TEST_13": {
+      "kind": "prompts",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Sınıfı",
+        "Numarası",
+        "Tarih"
+      ],
+      "prompts": [
+        "Soru 1 — Orhun atasözü ve deyimlerinden hareketle Türk toplumunun özelliklerini açıklayınız.",
+        "Soru 2 — Orhun Abideleri’nde geçen atasözü ve deyimlerin genel amacını belirleyiniz.",
+        "Soru 3 — Verilen metin ve görsellerden ulaşılamayan çıkarımı belirleyiniz.",
+        "Soru 4 — Orhun Abideleriyle benzer özellik gösteren eseri belirleyiniz.",
+        "Soru 5 — Verilen metinlerde ortak olan bilgiyi yazınız.",
+        "Soru 6 — Ayak uydurarak atışmayı sürdürme biçimini açıklayınız.",
+        "Soru 7 — Öğrenci değerlendirmelerindeki yanlışlığı belirleyiniz.",
+        "Soru 8 — Orhun’dan günümüze eserler arasındaki köprüyü açıklayınız.",
+        "Soru 9 — Taşlara kazınan tarih ve töre için bir slogan yazınız."
+      ],
+      "lines": [
+        6,
+        4,
+        4,
+        4,
+        4,
+        5,
+        4,
+        5,
+        4
+      ],
+      "instructions": "Tema sonu sorularını ilgili metin, tablo ve görsellerden yararlanarak cevaplayınız.",
+      "provenance": {
+        "content_basis": "verified_structural_index",
+        "source_page": "TDE_11 ders kitabı s.155-159"
+      }
+    },
+    "FORM_T3_P193_CIKIS_KARTI_01": {
+      "kind": "prompts",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Tarih"
+      ],
+      "prompts": [
+        "Metinden seçtiğiniz ifadelerin çağrışım zenginliği bakımından en çok beğendiğiniz üç yönünü yazınız.",
+        "Beğendiğiniz ifadelerin çağrışım zenginliğini ortaya çıkarmak için iki soru sorunuz.",
+        "Beğendiğiniz ifadeler arasında sizi en çok etkileyeni paylaşınız."
+      ],
+      "lines": [
+        3,
+        2,
+        3
+      ],
+      "instructions": "Üç Yaz, İki Sor ve Bir Paylaş bölümlerini tamamlayınız.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.193"
+      }
+    },
+    "FORM_T3_P214_OZ_DEGERLENDIRME_03": {
+      "kind": "rating",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Sınıfı",
+        "Numarası",
+        "Tarih"
+      ],
+      "options": [
+        "Evet",
+        "Kısmen",
+        "Hayır"
+      ],
+      "items": [
+        "Çalışmada duygu, düşünce ve hayallerimi özgün bir üslupla, tutarlı bir biçimde ifade ettim.",
+        "Çalışmada dilin kullanım alanına (özel, mesleki, kamusal alan ve eğitim alanı) dikkat ettim.",
+        "Çalışmada beden dilini, diksiyonu, telaffuzu doğru ve etkin bir şekilde kullandım.",
+        "Türkçenin dil yapısına, işlevine ve bağdaşıklık ögelerine dikkat ettim.",
+        "Çalışmada anlatım ilkelerine (akıcılık, duruluk, yalınlık vb.) bağlı kalarak dili etkili ve güzel kullanmaya özen gösterdim.",
+        "Çalışmada anlatım bozukluğuna yol açmamak için ekleri doğru kullanmaya, seçtiğim kelimelerin bağlama uygun olmasına dikkat ettim."
+      ],
+      "instructions": "Evet, Kısmen veya Hayır seçeneklerinden uygun olanı işaretleyiniz.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.214"
+      }
+    },
+    "FORM_T3_P224_OGRENME_GUNLUGU_06": {
+      "kind": "prompts",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Tarih"
+      ],
+      "prompts": [
+        "Bu süreçte öğrendiklerim",
+        "Pekiştirmem gereken konular",
+        "Daha ayrıntılı incelemek istediğim konular",
+        "Kendimi geliştirmek için çaba harcadığım konular",
+        "Öğrendiğim ve gelecekte kullanabileceğim bilgiler"
+      ],
+      "lines": [
+        5,
+        5,
+        5,
+        5,
+        5
+      ],
+      "instructions": "Tema süresince yaptığınız çalışmalar hakkında genel bir değerlendirme yazınız.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.224"
+      }
+    },
+    "FORM_T3_P228_OZ_DEGERLENDIRME_08": {
+      "kind": "prompts",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Tarih"
+      ],
+      "prompts": [
+        "Yazma sürecindeki duygu, düşünce ve davranışlarınızı gözden geçirerek kendinize yönelik değerlendirmelerde bulununuz."
+      ],
+      "lines": [
+        6
+      ],
+      "instructions": "Süreci değerlendirirken gerekçelerinizi ve geliştirme hedeflerinizi yazınız.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.228"
+      }
+    },
+    "FORM_T3_P229_CIKIS_KARTI_10": {
+      "kind": "prompts",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Tarih"
+      ],
+      "prompts": [
+        "Temada öğrendiğiniz konu ve kavramlarla ilgili üç bilgiyi yazınız.",
+        "Temayla ilgili eksikleriniz ve kavram yanılgılarınız hakkında iki soru sorunuz.",
+        "Temada öğrendikleriniz arasında sizi en çok etkileyen konuyu arkadaşlarınızla paylaşınız."
+      ],
+      "lines": [
+        3,
+        2,
+        3
+      ],
+      "instructions": "Üç Yaz, İki Sor ve Bir Paylaş bölümlerini tamamlayınız.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.229"
+      }
+    },
+    "FORM_T3_P229_OZ_DEGERLENDIRME_09": {
+      "kind": "rating",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Sınıfı",
+        "Numarası",
+        "Tarih"
+      ],
+      "options": [
+        "Evet",
+        "Kısmen",
+        "Hayır"
+      ],
+      "items": [
+        "Yazımın içeriğine uygun bir başlık belirledim.",
+        "Yazımda dönüştürdüğüm diyaloğun içeriğini yansıttım.",
+        "Bağlama ve hedef kitleye uygun bir söz varlığı (deyim, atasözü, mecaz ve terim vb.) belirlemeye özen gösterdim.",
+        "Yazımı desteklemek amacıyla farklı anlatım biçimlerinden ve düşünceyi geliştirme yollarından yararlandım.",
+        "Yazdığım metinde dil yapılarına, bağdaşıklık ögelerine, yazım ve noktalama kurallarına dikkat ettim.",
+        "Türkçeyi bilinçli ve özenli kullanmaya (yabancı kelimelerin yerine Türkçe karşılıklarını tercih etme, doğru, etkili konuşma vb.) dikkat ettim."
+      ],
+      "instructions": "Evet, Kısmen veya Hayır seçeneklerinden uygun olanı işaretleyiniz.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.229"
+      }
+    },
+    "FORM_T3_P230_TEMA_TEST_11": {
+      "kind": "prompts",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Sınıfı",
+        "Numarası",
+        "Tarih"
+      ],
+      "prompts": [
+        "Sorular 1-2 — Verilen tez ve antitezi destekleyen metinleri Venn şemasına yerleştirip sentez cümlesi yazınız.",
+        "Sorular 3-6 — Kurmaca ve gerçeklik ilişkisini verilen metinlerden hareketle değerlendiriniz.",
+        "Sorular 7-11 — Orhan Veli ve biyografi yarışması metinlerini karşılaştırınız.",
+        "Sorular 12-13 — Bir Bilim Adamının Romanı metnini inceleyiniz.",
+        "Sorular 14-15 — Diyalog ve Aile Bağları videosundan hareketle soruları cevaplayınız.",
+        "Soru 16 — Roman, tezkire ve yazar hayatı ilişkisini açıklayınız."
+      ],
+      "lines": [
+        8,
+        8,
+        8,
+        6,
+        6,
+        6
+      ],
+      "instructions": "Tema sonu sorularını verilen metin, şema ve çok modlu içeriklerden yararlanarak cevaplayınız.",
+      "provenance": {
+        "content_basis": "verified_structural_index",
+        "source_page": "TDE_11 ders kitabı s.230-235"
+      }
+    },
+    "FORM_T4_P281_KONTROL_LISTESI_01": {
+      "kind": "rating",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Sınıfı",
+        "Numarası",
+        "Tarih"
+      ],
+      "options": [
+        "Evet",
+        "Hayır"
+      ],
+      "items": [
+        "Tiyatro metnini canlandırma amacını belirledi.",
+        "Tahlil edilen tiyatro eserinden bir bölümü canlandırmak üzere seçti.",
+        "Canlandırma yapmak için rol aldı.",
+        "Canlandırma için uygun yöntem ve stratejiyi belirledi.",
+        "Canlandırma sürecinde karşılaşabileceği iletişim engellerini ortadan kaldırdı."
+      ],
+      "instructions": "Her ölçüt için Evet veya Hayır seçeneğini işaretleyiniz.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.281"
+      }
+    },
+    "FORM_T4_P286_KONTROL_LISTESI_03": {
+      "kind": "rating",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Sınıfı",
+        "Numarası",
+        "Tarih"
+      ],
+      "options": [
+        "Evet",
+        "Hayır"
+      ],
+      "items": [
+        "Dikkatlice ve anlayarak dinlemeye / izlemeye özen gösterdi.",
+        "Sabır ve saygıyla, ön yargılardan uzak bir tutumla dinledi / izledi.",
+        "Diğer dinleyicileri rahatsız etmedi.",
+        "Konuşmaya başlamak, yorum yapmak veya soru sormak vb. için belgeselin bitmesini bekledi.",
+        "Dikkat dağıtacak sesler çıkarmaktan ve uygun olmayan hareketlerden kaçındı."
+      ],
+      "instructions": "Dinleme / izleme davranışlarını Evet veya Hayır ile değerlendiriniz.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.286"
+      }
+    },
+    "FORM_T4_P297_OGRENME_GUNLUGU_04": {
+      "kind": "prompts",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Tarih"
+      ],
+      "prompts": [
+        "Belgeselin bana kattığı değerler",
+        "Belgeselde yer alan benim de uygulayabileceğim davranış şekilleri",
+        "Belgeselde benim hayatımı yansıttığını düşündüğüm yaşantılar",
+        "Daha etkin izleyici olarak dikkat etmem gereken hususlar"
+      ],
+      "lines": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "instructions": "Belgesel çalışmasının sizde oluşturduğu öğrenmeleri ve hedefleri yazınız.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.297"
+      }
+    },
+    "FORM_T4_P302_OGRENME_GUNLUGU_06": {
+      "kind": "prompts",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Tarih"
+      ],
+      "prompts": [
+        "Tema öncesi bildiklerim",
+        "Tema sonrasında öğrendiklerim",
+        "Hayatın gerçeklerinin bireylerin duygu, düşünce ve davranışlarına nasıl yansıdığına ilişkin fark ettiklerim",
+        "Bu temada karşılaştığım metinlerin kelime dağarcığım, anlatım becerim ve dil kullanımıma yönelik farkındalığıma etkisi",
+        "Bu temada öğrendiklerimin kendi konuşmacı ve yazar kimliğime etkisi"
+      ],
+      "lines": [
+        5,
+        5,
+        6,
+        6,
+        5
+      ],
+      "instructions": "Tema öncesi ve sonrası farkındalıklarınızı karşılaştırarak yazınız.",
+      "provenance": {
+        "content_basis": "verified_printed_form_transcription",
+        "source_page": "TDE_11 ders kitabı s.302"
+      }
+    },
+    "FORM_T4_P303_TEMA_TEST_07": {
+      "kind": "prompts",
+      "identity_fields": [
+        "Adı Soyadı",
+        "Sınıfı",
+        "Numarası",
+        "Tarih"
+      ],
+      "prompts": [
+        "Soru 1 — Doğu ve Batı sentezinin modern Türk tiyatrosuna yansımasını açıklayınız.",
+        "Sorular 2-3 — Metinler arası ilişkiyi ve küçürek hikâyeyi değerlendiriniz.",
+        "Sorular 4-5 — Duygu ve afiş görseli arasındaki ilişkiyi açıklayınız.",
+        "Sorular 6-7 — Kostüm ve sözsüz iletişim unsurlarını değerlendiriniz.",
+        "Soru 8 — Tiyatro terimlerini açıklayınız.",
+        "Sorular 9-11 — Belgesel, teknoloji ve toplumsal bellek ilişkisini değerlendiriniz.",
+        "Soru 12 — Teknolojik gelişmelerin belgeselin etkisini güçlendirip güçlendirmediğini gerekçelendiriniz.",
+        "Sorular 13-14 — Anadolu İnsanı / Aidiyet videosundan hareketle soruları cevaplayınız."
+      ],
+      "lines": [
+        6,
+        6,
+        6,
+        6,
+        5,
+        8,
+        6,
+        6
+      ],
+      "instructions": "Tema sonu sorularını verilen metin, görsel ve çok modlu içeriklerden yararlanarak cevaplayınız.",
+      "provenance": {
+        "content_basis": "verified_structural_index",
+        "source_page": "TDE_11 ders kitabı s.303-307"
+      }
+    }
+  }
+}

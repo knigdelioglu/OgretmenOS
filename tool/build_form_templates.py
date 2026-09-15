@@ -231,13 +231,20 @@ def _load_policy() -> dict[str, set[str]]:
 
 
 def _provenance(row: sqlite3.Row, index_form: dict[str, Any]) -> dict[str, Any]:
-    return {
+    provenance = {
         "source_id": row["source_id"],
         "printed_page": row["printed_page"],
         "pdf_page": row["pdf_page"],
         "verification_status": row["verification_status"],
         "source_locator": index_form.get("source_locator"),
     }
+    # Keep official QR target metadata attached to the review record.  The
+    # target is navigation evidence only; it never upgrades an unresolved
+    # external assessment into a locally renderable template.
+    for key in ("target_url", "target_url_candidates", "target_probe"):
+        if key in index_form:
+            provenance[key] = index_form[key]
+    return provenance
 
 
 def _merge_catalog_provenance(
@@ -308,6 +315,7 @@ def _review_reason(index_form: dict[str, Any]) -> str:
     if structural_type in {
         "assessment_criteria_table",
         "teacher_evaluation_form",
+        "observation_form",
         "test_question_set",
         "learning_journal",
     }:

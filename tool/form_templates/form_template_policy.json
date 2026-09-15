@@ -6,7 +6,8 @@
   ],
   "verified_statuses": [
     "VERIFIED",
-    "LOCAL_PDF_PAGE_STRUCTURE_VERIFIED"
+    "LOCAL_PDF_PAGE_STRUCTURE_VERIFIED",
+    "LOCAL_OFFICIAL_PDF_PAGE_STRUCTURE_VERIFIED"
   ],
   "review_reasons": [
     "missing_source_structure",

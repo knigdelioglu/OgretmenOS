@@ -60,47 +60,19 @@
 - `teacher_guide_sections`: 28
 - `teacher_guide_units`: 94
 - `teacher_guide_items`: 283
-- `teacher_guide_item_relations`: 3707
+- `teacher_guide_item_relations`: 3750
 ## Form Template Projection
 
 - Schema version: `1.0`
-- Ready templates: `0`
-- Needs review: `43`
+- Ready templates: `28`
+- Needs review: `15`
 - Foreign key integrity: `PASS`
 - JSON parse and element validation: runtime verifier
 
 ### Needs-review reasons
 
-- `FORM_T1_P035_OZ_DEGERLENDIRME_01`: `insufficient_canonical_evidence`
-- `FORM_T1_P054_KONTROL_LISTESI_03`: `insufficient_canonical_evidence`
-- `FORM_T1_P058_OZ_DEGERLENDIRME_05`: `insufficient_canonical_evidence`
-- `FORM_T1_P064_GOZLEM_FORMU_07`: `insufficient_canonical_evidence`
-- `FORM_T1_P073_CIKIS_KARTI_08`: `insufficient_canonical_evidence`
-- `FORM_T1_P078_CIKIS_KARTI_11`: `insufficient_canonical_evidence`
-- `FORM_T1_P078_OZ_DEGERLENDIRME_10`: `insufficient_canonical_evidence`
-- `FORM_T1_P079_TEMA_TEST_12`: `missing_source_structure`
-- `FORM_T2_P097_KONTROL_LISTESI_01`: `insufficient_canonical_evidence`
-- `FORM_T2_P112_CIKIS_KARTI_02`: `insufficient_canonical_evidence`
-- `FORM_T2_P135_OZ_DEGERLENDIRME_04`: `insufficient_canonical_evidence`
-- `FORM_T2_P139_GOZLEM_FORMU_07`: `insufficient_canonical_evidence`
-- `FORM_T2_P139_KONTROL_LISTESI_06`: `insufficient_canonical_evidence`
-- `FORM_T2_P143_KONTROL_LISTESI_08`: `insufficient_canonical_evidence`
-- `FORM_T2_P153_OZ_DEGERLENDIRME_10`: `insufficient_canonical_evidence`
-- `FORM_T2_P154_OGRENME_GUNLUGU_12`: `missing_source_structure`
-- `FORM_T2_P155_TEMA_TEST_13`: `missing_source_structure`
-- `FORM_T3_P193_CIKIS_KARTI_01`: `insufficient_canonical_evidence`
-- `FORM_T3_P214_OZ_DEGERLENDIRME_03`: `insufficient_canonical_evidence`
-- `FORM_T3_P216_GOZLEM_FORMU_05`: `insufficient_canonical_evidence`
-- `FORM_T3_P224_OGRENME_GUNLUGU_06`: `missing_source_structure`
-- `FORM_T3_P228_OZ_DEGERLENDIRME_08`: `insufficient_canonical_evidence`
-- `FORM_T3_P229_CIKIS_KARTI_10`: `insufficient_canonical_evidence`
-- `FORM_T3_P229_OZ_DEGERLENDIRME_09`: `insufficient_canonical_evidence`
-- `FORM_T3_P230_TEMA_TEST_11`: `missing_source_structure`
-- `FORM_T4_P281_KONTROL_LISTESI_01`: `insufficient_canonical_evidence`
-- `FORM_T4_P286_KONTROL_LISTESI_03`: `insufficient_canonical_evidence`
-- `FORM_T4_P297_OGRENME_GUNLUGU_04`: `missing_source_structure`
-- `FORM_T4_P302_OGRENME_GUNLUGU_06`: `missing_source_structure`
-- `FORM_T4_P303_TEMA_TEST_07`: `missing_source_structure`
+- `FORM_T2_P139_GOZLEM_FORMU_07`: `missing_source_structure`
+- `FORM_T3_P216_GOZLEM_FORMU_05`: `missing_source_structure`
 - `LINK_T1_KONUSMA_DPA`: `unresolved_form_reference`
 - `LINK_T1_P035_AKRAN_QR_02`: `unresolved_form_reference`
 - `LINK_T1_P058_AKRAN_QR_06`: `unresolved_form_reference`

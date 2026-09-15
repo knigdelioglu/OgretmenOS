@@ -16,6 +16,83 @@ class UnsupportedFormSchemaException extends FormDefinitionException {
     : super('Desteklenmeyen form şema sürümü: $schemaVersion');
 }
 
+/// Runtime availability evidence for a canonical textbook form.
+///
+/// A form can be present in the textbook registry while its printable
+/// template is unavailable or still needs review. Keeping that distinction in
+/// a typed model prevents the UI from treating every registry row as an
+/// actionable local form.
+class FormTemplateStatus {
+  const FormTemplateStatus({
+    required this.formId,
+    required this.renderStatus,
+    required this.reviewReason,
+    required this.provenance,
+  });
+
+  factory FormTemplateStatus.fromRow(Map<String, Object?> row) {
+    final rawProvenance = row['provenance_json'];
+    Map<String, dynamic> provenance = const {};
+    if (rawProvenance is String && rawProvenance.trim().isNotEmpty) {
+      final decoded = jsonDecode(rawProvenance);
+      if (decoded is Map) {
+        provenance = Map<String, dynamic>.from(decoded);
+      }
+    } else if (rawProvenance is Map) {
+      provenance = Map<String, dynamic>.from(rawProvenance);
+    }
+    return FormTemplateStatus(
+      formId: row['form_id']?.toString() ?? '',
+      renderStatus: row['render_status']?.toString() ?? 'needs_review',
+      reviewReason: nullableFormText(row['review_reason']),
+      provenance: Map.unmodifiable(provenance),
+    );
+  }
+
+  final String formId;
+  final String renderStatus;
+  final String? reviewReason;
+  final Map<String, dynamic> provenance;
+
+  bool get isReady => renderStatus == 'ready';
+
+  bool get isExternalReference =>
+      reviewReason == 'unresolved_form_reference' ||
+      provenance['verification_status'] ==
+          'OFFICIAL_QR_ASSESSMENT_TARGET_PRESENT_STRUCTURE_UNRESOLVED';
+
+  String? get targetUrl {
+    final value = provenance['target_url'];
+    return value is String && value.trim().isNotEmpty ? value : null;
+  }
+
+  List<String> get targetUrlCandidates {
+    final value = provenance['target_url_candidates'];
+    if (value is! List) return const [];
+    return value
+        .whereType<String>()
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  String? get sourcePage {
+    final value = provenance['source_page'] ?? provenance['printed_page'];
+    return value?.toString().trim().isEmpty == true ? null : value?.toString();
+  }
+
+  String get displayLabel {
+    if (isReady) return 'Hazır';
+    if (isExternalReference) return 'Dış kaynak · yapı çözümlenmedi';
+    return 'İnceleme bekliyor';
+  }
+}
+
+String? nullableFormText(Object? value) {
+  final text = value?.toString().trim();
+  return text == null || text.isEmpty ? null : text;
+}
+
 class FormDefinition {
   const FormDefinition({
     required this.schemaVersion,

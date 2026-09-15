@@ -6,50 +6,22 @@
   "data_mode": "FULL_RUNTIME",
   "textbook_status": "AVAILABLE",
   "tymm_source_repository": "knigdelioglu/tymm",
-  "tymm_source_commit": "6785d28bd5c22bfad7c8a73d8162fa81cae62d6b",
+  "tymm_source_commit": "48e3d25bc205ca972d0a3d0659404daf81ad8398",
   "curriculum_path": "curriculum",
   "runtime_path": "runtime",
   "process_component_resolution_path": "curriculum/curriculum_process_component_resolution.json",
   "process_component_catalog_path": "../TDE_SHARED/curriculum_process_component_catalog.json",
   "runtime_package_version": "1.3.0",
   "runtime_schema_version": "1.2.0",
-  "runtime_canonical_content_fingerprint": "ecff50895118f26ae088155128cc14485a4806628dceebb61e12f4931d942e88",
+  "runtime_canonical_content_fingerprint": "67507026f1019f3e014eec12e89c266a662723ead48cf92ca07539a66ca59a95",
   "runtime_validation_status": "PASS",
   "form_template_status_counts": {
-    "ready": 0,
-    "needs_review": 43
+    "ready": 28,
+    "needs_review": 15
   },
   "form_template_review_reasons": {
-    "FORM_T1_P035_OZ_DEGERLENDIRME_01": "insufficient_canonical_evidence",
-    "FORM_T1_P054_KONTROL_LISTESI_03": "insufficient_canonical_evidence",
-    "FORM_T1_P058_OZ_DEGERLENDIRME_05": "insufficient_canonical_evidence",
-    "FORM_T1_P064_GOZLEM_FORMU_07": "insufficient_canonical_evidence",
-    "FORM_T1_P073_CIKIS_KARTI_08": "insufficient_canonical_evidence",
-    "FORM_T1_P078_CIKIS_KARTI_11": "insufficient_canonical_evidence",
-    "FORM_T1_P078_OZ_DEGERLENDIRME_10": "insufficient_canonical_evidence",
-    "FORM_T1_P079_TEMA_TEST_12": "missing_source_structure",
-    "FORM_T2_P097_KONTROL_LISTESI_01": "insufficient_canonical_evidence",
-    "FORM_T2_P112_CIKIS_KARTI_02": "insufficient_canonical_evidence",
-    "FORM_T2_P135_OZ_DEGERLENDIRME_04": "insufficient_canonical_evidence",
-    "FORM_T2_P139_GOZLEM_FORMU_07": "insufficient_canonical_evidence",
-    "FORM_T2_P139_KONTROL_LISTESI_06": "insufficient_canonical_evidence",
-    "FORM_T2_P143_KONTROL_LISTESI_08": "insufficient_canonical_evidence",
-    "FORM_T2_P153_OZ_DEGERLENDIRME_10": "insufficient_canonical_evidence",
-    "FORM_T2_P154_OGRENME_GUNLUGU_12": "missing_source_structure",
-    "FORM_T2_P155_TEMA_TEST_13": "missing_source_structure",
-    "FORM_T3_P193_CIKIS_KARTI_01": "insufficient_canonical_evidence",
-    "FORM_T3_P214_OZ_DEGERLENDIRME_03": "insufficient_canonical_evidence",
-    "FORM_T3_P216_GOZLEM_FORMU_05": "insufficient_canonical_evidence",
-    "FORM_T3_P224_OGRENME_GUNLUGU_06": "missing_source_structure",
-    "FORM_T3_P228_OZ_DEGERLENDIRME_08": "insufficient_canonical_evidence",
-    "FORM_T3_P229_CIKIS_KARTI_10": "insufficient_canonical_evidence",
-    "FORM_T3_P229_OZ_DEGERLENDIRME_09": "insufficient_canonical_evidence",
-    "FORM_T3_P230_TEMA_TEST_11": "missing_source_structure",
-    "FORM_T4_P281_KONTROL_LISTESI_01": "insufficient_canonical_evidence",
-    "FORM_T4_P286_KONTROL_LISTESI_03": "insufficient_canonical_evidence",
-    "FORM_T4_P297_OGRENME_GUNLUGU_04": "missing_source_structure",
-    "FORM_T4_P302_OGRENME_GUNLUGU_06": "missing_source_structure",
-    "FORM_T4_P303_TEMA_TEST_07": "missing_source_structure",
+    "FORM_T2_P139_GOZLEM_FORMU_07": "missing_source_structure",
+    "FORM_T3_P216_GOZLEM_FORMU_05": "missing_source_structure",
     "LINK_T1_KONUSMA_DPA": "unresolved_form_reference",
     "LINK_T1_P035_AKRAN_QR_02": "unresolved_form_reference",
     "LINK_T1_P058_AKRAN_QR_06": "unresolved_form_reference",
@@ -68,7 +40,7 @@
     "teacher_guide": true,
     "assessment": false,
     "assessment_task_bindings": false,
-    "form_templates": false
+    "form_templates": true
   },
   "teacher_guide_capabilities": {
     "available": true,
@@ -82,18 +54,18 @@
       "teacher_guide_sections": 28,
       "teacher_guide_units": 94,
       "teacher_guide_items": 283,
-      "teacher_guide_item_relations": 3707
+      "teacher_guide_item_relations": 3750
     }
   },
   "teacher_guide_validation": {
     "status": "PASS",
     "scope": "COURSE",
     "source_bound": true,
-    "content_fingerprint": "sha256:acf49522a0ffae99b56e5235f9ad4a285dce94919778a05e86c963ea3f053de0",
-    "canonical_content_fingerprint": "ecff50895118f26ae088155128cc14485a4806628dceebb61e12f4931d942e88",
+    "content_fingerprint": "sha256:c5ae313525bfd92cf43cf00ec9f3017966db1eb6bd7610f8f824ce85ac228f96",
+    "canonical_content_fingerprint": "67507026f1019f3e014eec12e89c266a662723ead48cf92ca07539a66ca59a95",
     "source_validation_status": "PASS_WITH_WARNINGS",
     "seal_path": "runtime/teacher_guide_validation_seal.json",
-    "seal_sha256": "5c3ba8821801b88f7c2e7604e170580a9f57ad086562b74f2dd185fa625620c9",
+    "seal_sha256": "1d6623a73c34cd8233eca4f5e9078b47c87ac7006ce1b3ae330f4066db732d7c",
     "projection_version": "1.0.0"
   },
   "teacher_guide_row_counts": {
@@ -102,7 +74,7 @@
     "teacher_guide_sections": 28,
     "teacher_guide_units": 94,
     "teacher_guide_items": 283,
-    "teacher_guide_item_relations": 3707
+    "teacher_guide_item_relations": 3750
   },
   "lesson_plan_package_count": 88,
   "lesson_plan_instruction_hours": 172,

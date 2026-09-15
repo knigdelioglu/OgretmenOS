@@ -239,6 +239,20 @@ class CourseDatabaseDataSource {
     return rows.map(Form.fromRow).toList(growable: false);
   }
 
+  Future<Form?> getForm(String formId) async {
+    final rows = await _database.rawQuery(
+      '''
+      SELECT form_id, title, structural_type, assessment_type, printed_page,
+             pdf_page, evaluator, source_id, verification_status
+      FROM forms
+      WHERE form_id = ?
+      LIMIT 1
+      ''',
+      [formId],
+    );
+    return rows.isEmpty ? null : Form.fromRow(rows.first);
+  }
+
   Future<List<ResourceDecision>> getResourceDecisions(String themeId) async {
     final rows = await _database.rawQuery(
       '''
@@ -509,6 +523,18 @@ class CourseDatabaseDataSource {
     definition.validate();
     FormTemplatePolicy.validateReadyProvenance(definition.provenance);
     return definition;
+  }
+
+  Future<FormTemplateStatus?> getFormTemplateStatus(String formId) async {
+    if (!await _hasTable('form_templates')) return null;
+    final rows = await _database.query(
+      'form_templates',
+      columns: ['form_id', 'render_status', 'review_reason', 'provenance_json'],
+      where: 'form_id = ?',
+      whereArgs: [formId],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : FormTemplateStatus.fromRow(rows.first);
   }
 
   Future<TeacherPackage> _readTeacherPackage(String themeId) async {

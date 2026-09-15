@@ -283,6 +283,7 @@ void main() {
       expect(capability.sectionCount, 28);
       expect(capability.unitCount, 94);
       expect(capability.itemCount, 283);
+      expect(capability.relationCount, 3750);
 
       final guide = await repository.getTeacherGuideForScope(
         scopeType: 'theme',
@@ -314,6 +315,27 @@ void main() {
         ),
         isEmpty,
       );
+
+      final formItems = await repository.getTeacherGuideItemsForEntity(
+        targetType: 'form',
+        targetId: 'FORM_T1_P035_OZ_DEGERLENDIRME_01',
+      );
+      expect(formItems, isNotEmpty);
+      expect(
+        await repository.getForm('FORM_T1_P035_OZ_DEGERLENDIRME_01'),
+        isNotNull,
+      );
+      expect(
+        (await repository.getFormTemplateStatus(
+          'FORM_T1_P035_OZ_DEGERLENDIRME_01',
+        ))?.isReady,
+        isTrue,
+      );
+      final externalStatus = await repository.getFormTemplateStatus(
+        'LINK_T1_KONUSMA_DPA',
+      );
+      expect(externalStatus?.isExternalReference, isTrue);
+      expect(externalStatus?.targetUrlCandidates, isNotEmpty);
     },
   );
 }

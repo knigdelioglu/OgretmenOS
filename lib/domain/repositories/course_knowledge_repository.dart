@@ -32,6 +32,16 @@ abstract interface class FormTemplateKnowledgeRepository {
   Future<FormDefinition?> getFormDefinition(String formId);
 }
 
+/// Optional access to the review/availability row behind a form definition.
+abstract interface class FormTemplateStatusKnowledgeRepository {
+  Future<FormTemplateStatus?> getFormTemplateStatus(String formId);
+}
+
+/// Optional lookup used by deep links from teacher-guide items.
+abstract interface class FormKnowledgeRepository {
+  Future<Form?> getForm(String formId);
+}
+
 extension FormTemplateKnowledgeRepositoryAccess on CourseKnowledgeRepository {
   /// Resolves a form definition when the runtime exposes the optional
   /// `form_templates` capability; otherwise returns the legacy-safe fallback.
@@ -50,6 +60,29 @@ extension FormTemplateKnowledgeRepositoryAccess on CourseKnowledgeRepository {
 
   Future<FormDefinition?> getFormDefinitionIfAvailable(String formId) {
     return getFormDefinition(formId);
+  }
+}
+
+extension FormTemplateStatusKnowledgeRepositoryAccess
+    on CourseKnowledgeRepository {
+  Future<FormTemplateStatus?> getFormTemplateStatusIfAvailable(String formId) {
+    final repository = this;
+    if (repository is FormTemplateStatusKnowledgeRepository) {
+      return (repository as FormTemplateStatusKnowledgeRepository)
+          .getFormTemplateStatus(formId)
+          .then<FormTemplateStatus?>((status) => status);
+    }
+    return Future.value(null);
+  }
+}
+
+extension FormKnowledgeRepositoryAccess on CourseKnowledgeRepository {
+  Future<Form?> getFormIfAvailable(String formId) {
+    final repository = this;
+    if (repository is FormKnowledgeRepository) {
+      return (repository as FormKnowledgeRepository).getForm(formId);
+    }
+    return Future.value(null);
   }
 }
 

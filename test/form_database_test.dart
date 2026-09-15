@@ -15,11 +15,23 @@ void main() {
         inMemoryDatabasePath,
       );
       addTearDown(database.close);
-      await database.execute(
-        'CREATE TABLE forms (form_id TEXT PRIMARY KEY, title TEXT NOT NULL)',
-      );
+      await database.execute('''
+        CREATE TABLE forms (
+          form_id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          structural_type TEXT,
+          assessment_type TEXT,
+          printed_page INTEGER,
+          pdf_page INTEGER,
+          evaluator TEXT,
+          source_id TEXT,
+          verification_status TEXT
+        )
+        ''');
       await database.insert('forms', {'form_id': 'F1', 'title': 'Form'});
       final source = CourseDatabaseDataSource(database);
+      expect((await source.getForm('F1'))?.title, 'Form');
+      expect(await source.getFormTemplateStatus('F1'), isNull);
       expect(await source.getFormDefinition('F1'), isNull);
 
       await database.execute('''
@@ -29,6 +41,7 @@ void main() {
         template_json TEXT NOT NULL,
         instructions TEXT,
         render_status TEXT NOT NULL,
+        review_reason TEXT,
         provenance_json TEXT NOT NULL DEFAULT '{}'
       )
     ''');
@@ -50,9 +63,13 @@ void main() {
         'schema_version': '1.0',
         'template_json': jsonEncode(definition.toJson()),
         'render_status': 'ready',
+        'review_reason': null,
         'provenance_json': '{}',
       });
       expect((await source.getFormDefinition('F1'))?.title, 'Gerçek Form');
+      final readyStatus = await source.getFormTemplateStatus('F1');
+      expect(readyStatus?.isReady, isTrue);
+      expect(readyStatus?.displayLabel, 'Hazır');
       final malformed = const FormDefinition(
         schemaVersion: '1.0',
         title: 'Bozuk Form',
@@ -94,8 +111,18 @@ void main() {
       );
       await database.update('form_templates', {
         'render_status': 'needs_review',
+        'review_reason': 'unresolved_form_reference',
+        'provenance_json': jsonEncode({
+          'target_url': 'https://example.test/form',
+          'target_probe': 'unresolved',
+          'verification_status':
+              'OFFICIAL_QR_ASSESSMENT_TARGET_PRESENT_STRUCTURE_UNRESOLVED',
+        }),
       });
       expect(await source.getFormDefinition('F1'), isNull);
+      final externalStatus = await source.getFormTemplateStatus('F1');
+      expect(externalStatus?.isExternalReference, isTrue);
+      expect(externalStatus?.targetUrl, 'https://example.test/form');
     },
   );
 }

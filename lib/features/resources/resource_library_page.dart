@@ -12,6 +12,7 @@ import '../../domain/repositories/course_knowledge_repository.dart';
 import '../../domain/repositories/teacher_guide_notes_repository.dart';
 import '../shared/feature_widgets.dart';
 import 'form_viewer_page.dart';
+import 'form_reference_tile.dart';
 import 'teacher_guide_viewer_page.dart';
 
 class ResourceLibraryPage extends StatefulWidget {
@@ -649,15 +650,37 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
     _openedNavigationFormId = requestedId;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Navigator.of(context).push<void>(
+      unawaited(_openNavigationForm(matching.first));
+    });
+  }
+
+  Future<void> _openNavigationForm(model.Form form) async {
+    try {
+      final status = await widget.repository.getFormTemplateStatusIfAvailable(
+        form.id,
+      );
+      if (!mounted) return;
+      if (status != null && !status.isReady) {
+        await showFormTemplateStatusDialog(
+          context,
+          form: form,
+          status: status,
+          fallbackFormId: form.id,
+        );
+        return;
+      }
+      await Navigator.of(context).push<void>(
         MaterialPageRoute(
-          builder: (_) => FormViewerPage(
-            form: matching.first,
-            repository: widget.repository,
-          ),
+          builder: (_) =>
+              FormViewerPage(form: form, repository: widget.repository),
         ),
       );
-    });
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Form durumu doğrulanamadı.')),
+      );
+    }
   }
 
   void _openNavigationTeacherGuideIfNeeded(TeacherGuide? guide) {
@@ -941,86 +964,10 @@ class _Forms extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      for (var i = 0; i < forms.length; i++) ...[
-        Card.outlined(
-          margin: const EdgeInsets.symmetric(vertical: 5),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final details = Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _friendlyFormTitle(forms[i]),
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(_friendlyFormType(forms[i])),
-                  ],
-                );
-                final action = FilledButton.tonalIcon(
-                  onPressed: () => Navigator.of(context).push<void>(
-                    MaterialPageRoute(
-                      builder: (_) => FormViewerPage(
-                        form: forms[i],
-                        repository: repository,
-                      ),
-                    ),
-                  ),
-                  icon: const Icon(Icons.open_in_new, size: 18),
-                  label: const Text('Formu aç'),
-                );
-                if (constraints.maxWidth < 520) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      details,
-                      const SizedBox(height: 12),
-                      Align(alignment: Alignment.centerLeft, child: action),
-                    ],
-                  );
-                }
-                return Row(
-                  children: [
-                    Expanded(child: details),
-                    const SizedBox(width: 16),
-                    action,
-                  ],
-                );
-              },
-            ),
-          ),
-        ),
-      ],
+      for (final form in forms)
+        FormReferenceTile(formId: form.id, form: form, repository: repository),
     ],
   );
-}
-
-String _friendlyFormType(model.Form form) {
-  final type = form.assessmentType ?? form.structuralType ?? '';
-  return switch (type) {
-    'self_assessment_form' => 'Öz değerlendirme',
-    'peer_assessment_form' => 'Akran değerlendirmesi',
-    'teacher_evaluation_form' => 'Öğretmen değerlendirmesi',
-    'checklist' => 'Kontrol listesi',
-    'observation_form' => 'Gözlem formu',
-    'learning_journal' => 'Öğrenme günlüğü',
-    'assessment_criteria_table' => 'Değerlendirme ölçütleri',
-    'test_question_set' => 'Ölçme ve değerlendirme',
-    'exit_ticket' => 'Çıkış kartı',
-    'reflection_prompt' => 'Yansıtma formu',
-    'dereceli_puanlama_anahtari_link' => 'Dereceli puanlama anahtarı',
-    _ => 'Değerlendirme formu',
-  };
-}
-
-String _friendlyFormTitle(model.Form form) {
-  final title = form.title.trim();
-  if (title.isEmpty || title == form.id.trim()) return 'Değerlendirme formu';
-  return title;
 }
 
 class _Assessments extends StatelessWidget {

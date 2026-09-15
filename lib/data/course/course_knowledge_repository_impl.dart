@@ -13,6 +13,8 @@ class CourseKnowledgeRepositoryImpl
     implements
         CourseKnowledgeRepository,
         FormTemplateKnowledgeRepository,
+        FormTemplateStatusKnowledgeRepository,
+        FormKnowledgeRepository,
         CoursePlanningKnowledgeRepository,
         LessonPlanKnowledgeRepository,
         TeacherGuideKnowledgeRepository {
@@ -115,6 +117,20 @@ class CourseKnowledgeRepositoryImpl
       'CourseKnowledgeRepository.getFormDefinition',
     );
     return dataSource.getFormDefinition(formId);
+  }
+
+  @override
+  Future<FormTemplateStatus?> getFormTemplateStatus(String formId) {
+    RuntimePerformanceTrace.count(
+      'CourseKnowledgeRepository.getFormTemplateStatus',
+    );
+    return dataSource.getFormTemplateStatus(formId);
+  }
+
+  @override
+  Future<Form?> getForm(String formId) {
+    RuntimePerformanceTrace.count('CourseKnowledgeRepository.getForm');
+    return dataSource.getForm(formId);
   }
 
   @override

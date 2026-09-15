@@ -21,7 +21,7 @@ void main() {
     );
   });
 
-  for (final courseId in const ['TDE_9', 'TDE_10']) {
+  for (final courseId in const ['TDE_9', 'TDE_10', 'TDE_11']) {
     test('$courseId form status ve UI evidence contractı eşleşir', () async {
       final descriptor = runtimeForCourse(courseId);
       final runtimeDirectory = Directory.current.path;
@@ -39,7 +39,8 @@ void main() {
       addTearDown(database.close);
       final source = CourseDatabaseDataSource(database);
       final rows = await database.rawQuery('''
-        SELECT ft.form_id, ft.render_status, ft.provenance_json,
+        SELECT ft.form_id, ft.render_status, ft.review_reason,
+               ft.provenance_json,
                f.source_id AS canonical_source_id,
                f.printed_page AS canonical_printed_page,
                f.pdf_page AS canonical_pdf_page,
@@ -48,7 +49,9 @@ void main() {
         INNER JOIN forms f ON f.form_id = ft.form_id
         ORDER BY ft.form_id
       ''');
-      final ready = rows.where((row) => row['render_status'] == 'ready').toList();
+      final ready = rows
+          .where((row) => row['render_status'] == 'ready')
+          .toList();
       final needsReview = rows
           .where((row) => row['render_status'] == 'needs_review')
           .toList();
@@ -57,6 +60,42 @@ void main() {
       expect(ready.length, manifestCounts['ready']);
       expect(needsReview.length, manifestCounts['needs_review']);
 
+      if (courseId == 'TDE_11') {
+        expect(rows, hasLength(43));
+        expect(ready, hasLength(28));
+        final externalReferences = needsReview
+            .where((row) => row['review_reason'] == 'unresolved_form_reference')
+            .toList(growable: false);
+        expect(externalReferences, hasLength(13));
+        for (final row in externalReferences) {
+          final provenance =
+              jsonDecode(row['provenance_json']! as String)
+                  as Map<String, dynamic>;
+          expect(
+            provenance['target_url'] ?? provenance['target_url_candidates'],
+            isNotEmpty,
+          );
+          expect(
+            (provenance['target_probe']
+                as Map<
+                  String,
+                  dynamic
+                >)['provisional_structural_classification'],
+            'unresolved',
+            reason:
+                '${row['form_id']} dış hedefi yerel yapı olarak sunulmamalı',
+          );
+        }
+        final externalStatus = await source.getFormTemplateStatus(
+          externalReferences.first['form_id']! as String,
+        );
+        expect(externalStatus?.isExternalReference, isTrue);
+        expect(
+          externalStatus?.targetUrl ?? externalStatus?.targetUrlCandidates,
+          isNotEmpty,
+        );
+      }
+
       for (final row in ready) {
         final provenance =
             jsonDecode(row['provenance_json']! as String)
@@ -64,7 +103,8 @@ void main() {
         expect(
           provenance['source_id'],
           row['canonical_source_id'],
-          reason: '${row['form_id']} source identity canonical row ile eşleşmeli',
+          reason:
+              '${row['form_id']} source identity canonical row ile eşleşmeli',
         );
         expect(
           provenance['verification_status'],
@@ -81,7 +121,8 @@ void main() {
         expect(
           hasLocatorOrPage,
           isTrue,
-          reason: '${row['form_id']} ready olmak için source locator/page taşımalı',
+          reason:
+              '${row['form_id']} ready olmak için source locator/page taşımalı',
         );
       }
 

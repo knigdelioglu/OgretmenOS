@@ -14,6 +14,7 @@ class FormTemplatePolicy {
   static const verifiedStatuses = <String>{
     'VERIFIED',
     'LOCAL_PDF_PAGE_STRUCTURE_VERIFIED',
+    'LOCAL_OFFICIAL_PDF_PAGE_STRUCTURE_VERIFIED',
   };
 
   static const reviewReasons = <String>{

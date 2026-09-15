@@ -8,6 +8,7 @@ import '../../domain/models/teacher_guide_note_models.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../../domain/repositories/teacher_guide_notes_repository.dart';
 import '../shared/feature_widgets.dart';
+import 'form_reference_tile.dart';
 
 /// Native, structured view of the optional teacher-guide runtime capability.
 ///
@@ -163,6 +164,9 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
             item.pageLocator,
             _searchableJson(item.teacherGuidance),
             _searchableJson(item.expectedResponse),
+            _searchableJson(item.acceptanceCriteria),
+            _searchableJson(item.assessmentEvidence),
+            item.relations.map((relation) => relation.targetId).join(' '),
             unit?.title,
             section?.section.title,
           ].whereType<String>().join(' ').toLowerCase();
@@ -419,6 +423,8 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
                       onSelect: (value) => _selectItem(value, data),
                     ),
                   if (item != null) _ItemDetail(item: item, state: this),
+                  const SizedBox(height: AppSpacing.md),
+                  _ReviewSummary(data: data),
                 ],
               );
             }
@@ -445,6 +451,12 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
                       onSelect: (value) => _selectItem(value, data),
                     ),
                   ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                  ),
+                  child: _ReviewSummary(data: data),
+                ),
                 Expanded(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -599,14 +611,94 @@ class _GuideViewData {
       .where((value) => value.section.sectionId == sectionId)
       .firstOrNull;
 
-  _GuideUnitData? unitFor(String unitId) =>
-      [for (final section in sections) ...section.units]
-          .where((value) => value.unit.unitId == unitId)
-          .firstOrNull;
+  _GuideUnitData? unitFor(String unitId) => [
+    for (final section in sections) ...section.units,
+  ].where((value) => value.unit.unitId == unitId).firstOrNull;
 
   TeacherGuideItem? itemById(String? itemId) => itemId == null
       ? null
       : items.where((value) => value.itemId == itemId).firstOrNull;
+}
+
+class _ReviewSummary extends StatelessWidget {
+  const _ReviewSummary({required this.data});
+
+  final _GuideViewData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final sections = data.sections;
+    final units = [for (final section in sections) ...section.units];
+    final items = data.items;
+    final reviewSections = sections
+        .where((value) => _isReviewStatus(value.section.contentStatus))
+        .length;
+    final reviewUnits = units
+        .where((value) => _isReviewStatus(value.unit.contentStatus))
+        .length;
+    final reviewItems = items
+        .where((value) => _isReviewStatus(value.contentStatus))
+        .length;
+    final linkedForms = items.fold<int>(
+      0,
+      (count, item) =>
+          count +
+          item.relations
+              .where((relation) => relation.targetType.toLowerCase() == 'form')
+              .length,
+    );
+    final needsReview =
+        _isReviewStatus(data.guide.contentStatus) ||
+        reviewSections > 0 ||
+        reviewUnits > 0 ||
+        reviewItems > 0;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Card.outlined(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              needsReview
+                  ? Icons.rate_review_outlined
+                  : Icons.verified_outlined,
+              color: needsReview ? scheme.error : scheme.primary,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    needsReview
+                        ? 'İnceleme durumu: Öğretmen incelemesi gerekli'
+                        : 'İnceleme durumu: Doğrulandı',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: needsReview ? scheme.error : scheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Wrap(
+                    spacing: AppSpacing.md,
+                    runSpacing: AppSpacing.xs,
+                    children: [
+                      Text('madde inceleme: $reviewItems'),
+                      Text('ünite inceleme: $reviewUnits'),
+                      Text('bölüm inceleme: $reviewSections'),
+                      Text('form bağlantısı: $linkedForms'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _GuideSectionData {
@@ -623,6 +715,30 @@ class _GuideUnitData {
   final List<TeacherGuideItem> items;
 
   String get sectionId => unit.sectionId;
+}
+
+class _OutlineSubtitle extends StatelessWidget {
+  const _OutlineSubtitle({required this.locator, required this.contentStatus});
+
+  final String? locator;
+  final String contentStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.xs,
+      children: [
+        if (_locator(locator).isNotEmpty) Text(_locator(locator)),
+        if (_isReviewStatus(contentStatus))
+          Text(
+            'İnceleme gerekli',
+            style: TextStyle(color: theme.colorScheme.error),
+          ),
+      ],
+    );
+  }
 }
 
 class _GuideOutline extends StatelessWidget {
@@ -655,7 +771,10 @@ class _GuideOutline extends StatelessWidget {
             selected: section.section.sectionId == selectedSectionId,
             leading: const Icon(Icons.view_agenda_outlined),
             title: Text(section.section.title),
-            subtitle: Text(_locator(section.section.pageLocator)),
+            subtitle: _OutlineSubtitle(
+              locator: section.section.pageLocator,
+              contentStatus: section.section.contentStatus,
+            ),
             onTap: () => onSelectSection(section.section.sectionId),
           ),
           for (final unit in section.units) ...[
@@ -666,7 +785,10 @@ class _GuideOutline extends StatelessWidget {
                 selected: unit.unit.unitId == selectedUnitId,
                 leading: const Icon(Icons.list_alt_outlined, size: 20),
                 title: Text(unit.unit.title),
-                subtitle: Text(_locator(unit.unit.pageLocator)),
+                subtitle: _OutlineSubtitle(
+                  locator: unit.unit.pageLocator,
+                  contentStatus: unit.unit.contentStatus,
+                ),
                 onTap: () => onSelectUnit(unit.unit.unitId),
               ),
             ),
@@ -677,7 +799,10 @@ class _GuideOutline extends StatelessWidget {
                   dense: true,
                   selected: item.itemId == selectedItemId,
                   title: Text(item.title ?? item.label),
-                  subtitle: Text(_locator(item.pageLocator)),
+                  subtitle: _OutlineSubtitle(
+                    locator: item.pageLocator,
+                    contentStatus: item.contentStatus,
+                  ),
                   onTap: () => onSelectItem(item),
                 ),
               ),
@@ -776,6 +901,9 @@ class _ItemDetail extends StatelessWidget {
     final theme = Theme.of(context);
     final enrichment =
         item.provenance.contentClass?.toUpperCase() == 'PEDAGOGICAL_ENRICHMENT';
+    final formRelations = item.relations
+        .where((relation) => relation.targetType.toLowerCase() == 'form')
+        .toList(growable: false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -828,6 +956,22 @@ class _ItemDetail extends StatelessWidget {
             state.widget.notesRepository != null &&
             item.canonicalPayloadSha256?.isNotEmpty == true)
           _TeacherGuideNoteEditor(item: item, state: state),
+        if (formRelations.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'Bağlı formlar',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          for (final relation in formRelations)
+            FormReferenceTile(
+              formId: relation.targetId,
+              repository: state.widget.repository,
+              compact: true,
+            ),
+        ],
         Card.outlined(
           child: ExpansionTile(
             title: const Text('Ayrıntılar'),
@@ -981,8 +1125,9 @@ class _ContentBlock extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
           ],
@@ -1108,6 +1253,9 @@ String _contextLabel(_GuideViewData data, TeacherGuideItem item) {
 
 String _locator(String? value) =>
     value?.trim().isNotEmpty == true ? 's. ${value!.trim()}' : '';
+
+bool _isReviewStatus(String value) =>
+    value.trim().toUpperCase() == 'REVIEW_REQUIRED';
 
 String _itemTypeLabel(String value) {
   final normalized = value.replaceAll('_', ' ').trim();
