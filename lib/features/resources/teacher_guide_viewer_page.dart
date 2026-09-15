@@ -50,6 +50,7 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
   Timer? _noteSaveTimer;
   TextEditingController? _noteController;
   TeacherGuideNote? _loadedNote;
+  TeacherGuideItem? _noteItem;
   String? _selectedSectionId;
   String? _selectedUnitId;
   String? _selectedItemId;
@@ -73,6 +74,7 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
   @override
   void dispose() {
     _noteSaveTimer?.cancel();
+    _flushPendingNoteOnDispose();
     _searchController
       ..removeListener(_onSearchChanged)
       ..dispose();
@@ -169,9 +171,23 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
         .toList(growable: false);
   }
 
+  Future<void> _selectSection(String sectionId, _GuideViewData data) async {
+    final section = data.sectionFor(sectionId);
+    final item = section?.units.expand((unit) => unit.items).firstOrNull;
+    if (item == null) return;
+    await _selectItem(item, data);
+  }
+
+  Future<void> _selectUnit(String unitId, _GuideViewData data) async {
+    final item = data.unitFor(unitId)?.items.firstOrNull;
+    if (item == null) return;
+    await _selectItem(item, data);
+  }
+
   Future<void> _selectItem(TeacherGuideItem item, _GuideViewData data) async {
     final unitData = data.unitFor(item.unitId);
     if (unitData == null) return;
+    _noteSaveTimer?.cancel();
     if (_noteDirty && !await _saveNote()) return;
     if (!mounted) return;
     setState(() {
@@ -186,19 +202,22 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
   Future<void> _loadNoteForSelection(TeacherGuideItem? item) async {
     final assignmentId = widget.assignmentId;
     final notes = widget.notesRepository;
-    final controller = _noteController;
     if (assignmentId == null || notes == null || item == null) return;
     final revision = ++_noteRevision;
+    _noteItem = item;
+    _loadedNote = null;
+    _noteSaving = false;
+    _noteDirty = false;
+    _noteError = null;
+    _noteController?.text = '';
     try {
       final loaded = await notes.get(
         assignmentId: assignmentId,
         guideItemId: item.itemId,
       );
       if (!mounted || revision != _noteRevision) return;
-      _noteSaving = false;
-      _noteDirty = false;
       _loadedNote = loaded;
-      controller?.text = loaded?.note ?? '';
+      _noteController?.text = loaded?.note ?? '';
       setState(() {});
     } on Object catch (error) {
       if (!mounted || revision != _noteRevision) return;
@@ -219,9 +238,10 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
   }
 
   Future<bool> _saveNote() async {
+    _noteSaveTimer?.cancel();
     final assignmentId = widget.assignmentId;
     final notes = widget.notesRepository;
-    final item = _currentItem;
+    final item = _noteItem ?? _currentItem;
     final controller = _noteController;
     if (!_noteDirty ||
         assignmentId == null ||
@@ -258,7 +278,7 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
       if (_noteEditRevision != editRevision) {
         // A keystroke arrived while the write was in flight. Persist the
         // latest value before allowing navigation to complete.
-        return _saveNote();
+        return await _saveNote();
       }
       _noteDirty = false;
       _loadedNote = savedNote;
@@ -274,7 +294,39 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
     }
   }
 
+  void _flushPendingNoteOnDispose() {
+    final assignmentId = widget.assignmentId;
+    final notes = widget.notesRepository;
+    final item = _noteItem;
+    final controller = _noteController;
+    final hash = item?.canonicalPayloadSha256;
+    if (!_noteDirty ||
+        assignmentId == null ||
+        notes == null ||
+        item == null ||
+        controller == null ||
+        hash == null ||
+        hash.isEmpty) {
+      return;
+    }
+    final snapshot = TeacherGuideNote(
+      assignmentId: assignmentId,
+      guideItemId: item.itemId,
+      note: controller.text,
+      canonicalPayloadSha256: hash,
+      updatedAt: DateTime.now(),
+    );
+    unawaited(
+      notes.save(snapshot).onError((Object _, StackTrace _) {
+        // Route teardown cannot surface an error. Normal back navigation
+        // remains fail-visible through _saveNote(); this is a final best-effort
+        // flush for parent/lifecycle-driven disposal.
+      }),
+    );
+  }
+
   Future<void> _handleBack() async {
+    _noteSaveTimer?.cancel();
     if (_noteSaving) return;
     if (await _saveNote() && mounted) Navigator.of(context).pop();
   }
@@ -405,23 +457,10 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
                           selectedUnitId: _selectedUnitId,
                           selectedItemId: item?.itemId,
                           onSelectItem: (value) => _selectItem(value, data),
-                          onSelectSection: (value) => setState(() {
-                            _selectedSectionId = value;
-                            _selectedUnitId = data.sections
-                                .firstWhere((s) => s.section.sectionId == value)
-                                .units
-                                .firstOrNull
-                                ?.unit
-                                .unitId;
-                          }),
-                          onSelectUnit: (value) => setState(() {
-                            _selectedUnitId = value;
-                            _selectedItemId = data
-                                .unitFor(value)
-                                ?.items
-                                .firstOrNull
-                                ?.itemId;
-                          }),
+                          onSelectSection: (value) =>
+                              unawaited(_selectSection(value, data)),
+                          onSelectUnit: (value) =>
+                              unawaited(_selectUnit(value, data)),
                         ),
                       ),
                       const VerticalDivider(width: 1),
@@ -519,16 +558,7 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
               ),
           ],
           onChanged: (value) {
-            if (value == null) return;
-            final next = data.sections.firstWhere(
-              (section) => section.section.sectionId == value,
-            );
-            setState(() {
-              _selectedSectionId = value;
-              _selectedUnitId = next.units.firstOrNull?.unit.unitId;
-              _selectedItemId =
-                  next.units.firstOrNull?.items.firstOrNull?.itemId;
-            });
+            if (value != null) unawaited(_selectSection(value, data));
           },
         ),
         if (sectionData != null) ...[
@@ -545,12 +575,7 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
                 ),
             ],
             onChanged: (value) {
-              if (value == null) return;
-              final next = data.unitFor(value);
-              setState(() {
-                _selectedUnitId = value;
-                _selectedItemId = next?.items.firstOrNull?.itemId;
-              });
+              if (value != null) unawaited(_selectUnit(value, data));
             },
           ),
         ],
@@ -574,9 +599,10 @@ class _GuideViewData {
       .where((value) => value.section.sectionId == sectionId)
       .firstOrNull;
 
-  _GuideUnitData? unitFor(String unitId) => [
-    for (final section in sections) ...section.units,
-  ].where((value) => value.unit.unitId == unitId).firstOrNull;
+  _GuideUnitData? unitFor(String unitId) =>
+      [for (final section in sections) ...section.units]
+          .where((value) => value.unit.unitId == unitId)
+          .firstOrNull;
 
   TeacherGuideItem? itemById(String? itemId) => itemId == null
       ? null
@@ -955,9 +981,8 @@ class _ContentBlock extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
           ],

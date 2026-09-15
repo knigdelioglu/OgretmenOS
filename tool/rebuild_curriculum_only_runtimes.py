@@ -8,7 +8,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 COURSE_ROOT = REPO_ROOT / "tymm-verileri" / "turk-dili-ve-edebiyati"
-COURSES = ("TDE_11", "TDE_12")
+COURSES = ("TDE_12",)
 
 
 def main() -> int:
