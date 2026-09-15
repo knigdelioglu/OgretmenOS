@@ -63,7 +63,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Rebuild TDE11/TDE12 curriculum-only runtimes
+      - name: Rebuild TDE12 curriculum-only runtime
         run: python3 tool/rebuild_curriculum_only_runtimes.py
 
       - name: Set up Flutter
@@ -84,7 +84,7 @@ jobs:
         working-directory: tool/runtime_verifier
         run: dart run bin/verify_runtime.dart --course TDE_10
 
-      - name: Verify TDE11 curriculum-only runtime
+      - name: Verify TDE11 full runtime
         working-directory: tool/runtime_verifier
         run: dart run bin/verify_runtime.dart --course TDE_11
 
@@ -101,7 +101,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Rebuild TDE11/TDE12 curriculum-only runtimes
+      - name: Rebuild TDE12 curriculum-only runtime
         run: python3 tool/rebuild_curriculum_only_runtimes.py
 
       - name: Set up Flutter
@@ -126,7 +126,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Rebuild TDE11/TDE12 curriculum-only runtimes
+      - name: Rebuild TDE12 curriculum-only runtime
         run: python3 tool/rebuild_curriculum_only_runtimes.py
 
       - name: Set up Flutter
@@ -209,7 +209,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Rebuild TDE11/TDE12 curriculum-only runtimes
+      - name: Rebuild TDE12 curriculum-only runtime
         run: python3 tool/rebuild_curriculum_only_runtimes.py
 
       - name: Set up Flutter
@@ -281,7 +281,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Rebuild TDE11/TDE12 curriculum-only runtimes
+      - name: Rebuild TDE12 curriculum-only runtime
         run: python3 tool/rebuild_curriculum_only_runtimes.py
 
       - name: Publish fresh runtime assets
