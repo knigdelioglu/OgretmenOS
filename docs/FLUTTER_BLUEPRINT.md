@@ -15,6 +15,7 @@ course_runtime.sqlite (READ ONLY)
 CourseKnowledgeRepository
         ├─ curriculum / outcome / block knowledge
         └─ LessonPlanKnowledgeRepository capability
+        └─ TeacherGuideKnowledgeRepository capability
 
 calendar/profile assets
         ├─ terms / breaks / event weeks
@@ -31,6 +32,7 @@ teacher_state.sqlite (READ/WRITE)
         ├─ assignment_progress_cursor
         ├─ assignment_lesson_progress
         ├─ assignment_outcome_tracking
+        ├─ assignment_teacher_guide_notes
         ├─ legacy lesson_plan_progress
         └─ legacy outcome_tracking
 
@@ -148,9 +150,9 @@ calendar_index.json
 
 Exception parsing veya automatic context resolver problemi mevcut canonical course içeriğini startup-fatal yapmamalıdır; schedule-aware convenience fail-safe kalmalıdır. Ancak geçersiz versioned exception girdisi ilgili resolver tarafından sessizce doğru kabul edilmez.
 
-## 5. teacher_state schema v5
+## 5. teacher_state schema v6
 
-`OutcomeTrackingDatabase.schemaVersion = 5`.
+`OutcomeTrackingDatabase.schemaVersion = 6`.
 
 Current assignment-aware tables:
 
@@ -162,6 +164,7 @@ lesson_schedule_slots
 assignment_progress_cursor
 assignment_lesson_progress
 assignment_outcome_tracking
+assignment_teacher_guide_notes
 ```
 
 Legacy migration source tables:
@@ -171,7 +174,7 @@ lesson_plan_progress
 outcome_tracking
 ```
 
-v4 → v5 migration eski global `UNIQUE (weekday, period_number)` constraint'ini:
+v4 → v6 migration eski global `UNIQUE (weekday, period_number)` constraint'ini:
 
 ```text
 UNIQUE (academic_year, weekday, period_number)
@@ -409,6 +412,38 @@ Preference failure navigation'ı bloke edemez.
 
 Resources canonical catalog olarak course-scoped kalır.
 
+Teacher Guide, canonical runtime'ın optional ve ders/sınıf bağımsız bir
+capability'sidir:
+
+```text
+TYMM canonical guide JSON
+  → validator
+  → runtime compiler projection
+  → course_runtime.sqlite (READ ONLY)
+  → TeacherGuideKnowledgeRepository
+  → Kaynaklar / native responsive viewer
+```
+
+`Kaynaklar` Teacher Guide'ın birincil sahibidir. Capability manifestte
+`teacher_guide=true` ve validation/row-count/seal kanıtı birlikte geçerli değilse
+kategori gösterilmez. Section, unit, item ve item type değerleri açık uçlu
+string olarak taşınır; Flutter subject, grade, theme veya skill type tahmin
+etmez.
+
+Teacher Guide ilişkileri yalnız runtime'daki explicit
+`item_id + target_type + target_id + relation_type` kayıtlarından çözülür.
+Başlık veya ID benzerliği ilişki üretmez. Ders Planı ve Ders Bloğu yalnız
+ilgili item'e contextual deep link verir; içeriği kopyalamaz.
+
+Native viewer geniş ekranda section/unit → item master-detail, telefonda
+drill-down kullanır. Local runtime içeriğinde deterministic arama yapılabilir;
+AI, PDF/EPUB viewer veya canonical JSON asset erişimi yoktur.
+
+Teacher note canonical runtime'a yazılmaz. `teacher_state.sqlite` içindeki
+`assignment_teacher_guide_notes` satırı `(assignment_id, guide_item_id)` ile
+izole edilir ve `canonical_payload_sha256` saklar. Hash değişirse not silinmez;
+ekranda gözden geçirme uyarısı gösterilir.
+
 Annual canonical sequence course-level'dır. Assignment selector annual yüzeyine açıkça eklenmeden assignment-specific completion state course-wide legacy state gibi sunulamaz; bu nedenle assignment-aware geçiş sürecinde annual optional tracking projection fail-closed kalabilir.
 
 ## 17. Runtime truth
@@ -417,8 +452,12 @@ Annual canonical sequence course-level'dır. Assignment selector annual yüzeyin
 - Widget raw SQL çalıştırmaz.
 - Curriculum relationship uydurulmaz.
 - Calendar/year/exception rules versioned assets'ten gelir.
-- TDE_9/TDE_10 lesson-plan capability runtime authority'den çözülür.
-- TDE_11/TDE_12 capability yokluğu normal fallback'tir.
+- Lesson-plan ve Teacher Guide capability'leri runtime manifest/row
+  doğrulamasından ayrı ayrı çözülür; bir capability'nin parity problemi diğerini
+  varmış gibi gösteremez veya gereksiz yere kapatamaz.
+- Teacher Guide olmayan eski runtime capability yokluğu normal fallback'tir.
+- Teacher Guide verisi canonical TYMM package/runtime'dan gelir; Flutter kaynak
+  JSON dosyalarını doğrudan okumaz.
 - Schedule position teacher-local inference'dır; curriculum fact veya completion değildir.
 - Daily schedule exceptions canonical annual curriculum-hour budgetini yeniden yazmaz; occurrence projection'ını düzeltir.
 
@@ -498,7 +537,13 @@ legacy import requires explicit target
 legacy source preserved
 existing target records not overwritten
 continuity assignment scope + course mirror
+Teacher Guide capability true/false ve eski runtime fallback
+explicit guide relation deep-link; relation yoksa tahmin yapılmaması
+structured expected response, review status ve provenance sunumu
+assignment guide note izolasyonu, stale hash ve görünür save failure
+teacher-guide validation seal/fingerprint değişim kontrolü
 v4 → v5 timetable migration preserves rows
+v4 → v6 timetable migration preserves rows
 ```
 
 Bu branch'te validation kullanıcı tarafından çalıştırılacaktır; test çalıştırılmamış kod merge edilmiş sayılmaz.

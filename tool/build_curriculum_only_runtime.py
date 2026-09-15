@@ -361,6 +361,13 @@ def build(package_root: Path, source_commit: str) -> None:
             "form_templates": False,
             "resource_decisions": False,
             "assessment_artifacts": False,
+            "teacher_guide": False,
+        },
+        "teacher_guide_capabilities": {
+            "available": False,
+            "schema_version": "1.0.0",
+            "validation_status": "NOT_PRESENT",
+            "source_bound": False,
         },
         "assessment_payload_capabilities": {
             "rubric_level_model": False,

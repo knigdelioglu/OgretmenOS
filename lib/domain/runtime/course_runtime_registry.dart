@@ -24,7 +24,8 @@ class CourseRuntimeDescriptor {
   String get runtimeRoot => '$packageRoot/runtime';
   String get manifestAsset => '$runtimeRoot/runtime_manifest.json';
   String get databaseAsset => '$runtimeRoot/course_runtime.sqlite';
-  String get validationReportAsset => '$runtimeRoot/runtime_validation_report.md';
+  String get validationReportAsset =>
+      '$runtimeRoot/runtime_validation_report.md';
   String get packageManifestAsset => '$packageRoot/package_manifest.json';
 
   bool get isCurriculumOnly => dataMode == CourseDataMode.curriculumOnly;
@@ -62,8 +63,8 @@ const supportedCourseRuntimes = <CourseRuntimeDescriptor>[
     grade: 11,
     label: '11. Sınıf Türk Dili ve Edebiyatı',
     packageRoot: '$_tdeRoot/TDE_11',
-    dataMode: CourseDataMode.curriculumOnly,
-    textbookStatus: 'AWAITING_OFFICIAL_TEXTBOOK',
+    dataMode: CourseDataMode.fullRuntime,
+    textbookStatus: 'AVAILABLE',
   ),
   CourseRuntimeDescriptor(
     subjectId: 'turk-dili-ve-edebiyati',

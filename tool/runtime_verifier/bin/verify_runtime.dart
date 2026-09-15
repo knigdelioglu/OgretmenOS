@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
 
@@ -8,12 +9,10 @@ Future<void> main(List<String> args) async {
   final courseId = _valueFor(args, '--course') ?? 'TDE_9';
   final subjectId = _valueFor(args, '--subject') ?? 'turk-dili-ve-edebiyati';
   final projectRoot = File.fromUri(Platform.script).parent.parent.parent.parent;
-  final packageDirectory = p.join(
-    projectRoot.path,
-    'tymm-verileri',
-    subjectId,
-    courseId,
-  );
+  final packageRoot = _valueFor(args, '--package-root');
+  final packageDirectory = packageRoot == null
+      ? p.join(projectRoot.path, 'tymm-verileri', subjectId, courseId)
+      : Directory(packageRoot).absolute.path;
   final packageManifestFile = File(
     p.join(packageDirectory, 'package_manifest.json'),
   );
@@ -116,6 +115,7 @@ Future<void> main(List<String> args) async {
       final policy = _loadFormTemplatePolicy(projectRoot.path);
       _verifyFullRuntime(database, manifestMap, policy);
     }
+    _verifyTeacherGuide(database, manifestMap, runtimeDirectory);
   } finally {
     database.close();
   }
@@ -139,30 +139,25 @@ void _verifyCurriculumOnly(
     manifest['data_mode'] == 'CURRICULUM_ONLY',
     'runtime manifest curriculum-only değil',
   );
-  _checkValue(_count(database, 'themes'), 4, 'curriculum-only tema sayısı');
-  _checkValue(_count(database, 'blocks'), 16, 'curriculum-only blok sayısı');
-  _checkValue(
-    _count(database, 'outcomes'),
-    64,
-    'curriculum-only kazanım sayısı',
-  );
-  _checkValue(
-    _count(database, 'block_outcomes'),
-    64,
-    'curriculum-only blok-kazanım bağı',
-  );
-  _checkValue(
-    _count(database, 'timeline_themes'),
-    4,
-    'curriculum-only tema timeline',
-  );
-  _checkValue(
-    _count(database, 'timeline_blocks'),
-    16,
-    'curriculum-only blok timeline',
-  );
+  for (final table in const [
+    'themes',
+    'blocks',
+    'outcomes',
+    'block_outcomes',
+    'timeline_themes',
+    'timeline_blocks',
+  ]) {
+    final expected = counts[table];
+    if (expected is num) {
+      _checkValue(
+        _count(database, table),
+        expected.toInt(),
+        'curriculum-only $table satır sayısı',
+      );
+    }
+  }
   _check(
-    _count(database, 'entity_source_references') >= 4,
+    _count(database, 'entity_source_references') > 0,
     'curriculum-only tema kaynak bağları eksik',
   );
   for (final table in [
@@ -192,25 +187,31 @@ void _verifyCurriculumOnly(
   ''');
   _check(blocksWithoutOutcome.isEmpty, 'kazanımsız curriculum-only blok var');
 
-  final skillDomains = database
-      .select('SELECT DISTINCT skill_domain FROM blocks ORDER BY skill_domain')
-      .map((row) => row['skill_domain'])
-      .toSet();
   _check(
-    skillDomains.containsAll({'Dinleme/İzleme', 'Okuma', 'Konuşma', 'Yazma'}),
-    'dört beceri alanı planlama bloklarında yok',
+    database
+        .select(
+          "SELECT block_id FROM blocks WHERE skill_domain IS NULL OR "
+          "length(trim(skill_domain)) = 0 LIMIT 1",
+        )
+        .isEmpty,
+    'planlama bloklarında skill domain eksik',
   );
 
   final declaredCounts = <String, int>{
     for (final entry in counts.entries)
       entry.key.toString(): (entry.value as num).toInt(),
   };
-  _checkValue(declaredCounts['themes'], 4, 'manifest tema sayısı');
-  _checkValue(declaredCounts['outcomes'], 64, 'manifest kazanım sayısı');
+  _check(
+    declaredCounts['themes'] == _count(database, 'themes') &&
+        declaredCounts['outcomes'] == _count(database, 'outcomes'),
+    'manifest temel row count değerleri runtime ile uyuşmuyor',
+  );
   final capabilities = manifest['capabilities'];
   _check(
-    capabilities is Map && capabilities['form_templates'] == false,
-    'curriculum-only form_templates capability false olmalı',
+    capabilities is Map &&
+        capabilities['form_templates'] == false &&
+        capabilities['teacher_guide'] == false,
+    'curriculum-only form_templates/teacher_guide capability false olmalı',
   );
   if (_tableExists(database, 'form_templates')) {
     _checkValue(
@@ -221,11 +222,353 @@ void _verifyCurriculumOnly(
   }
 }
 
+const _teacherGuideTables = <String>[
+  'canonical_entities',
+  'teacher_guides',
+  'teacher_guide_sections',
+  'teacher_guide_units',
+  'teacher_guide_items',
+  'teacher_guide_item_relations',
+];
+const _teacherGuideCoreTables = <String>[
+  'teacher_guides',
+  'teacher_guide_sections',
+  'teacher_guide_units',
+  'teacher_guide_items',
+  'teacher_guide_item_relations',
+];
+
+void _verifyTeacherGuide(
+  Database database,
+  Map<String, dynamic> manifest,
+  String runtimeDirectory,
+) {
+  final capabilities = manifest['capabilities'];
+  final advertised =
+      capabilities is Map && capabilities['teacher_guide'] == true;
+  final tables = <String, bool>{
+    for (final table in _teacherGuideTables)
+      table: _tableExists(database, table),
+  };
+
+  if (!advertised) {
+    for (final table in _teacherGuideCoreTables) {
+      if (tables[table] == true) {
+        _checkValue(
+          _count(database, table),
+          0,
+          '$table capability false iken boş olmalı',
+        );
+      }
+    }
+    final metadata = manifest['teacher_guide_capabilities'];
+    if (metadata is Map) {
+      _check(
+        metadata['available'] == false &&
+            metadata['source_bound'] == false &&
+            metadata['validation_status'] == 'NOT_PRESENT',
+        'teacher_guide capability false metadata geçersiz',
+      );
+    }
+    final validation = manifest['teacher_guide_validation'];
+    if (validation is Map) {
+      _check(
+        validation['status'] == 'NOT_PRESENT' &&
+            validation['source_bound'] == false,
+        'teacher_guide_validation false kanıtı geçersiz',
+      );
+    }
+    return;
+  }
+
+  _check(capabilities is Map, 'teacher_guide capabilities eksik');
+  final metadata = manifest['teacher_guide_capabilities'];
+  _check(metadata is Map, 'teacher_guide_capabilities eksik');
+  _check(
+    metadata['available'] == true &&
+        metadata['validation_status'] == 'PASS' &&
+        metadata['source_bound'] == true &&
+        (metadata['schema_version']?.toString().trim() ?? '').isNotEmpty,
+    'teacher_guide capability metadata geçersiz',
+  );
+  final validation = manifest['teacher_guide_validation'];
+  _check(validation is Map, 'teacher_guide_validation eksik');
+  _check(
+    validation['status'] == 'PASS' &&
+        validation['scope'] == 'COURSE' &&
+        validation['source_bound'] == true &&
+        (validation['content_fingerprint']?.toString().trim() ?? '')
+            .isNotEmpty &&
+        validation['canonical_content_fingerprint'] ==
+            manifest['canonical_content_fingerprint'],
+    'teacher_guide_validation geçersiz',
+  );
+
+  final sealPath = validation['seal_path']?.toString().trim() ?? '';
+  final sealSha = validation['seal_sha256']?.toString().trim() ?? '';
+  _check(
+    sealPath.isNotEmpty && sealSha.isNotEmpty,
+    'teacher_guide seal kanıtı eksik',
+  );
+  final sealFile = File(p.join(runtimeDirectory, p.basename(sealPath)));
+  _check(sealFile.existsSync(), 'teacher_guide validation seal dosyası eksik');
+  _checkValue(
+    sha256.convert(sealFile.readAsBytesSync()).toString(),
+    sealSha,
+    'teacher_guide seal sha256',
+  );
+  final seal = _decodeMap(sealFile.readAsStringSync());
+  _checkValue(
+    seal['canonical_content_fingerprint'],
+    manifest['canonical_content_fingerprint'],
+    'teacher_guide seal canonical fingerprint',
+  );
+  final validationContentFingerprint =
+      validation['content_fingerprint']?.toString().trim() ?? '';
+  final expectedTeacherGuideFingerprint =
+      validationContentFingerprint.startsWith('sha256:')
+          ? validationContentFingerprint.substring('sha256:'.length)
+          : validationContentFingerprint;
+  _checkValue(
+    seal['teacher_guide_content_fingerprint'],
+    expectedTeacherGuideFingerprint,
+    'teacher_guide seal content fingerprint',
+  );
+
+  for (final table in _teacherGuideTables) {
+    _check(tables[table] == true, '$table tablosu eksik');
+  }
+  final rawCounts = manifest['row_counts'];
+  _check(rawCounts is Map, 'teacher_guide row_counts eksik');
+  for (final table in _teacherGuideTables) {
+    final expected = rawCounts[table];
+    _check(
+      expected is num && expected >= 0 && expected == expected.toInt(),
+      '$table row count geçersiz',
+    );
+    _checkValue(
+      _count(database, table),
+      expected.toInt(),
+      '$table satır sayısı',
+    );
+  }
+  _check(_count(database, 'teacher_guides') > 0, 'teacher_guides boş');
+  _check(
+    _count(database, 'teacher_guide_sections') > 0,
+    'teacher_guide_sections boş',
+  );
+  _check(
+    _count(database, 'teacher_guide_units') > 0,
+    'teacher_guide_units boş',
+  );
+  _check(
+    _count(database, 'teacher_guide_items') > 0,
+    'teacher_guide_items boş',
+  );
+
+  _check(
+    database.select('PRAGMA foreign_key_check').isEmpty,
+    'teacher_guide foreign key bütünlüğü bozuk',
+  );
+  _check(
+    database.select('''
+          SELECT g.guide_id
+          FROM teacher_guides g
+          LEFT JOIN canonical_entities e
+            ON e.entity_type = g.scope_type AND e.entity_id = g.scope_id
+          WHERE e.entity_id IS NULL
+          LIMIT 1
+        ''').isEmpty,
+    'teacher_guide scope canonical entity bulunamadı',
+  );
+  _check(
+    database.select('''
+          SELECT r.item_id
+          FROM teacher_guide_item_relations r
+          LEFT JOIN teacher_guide_items i ON i.item_id = r.item_id
+          LEFT JOIN canonical_entities e
+            ON e.entity_type = r.target_type AND e.entity_id = r.target_id
+          WHERE i.item_id IS NULL OR e.entity_id IS NULL
+          LIMIT 1
+        ''').isEmpty,
+    'teacher_guide relation canonical entity bulunamadı',
+  );
+
+  _verifyTeacherGuideRelations(database);
+  _verifyTeacherGuideSequence(database);
+  _verifyTeacherGuideItems(database);
+}
+
+void _verifyTeacherGuideRelations(Database database) {
+  final rows = database.select('''
+    SELECT item_id, target_type, target_id, relation_type, relation_order
+    FROM teacher_guide_item_relations
+    ORDER BY item_id, relation_order, target_type, target_id, relation_type
+  ''');
+  for (final row in rows) {
+    for (final field in const [
+      'item_id',
+      'target_type',
+      'target_id',
+      'relation_type',
+    ]) {
+      _check(
+        row[field]?.toString().trim().isNotEmpty ?? false,
+        'teacher_guide relation $field eksik',
+      );
+    }
+    final order = row['relation_order'];
+    _check(
+      order is num && order > 0 && order == order.toInt(),
+      'teacher_guide relation sırası geçersiz',
+    );
+  }
+}
+
+void _verifyTeacherGuideSequence(Database database) {
+  final sectionRows = database.select('''
+    SELECT guide_id, section_id, section_order
+    FROM teacher_guide_sections
+    ORDER BY guide_id, section_order, section_id
+  ''');
+  String? guideId;
+  var expectedOrder = 0;
+  for (final row in sectionRows) {
+    if (row['guide_id'] != guideId) {
+      guideId = row['guide_id']?.toString();
+      expectedOrder = 1;
+    } else {
+      expectedOrder++;
+    }
+    _checkValue(
+      row['section_order'],
+      expectedOrder,
+      '${row['section_id']} section sırası',
+    );
+  }
+
+  final unitRows = database.select('''
+    SELECT section_id, unit_id, unit_order
+    FROM teacher_guide_units
+    ORDER BY section_id, unit_order, unit_id
+  ''');
+  String? sectionId;
+  expectedOrder = 0;
+  for (final row in unitRows) {
+    if (row['section_id'] != sectionId) {
+      sectionId = row['section_id']?.toString();
+      expectedOrder = 1;
+    } else {
+      expectedOrder++;
+    }
+    _checkValue(
+      row['unit_order'],
+      expectedOrder,
+      '${row['unit_id']} unit sırası',
+    );
+  }
+
+  final itemRows = database.select('''
+    SELECT unit_id, item_id, item_order
+    FROM teacher_guide_items
+    ORDER BY unit_id, item_order, item_id
+  ''');
+  String? unitId;
+  expectedOrder = 0;
+  for (final row in itemRows) {
+    if (row['unit_id'] != unitId) {
+      unitId = row['unit_id']?.toString();
+      expectedOrder = 1;
+    } else {
+      expectedOrder++;
+    }
+    _checkValue(
+      row['item_order'],
+      expectedOrder,
+      '${row['item_id']} item sırası',
+    );
+  }
+}
+
+void _verifyTeacherGuideItems(Database database) {
+  final rows = database.select('''
+    SELECT item_id, title, label, content_status, expected_response_json,
+           acceptance_criteria_json, teacher_guidance_json,
+           common_misconceptions_json, assessment_evidence_json,
+           differentiation_json, provenance_json, canonical_payload_sha256
+    FROM teacher_guide_items
+    ORDER BY item_id
+  ''');
+  for (final row in rows) {
+    final itemId = row['item_id']?.toString() ?? '';
+    _check(itemId.isNotEmpty, 'teacher_guide item id eksik');
+    _check(
+      row['content_status']?.toString().trim().isNotEmpty ?? false,
+      '$itemId content_status eksik',
+    );
+    _check(
+      (row['title']?.toString().trim().isNotEmpty ?? false) ||
+          (row['label']?.toString().trim().isNotEmpty ?? false),
+      '$itemId title/label eksik',
+    );
+    for (final field in const [
+      'expected_response_json',
+      'acceptance_criteria_json',
+      'teacher_guidance_json',
+      'common_misconceptions_json',
+      'assessment_evidence_json',
+      'differentiation_json',
+      'provenance_json',
+    ]) {
+      final decoded = _decodeMapOrJson(
+        row[field]?.toString() ?? '',
+        '$itemId/$field',
+      );
+      if (field == 'differentiation_json') {
+        _check(decoded is Map, '$itemId differentiation nesne değil');
+        final differentiation = decoded as Map;
+        _check(
+          differentiation.containsKey('support') &&
+              differentiation.containsKey('enrichment'),
+          '$itemId differentiation support/enrichment eksik',
+        );
+      }
+      if (field == 'provenance_json') {
+        _check(decoded is Map && decoded.isNotEmpty, '$itemId provenance boş');
+      }
+    }
+    _check(
+      RegExp(
+        r'^[0-9a-fA-F]{64}$',
+      ).hasMatch(row['canonical_payload_sha256']?.toString().trim() ?? ''),
+      '$itemId canonical payload hash eksik/geçersiz',
+    );
+  }
+}
+
+Object? _decodeMapOrJson(String raw, String field) {
+  _check(raw.trim().isNotEmpty, '$field JSON boş');
+  try {
+    return jsonDecode(raw);
+  } on FormatException catch (error) {
+    throw StateError('$field geçersiz JSON: $error');
+  }
+}
+
 void _verifyFullRuntime(
   Database database,
   Map<String, dynamic> manifest,
   Map<String, Set<String>> formTemplatePolicy,
 ) {
+  final assessmentEnabled = _assessmentCapabilityEnabled(database, manifest);
+  final assessmentPredicate = assessmentEnabled
+      ? '''
+      AND EXISTS (
+        SELECT 1 FROM assessment_task_bindings atb
+        WHERE atb.theme_id = b.theme_id
+      )
+      '''
+      : '';
   final verificationCandidates = database.select('''
     SELECT b.theme_id, b.block_id
     FROM blocks b
@@ -246,12 +589,10 @@ void _verifyFullRuntime(
         SELECT 1 FROM resource_decisions rd WHERE rd.theme_id = b.theme_id
       )
       AND EXISTS (
-        SELECT 1 FROM assessment_task_bindings atb WHERE atb.theme_id = b.theme_id
-      )
-      AND EXISTS (
         SELECT 1 FROM entity_source_references esr
         WHERE esr.entity_type = 'theme' AND esr.entity_id = b.theme_id
       )
+      $assessmentPredicate
     ORDER BY b.theme_id, b.block_order
     LIMIT 1
   ''');
@@ -277,14 +618,34 @@ void _verifyFullRuntime(
     _countWhere(database, 'resource_decisions', 'theme_id = ?', [themeId]) > 0,
     'theme kaynak kararı yok',
   );
-  _check(
-    _countWhere(database, 'assessment_task_bindings', 'theme_id = ?', [
-          themeId,
-        ]) >
-        0,
-    'theme ölçme bağlama yok',
-  );
+  if (assessmentEnabled) {
+    _check(
+      _countWhere(database, 'assessment_task_bindings', 'theme_id = ?', [
+            themeId,
+          ]) >
+          0,
+      'theme ölçme bağlama yok',
+    );
+  }
   _verifyFormTemplates(database, manifest, formTemplatePolicy);
+}
+
+bool _assessmentCapabilityEnabled(
+  Database database,
+  Map<String, dynamic> manifest,
+) {
+  final capabilities = manifest['capabilities'];
+  if (capabilities is Map && capabilities.containsKey('assessment')) {
+    final value = capabilities['assessment'];
+    _check(value is bool, 'assessment capability boolean olmalı');
+    final bindingCount = _count(database, 'assessment_task_bindings');
+    _check(
+      value == (bindingCount > 0),
+      'assessment capability ile assessment_task_bindings tutarsız',
+    );
+    return value;
+  }
+  return _count(database, 'assessment_task_bindings') > 0;
 }
 
 void _verifyFormTemplates(

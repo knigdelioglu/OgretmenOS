@@ -327,7 +327,14 @@
     "calendar_neutral": true
   },
   "capabilities": {
-    "form_templates": true
+    "form_templates": true,
+    "teacher_guide": false
+  },
+  "teacher_guide_capabilities": {
+    "available": false,
+    "schema_version": "1.0.0",
+    "validation_status": "NOT_PRESENT",
+    "source_bound": false
   },
   "form_template_schema_versions": [
     "1.0"

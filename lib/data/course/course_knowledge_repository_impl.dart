@@ -2,28 +2,34 @@ import '../../domain/models/course_models.dart';
 import '../../domain/models/form_models.dart';
 import '../../domain/models/lesson_plan_models.dart';
 import '../../domain/models/planning_models.dart';
+import '../../domain/models/teacher_guide_models.dart';
 import '../../domain/performance_instrumentation.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
 import 'course_database_data_source.dart';
 import 'lesson_plan_database_data_source.dart';
+import 'teacher_guide_database_data_source.dart';
 
 class CourseKnowledgeRepositoryImpl
     implements
         CourseKnowledgeRepository,
         FormTemplateKnowledgeRepository,
         CoursePlanningKnowledgeRepository,
-        LessonPlanKnowledgeRepository {
+        LessonPlanKnowledgeRepository,
+        TeacherGuideKnowledgeRepository {
   CourseKnowledgeRepositoryImpl({
     required this.dataSource,
     required this.manifest,
     this.lessonPlanDataSource,
+    this.teacherGuideDataSource,
   });
 
   final CourseDatabaseDataSource dataSource;
   final RuntimeManifest manifest;
   final LessonPlanDatabaseDataSource? lessonPlanDataSource;
+  final TeacherGuideDatabaseDataSource? teacherGuideDataSource;
   Future<PlanningDataset>? _planningDatasetFuture;
   String? _planningDatasetCacheKey;
+  Future<TeacherGuideCapability>? _teacherGuideCapabilityFuture;
 
   @override
   Future<Course> getCourse() => dataSource.getCourse();
@@ -161,5 +167,114 @@ class CourseKnowledgeRepositoryImpl
   ) async {
     final capability = await lessonPlans.getCapability(manifest);
     return capability.usable;
+  }
+
+  @override
+  Future<TeacherGuideCapability> getTeacherGuideCapability() {
+    final teacherGuide = teacherGuideDataSource;
+    if (teacherGuide == null) {
+      return Future.value(
+        const TeacherGuideCapability.unavailable(
+          reason: 'TEACHER_GUIDE_DATA_SOURCE_UNAVAILABLE',
+        ),
+      );
+    }
+    final future = _teacherGuideCapabilityFuture ??= teacherGuide.getCapability(
+      manifest,
+    );
+    return future.catchError((Object error) {
+      if (identical(_teacherGuideCapabilityFuture, future)) {
+        _teacherGuideCapabilityFuture = null;
+      }
+      throw error;
+    });
+  }
+
+  @override
+  Future<TeacherGuide?> getTeacherGuideForScope({
+    required String scopeType,
+    required String scopeId,
+  }) async {
+    final teacherGuide = teacherGuideDataSource;
+    if (teacherGuide == null || !(await getTeacherGuideCapability()).usable) {
+      return null;
+    }
+    return teacherGuide.getTeacherGuideForScope(
+      scopeType: scopeType,
+      scopeId: scopeId,
+    );
+  }
+
+  @override
+  Future<List<TeacherGuideSection>> getTeacherGuideSections(
+    String guideId,
+  ) async {
+    final teacherGuide = teacherGuideDataSource;
+    if (teacherGuide == null || !(await getTeacherGuideCapability()).usable) {
+      return const [];
+    }
+    return teacherGuide.getTeacherGuideSections(guideId);
+  }
+
+  @override
+  Future<TeacherGuideSection?> getTeacherGuideSection(String sectionId) async {
+    final teacherGuide = teacherGuideDataSource;
+    if (teacherGuide == null || !(await getTeacherGuideCapability()).usable) {
+      return null;
+    }
+    return teacherGuide.getTeacherGuideSection(sectionId);
+  }
+
+  @override
+  Future<List<TeacherGuideUnit>> getTeacherGuideUnits(String sectionId) async {
+    final teacherGuide = teacherGuideDataSource;
+    if (teacherGuide == null || !(await getTeacherGuideCapability()).usable) {
+      return const [];
+    }
+    return teacherGuide.getTeacherGuideUnits(sectionId);
+  }
+
+  @override
+  Future<TeacherGuideUnit?> getTeacherGuideUnit(String unitId) async {
+    final teacherGuide = teacherGuideDataSource;
+    if (teacherGuide == null || !(await getTeacherGuideCapability()).usable) {
+      return null;
+    }
+    return teacherGuide.getTeacherGuideUnit(unitId);
+  }
+
+  @override
+  Future<List<TeacherGuideItem>> getTeacherGuideItems(String unitId) async {
+    final teacherGuide = teacherGuideDataSource;
+    if (teacherGuide == null || !(await getTeacherGuideCapability()).usable) {
+      return const [];
+    }
+    return teacherGuide.getTeacherGuideItems(unitId);
+  }
+
+  @override
+  Future<TeacherGuideItem?> getTeacherGuideItem(String itemId) async {
+    final teacherGuide = teacherGuideDataSource;
+    if (teacherGuide == null || !(await getTeacherGuideCapability()).usable) {
+      return null;
+    }
+    return teacherGuide.getTeacherGuideItem(itemId);
+  }
+
+  @override
+  Future<List<TeacherGuideItem>> getTeacherGuideItemsForEntity({
+    required String targetType,
+    required String targetId,
+    String? relationType,
+  }) async {
+    final teacherGuide = teacherGuideDataSource;
+    if (teacherGuide == null || !(await getTeacherGuideCapability()).usable) {
+      return const [];
+    }
+    return teacherGuide.getTeacherGuideItemsForEntity(
+      targetType: targetType,
+      targetId: targetId,
+      relationType: relationType,
+    );
   }
 }

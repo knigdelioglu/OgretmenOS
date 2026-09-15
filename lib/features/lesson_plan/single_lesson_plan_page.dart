@@ -12,6 +12,7 @@ import '../../domain/repositories/lesson_plan_progress_repository.dart';
 import '../../domain/services/assignment_lesson_progress_service.dart';
 import '../shared/feature_widgets.dart';
 import '../shared/interaction_polish.dart';
+import '../resources/teacher_guide_relation_action.dart';
 import 'lesson_plan_teacher_presentation.dart';
 
 class SingleLessonPlanPage extends StatefulWidget {
@@ -379,6 +380,8 @@ class _SingleLessonPlanPageState extends State<SingleLessonPlanPage> {
         }
         return _SingleLessonContent(
           data: snapshot.data!,
+          repository: widget.repository,
+          assignmentId: widget.assignmentId,
           progressEnabled: _progressEnabled,
           progressOverride: _localProgress,
           onSetProgress: _setProgress,
@@ -400,6 +403,8 @@ class _SingleLessonPlanPageState extends State<SingleLessonPlanPage> {
 class _SingleLessonContent extends StatelessWidget {
   const _SingleLessonContent({
     required this.data,
+    required this.repository,
+    required this.assignmentId,
     required this.progressEnabled,
     required this.progressOverride,
     required this.onSetProgress,
@@ -408,6 +413,8 @@ class _SingleLessonContent extends StatelessWidget {
   });
 
   final _SingleLessonViewData data;
+  final CourseKnowledgeRepository repository;
+  final String? assignmentId;
   final bool progressEnabled;
   final LessonPlanProgressResolution? progressOverride;
   final Future<void> Function(
@@ -529,6 +536,8 @@ class _SingleLessonContent extends StatelessWidget {
           package: plan,
           displayHour: data.blockHour,
           presentation: presentation,
+          repository: repository,
+          assignmentId: assignmentId,
           onOpenResources: onOpenResources,
         ),
         const SizedBox(height: AppSpacing.md),
@@ -753,6 +762,8 @@ class _SingleLessonStepCard extends StatelessWidget {
     required this.package,
     required this.displayHour,
     required this.presentation,
+    required this.repository,
+    required this.assignmentId,
     this.onOpenResources,
   });
 
@@ -760,6 +771,8 @@ class _SingleLessonStepCard extends StatelessWidget {
   final LessonPlanPackage package;
   final int displayHour;
   final LessonPlanTeacherPresentation presentation;
+  final CourseKnowledgeRepository repository;
+  final String? assignmentId;
   final ResourceNavigationCallback? onOpenResources;
 
   @override
@@ -796,6 +809,16 @@ class _SingleLessonStepCard extends StatelessWidget {
               _PlanSection(title: 'Öğretmen', lines: teacherActions),
             if (studentActions.isNotEmpty)
               _PlanSection(title: 'Öğrenci', lines: studentActions),
+            if (onOpenResources != null)
+              TeacherGuideLessonContextActions(
+                repository: repository,
+                themeId: package.themeId,
+                packageId: package.packageId,
+                blockId: package.blockId,
+                outcomeCodes: lesson.outcomeCodes,
+                assignmentId: assignmentId,
+                onOpenResources: onOpenResources!,
+              ),
             if (activities.isNotEmpty)
               _SinglePlanResourceSection(
                 title: 'Ders kitabı etkinlikleri',
@@ -803,6 +826,8 @@ class _SingleLessonStepCard extends StatelessWidget {
                 themeId: package.themeId,
                 resourceIds: lesson.activityIds,
                 category: ResourceCategory.activities,
+                repository: repository,
+                assignmentId: assignmentId,
                 onOpenResources: onOpenResources,
               ),
             if (forms.isNotEmpty)
@@ -812,6 +837,8 @@ class _SingleLessonStepCard extends StatelessWidget {
                 themeId: package.themeId,
                 resourceIds: lesson.formIds,
                 category: ResourceCategory.forms,
+                repository: repository,
+                assignmentId: assignmentId,
                 onOpenResources: onOpenResources,
               ),
             if (materials.isNotEmpty)
@@ -834,6 +861,8 @@ class _SinglePlanResourceSection extends StatelessWidget {
     required this.themeId,
     required this.resourceIds,
     required this.category,
+    required this.repository,
+    this.assignmentId,
     this.onOpenResources,
   });
 
@@ -842,6 +871,8 @@ class _SinglePlanResourceSection extends StatelessWidget {
   final String themeId;
   final List<String> resourceIds;
   final ResourceCategory category;
+  final CourseKnowledgeRepository repository;
+  final String? assignmentId;
   final ResourceNavigationCallback? onOpenResources;
 
   @override
@@ -858,30 +889,49 @@ class _SinglePlanResourceSection extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         for (var index = 0; index < lines.length; index++)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            leading: const Icon(Icons.link_outlined, size: 18),
-            title: Text(lines[index]),
-            trailing: onOpenResources == null
-                ? null
-                : TextButton(
-                    onPressed: () => onOpenResources!(
-                      ResourceNavigationContext(
-                        themeId: themeId,
-                        resourceId: index < resourceIds.length
-                            ? resourceIds[index]
-                            : null,
-                        formId:
-                            category == ResourceCategory.forms &&
-                                index < resourceIds.length
-                            ? resourceIds[index]
-                            : null,
-                        category: category,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                leading: const Icon(Icons.link_outlined, size: 18),
+                title: Text(lines[index]),
+                trailing: onOpenResources == null
+                    ? null
+                    : TextButton(
+                        onPressed: () => onOpenResources!(
+                          ResourceNavigationContext(
+                            themeId: themeId,
+                            resourceId: index < resourceIds.length
+                                ? resourceIds[index]
+                                : null,
+                            formId:
+                                category == ResourceCategory.forms &&
+                                    index < resourceIds.length
+                                ? resourceIds[index]
+                                : null,
+                            category: category,
+                          ),
+                        ),
+                        child: const Text('Kaynaklarda aç'),
                       ),
-                    ),
-                    child: const Text('Kaynaklarda aç'),
+              ),
+              if (onOpenResources != null && index < resourceIds.length)
+                Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.xl),
+                  child: TeacherGuideRelationAction(
+                    repository: repository,
+                    themeId: themeId,
+                    targetType: category == ResourceCategory.activities
+                        ? 'activity'
+                        : 'form',
+                    targetId: resourceIds[index],
+                    assignmentId: assignmentId,
+                    onOpenResources: onOpenResources!,
                   ),
+                ),
+            ],
           ),
       ],
     ),

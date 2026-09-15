@@ -75,6 +75,8 @@ class RuntimeManifest {
     this.assessmentPayloadCapabilities = const {},
     this.formTemplateStatusCounts = const {},
     this.formTemplateReviewReasons = const {},
+    this.teacherGuideCapabilities = const {},
+    this.teacherGuideValidation = const {},
   });
 
   factory RuntimeManifest.fromJson(Map<String, dynamic> json) {
@@ -129,6 +131,13 @@ class RuntimeManifest {
       return values;
     }
 
+    Map<String, Object?> readObjectMap(Object? raw) {
+      if (raw is! Map) return const {};
+      return Map<String, Object?>.unmodifiable({
+        for (final entry in raw.entries) entry.key.toString(): entry.value,
+      });
+    }
+
     return RuntimeManifest(
       runtimePackageVersion: json['runtime_package_version']?.toString() ?? '',
       schemaVersion: json['schema_version']?.toString() ?? '',
@@ -145,6 +154,10 @@ class RuntimeManifest {
       formTemplateReviewReasons: readReasons(
         json['form_template_review_reasons'],
       ),
+      teacherGuideCapabilities: readObjectMap(
+        json['teacher_guide_capabilities'],
+      ),
+      teacherGuideValidation: readObjectMap(json['teacher_guide_validation']),
     );
   }
 
@@ -160,6 +173,8 @@ class RuntimeManifest {
   final Map<String, bool> assessmentPayloadCapabilities;
   final Map<String, int> formTemplateStatusCounts;
   final Map<String, String> formTemplateReviewReasons;
+  final Map<String, Object?> teacherGuideCapabilities;
+  final Map<String, Object?> teacherGuideValidation;
 
   bool get isCompatible =>
       isSupportedRuntimeCourse(courseId) &&

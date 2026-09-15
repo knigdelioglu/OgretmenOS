@@ -2,6 +2,7 @@ import '../models/course_models.dart';
 import '../models/form_models.dart';
 import '../models/lesson_plan_models.dart';
 import '../models/planning_models.dart';
+import '../models/teacher_guide_models.dart';
 
 abstract interface class CourseKnowledgeRepository {
   Future<Course> getCourse();
@@ -95,6 +96,142 @@ abstract interface class LessonPlanKnowledgeRepository {
   Future<LessonPlanPackage?> getPreviousLessonPlan(String packageId);
 
   Future<LessonPlanPackage?> getNextLessonPlan(String packageId);
+}
+
+/// Optional, canonical read-only teacher-guide capability.
+///
+/// This interface intentionally stays outside [CourseKnowledgeRepository] so
+/// legacy repository fakes and curriculum-only runtimes remain source
+/// compatible. Implementations must only expose guide data that is advertised
+/// and validated by the runtime manifest.
+abstract interface class TeacherGuideKnowledgeRepository {
+  Future<TeacherGuideCapability> getTeacherGuideCapability();
+
+  Future<TeacherGuide?> getTeacherGuideForScope({
+    required String scopeType,
+    required String scopeId,
+  });
+
+  Future<List<TeacherGuideSection>> getTeacherGuideSections(String guideId);
+
+  Future<TeacherGuideSection?> getTeacherGuideSection(String sectionId);
+
+  Future<List<TeacherGuideUnit>> getTeacherGuideUnits(String sectionId);
+
+  Future<TeacherGuideUnit?> getTeacherGuideUnit(String unitId);
+
+  Future<List<TeacherGuideItem>> getTeacherGuideItems(String unitId);
+
+  Future<TeacherGuideItem?> getTeacherGuideItem(String itemId);
+
+  Future<List<TeacherGuideItem>> getTeacherGuideItemsForEntity({
+    required String targetType,
+    required String targetId,
+    String? relationType,
+  });
+}
+
+extension TeacherGuideKnowledgeAccess on CourseKnowledgeRepository {
+  Future<TeacherGuideCapability> getTeacherGuideCapability() {
+    final repository = this;
+    if (repository is TeacherGuideKnowledgeRepository) {
+      return (repository as TeacherGuideKnowledgeRepository)
+          .getTeacherGuideCapability();
+    }
+    return Future.value(
+      const TeacherGuideCapability.unavailable(
+        reason: 'TEACHER_GUIDE_REPOSITORY_UNSUPPORTED',
+      ),
+    );
+  }
+
+  Future<TeacherGuide?> getTeacherGuideForScope({
+    required String scopeType,
+    required String scopeId,
+  }) {
+    final repository = this;
+    if (repository is TeacherGuideKnowledgeRepository) {
+      return (repository as TeacherGuideKnowledgeRepository)
+          .getTeacherGuideForScope(scopeType: scopeType, scopeId: scopeId);
+    }
+    return Future.value(null);
+  }
+
+  /// Convenience API for the common canonical theme scope without coupling
+  /// the capability to a particular subject or grade.
+  Future<TeacherGuide?> getTeacherGuideForTheme(String themeId) =>
+      getTeacherGuideForScope(scopeType: 'theme', scopeId: themeId);
+
+  Future<List<TeacherGuideSection>> getTeacherGuideSections(String guideId) {
+    final repository = this;
+    if (repository is TeacherGuideKnowledgeRepository) {
+      return (repository as TeacherGuideKnowledgeRepository)
+          .getTeacherGuideSections(guideId);
+    }
+    return Future.value(const []);
+  }
+
+  Future<TeacherGuideSection?> getTeacherGuideSection(String sectionId) {
+    final repository = this;
+    if (repository is TeacherGuideKnowledgeRepository) {
+      return (repository as TeacherGuideKnowledgeRepository)
+          .getTeacherGuideSection(sectionId);
+    }
+    return Future.value(null);
+  }
+
+  Future<List<TeacherGuideUnit>> getTeacherGuideUnits(String sectionId) {
+    final repository = this;
+    if (repository is TeacherGuideKnowledgeRepository) {
+      return (repository as TeacherGuideKnowledgeRepository)
+          .getTeacherGuideUnits(sectionId);
+    }
+    return Future.value(const []);
+  }
+
+  Future<TeacherGuideUnit?> getTeacherGuideUnit(String unitId) {
+    final repository = this;
+    if (repository is TeacherGuideKnowledgeRepository) {
+      return (repository as TeacherGuideKnowledgeRepository)
+          .getTeacherGuideUnit(unitId);
+    }
+    return Future.value(null);
+  }
+
+  Future<List<TeacherGuideItem>> getTeacherGuideItems(String unitId) {
+    final repository = this;
+    if (repository is TeacherGuideKnowledgeRepository) {
+      return (repository as TeacherGuideKnowledgeRepository)
+          .getTeacherGuideItems(unitId);
+    }
+    return Future.value(const []);
+  }
+
+  Future<TeacherGuideItem?> getTeacherGuideItem(String itemId) {
+    final repository = this;
+    if (repository is TeacherGuideKnowledgeRepository) {
+      return (repository as TeacherGuideKnowledgeRepository)
+          .getTeacherGuideItem(itemId);
+    }
+    return Future.value(null);
+  }
+
+  Future<List<TeacherGuideItem>> getTeacherGuideItemsForEntity({
+    required String targetType,
+    required String targetId,
+    String? relationType,
+  }) {
+    final repository = this;
+    if (repository is TeacherGuideKnowledgeRepository) {
+      return (repository as TeacherGuideKnowledgeRepository)
+          .getTeacherGuideItemsForEntity(
+            targetType: targetType,
+            targetId: targetId,
+            relationType: relationType,
+          );
+    }
+    return Future.value(const []);
+  }
 }
 
 extension LessonPlanCourseKnowledgeAccess on CourseKnowledgeRepository {

@@ -317,6 +317,35 @@ son görüntülenen ders
 
 Assignment-aware tracking özetleri yalnız ilgili assignment scope'u açıkça belli olduğunda kullanılmalıdır. Course-wide legacy takip yeni şubelerin ortak gerçeği gibi sunulamaz.
 
+### 13.1 Teacher Guide capability
+
+Teacher Guide, ders ve sınıftan bağımsız, optional bir canonical runtime
+capability'sidir. Kaynak zinciri:
+
+```text
+TYMM canonical Teacher Guide
+→ validation
+→ runtime projection/seal
+→ read-only course_runtime.sqlite
+→ TeacherGuideKnowledgeRepository
+```
+
+`Kaynaklar` Teacher Guide'ın primary UI sahibidir. Capability unavailable ise
+Öğretmen Rehberi kategorisi hiç gösterilmez. Ders Planı ve Ders Bloğu tam rehber
+içeriğini kopyalamaz; yalnız explicit canonical relation bulunduğunda ilgili
+maddeye context action verir.
+
+Teacher Guide item'ları herhangi bir canonical entity türüne açık relation
+kayıtlarıyla bağlanabilir. Flutter başlık, sayfa veya ID benzerliğiyle bağ
+kurmaz. Structured response, provenance ve `REVIEW_REQUIRED` durumu kayıpsız
+taşınır ve öğretmene uygun rozet/metinle gösterilir. AI, PDF/EPUB viewer ve
+canonical JSON asset okuma bu capability'nin parçası değildir.
+
+Öğretmen notu canonical veri değildir. Notlar yalnız
+`teacher_state.sqlite` içinde `(assignment_id, guide_item_id)` kapsamıyla
+tutulur; runtime yenilense de silinmez. Canonical payload hash değişirse not
+stale olarak işaretlenir ve öğretmenin gözden geçirmesi istenir.
+
 ## 14. Runtime/calendar invariants
 
 Aktif 2026-2027 TDE profillerinde planning authority'den gelen temel sözleşme korunur:
@@ -364,6 +393,9 @@ curriculum editing
 - Bir dersi görüntülemek tracking oluşturmaz.
 - Continuity tracking'den bağımsızdır.
 - Lesson-plan capability yokluğu ana akışı bloke etmez.
+- Teacher Guide capability yokluğu ana akışı bloke etmez; kategori görünmez.
+- Teacher Guide capability truth'i manifest, projection tabloları, row count,
+  validation ve seal kanıtlarıyla tutarlı olmalıdır.
 - Stale hash explicit metinle gösterilir ve otomatik current sayılmaz.
 - Legacy state şubeye tahmin yoluyla atanmaz.
 - Konum completion yüzdesi değildir.
@@ -382,4 +414,7 @@ V1.4 başarılıdır when a teacher can:
 7. şubeler arasında progress/outcome state sızıntısı yaşamamak;
 8. program değiştiğinde gerçek konumun zıplamamasını sağlamak;
 9. eski teacher-state verisini yalnız açıkça seçtiği şubeye güvenli biçimde kopyalamak;
-10. canonical curriculum ve lesson-plan içeriğini teacher-local state'ten bağımsız ve doğrulanmış biçimde kullanmaya devam etmek.
+10. canonical curriculum, lesson-plan ve mevcutsa Teacher Guide içeriğini
+    teacher-local state'ten bağımsız ve doğrulanmış biçimde kullanmaya devam etmek;
+11. Teacher Guide notlarının assignment'lar arasında sızmadığını ve runtime
+    yenilemesinde kaybolmadığını görmek.

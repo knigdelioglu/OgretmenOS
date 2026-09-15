@@ -67,10 +67,7 @@ class _TeacherOsAppState extends State<TeacherOsApp>
     }
   }
 
-  Future<void> _switchCourse(
-    String courseId, {
-    required bool manual,
-  }) async {
+  Future<void> _switchCourse(String courseId, {required bool manual}) async {
     if (widget.dependencies != null) return;
     if (manual && courseId == _activeCourseId) {
       _courseContextTimer?.cancel();
@@ -107,9 +104,7 @@ class _TeacherOsAppState extends State<TeacherOsApp>
     _scheduleAutomaticCourseCheck();
   }
 
-  void _scheduleAutomaticCourseCheck({
-    Duration delay = Duration.zero,
-  }) {
+  void _scheduleAutomaticCourseCheck({Duration delay = Duration.zero}) {
     if (widget.dependencies != null ||
         _courseSelectionPinned ||
         _resolvedDependencies == null) {
@@ -125,9 +120,7 @@ class _TeacherOsAppState extends State<TeacherOsApp>
   Future<void> _refreshAutomaticCourseContext() async {
     if (_courseSelectionPinned) return;
     if (_courseContextCheckRunning) {
-      _scheduleAutomaticCourseCheck(
-        delay: const Duration(milliseconds: 250),
-      );
+      _scheduleAutomaticCourseCheck(delay: const Duration(milliseconds: 250));
       return;
     }
     final dependencies = _resolvedDependencies;
@@ -156,7 +149,8 @@ class _TeacherOsAppState extends State<TeacherOsApp>
       }
 
       final now = DateTime.now();
-      var delay = snapshot.nextTransitionAt.difference(now) +
+      var delay =
+          snapshot.nextTransitionAt.difference(now) +
           const Duration(milliseconds: 500);
       if (delay < const Duration(seconds: 1)) {
         delay = const Duration(seconds: 1);
@@ -255,7 +249,9 @@ class _TeacherOsAppState extends State<TeacherOsApp>
           onUseAutomaticCourse: widget.dependencies == null
               ? _enableAutomaticCourseSelection
               : null,
-          onScheduleChanged: widget.dependencies == null ? _scheduleChanged : null,
+          onScheduleChanged: widget.dependencies == null
+              ? _scheduleChanged
+              : null,
           resourceNavigationContext: _resourceNavigationContext,
           onOpenResources: _openResources,
         );
@@ -573,6 +569,7 @@ class _AppShellState extends State<_AppShell> {
       weeklyPlanning: widget.dependencies.weeklyPlanning,
       courseId: widget.activeCourseId,
       navigationContext: widget.resourceNavigationContext,
+      notesRepository: widget.dependencies.teacherGuideNotes,
       topTrailing: _topTrailing(context),
     );
   }

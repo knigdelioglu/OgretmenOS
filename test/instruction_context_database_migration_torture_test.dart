@@ -9,7 +9,7 @@ void main() {
   databaseFactory = databaseFactoryFfi;
 
   for (final version in [1, 2, 3, 4]) {
-    test('v$version → v5 migration tüm legacy veriyi korur', () async {
+    test('v$version → v6 migration tüm legacy veriyi korur', () async {
       final directory = await Directory.systemTemp.createTemp(
         'ogretmen_os_teacher_state_v${version}_',
       );
@@ -85,7 +85,7 @@ void main() {
         (await migrated.database.rawQuery(
           'PRAGMA user_version',
         )).single['user_version'],
-        5,
+        6,
       );
       final outcomes = await migrated.database.query('outcome_tracking');
       expect(outcomes, hasLength(1));
@@ -131,7 +131,7 @@ void main() {
   }
 
   test(
-    'v4 → v5 orphan schedule kaydını silmek yerine migrationı durdurur',
+    'v4 → v6 orphan schedule kaydını silmek yerine migrationı durdurur',
     () async {
       final directory = await Directory.systemTemp.createTemp(
         'ogretmen_os_teacher_state_orphan_',

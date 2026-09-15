@@ -27,12 +27,12 @@ void main() {
     expect(product, contains('legacy kayıtlar silinmez'));
     expect(product, contains('mevcut assignment kayıtları overwrite edilmez'));
 
-    expect(blueprint, contains('OutcomeTrackingDatabase.schemaVersion = 5'));
+    expect(blueprint, contains('OutcomeTrackingDatabase.schemaVersion = 6'));
     expect(
       blueprint,
       contains('UNIQUE (academic_year, weekday, period_number)'),
     );
-    expect(blueprint, contains('v4 → v5 migration'));
+    expect(blueprint, contains('v4 → v6 migration'));
     expect(blueprint, contains('TeachingCourseContextService'));
     expect(blueprint, contains('SchoolScheduleExceptionRepository'));
     expect(blueprint, contains('AssignmentAwareWeeklyLessonPlanSection'));
@@ -40,8 +40,14 @@ void main() {
     expect(blueprint, contains('schedule position does not persist completed'));
 
     expect(agent, contains('`İşlendi` zorunlu değildir'));
-    expect(agent, contains('Eksik weekly schedule `ŞU AN` üretmek için geçerli sayılmaz'));
-    expect(agent, contains('Default course mode `Ders programına göre otomatik`tir'));
+    expect(
+      agent,
+      contains('Eksik weekly schedule `ŞU AN` üretmek için geçerli sayılmaz'),
+    );
+    expect(
+      agent,
+      contains('Default course mode `Ders programına göre otomatik`tir'),
+    );
     expect(agent, contains('schedule exception'));
     expect(agent, contains('v4→v5 timetable migration preserves rows'));
 

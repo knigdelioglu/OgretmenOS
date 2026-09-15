@@ -62,3 +62,26 @@ aksi halde -> FAIL
 Bu nedenle `curriculum_process_component_resolution.json` ile ders ailesi ortak `TDE_SHARED/curriculum_process_component_catalog.json` dosyaları runtime build girdisidir. İki dosya da canonical fingerprint'e katılır. Roof bileşeni bulunan bir outcome runtime'da boş `process_components` ile yayımlanamaz. Runtime ayrıca `process_component_origin` provenance alanını korur.
 
 Yeni bir ders eklendiğinde yeni bir `<ders>/` klasörü, `ders_manifest.json` ve sınıf paketleri oluşturulur. Uygulama registry'si aynı paket köklerine yönlendirilir.
+## Teacher Guide runtime projection
+
+Teacher Guide verisi bu repoda elle kopyalanan Flutter asset'i değildir.
+Canonical akış:
+
+```text
+knigdelioglu/tymm course manifest + section JSON
+→ TYMM validator
+→ build_runtime_course_package.py
+→ teacher-guide normalized SQLite tables
+→ runtime manifest + validation seal/fingerprint
+→ sync_course_runtime.dart
+```
+
+Compiler course/subject/grade/path bağımsız olarak doğrulanmış
+`TYMM_TEACHER_GUIDE_MANIFEST` belgelerini keşfeder. `teacher_guide` capability
+yalnız tablolar, row count, explicit relation foreign key'leri, source
+validation ve seal birlikte geçerliyse `true` olur. Capability olmayan eski
+runtime'lar normal fallback'tir.
+
+Teacher Guide'ın primary UI sahibi ÖğretmenOS `Kaynaklar` ekranıdır. Canonical
+runtime read-only kalır; assignment-scoped öğretmen notları uygulamanın
+teacher-local state veritabanında tutulur.

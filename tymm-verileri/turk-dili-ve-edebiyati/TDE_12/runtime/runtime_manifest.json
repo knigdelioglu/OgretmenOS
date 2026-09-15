@@ -82,7 +82,14 @@
     "forms": false,
     "form_templates": false,
     "resource_decisions": false,
-    "assessment_artifacts": false
+    "assessment_artifacts": false,
+    "teacher_guide": false
+  },
+  "teacher_guide_capabilities": {
+    "available": false,
+    "schema_version": "1.0.0",
+    "validation_status": "NOT_PRESENT",
+    "source_bound": false
   },
   "assessment_payload_capabilities": {
     "rubric_level_model": false,

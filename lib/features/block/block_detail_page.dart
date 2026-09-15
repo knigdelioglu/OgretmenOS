@@ -5,6 +5,7 @@ import '../../domain/models/course_models.dart' as model;
 import '../../domain/repositories/course_knowledge_repository.dart';
 import '../lesson_plan/lesson_plan_panels.dart';
 import '../resources/resource_library_page.dart';
+import '../resources/teacher_guide_relation_action.dart';
 import '../shared/feature_widgets.dart';
 import '../shared/teacher_presentation.dart';
 import 'rubric_score_card.dart';
@@ -150,6 +151,27 @@ class _BlockResourcesPanel extends StatelessWidget {
     );
   }
 
+  void _openTeacherGuide(
+    BuildContext context,
+    ResourceNavigationContext request,
+  ) {
+    final callback = onOpenResources;
+    if (callback != null) {
+      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+      callback(request);
+      return;
+    }
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ResourceLibraryPage(
+          repository: repository,
+          awaitingTextbook: false,
+          navigationContext: request,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final resourceCount =
@@ -209,6 +231,17 @@ class _BlockResourcesPanel extends StatelessWidget {
               padding: EdgeInsets.only(bottom: AppSpacing.md),
               child: Text('Bu blok için ilişkilendirilmiş kaynak bulunmuyor.'),
             ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TeacherGuideRelationAction(
+              repository: repository,
+              themeId: detail.theme.id,
+              targetType: 'block',
+              targetId: detail.block.id,
+              label: 'Bu bölümün öğretmen rehberini aç',
+              onOpenResources: (request) => _openTeacherGuide(context, request),
+            ),
+          ),
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(

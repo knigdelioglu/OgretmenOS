@@ -5,6 +5,7 @@ import '../data/calendar/asset_weekly_planning_service.dart';
 import '../data/course/course_database_installer.dart';
 import '../data/course/course_knowledge_repository_impl.dart';
 import '../data/course/lesson_plan_database_data_source.dart';
+import '../data/course/teacher_guide_database_data_source.dart';
 import '../data/preferences/continuity_repository.dart';
 import '../data/preferences/legacy_migration_decision_repository.dart';
 import '../data/preferences/user_preferences_repository.dart';
@@ -12,12 +13,14 @@ import '../data/tracking/assignment_lesson_progress_repository_impl.dart';
 import '../data/tracking/assignment_outcome_tracking_repository_impl.dart';
 import '../data/tracking/instruction_context_repository_impl.dart';
 import '../data/tracking/outcome_tracking_database.dart';
+import '../data/tracking/teacher_guide_notes_repository_impl.dart';
 import '../domain/models/weekly_plan_models.dart';
 import '../domain/repositories/assignment_lesson_progress_repository.dart';
 import '../domain/repositories/assignment_outcome_tracking_repository.dart';
 import '../domain/repositories/course_knowledge_repository.dart';
 import '../domain/repositories/instruction_context_repository.dart';
 import '../domain/repositories/lesson_plan_progress_repository.dart';
+import '../domain/repositories/teacher_guide_notes_repository.dart';
 import '../domain/repositories/school_schedule_exception_repository.dart';
 import '../domain/services/assignment_lesson_timeline_service.dart';
 import '../domain/services/legacy_teacher_state_migration_service.dart';
@@ -34,6 +37,7 @@ class AppDependencies {
     this.instructionContext,
     this.assignmentLessonProgress,
     this.assignmentOutcomeTracking,
+    this.teacherGuideNotes,
     this.scheduleExceptions,
     this.assignmentTimeline,
     this.legacyTeacherStateMigration,
@@ -50,6 +54,7 @@ class AppDependencies {
   final InstructionContextRepository? instructionContext;
   final AssignmentLessonProgressRepository? assignmentLessonProgress;
   final AssignmentOutcomeTrackingRepository? assignmentOutcomeTracking;
+  final TeacherGuideNotesRepository? teacherGuideNotes;
   final SchoolScheduleExceptionRepository? scheduleExceptions;
   final AssignmentLessonTimelineService? assignmentTimeline;
   final LegacyTeacherStateMigrationService? legacyTeacherStateMigration;
@@ -71,6 +76,7 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
       dataSource: database.dataSource,
       manifest: database.manifest,
       lessonPlanDataSource: LessonPlanDatabaseDataSource(database.database),
+      teacherGuideDataSource: TeacherGuideDatabaseDataSource(database.database),
     );
     final weeklyPlanning = AssetWeeklyPlanningService(repository: repository);
     final scheduleExceptions = AssetSchoolScheduleExceptionRepository();
@@ -84,10 +90,14 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
     final instructionContext = SqfliteInstructionContextRepository(
       trackingDatabase.database,
     );
-    final assignmentLessonProgress =
-        SqfliteAssignmentLessonProgressRepository(trackingDatabase.database);
+    final assignmentLessonProgress = SqfliteAssignmentLessonProgressRepository(
+      trackingDatabase.database,
+    );
     final assignmentOutcomeTracking =
         SqfliteAssignmentOutcomeTrackingRepository(trackingDatabase.database);
+    final teacherGuideNotes = SqfliteTeacherGuideNotesRepository(
+      trackingDatabase.database,
+    );
     final assignmentTimeline = AssignmentLessonTimelineService(
       instructionContext: instructionContext,
       weeklyPlanning: weeklyPlanning,
@@ -119,6 +129,7 @@ Future<AppDependencies> loadProductionDependenciesForCourse(
       instructionContext: instructionContext,
       assignmentLessonProgress: assignmentLessonProgress,
       assignmentOutcomeTracking: assignmentOutcomeTracking,
+      teacherGuideNotes: teacherGuideNotes,
       scheduleExceptions: scheduleExceptions,
       assignmentTimeline: assignmentTimeline,
       legacyTeacherStateMigration: legacyTeacherStateMigration,

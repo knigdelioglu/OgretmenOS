@@ -1,0 +1,1105 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+
+import '../../domain/models/teacher_guide_models.dart';
+import '../../domain/models/teacher_guide_note_models.dart';
+import '../../domain/repositories/course_knowledge_repository.dart';
+import '../../domain/repositories/teacher_guide_notes_repository.dart';
+import '../shared/feature_widgets.dart';
+
+/// Native, structured view of the optional teacher-guide runtime capability.
+///
+/// The page receives canonical content through the repository only.  It never
+/// reads source JSON or executes SQL, and the optional note editor writes only
+/// to assignment-scoped teacher state.
+class TeacherGuideViewerPage extends StatefulWidget {
+  const TeacherGuideViewerPage({
+    super.key,
+    required this.repository,
+    required this.scopeType,
+    required this.scopeId,
+    this.guideId,
+    this.sectionId,
+    this.unitId,
+    this.itemId,
+    this.guideItemIds = const [],
+    this.assignmentId,
+    this.notesRepository,
+  });
+
+  final CourseKnowledgeRepository repository;
+  final String scopeType;
+  final String scopeId;
+  final String? guideId;
+  final String? sectionId;
+  final String? unitId;
+  final String? itemId;
+  final List<String> guideItemIds;
+  final String? assignmentId;
+  final TeacherGuideNotesRepository? notesRepository;
+
+  @override
+  State<TeacherGuideViewerPage> createState() => _TeacherGuideViewerPageState();
+}
+
+class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
+  late Future<_GuideViewData> _future;
+  final _searchController = TextEditingController();
+  Timer? _noteSaveTimer;
+  TextEditingController? _noteController;
+  TeacherGuideNote? _loadedNote;
+  String? _selectedSectionId;
+  String? _selectedUnitId;
+  String? _selectedItemId;
+  String _query = '';
+  String? _noteError;
+  bool _noteSaving = false;
+  bool _noteDirty = false;
+  int _noteRevision = 0;
+  int _noteEditRevision = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedSectionId = widget.sectionId;
+    _selectedUnitId = widget.unitId;
+    _selectedItemId = widget.itemId ?? widget.guideItemIds.firstOrNull;
+    _searchController.addListener(_onSearchChanged);
+    _future = _load();
+  }
+
+  @override
+  void dispose() {
+    _noteSaveTimer?.cancel();
+    _searchController
+      ..removeListener(_onSearchChanged)
+      ..dispose();
+    _noteController?.dispose();
+    super.dispose();
+  }
+
+  Future<_GuideViewData> _load() async {
+    final guide = widget.guideId == null
+        ? await widget.repository.getTeacherGuideForScope(
+            scopeType: widget.scopeType,
+            scopeId: widget.scopeId,
+          )
+        : await _findGuideById(widget.guideId!);
+    if (guide == null) {
+      throw StateError('Öğretmen rehberi bu kapsamda kullanılamıyor.');
+    }
+    final sections = await widget.repository.getTeacherGuideSections(
+      guide.guideId,
+    );
+    final sectionData = <_GuideSectionData>[];
+    for (final section in sections) {
+      final units = await widget.repository.getTeacherGuideUnits(
+        section.sectionId,
+      );
+      final unitData = <_GuideUnitData>[];
+      for (final unit in units) {
+        unitData.add(
+          _GuideUnitData(
+            unit: unit,
+            items: await widget.repository.getTeacherGuideItems(unit.unitId),
+          ),
+        );
+      }
+      sectionData.add(_GuideSectionData(section: section, units: unitData));
+    }
+    final data = _GuideViewData(guide: guide, sections: sectionData);
+    _repairSelection(data);
+    unawaited(_loadNoteForSelection(data.itemById(_selectedItemId)));
+    return data;
+  }
+
+  Future<TeacherGuide?> _findGuideById(String guideId) async {
+    final guide = await widget.repository.getTeacherGuideForScope(
+      scopeType: widget.scopeType,
+      scopeId: widget.scopeId,
+    );
+    return guide?.guideId == guideId ? guide : null;
+  }
+
+  void _repairSelection(_GuideViewData data) {
+    final requestedItem = data.items.where((item) {
+      if (_selectedItemId != null && item.itemId == _selectedItemId) {
+        return true;
+      }
+      return widget.guideItemIds.contains(item.itemId);
+    });
+    final item = requestedItem.isNotEmpty
+        ? requestedItem.first
+        : data.items.firstOrNull;
+    if (item == null) return;
+    _selectedItemId = item.itemId;
+    final unitData = data.unitFor(item.unitId);
+    _selectedUnitId = unitData?.unit.unitId;
+    _selectedSectionId = unitData == null
+        ? _selectedSectionId
+        : data.sectionFor(unitData.unit.sectionId)?.section.sectionId;
+  }
+
+  void _onSearchChanged() {
+    if (!mounted) return;
+    setState(() => _query = _searchController.text.trim());
+  }
+
+  List<TeacherGuideItem> _searchResults(_GuideViewData data) {
+    final query = _query.toLowerCase();
+    if (query.isEmpty) return const [];
+    return data.items
+        .where((item) {
+          final unit = data.unitFor(item.unitId)?.unit;
+          final section = unit == null ? null : data.sectionFor(unit.sectionId);
+          final haystack = [
+            item.title,
+            item.label,
+            item.itemType,
+            item.pageLocator,
+            _searchableJson(item.teacherGuidance),
+            _searchableJson(item.expectedResponse),
+            unit?.title,
+            section?.section.title,
+          ].whereType<String>().join(' ').toLowerCase();
+          return haystack.contains(query);
+        })
+        .toList(growable: false);
+  }
+
+  Future<void> _selectItem(TeacherGuideItem item, _GuideViewData data) async {
+    final unitData = data.unitFor(item.unitId);
+    if (unitData == null) return;
+    if (_noteDirty && !await _saveNote()) return;
+    if (!mounted) return;
+    setState(() {
+      _selectedItemId = item.itemId;
+      _selectedUnitId = unitData.unit.unitId;
+      _selectedSectionId = unitData.sectionId;
+      _noteError = null;
+    });
+    unawaited(_loadNoteForSelection(item));
+  }
+
+  Future<void> _loadNoteForSelection(TeacherGuideItem? item) async {
+    final assignmentId = widget.assignmentId;
+    final notes = widget.notesRepository;
+    final controller = _noteController;
+    if (assignmentId == null || notes == null || item == null) return;
+    final revision = ++_noteRevision;
+    try {
+      final loaded = await notes.get(
+        assignmentId: assignmentId,
+        guideItemId: item.itemId,
+      );
+      if (!mounted || revision != _noteRevision) return;
+      _noteSaving = false;
+      _noteDirty = false;
+      _loadedNote = loaded;
+      controller?.text = loaded?.note ?? '';
+      setState(() {});
+    } on Object catch (error) {
+      if (!mounted || revision != _noteRevision) return;
+      _noteError = 'Not yüklenemedi: $error';
+      setState(() {});
+    }
+  }
+
+  void _onNoteChanged(String _) {
+    _noteEditRevision++;
+    _noteDirty = true;
+    _noteError = null;
+    _noteSaveTimer?.cancel();
+    _noteSaveTimer = Timer(const Duration(milliseconds: 700), () {
+      unawaited(_saveNote());
+    });
+    setState(() {});
+  }
+
+  Future<bool> _saveNote() async {
+    final assignmentId = widget.assignmentId;
+    final notes = widget.notesRepository;
+    final item = _currentItem;
+    final controller = _noteController;
+    if (!_noteDirty ||
+        assignmentId == null ||
+        notes == null ||
+        item == null ||
+        controller == null) {
+      return true;
+    }
+    final hash = item.canonicalPayloadSha256;
+    if (hash == null || hash.isEmpty) {
+      setState(
+        () =>
+            _noteError = 'Bu rehber maddesi not için canonical hash taşımıyor.',
+      );
+      return false;
+    }
+    final editRevision = _noteEditRevision;
+    final noteText = controller.text;
+    final savedNote = TeacherGuideNote(
+      assignmentId: assignmentId,
+      guideItemId: item.itemId,
+      note: noteText,
+      canonicalPayloadSha256: hash,
+      updatedAt: DateTime.now(),
+    );
+    setState(() {
+      _noteSaving = true;
+      _noteError = null;
+    });
+    try {
+      await notes.save(savedNote);
+      if (!mounted) return false;
+      _noteSaving = false;
+      if (_noteEditRevision != editRevision) {
+        // A keystroke arrived while the write was in flight. Persist the
+        // latest value before allowing navigation to complete.
+        return _saveNote();
+      }
+      _noteDirty = false;
+      _loadedNote = savedNote;
+      setState(() {});
+      return true;
+    } on Object catch (error) {
+      if (!mounted) return false;
+      setState(() {
+        _noteSaving = false;
+        _noteError = 'Not kaydedilemedi. Tekrar dene. ($error)';
+      });
+      return false;
+    }
+  }
+
+  Future<void> _handleBack() async {
+    if (_noteSaving) return;
+    if (await _saveNote() && mounted) Navigator.of(context).pop();
+  }
+
+  TeacherGuideItem? get _currentItem {
+    // The detail widgets receive the loaded data and set this through the
+    // local selection, so the getter is only used by note actions below.
+    return _lastLoadedItem;
+  }
+
+  TeacherGuideItem? _lastLoadedItem;
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<_GuideViewData>(
+    future: _future,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState != ConnectionState.done &&
+          !snapshot.hasData) {
+        return const Scaffold(
+          body: LoadingView(label: 'Öğretmen rehberi hazırlanıyor…'),
+        );
+      }
+      if (snapshot.hasError || !snapshot.hasData) {
+        return Scaffold(
+          appBar: AppBar(title: const Text('Öğretmen Rehberi')),
+          body: FeatureErrorView(
+            message: 'Öğretmen rehberi yüklenemedi.',
+            onRetry: () => setState(() => _future = _load()),
+          ),
+        );
+      }
+      return PopScope<void>(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) unawaited(_handleBack());
+        },
+        child: _buildLoaded(context, snapshot.data!),
+      );
+    },
+  );
+
+  Widget _buildLoaded(BuildContext context, _GuideViewData data) {
+    _repairSelection(data);
+    final item = data.itemById(_selectedItemId);
+    _lastLoadedItem = item;
+    final searchResults = _searchResults(data);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(data.guide.title),
+        actions: [
+          if (data.guide.contentStatus.toUpperCase() == 'REVIEW_REQUIRED')
+            const Padding(
+              padding: EdgeInsets.only(right: AppSpacing.md),
+              child: Center(
+                child: Tooltip(
+                  message: 'Öğretmen incelemesi gerekli',
+                  child: Icon(Icons.rate_review_outlined),
+                ),
+              ),
+            ),
+        ],
+      ),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final wide = constraints.maxWidth >= 720;
+            final search = _searchField(context);
+            if (!wide) {
+              return ListView(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                children: [
+                  search,
+                  const SizedBox(height: AppSpacing.md),
+                  if (searchResults.isNotEmpty)
+                    _SearchResults(
+                      results: searchResults,
+                      data: data,
+                      onSelect: (value) => _selectItem(value, data),
+                    ),
+                  _phoneSelectors(context, data),
+                  const SizedBox(height: AppSpacing.md),
+                  if (widget.guideItemIds.length > 1)
+                    _RelatedItems(
+                      items: data.items
+                          .where(
+                            (item) => widget.guideItemIds.contains(item.itemId),
+                          )
+                          .toList(growable: false),
+                      selectedItemId: item?.itemId,
+                      onSelect: (value) => _selectItem(value, data),
+                    ),
+                  if (item != null) _ItemDetail(item: item, state: this),
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.md,
+                    AppSpacing.lg,
+                    0,
+                  ),
+                  child: search,
+                ),
+                if (searchResults.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                    ),
+                    child: _SearchResults(
+                      results: searchResults,
+                      data: data,
+                      onSelect: (value) => _selectItem(value, data),
+                    ),
+                  ),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        width: constraints.maxWidth.clamp(260, 340),
+                        child: _GuideOutline(
+                          data: data,
+                          selectedSectionId: _selectedSectionId,
+                          selectedUnitId: _selectedUnitId,
+                          selectedItemId: item?.itemId,
+                          onSelectItem: (value) => _selectItem(value, data),
+                          onSelectSection: (value) => setState(() {
+                            _selectedSectionId = value;
+                            _selectedUnitId = data.sections
+                                .firstWhere((s) => s.section.sectionId == value)
+                                .units
+                                .firstOrNull
+                                ?.unit
+                                .unitId;
+                          }),
+                          onSelectUnit: (value) => setState(() {
+                            _selectedUnitId = value;
+                            _selectedItemId = data
+                                .unitFor(value)
+                                ?.items
+                                .firstOrNull
+                                ?.itemId;
+                          }),
+                        ),
+                      ),
+                      const VerticalDivider(width: 1),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.xl,
+                            AppSpacing.lg,
+                            AppSpacing.xl,
+                            AppSpacing.xxl,
+                          ),
+                          child: widget.guideItemIds.length > 1
+                              ? Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    _RelatedItems(
+                                      items: data.items
+                                          .where(
+                                            (item) => widget.guideItemIds
+                                                .contains(item.itemId),
+                                          )
+                                          .toList(growable: false),
+                                      selectedItemId: item?.itemId,
+                                      onSelect: (value) =>
+                                          _selectItem(value, data),
+                                    ),
+                                    if (item != null)
+                                      _ItemDetail(item: item, state: this),
+                                  ],
+                                )
+                              : item == null
+                              ? const Padding(
+                                  padding: EdgeInsets.all(AppSpacing.xl),
+                                  child: Text('Bir rehber maddesi seç.'),
+                                )
+                              : _ItemDetail(item: item, state: this),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _searchField(BuildContext context) => TextField(
+    controller: _searchController,
+    decoration: InputDecoration(
+      labelText: 'Rehberde ara',
+      hintText: 'Başlık, yönlendirme, cevap veya sayfa',
+      prefixIcon: const Icon(Icons.search),
+      suffixIcon: _query.isEmpty
+          ? null
+          : IconButton(
+              tooltip: 'Aramayı temizle',
+              onPressed: _searchController.clear,
+              icon: const Icon(Icons.clear),
+            ),
+    ),
+  );
+
+  Widget _phoneSelectors(BuildContext context, _GuideViewData data) {
+    final selectedSection =
+        data.sections.any(
+          (value) => value.section.sectionId == _selectedSectionId,
+        )
+        ? _selectedSectionId
+        : data.sections.firstOrNull?.section.sectionId;
+    final sectionData = data.sections
+        .where((value) => value.section.sectionId == selectedSection)
+        .firstOrNull;
+    final selectedUnit =
+        (sectionData?.units.any(
+              (value) => value.unit.unitId == _selectedUnitId,
+            ) ??
+            false)
+        ? _selectedUnitId
+        : sectionData?.units.firstOrNull?.unit.unitId;
+    return Column(
+      children: [
+        DropdownButtonFormField<String>(
+          initialValue: selectedSection,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Bölüm'),
+          items: [
+            for (final value in data.sections)
+              DropdownMenuItem(
+                value: value.section.sectionId,
+                child: Text(value.section.title),
+              ),
+          ],
+          onChanged: (value) {
+            if (value == null) return;
+            final next = data.sections.firstWhere(
+              (section) => section.section.sectionId == value,
+            );
+            setState(() {
+              _selectedSectionId = value;
+              _selectedUnitId = next.units.firstOrNull?.unit.unitId;
+              _selectedItemId =
+                  next.units.firstOrNull?.items.firstOrNull?.itemId;
+            });
+          },
+        ),
+        if (sectionData != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          DropdownButtonFormField<String>(
+            initialValue: selectedUnit,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Ünite'),
+            items: [
+              for (final value in sectionData.units)
+                DropdownMenuItem(
+                  value: value.unit.unitId,
+                  child: Text(value.unit.title),
+                ),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              final next = data.unitFor(value);
+              setState(() {
+                _selectedUnitId = value;
+                _selectedItemId = next?.items.firstOrNull?.itemId;
+              });
+            },
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _GuideViewData {
+  const _GuideViewData({required this.guide, required this.sections});
+
+  final TeacherGuide guide;
+  final List<_GuideSectionData> sections;
+
+  List<TeacherGuideItem> get items => [
+    for (final section in sections)
+      for (final unit in section.units) ...unit.items,
+  ];
+
+  _GuideSectionData? sectionFor(String sectionId) => sections
+      .where((value) => value.section.sectionId == sectionId)
+      .firstOrNull;
+
+  _GuideUnitData? unitFor(String unitId) => [
+    for (final section in sections) ...section.units,
+  ].where((value) => value.unit.unitId == unitId).firstOrNull;
+
+  TeacherGuideItem? itemById(String? itemId) => itemId == null
+      ? null
+      : items.where((value) => value.itemId == itemId).firstOrNull;
+}
+
+class _GuideSectionData {
+  const _GuideSectionData({required this.section, required this.units});
+
+  final TeacherGuideSection section;
+  final List<_GuideUnitData> units;
+}
+
+class _GuideUnitData {
+  const _GuideUnitData({required this.unit, required this.items});
+
+  final TeacherGuideUnit unit;
+  final List<TeacherGuideItem> items;
+
+  String get sectionId => unit.sectionId;
+}
+
+class _GuideOutline extends StatelessWidget {
+  const _GuideOutline({
+    required this.data,
+    required this.selectedSectionId,
+    required this.selectedUnitId,
+    required this.selectedItemId,
+    required this.onSelectSection,
+    required this.onSelectUnit,
+    required this.onSelectItem,
+  });
+
+  final _GuideViewData data;
+  final String? selectedSectionId;
+  final String? selectedUnitId;
+  final String? selectedItemId;
+  final ValueChanged<String> onSelectSection;
+  final ValueChanged<String> onSelectUnit;
+  final ValueChanged<TeacherGuideItem> onSelectItem;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Theme.of(context).colorScheme.surfaceContainerLowest,
+    child: ListView(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      children: [
+        for (final section in data.sections) ...[
+          ListTile(
+            selected: section.section.sectionId == selectedSectionId,
+            leading: const Icon(Icons.view_agenda_outlined),
+            title: Text(section.section.title),
+            subtitle: Text(_locator(section.section.pageLocator)),
+            onTap: () => onSelectSection(section.section.sectionId),
+          ),
+          for (final unit in section.units) ...[
+            Padding(
+              padding: const EdgeInsets.only(left: AppSpacing.lg),
+              child: ListTile(
+                dense: true,
+                selected: unit.unit.unitId == selectedUnitId,
+                leading: const Icon(Icons.list_alt_outlined, size: 20),
+                title: Text(unit.unit.title),
+                subtitle: Text(_locator(unit.unit.pageLocator)),
+                onTap: () => onSelectUnit(unit.unit.unitId),
+              ),
+            ),
+            for (final item in unit.items)
+              Padding(
+                padding: const EdgeInsets.only(left: AppSpacing.xl),
+                child: ListTile(
+                  dense: true,
+                  selected: item.itemId == selectedItemId,
+                  title: Text(item.title ?? item.label),
+                  subtitle: Text(_locator(item.pageLocator)),
+                  onTap: () => onSelectItem(item),
+                ),
+              ),
+          ],
+        ],
+      ],
+    ),
+  );
+}
+
+class _SearchResults extends StatelessWidget {
+  const _SearchResults({
+    required this.results,
+    required this.data,
+    required this.onSelect,
+  });
+
+  final List<TeacherGuideItem> results;
+  final _GuideViewData data;
+  final ValueChanged<TeacherGuideItem> onSelect;
+
+  @override
+  Widget build(BuildContext context) => Card.outlined(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
+          child: Text(
+            '${results.length} sonuç',
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+        ),
+        for (final item in results.take(12))
+          ListTile(
+            leading: const Icon(Icons.search),
+            title: Text(item.title ?? item.label),
+            subtitle: Text(_contextLabel(data, item)),
+            onTap: () => onSelect(item),
+          ),
+      ],
+    ),
+  );
+}
+
+class _RelatedItems extends StatelessWidget {
+  const _RelatedItems({
+    required this.items,
+    required this.selectedItemId,
+    required this.onSelect,
+  });
+
+  final List<TeacherGuideItem> items;
+  final String? selectedItemId;
+  final ValueChanged<TeacherGuideItem> onSelect;
+
+  @override
+  Widget build(BuildContext context) => Card.outlined(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
+          child: Text('İlgili rehber maddeleri'),
+        ),
+        for (final item in items)
+          ListTile(
+            selected: item.itemId == selectedItemId,
+            title: Text(item.title ?? item.label),
+            subtitle: Text(_locator(item.pageLocator)),
+            onTap: () => onSelect(item),
+          ),
+      ],
+    ),
+  );
+}
+
+class _ItemDetail extends StatelessWidget {
+  const _ItemDetail({required this.item, required this.state});
+
+  final TeacherGuideItem item;
+  final _TeacherGuideViewerPageState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final enrichment =
+        item.provenance.contentClass?.toUpperCase() == 'PEDAGOGICAL_ENRICHMENT';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.xs,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            if (item.pageLocator?.isNotEmpty == true)
+              Chip(label: Text('s. ${item.pageLocator}')),
+            Chip(label: Text(_itemTypeLabel(item.itemType))),
+            if (item.contentStatus.toUpperCase() == 'REVIEW_REQUIRED')
+              const _ReviewBadge(),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          item.title ?? item.label,
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        if (item.title != null && item.title != item.label) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(item.label, style: theme.textTheme.titleMedium),
+        ],
+        const SizedBox(height: AppSpacing.xl),
+        _ContentBlock(
+          title: 'Beklenen cevap / öğrenci tepkisi',
+          icon: Icons.forum_outlined,
+          value: item.expectedResponse,
+        ),
+        _ContentBlock(
+          title: 'Öğretmene not',
+          icon: Icons.lightbulb_outline,
+          value: item.teacherGuidance,
+        ),
+        if (enrichment)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: Text(
+              'Pedagojik öneri; kitabın zorunlu yönergesi değildir.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        if (state.widget.assignmentId != null &&
+            state.widget.notesRepository != null &&
+            item.canonicalPayloadSha256?.isNotEmpty == true)
+          _TeacherGuideNoteEditor(item: item, state: state),
+        Card.outlined(
+          child: ExpansionTile(
+            title: const Text('Ayrıntılar'),
+            childrenPadding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              0,
+              AppSpacing.lg,
+              AppSpacing.lg,
+            ),
+            children: [
+              _ContentBlock(
+                title: 'Kabul ölçütleri',
+                value: item.acceptanceCriteria,
+              ),
+              _ContentBlock(
+                title: 'Sık yapılan hata',
+                value: item.commonMisconceptions,
+              ),
+              _ContentBlock(
+                title: 'Değerlendirme kanıtı',
+                value: item.assessmentEvidence,
+              ),
+              _ContentBlock(
+                title: 'Destek',
+                value: item.differentiation.support,
+              ),
+              _ContentBlock(
+                title: 'Zenginleştirme',
+                value: item.differentiation.enrichment,
+              ),
+              _ProvenanceBlock(provenance: item.provenance),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TeacherGuideNoteEditor extends StatefulWidget {
+  const _TeacherGuideNoteEditor({required this.item, required this.state});
+
+  final TeacherGuideItem item;
+  final _TeacherGuideViewerPageState state;
+
+  @override
+  State<_TeacherGuideNoteEditor> createState() =>
+      _TeacherGuideNoteEditorState();
+}
+
+class _TeacherGuideNoteEditorState extends State<_TeacherGuideNoteEditor> {
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
+    state._noteController ??= TextEditingController(
+      text: state._loadedNote?.note ?? '',
+    );
+    final note = state._loadedNote;
+    final stale =
+        note?.isStaleFor(widget.item.canonicalPayloadSha256!) ?? false;
+    return Card.outlined(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Bu atama için not',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                if (state._noteSaving)
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+            if (stale) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Rehber maddesi güncellendi · notunu gözden geçir',
+                style: TextStyle(color: Theme.of(context).colorScheme.tertiary),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: state._noteController,
+              minLines: 3,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                hintText: 'Bu sınıf/atama için not ekle',
+                alignLabelWithHint: true,
+              ),
+              onChanged: state._onNoteChanged,
+            ),
+            if (state._noteError != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                state._noteError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: () => unawaited(state._saveNote()),
+                  child: const Text('Tekrar kaydet'),
+                ),
+              ),
+            ],
+            if (!state._noteDirty &&
+                !state._noteSaving &&
+                state._noteError == null)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
+                child: Text(
+                  'Kaydedildi',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ContentBlock extends StatelessWidget {
+  const _ContentBlock({required this.title, required this.value, this.icon});
+
+  final String title;
+  final Object? value;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 20),
+              const SizedBox(width: AppSpacing.sm),
+            ],
+            Expanded(
+              child: Text(
+                title,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _JsonValue(value: value),
+      ],
+    ),
+  );
+}
+
+class _JsonValue extends StatelessWidget {
+  const _JsonValue({required this.value, this.indent = 0});
+
+  final Object? value;
+  final int indent;
+
+  @override
+  Widget build(BuildContext context) {
+    if (value == null) return const Text('Belirtilmemiş');
+    if (value is String || value is num || value is bool) {
+      return Text(value.toString());
+    }
+    if (value is List) {
+      final list = value as List;
+      if (list.isEmpty) return const Text('Belirtilmemiş');
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final entry in list)
+            Padding(
+              padding: EdgeInsets.only(
+                left: indent.toDouble(),
+                bottom: AppSpacing.xs,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('• '),
+                  Expanded(
+                    child: _JsonValue(value: entry, indent: indent + 12),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+    }
+    if (value is Map) {
+      final map = Map<Object?, Object?>.from(value as Map);
+      if (map.isEmpty) return const Text('Belirtilmemiş');
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final entry in map.entries)
+            Padding(
+              padding: EdgeInsets.only(
+                left: indent.toDouble(),
+                bottom: AppSpacing.sm,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    entry.key.toString(),
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  _JsonValue(value: entry.value, indent: indent + 12),
+                ],
+              ),
+            ),
+        ],
+      );
+    }
+    return Text(value.toString());
+  }
+}
+
+class _ProvenanceBlock extends StatelessWidget {
+  const _ProvenanceBlock({required this.provenance});
+
+  final TeacherGuideProvenance provenance;
+
+  @override
+  Widget build(BuildContext context) => _ContentBlock(
+    title: _provenanceLabel(provenance.contentClass),
+    value: [
+      if (provenance.sourceLocators.isNotEmpty)
+        provenance.sourceLocators.join(' · '),
+      if (provenance.note?.isNotEmpty == true) provenance.note!,
+    ],
+  );
+}
+
+class _ReviewBadge extends StatelessWidget {
+  const _ReviewBadge();
+
+  @override
+  Widget build(BuildContext context) => Chip(
+    avatar: const Icon(Icons.rate_review_outlined, size: 16),
+    label: const Text('Öğretmen incelemesi gerekli'),
+  );
+}
+
+String _searchableJson(Object? value) {
+  try {
+    return jsonEncode(value);
+  } on Object {
+    return value?.toString() ?? '';
+  }
+}
+
+String _contextLabel(_GuideViewData data, TeacherGuideItem item) {
+  final unit = data.unitFor(item.unitId);
+  final section = unit == null ? null : data.sectionFor(unit.unit.sectionId);
+  return [
+    if (section != null) section.section.title,
+    if (unit != null) unit.unit.title,
+    _locator(item.pageLocator),
+  ].where((value) => value.isNotEmpty).join(' · ');
+}
+
+String _locator(String? value) =>
+    value?.trim().isNotEmpty == true ? 's. ${value!.trim()}' : '';
+
+String _itemTypeLabel(String value) {
+  final normalized = value.replaceAll('_', ' ').trim();
+  if (normalized.isEmpty) return 'İçerik';
+  return normalized[0].toUpperCase() + normalized.substring(1).toLowerCase();
+}
+
+String _provenanceLabel(String? value) => switch (value?.toUpperCase()) {
+  'OFFICIAL_TEXTBOOK' => 'Resmî ders kitabı',
+  'OFFICIAL_NORMATIVE' => 'Program dayanağı',
+  'LESSON_PLAN_IMPLEMENTATION' => 'Ders planı uygulaması',
+  'PEDAGOGICAL_ENRICHMENT' => 'Pedagojik öneri',
+  'REVIEW_REQUIRED' => 'Öğretmen incelemesi gerekli',
+  'MIXED' => 'Kaynaklı içerik',
+  _ => 'Kaynak bilgisi',
+};
+
+extension _FirstOrNull<T> on Iterable<T> {
+  T? get firstOrNull => isEmpty ? null : first;
+}

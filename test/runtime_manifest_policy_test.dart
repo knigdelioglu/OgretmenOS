@@ -45,6 +45,53 @@ void main() {
     expect(() => validateRuntimeFreshnessEvidence(manifest), returnsNormally);
   });
 
+  test('teacher-guide capability manifest kanıtı ile kabul edilir', () {
+    final manifest = validManifest()
+      ..['capabilities'] = {'teacher_guide': true}
+      ..['teacher_guide_capabilities'] = {
+        'available': true,
+        'schema_version': '1.0.0',
+        'validation_status': 'PASS',
+        'source_bound': true,
+      }
+      ..['teacher_guide_validation'] = {
+        'status': 'PASS',
+        'scope': 'COURSE',
+        'content_fingerprint': 'sha256:guide',
+        'canonical_content_fingerprint': 'fingerprint',
+        'source_bound': true,
+        'seal_path': 'runtime/teacher_guide_validation_seal.json',
+        'seal_sha256': 'a' * 64,
+      }
+      ..['row_counts'] = {
+        'lesson_plan_packages': 0,
+        'canonical_entities': 2,
+        'teacher_guides': 1,
+        'teacher_guide_sections': 1,
+        'teacher_guide_units': 1,
+        'teacher_guide_items': 1,
+        'teacher_guide_item_relations': 0,
+      };
+
+    expect(() => validateRuntimeManifest(manifest), returnsNormally);
+    final parsed = RuntimeManifest.fromJson(manifest);
+    expect(parsed.hasCapability('teacher_guide'), isTrue);
+    expect(parsed.teacherGuideCapabilities['source_bound'], isTrue);
+  });
+
+  test(
+    'teacher-guide capability kanıtı eksikse manifest fail-closed reddedilir',
+    () {
+      final manifest = validManifest()
+        ..['capabilities'] = {'teacher_guide': true};
+
+      expect(
+        () => validateRuntimeManifest(manifest),
+        throwsA(isA<StateError>()),
+      );
+    },
+  );
+
   test(
     'compiler validation raporu current canonical runtime freshness kanıtıdır',
     () {

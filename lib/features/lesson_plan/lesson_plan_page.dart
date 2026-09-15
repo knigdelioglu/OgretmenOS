@@ -10,6 +10,7 @@ import '../../domain/repositories/lesson_plan_progress_repository.dart';
 import '../../domain/services/lesson_plan_progress_service.dart';
 import '../shared/feature_widgets.dart';
 import '../shared/interaction_polish.dart';
+import '../resources/teacher_guide_relation_action.dart';
 import 'lesson_plan_teacher_presentation.dart';
 
 class LessonPlanPage extends StatefulWidget {
@@ -199,6 +200,7 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
         }
         return _LessonPlanContent(
           data: snapshot.data!,
+          repository: widget.repository,
           progressEnabled: _progressService != null,
           progressOverride: _localProgressResolution,
           onSetProgress: _setProgress,
@@ -220,6 +222,7 @@ class _LessonPlanPageState extends State<LessonPlanPage> {
 class _LessonPlanContent extends StatelessWidget {
   const _LessonPlanContent({
     required this.data,
+    required this.repository,
     required this.progressEnabled,
     required this.progressOverride,
     required this.onSetProgress,
@@ -228,6 +231,7 @@ class _LessonPlanContent extends StatelessWidget {
   });
 
   final _LessonPlanViewData data;
+  final CourseKnowledgeRepository repository;
   final bool progressEnabled;
   final LessonPlanProgressResolution? progressOverride;
   final Future<void> Function(
@@ -358,6 +362,9 @@ class _LessonPlanContent extends StatelessWidget {
               lesson: lesson,
               presentation: presentation,
               themeId: plan.themeId,
+              packageId: plan.packageId,
+              blockId: plan.blockId,
+              repository: repository,
               onOpenResources: onOpenResources,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -466,12 +473,18 @@ class _LessonStepCard extends StatelessWidget {
     required this.lesson,
     required this.presentation,
     required this.themeId,
+    required this.packageId,
+    required this.blockId,
+    required this.repository,
     this.onOpenResources,
   });
 
   final LessonPlanLesson lesson;
   final LessonPlanTeacherPresentation presentation;
   final String themeId;
+  final String packageId;
+  final String blockId;
+  final CourseKnowledgeRepository repository;
   final ResourceNavigationCallback? onOpenResources;
 
   @override
@@ -533,6 +546,15 @@ class _LessonStepCard extends StatelessWidget {
               _PlanSection(title: 'Öğretmen', lines: teacherActions),
             if (studentActions.isNotEmpty)
               _PlanSection(title: 'Öğrenci', lines: studentActions),
+            if (onOpenResources != null)
+              TeacherGuideLessonContextActions(
+                repository: repository,
+                themeId: themeId,
+                packageId: packageId,
+                blockId: blockId,
+                outcomeCodes: lesson.outcomeCodes,
+                onOpenResources: onOpenResources!,
+              ),
             if (activities.isNotEmpty)
               _PlanResourceSection(
                 title: 'Ders kitabı etkinlikleri',
@@ -540,6 +562,7 @@ class _LessonStepCard extends StatelessWidget {
                 themeId: themeId,
                 resourceIds: lesson.activityIds,
                 category: ResourceCategory.activities,
+                repository: repository,
                 onOpenResources: onOpenResources,
               ),
             if (forms.isNotEmpty)
@@ -549,6 +572,7 @@ class _LessonStepCard extends StatelessWidget {
                 themeId: themeId,
                 resourceIds: lesson.formIds,
                 category: ResourceCategory.forms,
+                repository: repository,
                 onOpenResources: onOpenResources,
               ),
             if (materials.isNotEmpty)
@@ -571,6 +595,7 @@ class _PlanResourceSection extends StatelessWidget {
     required this.themeId,
     required this.resourceIds,
     required this.category,
+    required this.repository,
     this.onOpenResources,
   });
 
@@ -579,6 +604,7 @@ class _PlanResourceSection extends StatelessWidget {
   final String themeId;
   final List<String> resourceIds;
   final ResourceCategory category;
+  final CourseKnowledgeRepository repository;
   final ResourceNavigationCallback? onOpenResources;
 
   @override
@@ -595,30 +621,48 @@ class _PlanResourceSection extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         for (var index = 0; index < lines.length; index++)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            leading: const Icon(Icons.link_outlined, size: 18),
-            title: Text(lines[index]),
-            trailing: onOpenResources == null
-                ? null
-                : TextButton(
-                    onPressed: () => onOpenResources!(
-                      ResourceNavigationContext(
-                        themeId: themeId,
-                        resourceId: index < resourceIds.length
-                            ? resourceIds[index]
-                            : null,
-                        formId:
-                            category == ResourceCategory.forms &&
-                                index < resourceIds.length
-                            ? resourceIds[index]
-                            : null,
-                        category: category,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                leading: const Icon(Icons.link_outlined, size: 18),
+                title: Text(lines[index]),
+                trailing: onOpenResources == null
+                    ? null
+                    : TextButton(
+                        onPressed: () => onOpenResources!(
+                          ResourceNavigationContext(
+                            themeId: themeId,
+                            resourceId: index < resourceIds.length
+                                ? resourceIds[index]
+                                : null,
+                            formId:
+                                category == ResourceCategory.forms &&
+                                    index < resourceIds.length
+                                ? resourceIds[index]
+                                : null,
+                            category: category,
+                          ),
+                        ),
+                        child: const Text('Kaynaklarda aç'),
                       ),
-                    ),
-                    child: const Text('Kaynaklarda aç'),
+              ),
+              if (onOpenResources != null && index < resourceIds.length)
+                Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.xl),
+                  child: TeacherGuideRelationAction(
+                    repository: repository,
+                    themeId: themeId,
+                    targetType: category == ResourceCategory.activities
+                        ? 'activity'
+                        : 'form',
+                    targetId: resourceIds[index],
+                    onOpenResources: onOpenResources!,
                   ),
+                ),
+            ],
           ),
       ],
     ),

@@ -5,11 +5,14 @@ import 'package:flutter/material.dart';
 import '../../app/resource_navigation.dart';
 import '../../data/preferences/continuity_repository.dart';
 import '../../domain/models/course_models.dart' as model;
+import '../../domain/models/teacher_guide_models.dart';
 import '../../domain/models/weekly_plan_models.dart';
 import '../../domain/performance_instrumentation.dart';
 import '../../domain/repositories/course_knowledge_repository.dart';
+import '../../domain/repositories/teacher_guide_notes_repository.dart';
 import '../shared/feature_widgets.dart';
 import 'form_viewer_page.dart';
+import 'teacher_guide_viewer_page.dart';
 
 class ResourceLibraryPage extends StatefulWidget {
   const ResourceLibraryPage({
@@ -22,6 +25,7 @@ class ResourceLibraryPage extends StatefulWidget {
     this.weeklyPlanning,
     this.courseId,
     this.navigationContext,
+    this.notesRepository,
   });
 
   final CourseKnowledgeRepository repository;
@@ -32,6 +36,7 @@ class ResourceLibraryPage extends StatefulWidget {
   final WeeklyPlanningService? weeklyPlanning;
   final String? courseId;
   final ResourceNavigationContext? navigationContext;
+  final TeacherGuideNotesRepository? notesRepository;
 
   @override
   State<ResourceLibraryPage> createState() => _ResourceLibraryPageState();
@@ -46,6 +51,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
   int _focusRevision = 0;
   bool _initialUsefulContentReported = false;
   String? _openedNavigationFormId;
+  String? _openedNavigationGuideKey;
   ContinuityRepository? _observedContinuity;
   ContinuityChangeListener? _continuityChangeListener;
 
@@ -190,10 +196,19 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
 
     try {
       final package = await widget.repository.getTeacherPackage(targetThemeId);
+      final guide = await _loadTeacherGuide(
+        targetThemeId,
+        current.teacherGuideCapability,
+      );
       if (!mounted || revision != _focusRevision) return;
       setState(() {
         _selectedThemeId = targetThemeId;
-        _resourceData = _ResourceData(themes: current.themes, package: package);
+        _resourceData = _ResourceData(
+          themes: current.themes,
+          package: package,
+          teacherGuideCapability: current.teacherGuideCapability,
+          teacherGuide: guide,
+        );
       });
     } on Object {
       // Focus update is best-effort.
@@ -202,9 +217,15 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
 
   Future<_ResourceData> _load() async {
     final focusRevision = _focusRevision;
+    final teacherGuideCapability = await widget.repository
+        .getTeacherGuideCapability();
     final themes = await widget.repository.getThemes();
     if (themes.isEmpty) {
-      final data = const _ResourceData(themes: [], package: null);
+      final data = _ResourceData(
+        themes: const [],
+        package: null,
+        teacherGuideCapability: teacherGuideCapability,
+      );
       _resourceData = data;
       return data;
     }
@@ -216,7 +237,15 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
       final package = await widget.repository.getTeacherPackage(
         explicitThemeId,
       );
-      final data = _ResourceData(themes: themes, package: package);
+      final data = _ResourceData(
+        themes: themes,
+        package: package,
+        teacherGuideCapability: teacherGuideCapability,
+        teacherGuide: await _loadTeacherGuide(
+          explicitThemeId,
+          teacherGuideCapability,
+        ),
+      );
       _resourceData = data;
       return data;
     }
@@ -224,7 +253,15 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
     final resolvedThemeId = await _resolveThemeId(themes);
     final selectedThemeId = resolvedThemeId ?? themes.first.id;
     final package = await widget.repository.getTeacherPackage(selectedThemeId);
-    final data = _ResourceData(themes: themes, package: package);
+    final data = _ResourceData(
+      themes: themes,
+      package: package,
+      teacherGuideCapability: teacherGuideCapability,
+      teacherGuide: await _loadTeacherGuide(
+        selectedThemeId,
+        teacherGuideCapability,
+      ),
+    );
     _resourceData = data;
     if (_focusRevision != focusRevision) {
       unawaited(_refreshFocusTheme(_focusRevision));
@@ -234,6 +271,25 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
 
   Future<_ResourceData> _mainLoad() =>
       RuntimePerformanceTrace.measure('ResourceLibraryPage.mainLoad', _load);
+
+  Future<TeacherGuide?> _loadTeacherGuide(
+    String themeId,
+    TeacherGuideCapability capability,
+  ) async {
+    if (!capability.usable) return null;
+    final themeGuide = await widget.repository.getTeacherGuideForScope(
+      scopeType: 'theme',
+      scopeId: themeId,
+    );
+    if (themeGuide != null) return themeGuide;
+    final courseId =
+        widget.courseId ?? (await widget.repository.getCourse()).courseId;
+    if (courseId.isEmpty) return null;
+    return widget.repository.getTeacherGuideForScope(
+      scopeType: 'course',
+      scopeId: courseId,
+    );
+  }
 
   Future<void> _refreshOnActivation() async {
     final revision = ++_focusRevision;
@@ -256,11 +312,20 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
 
     try {
       final package = await widget.repository.getTeacherPackage(targetThemeId);
+      final guide = await _loadTeacherGuide(
+        targetThemeId,
+        current.teacherGuideCapability,
+      );
       if (!mounted || revision != _focusRevision) return;
       setState(() {
         _selectedThemeId = targetThemeId;
         _selectedCategory = null;
-        _resourceData = _ResourceData(themes: current.themes, package: package);
+        _resourceData = _ResourceData(
+          themes: current.themes,
+          package: package,
+          teacherGuideCapability: current.teacherGuideCapability,
+          teacherGuide: guide,
+        );
       });
     } on Object {
       // The current package remains usable when a lightweight refresh fails.
@@ -333,11 +398,17 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
     if (current != null && current.themes.any((t) => t.id == themeId)) {
       try {
         final package = await widget.repository.getTeacherPackage(themeId);
+        final guide = await _loadTeacherGuide(
+          themeId,
+          current.teacherGuideCapability,
+        );
         if (!mounted) return;
         setState(() {
           _resourceData = _ResourceData(
             themes: current.themes,
             package: package,
+            teacherGuideCapability: current.teacherGuideCapability,
+            teacherGuide: guide,
           );
         });
         return;
@@ -401,6 +472,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
     }
 
     if (widget.awaitingTextbook) {
+      _openNavigationTeacherGuideIfNeeded(data.teacherGuide);
       return AppPage(
         topTrailing: _topActions(data, loading),
         children: [
@@ -431,6 +503,16 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
               child: _Sources(sources: package.sourceReferences),
             ),
           ],
+          if (data.teacherGuideCapability.available) ...[
+            const SizedBox(height: AppSpacing.lg),
+            _TeacherGuideSection(
+              guide: data.teacherGuide,
+              repository: widget.repository,
+              notesRepository: widget.notesRepository,
+              assignmentId: widget.navigationContext?.assignmentId,
+              navigationContext: widget.navigationContext,
+            ),
+          ],
         ],
       );
     }
@@ -443,13 +525,16 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
         package.assessmentArtifacts.isNotEmpty ||
         package.assessmentTaskBindings.isNotEmpty;
     final hasSources = package.sourceReferences.isNotEmpty;
+    final hasTeacherGuide = data.teacherGuideCapability.available;
     final primary = _primaryResource(
       hasBook: hasBook,
       hasActivities: hasActivities,
       hasForms: hasForms,
       hasAssessment: hasAssessment,
       hasSources: hasSources,
+      hasTeacherGuide: hasTeacherGuide,
     );
+    _openNavigationTeacherGuideIfNeeded(data.teacherGuide);
 
     return AppPage(
       topTrailing: _topActions(data, loading),
@@ -476,7 +561,11 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
             child: _Textbook(sections: package.textbookSections),
           ),
         if (hasBook &&
-            (hasActivities || hasForms || hasAssessment || hasSources))
+            (hasActivities ||
+                hasForms ||
+                hasAssessment ||
+                hasSources ||
+                hasTeacherGuide))
           const SizedBox(height: AppSpacing.sm),
         if (hasActivities)
           _ResourceSection(
@@ -489,7 +578,8 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
                 _selectedCategory == ResourceCategory.activities,
             child: _Activities(activities: package.activities),
           ),
-        if (hasActivities && (hasForms || hasAssessment || hasSources))
+        if (hasActivities &&
+            (hasForms || hasAssessment || hasSources || hasTeacherGuide))
           const SizedBox(height: AppSpacing.sm),
         if (hasForms)
           _ResourceSection(
@@ -502,7 +592,7 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
                 _selectedCategory == ResourceCategory.forms,
             child: _Forms(forms: package.forms, repository: widget.repository),
           ),
-        if (hasForms && (hasAssessment || hasSources))
+        if (hasForms && (hasAssessment || hasSources || hasTeacherGuide))
           const SizedBox(height: AppSpacing.sm),
         if (hasAssessment)
           _ResourceSection(
@@ -516,7 +606,8 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
                 _selectedCategory == ResourceCategory.assessment,
             child: _Assessments(package: package),
           ),
-        if (hasAssessment && hasSources) const SizedBox(height: AppSpacing.sm),
+        if (hasAssessment && (hasSources || hasTeacherGuide))
+          const SizedBox(height: AppSpacing.sm),
         if (hasSources)
           _ResourceSection(
             key: ValueKey('${package.theme.id}:sources:$_sectionRevision'),
@@ -528,6 +619,19 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
                 _selectedCategory == ResourceCategory.sources,
             child: _Sources(sources: package.sourceReferences),
           ),
+        if (hasTeacherGuide) ...[
+          if (hasSources) const SizedBox(height: AppSpacing.sm),
+          _TeacherGuideSection(
+            guide: data.teacherGuide,
+            repository: widget.repository,
+            notesRepository: widget.notesRepository,
+            assignmentId: widget.navigationContext?.assignmentId,
+            navigationContext: widget.navigationContext,
+            initiallyExpanded:
+                primary == _ResourceKind.teacherGuide ||
+                _selectedCategory == ResourceCategory.teacherGuide,
+          ),
+        ],
       ],
     );
   }
@@ -556,6 +660,42 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
     });
   }
 
+  void _openNavigationTeacherGuideIfNeeded(TeacherGuide? guide) {
+    final navigation = widget.navigationContext;
+    if (guide == null ||
+        navigation?.category != ResourceCategory.teacherGuide) {
+      return;
+    }
+    final key = [
+      guide.guideId,
+      navigation?.sectionId,
+      navigation?.unitId,
+      navigation?.itemId,
+      ...?navigation?.guideItemIds,
+    ].join('|');
+    if (key == _openedNavigationGuideKey) return;
+    _openedNavigationGuideKey = key;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => TeacherGuideViewerPage(
+            repository: widget.repository,
+            scopeType: guide.scopeType,
+            scopeId: guide.scopeId,
+            guideId: guide.guideId,
+            sectionId: navigation?.sectionId,
+            unitId: navigation?.unitId,
+            itemId: navigation?.itemId,
+            guideItemIds: navigation?.guideItemIds ?? const [],
+            assignmentId: navigation?.assignmentId,
+            notesRepository: widget.notesRepository,
+          ),
+        ),
+      );
+    });
+  }
+
   Widget _topActions(_ResourceData data, bool loading) => Wrap(
     alignment: WrapAlignment.end,
     crossAxisAlignment: WrapCrossAlignment.center,
@@ -576,7 +716,14 @@ class _ResourceLibraryPageState extends State<ResourceLibraryPage> {
   );
 }
 
-enum _ResourceKind { book, activities, forms, assessment, sources }
+enum _ResourceKind {
+  book,
+  activities,
+  forms,
+  assessment,
+  sources,
+  teacherGuide,
+}
 
 _ResourceKind? _primaryResource({
   required bool hasBook,
@@ -584,20 +731,29 @@ _ResourceKind? _primaryResource({
   required bool hasForms,
   required bool hasAssessment,
   required bool hasSources,
+  required bool hasTeacherGuide,
 }) {
   if (hasBook) return _ResourceKind.book;
   if (hasActivities) return _ResourceKind.activities;
   if (hasForms) return _ResourceKind.forms;
   if (hasAssessment) return _ResourceKind.assessment;
   if (hasSources) return _ResourceKind.sources;
+  if (hasTeacherGuide) return _ResourceKind.teacherGuide;
   return null;
 }
 
 class _ResourceData {
-  const _ResourceData({required this.themes, required this.package});
+  const _ResourceData({
+    required this.themes,
+    required this.package,
+    this.teacherGuideCapability = const TeacherGuideCapability.unavailable(),
+    this.teacherGuide,
+  });
 
   final List<model.Theme> themes;
   final model.TeacherPackage? package;
+  final TeacherGuideCapability teacherGuideCapability;
+  final TeacherGuide? teacherGuide;
 }
 
 class _ThemeSelector extends StatelessWidget {
@@ -669,6 +825,63 @@ class _ResourceSection extends StatelessWidget {
       children: [child],
     ),
   );
+}
+
+class _TeacherGuideSection extends StatelessWidget {
+  const _TeacherGuideSection({
+    required this.guide,
+    required this.repository,
+    required this.notesRepository,
+    required this.assignmentId,
+    required this.navigationContext,
+    this.initiallyExpanded = true,
+  });
+
+  final TeacherGuide? guide;
+  final CourseKnowledgeRepository repository;
+  final TeacherGuideNotesRepository? notesRepository;
+  final String? assignmentId;
+  final ResourceNavigationContext? navigationContext;
+  final bool initiallyExpanded;
+
+  @override
+  Widget build(BuildContext context) {
+    final guide = this.guide;
+    return _ResourceSection(
+      key: ValueKey('${guide?.guideId ?? 'scope'}:teacher-guide'),
+      icon: Icons.menu_book_outlined,
+      title: 'Öğretmen Rehberi',
+      countLabel: guide == null
+          ? 'Bu kapsam için içerik yok'
+          : 'Yapılandırılmış rehber',
+      initiallyExpanded: initiallyExpanded,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: guide == null
+            ? const Text('Seçili kapsam için doğrulanmış rehber maddesi yok.')
+            : FilledButton.tonalIcon(
+                icon: const Icon(Icons.open_in_new),
+                label: const Text('Öğretmen Rehberini aç'),
+                onPressed: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) => TeacherGuideViewerPage(
+                      repository: repository,
+                      scopeType: guide.scopeType,
+                      scopeId: guide.scopeId,
+                      guideId: guide.guideId,
+                      sectionId: navigationContext?.sectionId,
+                      unitId: navigationContext?.unitId,
+                      itemId: navigationContext?.itemId,
+                      guideItemIds: navigationContext?.guideItemIds ?? const [],
+                      assignmentId: assignmentId,
+                      notesRepository: notesRepository,
+                    ),
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
 }
 
 class _Textbook extends StatelessWidget {

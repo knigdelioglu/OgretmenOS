@@ -148,3 +148,15 @@ cp android/key.properties.example android/key.properties
 ```
 
 `android/key.properties`, `*.jks` ve `*.keystore` Git tarafından yok sayılır.
+## Teacher Guide capability
+
+Öğretmen Rehberi, TYMM canonical kaynağından doğrulanıp runtime SQLite'a
+projeksiyonlanan optional ve ders/sınıf bağımsız bir capability'dir. Flutter
+yalnız `TeacherGuideKnowledgeRepository` üzerinden read-only runtime verisini
+okur; ilişkiler explicit canonical relation kayıtlarından gelir.
+
+Birincil yüzey `Kaynaklar` içindeki native responsive viewer'dır. Ders Planı ve
+Ders Bloğu yalnız ilgili explicit relation bulunduğunda deep-link context'i
+sağlar. Öğretmen notları canonical runtime'a yazılmaz; assignment-scoped olarak
+`teacher_state.sqlite` içinde tutulur. AI/LLM bu retrieval akışının ön koşulu
+değildir.

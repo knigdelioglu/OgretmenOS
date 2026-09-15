@@ -40,6 +40,32 @@ void main() {
     });
   });
 
+  test(
+    'teacher-guide zorunlu sync capability yoksa hedef runtimeı değiştirmez',
+    () async {
+      await _withRuntimeFixture((fixture) async {
+        final beforeManifest = await fixture.targetManifest.readAsBytes();
+        final beforeDatabase = fixture.oldDatabaseBytes;
+
+        await expectLater(
+          sync.syncRuntimePackage(
+            sync.RuntimeSyncRequest(
+              courseId: 'TDE_9',
+              sourceRoot: fixture.sourceRuntime.path,
+              targetRoot: fixture.targetRuntime.path,
+              catalogPath: fixture.catalog.path,
+              requireTeacherGuide: true,
+            ),
+          ),
+          throwsA(isA<StateError>()),
+        );
+
+        expect(await fixture.targetManifest.readAsBytes(), beforeManifest);
+        expect(await fixture.targetDatabase.readAsBytes(), beforeDatabase);
+      });
+    },
+  );
+
   test('staging validation failure hedef runtimeı değiştirmez', () async {
     await _withRuntimeFixture((fixture) async {
       final beforeManifest = await fixture.targetManifest.readAsBytes();

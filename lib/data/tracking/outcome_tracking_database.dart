@@ -10,7 +10,7 @@ class OutcomeTrackingDatabase {
   OutcomeTrackingDatabase._(this.database);
 
   static const fileName = 'ogretmen_os_teacher_state.sqlite';
-  static const schemaVersion = 5;
+  static const schemaVersion = 6;
 
   final Database database;
 
@@ -39,6 +39,9 @@ class OutcomeTrackingDatabase {
           await _createInstructionContext(db);
         } else if (oldVersion < 5) {
           await _migrateScheduleSlotsToAcademicYear(db);
+        }
+        if (oldVersion < 6) {
+          await _createTeacherGuideNotes(db);
         }
       },
     );
@@ -195,6 +198,26 @@ class OutcomeTrackingDatabase {
         planned_week_number,
         status
       )
+    ''');
+    await _createTeacherGuideNotes(db);
+  }
+
+  static Future<void> _createTeacherGuideNotes(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS assignment_teacher_guide_notes (
+        assignment_id TEXT NOT NULL,
+        guide_item_id TEXT NOT NULL,
+        note TEXT NOT NULL,
+        canonical_payload_sha256 TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (assignment_id, guide_item_id),
+        FOREIGN KEY (assignment_id) REFERENCES teaching_assignments(assignment_id)
+          ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_assignment_teacher_guide_notes_updated
+      ON assignment_teacher_guide_notes (assignment_id, updated_at, guide_item_id)
     ''');
   }
 

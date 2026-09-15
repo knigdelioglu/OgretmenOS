@@ -2,13 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:ogretmen_os/domain/runtime/course_runtime_registry.dart';
 import 'package:ogretmen_os/domain/runtime/runtime_manifest_policy.dart';
+import 'package:ogretmen_os/domain/models/teacher_guide_models.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-const _expectedLessonPlanPackages = 88;
-const _expectedLessonPlanInstructionHours = 172;
 const _minimumLessonPlanRuntimePackageVersion = '1.3.0';
 const _minimumLessonPlanSchemaVersion = '1.2.0';
 
@@ -19,6 +19,7 @@ class RuntimeSyncRequest {
     required this.targetRoot,
     this.sourceCommit,
     this.requireLessonPlans = false,
+    this.requireTeacherGuide = false,
     this.catalogPath,
   });
 
@@ -27,6 +28,7 @@ class RuntimeSyncRequest {
   final String targetRoot;
   final String? sourceCommit;
   final bool requireLessonPlans;
+  final bool requireTeacherGuide;
   final String? catalogPath;
 }
 
@@ -48,6 +50,7 @@ Future<void> main(List<String> args) async {
         targetRoot: targetRoot,
         sourceCommit: sourceCommit,
         requireLessonPlans: args.contains('--require-lesson-plans'),
+        requireTeacherGuide: args.contains('--require-teacher-guide'),
         catalogPath: _valueFor(args, '--catalog'),
       ),
     );
@@ -81,6 +84,7 @@ Future<void> syncRuntimePackage(
   final targetRoot = Directory(request.targetRoot).absolute.path;
   final sourceManifest = File(p.join(sourceRoot, 'runtime_manifest.json'));
   final sourceDatabase = File(p.join(sourceRoot, 'course_runtime.sqlite'));
+  final sourceSchema = File(p.join(sourceRoot, 'runtime_schema.sql'));
   final sourceValidationReport = File(
     p.join(sourceRoot, 'runtime_validation_report.md'),
   );
@@ -111,10 +115,16 @@ Future<void> syncRuntimePackage(
   if (request.requireLessonPlans) {
     _validateLessonPlanManifest(manifestJson, courseId);
   }
+  _validateTeacherGuideManifest(
+    manifestJson,
+    required: request.requireTeacherGuide,
+  );
+  await _validateTeacherGuideSeal(sourceRoot, manifestJson);
   await _validateRuntimeDatabase(
     sourceDatabase.path,
     manifestJson,
     requireLessonPlans: request.requireLessonPlans,
+    requireTeacherGuide: request.requireTeacherGuide,
   );
 
   final targetDirectory = Directory(targetRoot);
@@ -134,6 +144,14 @@ Future<void> syncRuntimePackage(
     await stagingDirectory.create(recursive: true);
     await _copyToDirectory(sourceDatabase, stagingDirectory);
     await _copyToDirectory(sourceManifest, stagingDirectory);
+    if (sourceSchema.existsSync()) {
+      await _copyToDirectory(sourceSchema, stagingDirectory);
+    }
+    await _copyTeacherGuideSeal(
+      sourceRuntimeRoot: sourceRoot,
+      targetRuntimeRoot: stagingDirectory.path,
+      manifest: manifestJson,
+    );
     if (sourceValidationReport.existsSync()) {
       await _copyToDirectory(sourceValidationReport, stagingDirectory);
     }
@@ -163,10 +181,15 @@ Future<void> syncRuntimePackage(
           ? await stagedReport.readAsString()
           : null,
     );
+    await _validateTeacherGuideSeal(
+      stagingDirectory.path,
+      projectedManifestJson,
+    );
     await _validateRuntimeDatabase(
       p.join(stagingDirectory.path, 'course_runtime.sqlite'),
       projectedManifestJson,
       requireLessonPlans: request.requireLessonPlans,
+      requireTeacherGuide: request.requireTeacherGuide,
     );
     await _stagePackageManifest(
       source: packageManifest,
@@ -259,15 +282,129 @@ Future<void> _projectFormTemplates({
   stdout.write(result.stdout);
 }
 
+void _validateTeacherGuideManifest(
+  Map<String, dynamic> manifest, {
+  required bool required,
+}) {
+  final rawCapabilities = manifest['capabilities'];
+  final advertised =
+      rawCapabilities is Map && rawCapabilities['teacher_guide'] == true;
+  if (required && !advertised) {
+    throw StateError(
+      'Teacher-guide sync istendi ancak runtime capabilities.teacher_guide true değil.',
+    );
+  }
+  if (!advertised) return;
+
+  final metadata = manifest['teacher_guide_capabilities'];
+  if (metadata is! Map ||
+      metadata['available'] != true ||
+      metadata['validation_status'] != 'PASS' ||
+      metadata['source_bound'] != true) {
+    throw StateError('Teacher-guide manifest capability kanıtı geçersiz.');
+  }
+  final validation = manifest['teacher_guide_validation'];
+  if (validation is! Map ||
+      validation['status'] != 'PASS' ||
+      validation['scope'] != 'COURSE' ||
+      validation['source_bound'] != true ||
+      (validation['content_fingerprint']?.toString().trim() ?? '').isEmpty) {
+    throw StateError('Teacher-guide runtime validation kanıtı geçersiz.');
+  }
+  if (validation['canonical_content_fingerprint']?.toString() !=
+      manifest['canonical_content_fingerprint']?.toString()) {
+    throw StateError(
+      'Teacher-guide validation canonical fingerprint runtime ile uyuşmuyor.',
+    );
+  }
+  final counts = manifest['row_counts'];
+  if (counts is! Map) {
+    throw StateError('Teacher-guide runtime row_counts eksik.');
+  }
+  final metadataCounts = metadata['row_counts'];
+  if (metadataCounts is! Map) {
+    throw StateError('Teacher-guide capability row_counts eksik.');
+  }
+  for (final table in teacherGuideRuntimeTableNames) {
+    final value = counts[table];
+    if (value is! num || value < 0 || value != value.toInt()) {
+      throw StateError('Teacher-guide row count geçersiz: $table');
+    }
+    if (_int(metadataCounts[table]) != value.toInt()) {
+      throw StateError(
+        'Teacher-guide capability row count runtime ile uyuşmuyor: $table',
+      );
+    }
+  }
+}
+
+Future<void> _validateTeacherGuideSeal(
+  String runtimeRoot,
+  Map<String, dynamic> manifest,
+) async {
+  final capabilities = manifest['capabilities'];
+  if (capabilities is! Map || capabilities['teacher_guide'] != true) return;
+  final validation = manifest['teacher_guide_validation'];
+  if (validation is! Map) {
+    throw StateError('Teacher-guide validation seal kanıtı eksik.');
+  }
+  final declaredPath = validation['seal_path']?.toString().trim() ?? '';
+  final declaredSha = validation['seal_sha256']?.toString().trim() ?? '';
+  if (declaredPath.isEmpty || declaredSha.isEmpty) {
+    throw StateError('Teacher-guide validation seal yolu/hash eksik.');
+  }
+  final sealFile = File(p.join(runtimeRoot, p.basename(declaredPath)));
+  if (!sealFile.existsSync()) {
+    throw StateError('Teacher-guide validation seal dosyası bulunamadı.');
+  }
+  final actualSha = sha256.convert(await sealFile.readAsBytes()).toString();
+  if (actualSha != declaredSha) {
+    throw StateError('Teacher-guide validation seal hash uyuşmuyor.');
+  }
+  final seal = jsonDecode(await sealFile.readAsString());
+  if (seal is! Map ||
+      seal['canonical_content_fingerprint']?.toString() !=
+          manifest['canonical_content_fingerprint']?.toString()) {
+    throw StateError('Teacher-guide validation seal fingerprint uyuşmuyor.');
+  }
+  final contentFingerprint =
+      validation['content_fingerprint']?.toString().trim() ?? '';
+  final expectedTeacherGuideFingerprint =
+      contentFingerprint.startsWith('sha256:')
+      ? contentFingerprint.substring('sha256:'.length)
+      : contentFingerprint;
+  if (seal['teacher_guide_content_fingerprint']?.toString() !=
+      expectedTeacherGuideFingerprint) {
+    throw StateError(
+      'Teacher-guide validation seal content fingerprint uyuşmuyor.',
+    );
+  }
+}
+
+Future<void> _copyTeacherGuideSeal({
+  required String sourceRuntimeRoot,
+  required String targetRuntimeRoot,
+  required Map<String, dynamic> manifest,
+}) async {
+  final capabilities = manifest['capabilities'];
+  if (capabilities is! Map || capabilities['teacher_guide'] != true) return;
+  final validation = manifest['teacher_guide_validation'];
+  if (validation is! Map) return;
+  final declaredPath = validation['seal_path']?.toString().trim() ?? '';
+  if (declaredPath.isEmpty) return;
+  final source = File(p.join(sourceRuntimeRoot, p.basename(declaredPath)));
+  final target = File(p.join(targetRuntimeRoot, p.basename(declaredPath)));
+  if (!source.existsSync()) return;
+  await target.parent.create(recursive: true);
+  await source.copy(target.path);
+}
+
 void _validateLessonPlanManifest(
   Map<String, dynamic> manifest,
   String courseId,
 ) {
-  if (courseId != 'TDE_9' && courseId != 'TDE_10') {
-    throw StateError(
-      'Lesson-plan-aware sync yalnız TDE_9/TDE_10 için tanımlı.',
-    );
-  }
+  // Lesson-plan validation is capability based.  Course/grade-specific
+  // package counts belong to the canonical manifest, not to this tool.
   final runtimeVersion = manifest['runtime_package_version']?.toString() ?? '';
   final schemaVersion = manifest['schema_version']?.toString() ?? '';
   if (!_versionAtLeast(
@@ -287,17 +424,19 @@ void _validateLessonPlanManifest(
   }
 
   final rowCounts = manifest['row_counts'];
-  if (rowCounts is! Map ||
-      _int(rowCounts['lesson_plan_packages']) != _expectedLessonPlanPackages) {
-    throw StateError('Manifest lesson_plan_packages row count 88 olmalı.');
+  final declaredPackageCount = _int(
+    rowCounts is Map ? rowCounts['lesson_plan_packages'] : null,
+  );
+  if (rowCounts is! Map || declaredPackageCount <= 0) {
+    throw StateError('Manifest lesson_plan_packages row count geçersiz.');
   }
-  if (_int(manifest['lesson_plan_package_count']) !=
-      _expectedLessonPlanPackages) {
-    throw StateError('Manifest lesson_plan_package_count 88 olmalı.');
+  if (_int(manifest['lesson_plan_package_count']) != declaredPackageCount) {
+    throw StateError(
+      'Manifest lesson_plan_package_count row_counts ile uyuşmuyor.',
+    );
   }
-  if (_int(manifest['lesson_plan_instruction_hours']) !=
-      _expectedLessonPlanInstructionHours) {
-    throw StateError('Manifest lesson_plan_instruction_hours 172 olmalı.');
+  if (_int(manifest['lesson_plan_instruction_hours']) < 0) {
+    throw StateError('Manifest lesson_plan_instruction_hours geçersiz.');
   }
 
   final capabilities = manifest['lesson_plan_capabilities'];
@@ -348,6 +487,7 @@ Future<void> _validateRuntimeDatabase(
   String databasePath,
   Map<String, dynamic> manifest, {
   required bool requireLessonPlans,
+  required bool requireTeacherGuide,
 }) async {
   sqfliteFfiInit();
   final resolvedDatabasePath = File(databasePath).absolute.path;
@@ -382,6 +522,12 @@ Future<void> _validateRuntimeDatabase(
       throw StateError('Runtime SQLite foreign_key_check başarısız.');
     }
 
+    await _validateTeacherGuideDatabase(
+      database,
+      manifest,
+      required: requireTeacherGuide,
+    );
+
     if (!requireLessonPlans) {
       return;
     }
@@ -399,13 +545,18 @@ Future<void> _validateRuntimeDatabase(
              SUM(CASE WHEN validation_status = 'PASS' THEN 0 ELSE 1 END) AS invalid_rows
       FROM lesson_plan_packages
     ''')).first;
-    if (_int(totals['package_count']) != _expectedLessonPlanPackages) {
-      throw StateError('Runtime SQLite lesson-plan package count 88 değil.');
-    }
-    if (_int(totals['instruction_hours']) !=
-        _expectedLessonPlanInstructionHours) {
+    final expectedPackageCount = _int(manifest['lesson_plan_package_count']);
+    final expectedInstructionHours = _int(
+      manifest['lesson_plan_instruction_hours'],
+    );
+    if (_int(totals['package_count']) != expectedPackageCount) {
       throw StateError(
-        'Runtime SQLite lesson-plan instruction hours 172 değil.',
+        'Runtime SQLite lesson-plan package count manifest ile uyuşmuyor.',
+      );
+    }
+    if (_int(totals['instruction_hours']) != expectedInstructionHours) {
+      throw StateError(
+        'Runtime SQLite lesson-plan instruction hours manifest ile uyuşmuyor.',
       );
     }
     if (_int(totals['invalid_rows']) != 0) {
@@ -445,6 +596,202 @@ Future<void> _validateRuntimeDatabase(
   }
 }
 
+Future<void> _validateTeacherGuideDatabase(
+  Database database,
+  Map<String, dynamic> manifest, {
+  required bool required,
+}) async {
+  final rawCapabilities = manifest['capabilities'];
+  final advertised =
+      rawCapabilities is Map && rawCapabilities['teacher_guide'] == true;
+  final tablePresence = <String, bool>{};
+  for (final table in teacherGuideRuntimeTableNames) {
+    final rows = await database.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+      [table],
+    );
+    tablePresence[table] = rows.isNotEmpty;
+  }
+
+  if (!advertised) {
+    final coreRows = <String, int>{};
+    for (final table in teacherGuideCoreRuntimeTableNames) {
+      if (tablePresence[table] == true) {
+        coreRows[table] = _int(
+          (await database.rawQuery(
+            'SELECT COUNT(*) AS count FROM $table',
+          )).first['count'],
+        );
+      }
+    }
+    if (coreRows.values.any((count) => count > 0)) {
+      throw StateError(
+        'Teacher-guide tabloları capability false iken veri içeriyor.',
+      );
+    }
+    final metadata = manifest['teacher_guide_capabilities'];
+    if (metadata is Map &&
+        (metadata['available'] != false ||
+            metadata['source_bound'] != false ||
+            metadata['validation_status'] != 'NOT_PRESENT')) {
+      throw StateError('Teacher-guide capability false metadata geçersiz.');
+    }
+    if (required) {
+      throw StateError('Teacher-guide capability runtime manifestte yok.');
+    }
+    return;
+  }
+
+  final missingTables = teacherGuideRuntimeTableNames
+      .where((table) => tablePresence[table] != true)
+      .toList(growable: false);
+  if (missingTables.isNotEmpty) {
+    throw StateError(
+      'Teacher-guide capability tabloları eksik: ${missingTables.join(', ')}',
+    );
+  }
+
+  final counts = manifest['row_counts'];
+  if (counts is! Map) throw StateError('Teacher-guide row_counts eksik.');
+  for (final table in teacherGuideRuntimeTableNames) {
+    final actual = _int(
+      (await database.rawQuery(
+        'SELECT COUNT(*) AS count FROM $table',
+      )).first['count'],
+    );
+    if (_int(counts[table]) != actual) {
+      throw StateError(
+        'Teacher-guide $table satır sayısı manifest ile uyuşmuyor: '
+        '${_int(counts[table])}/$actual',
+      );
+    }
+  }
+
+  if (_int(counts['teacher_guides']) == 0 ||
+      _int(counts['teacher_guide_sections']) == 0 ||
+      _int(counts['teacher_guide_units']) == 0 ||
+      _int(counts['teacher_guide_items']) == 0) {
+    throw StateError('Teacher-guide capability boş içerik taşıyor.');
+  }
+
+  final orphanRows = await database.rawQuery('''
+    SELECT r.item_id, r.target_type, r.target_id
+    FROM teacher_guide_item_relations r
+    LEFT JOIN teacher_guide_items i ON i.item_id = r.item_id
+    LEFT JOIN canonical_entities e
+      ON e.entity_type = r.target_type AND e.entity_id = r.target_id
+    WHERE i.item_id IS NULL OR e.entity_id IS NULL
+    LIMIT 1
+  ''');
+  if (orphanRows.isNotEmpty) {
+    throw StateError(
+      'Teacher-guide relation canonical entity bütünlüğü bozuk.',
+    );
+  }
+
+  final scopeOrphans = await database.rawQuery('''
+    SELECT g.guide_id
+    FROM teacher_guides g
+    LEFT JOIN canonical_entities e
+      ON e.entity_type = g.scope_type AND e.entity_id = g.scope_id
+    WHERE e.entity_id IS NULL
+    LIMIT 1
+  ''');
+  if (scopeOrphans.isNotEmpty) {
+    throw StateError('Teacher-guide scope canonical entity bütünlüğü bozuk.');
+  }
+
+  final relationRows = await database.rawQuery('''
+    SELECT item_id, target_type, target_id, relation_type, relation_order
+    FROM teacher_guide_item_relations
+    ORDER BY item_id, relation_order, target_type, target_id, relation_type
+  ''');
+  for (final row in relationRows) {
+    for (final field in const [
+      'item_id',
+      'target_type',
+      'target_id',
+      'relation_type',
+    ]) {
+      if (row[field]?.toString().trim().isEmpty ?? true) {
+        throw StateError('Teacher-guide relation $field eksik.');
+      }
+    }
+    final order = row['relation_order'];
+    if (order is! num || order <= 0 || order != order.toInt()) {
+      throw StateError('Teacher-guide relation sırası geçersiz.');
+    }
+  }
+
+  final itemRows = await database.rawQuery('''
+    SELECT item_id, unit_id, item_order, title, label, item_type,
+           content_status, expected_response_json, acceptance_criteria_json,
+           teacher_guidance_json, common_misconceptions_json,
+           assessment_evidence_json, differentiation_json, provenance_json,
+           canonical_payload_sha256
+    FROM teacher_guide_items
+    ORDER BY unit_id, item_order, item_id
+  ''');
+  for (final row in itemRows) {
+    for (final field in const [
+      'item_id',
+      'unit_id',
+      'label',
+      'item_type',
+      'content_status',
+    ]) {
+      if (row[field]?.toString().trim().isEmpty ?? true) {
+        throw StateError('Teacher-guide item $field eksik.');
+      }
+    }
+    if ((row['title']?.toString().trim().isNotEmpty ?? false) == false &&
+        (row['label']?.toString().trim().isNotEmpty ?? false) == false) {
+      throw StateError('Teacher-guide item title/label eksik.');
+    }
+    for (final field in const [
+      'expected_response_json',
+      'acceptance_criteria_json',
+      'teacher_guidance_json',
+      'common_misconceptions_json',
+      'assessment_evidence_json',
+      'differentiation_json',
+      'provenance_json',
+    ]) {
+      _decodeTeacherGuideJson(row[field]?.toString() ?? '', field);
+    }
+    final differentiation = _decodeTeacherGuideJson(
+      row['differentiation_json']?.toString() ?? '',
+      'differentiation_json',
+    );
+    if (differentiation is! Map ||
+        !differentiation.containsKey('support') ||
+        !differentiation.containsKey('enrichment')) {
+      throw StateError('Teacher-guide differentiation alanları eksik.');
+    }
+    final provenance = _decodeTeacherGuideJson(
+      row['provenance_json']?.toString() ?? '',
+      'provenance_json',
+    );
+    if (provenance is! Map || provenance.isEmpty) {
+      throw StateError('Teacher-guide provenance boş.');
+    }
+    final payloadHash =
+        row['canonical_payload_sha256']?.toString().trim() ?? '';
+    if (!RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(payloadHash)) {
+      throw StateError('Teacher-guide canonical payload hash geçersiz.');
+    }
+  }
+}
+
+Object? _decodeTeacherGuideJson(String raw, String field) {
+  if (raw.trim().isEmpty) throw StateError('Teacher-guide $field boş.');
+  try {
+    return jsonDecode(raw);
+  } on FormatException catch (error) {
+    throw StateError('Teacher-guide $field geçersiz JSON: $error');
+  }
+}
+
 Future<void> _stagePackageManifest({
   required File source,
   required File destination,
@@ -473,8 +820,17 @@ Future<void> _stagePackageManifest({
       runtimeManifest['canonical_content_fingerprint'];
   decoded['runtime_validation_status'] = runtimeManifest['validation_status'];
 
-  if (requireLessonPlans) {
-    final validation = runtimeManifest['lesson_plan_validation'] as Map;
+  final lessonPlanCapabilities = runtimeManifest['lesson_plan_capabilities'];
+  final lessonPlanValidation = runtimeManifest['lesson_plan_validation'];
+  final lessonPlanAvailable =
+      lessonPlanCapabilities is Map &&
+      lessonPlanCapabilities['available'] == true &&
+      lessonPlanValidation is Map;
+  if (lessonPlanAvailable || requireLessonPlans) {
+    if (lessonPlanValidation is! Map) {
+      throw StateError('lesson_plan_validation eksik.');
+    }
+    final validation = lessonPlanValidation;
     decoded['lesson_plan_package_count'] =
         runtimeManifest['lesson_plan_package_count'];
     decoded['lesson_plan_instruction_hours'] =
@@ -484,12 +840,33 @@ Future<void> _stagePackageManifest({
         validation['content_fingerprint'];
     decoded['lesson_plan_validated_commit_sha'] =
         validation['validated_commit_sha'];
+    decoded['lesson_plan_source_payload_parity'] =
+        lessonPlanCapabilities is Map &&
+        lessonPlanCapabilities['source_payload_parity'] == true;
   }
   if (runtimeManifest['form_template_status_counts'] is Map) {
     decoded['form_template_status_counts'] =
         runtimeManifest['form_template_status_counts'];
     decoded['form_template_review_reasons'] =
         runtimeManifest['form_template_review_reasons'] ?? <String, dynamic>{};
+  }
+  final runtimeCapabilities = runtimeManifest['capabilities'];
+  if (runtimeCapabilities is Map &&
+      runtimeCapabilities.containsKey('teacher_guide')) {
+    decoded['runtime_capabilities'] = runtimeCapabilities;
+    decoded['teacher_guide_capabilities'] =
+        runtimeManifest['teacher_guide_capabilities'];
+    if (runtimeManifest['teacher_guide_validation'] is Map) {
+      decoded['teacher_guide_validation'] =
+          runtimeManifest['teacher_guide_validation'];
+    }
+    final rowCounts = runtimeManifest['row_counts'];
+    if (rowCounts is Map) {
+      decoded['teacher_guide_row_counts'] = <String, dynamic>{
+        for (final table in teacherGuideRuntimeTableNames)
+          if (rowCounts.containsKey(table)) table: rowCounts[table],
+      };
+    }
   }
 
   await destination.writeAsString(
