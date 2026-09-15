@@ -1,0 +1,44 @@
+name: TMP7 Commit Validated Teacher Guide Fix
+
+on:
+  push:
+    branches:
+      - fix/teacher-guide-note-state
+    paths:
+      - .github/workflows/tmp7-commit-validated-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - run: |
+          python3 tool/tmp_teacher_guide_note_fix.py
+          python3 tool/tmp_teacher_guide_note_lint_fix.py
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+      - run: dart format lib/features/resources/teacher_guide_viewer_page.dart test/teacher_guide_viewer_test.dart
+      - run: git diff --check
+      - name: Commit only validated production/test changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            lib/features/resources/teacher_guide_viewer_page.dart \
+            test/teacher_guide_viewer_test.dart \
+            tool/rebuild_curriculum_only_runtimes.py \
+            .github/workflows/flutter-ci.yml \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json
+          git diff --cached --check
+          git commit -m 'fix: preserve teacher guide note identity and runtime CI truth'
+          git push origin HEAD:fix/teacher-guide-note-state
