@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
-"""Project TYMM Teacher Guide Pedagogy V2 overlays into the existing runtime schema.
+"""Project TYMM Teacher Guide V2.2 pedagogy onto ÖğretmenOS' canonical SQLite.
 
-The ÖğretmenOS app intentionally reads only the canonical SQLite runtime. This
-compatibility projector keeps that boundary intact by materializing validated
-`TYMM_TEACHER_GUIDE_PEDAGOGY_OVERLAY` documents as synthetic teacher-guide
-units/items in the existing generic teacher-guide tables.
-
-No Flutter-side JSON/source-file access is introduced.
+The canonical task/question rows already embedded in ÖğretmenOS remain the single
+source of truth.  This projector adds one synthetic pedagogy block per canonical
+unit for TEMA_02..04, using the vendored V2.2 section/phase profiles.  It never
+re-creates task cards, so answers, relations, deep links and search stay bound to
+the verified canonical runtime.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import re
 import sqlite3
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, Iterable
 
-OVERLAY_TYPE = "TYMM_TEACHER_GUIDE_PEDAGOGY_OVERLAY"
-SUPPORTED_OVERLAY_VERSIONS = {"2.0.0", "2.1.0", "2.2.0"}
-PROJECTION_VERSION = "1.1.0+pedagogy-v2"
+PROJECTION_VERSION = "1.2.0+pedagogy-v2.2-profile"
+ARCHITECTURE_VERSION = "2.2.0"
 SYNTHETIC_UNIT_PREFIX = "__pedv2_unit__"
-SYNTHETIC_BLOCK_PREFIX = "__pedv2_block__"
-SYNTHETIC_TASK_PREFIX = "__pedv2_task__"
+SYNTHETIC_ITEM_PREFIX = "__pedv2_block__"
+PROFILE_SOURCE_ID = "TYMM_TEACHER_GUIDE_PEDAGOGY_PROFILE"
 TEACHER_TABLES = (
     "canonical_entities",
     "teacher_guides",
@@ -31,6 +31,32 @@ TEACHER_TABLES = (
     "teacher_guide_items",
     "teacher_guide_item_relations",
 )
+PROFILE_FIELDS = (
+    "teacher_moves",
+    "follow_up_questions",
+    "misconception_interventions",
+    "board_notes",
+    "assessment_look_fors",
+    "support",
+    "enrichment",
+    "source_limitations",
+)
+FIELD_CAPS = {
+    "teacher_moves": 4,
+    "follow_up_questions": 4,
+    "misconception_interventions": 3,
+    "board_notes": 2,
+    "assessment_look_fors": 4,
+    "support": 2,
+    "enrichment": 2,
+    "source_limitations": 99,
+}
+STOPWORDS = {
+    "ve", "veya", "ile", "icin", "bir", "bu", "su", "da", "de", "mi", "mu",
+    "metin", "gorev", "ogrenci", "ogrencinin", "olarak", "uzerinden", "gibi",
+    "daha", "yalniz", "sonra", "once", "kendi", "ayni", "ise",
+}
+TR_MAP = str.maketrans({"ç": "c", "ğ": "g", "ı": "i", "ö": "o", "ş": "s", "ü": "u"})
 
 
 class ProjectionError(ValueError):
@@ -38,13 +64,7 @@ class ProjectionError(ValueError):
 
 
 def compact_json(value: Any) -> str:
-    return json.dumps(
-        value,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-        allow_nan=False,
-    )
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
 
 def sha256_bytes(value: bytes) -> str:
@@ -65,131 +85,123 @@ def read_json(path: Path) -> dict[str, Any]:
     return value
 
 
-def require_text(value: Any, field: str) -> str:
-    if not isinstance(value, str) or not value.strip():
-        raise ProjectionError(f"TEXT_REQUIRED:{field}")
-    return value.strip()
-
-
-def string_list(value: Any, field: str, *, required: bool = False) -> list[str]:
-    if value is None:
-        if required:
-            raise ProjectionError(f"LIST_REQUIRED:{field}")
-        return []
-    if not isinstance(value, list):
-        raise ProjectionError(f"LIST_REQUIRED:{field}")
-    result: list[str] = []
-    for entry in value:
-        if not isinstance(entry, str) or not entry.strip():
-            raise ProjectionError(f"NONEMPTY_STRING_LIST_REQUIRED:{field}")
-        result.append(entry.strip())
-    if required and not result:
-        raise ProjectionError(f"NONEMPTY_LIST_REQUIRED:{field}")
-    return result
-
-
-def differentiation(value: Any, field: str) -> dict[str, Any]:
-    if value is None:
-        return {"support": [], "enrichment": []}
-    if not isinstance(value, dict):
-        raise ProjectionError(f"DIFFERENTIATION_OBJECT_REQUIRED:{field}")
-    support = value.get("support", [])
-    enrichment = value.get("enrichment", [])
-    if not isinstance(support, list) or not isinstance(enrichment, list):
-        raise ProjectionError(f"DIFFERENTIATION_LISTS_REQUIRED:{field}")
-    return {"support": support, "enrichment": enrichment}
-
-
-def overlay_files(course_root: Path) -> list[Path]:
-    result: list[Path] = []
-    guide_root = course_root / "teacher_guide"
-    if not guide_root.is_dir():
-        return result
-    for path in sorted(guide_root.glob("TEMA_*/pedagogy_v2.json")):
-        value = read_json(path)
-        if value.get("document_type") == OVERLAY_TYPE:
-            result.append(path)
-    return result
-
-
 def table_exists(db: sqlite3.Connection, name: str) -> bool:
-    return (
-        db.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=? LIMIT 1",
-            (name,),
-        ).fetchone()
-        is not None
-    )
+    return db.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=? LIMIT 1", (name,)
+    ).fetchone() is not None
 
 
 def count(db: sqlite3.Connection, table: str) -> int:
     return int(db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
 
 
+def unique(values: Iterable[str]) -> list[str]:
+    result: list[str] = []
+    for value in values:
+        value = value.strip()
+        if value and value not in result:
+            result.append(value)
+    return result
+
+
+def normalize_tokens(value: str) -> set[str]:
+    text = value.casefold().translate(TR_MAP)
+    tokens = set(re.findall(r"[a-z0-9]+", text))
+    return {token for token in tokens if len(token) >= 3 and token not in STOPWORDS}
+
+
+def classify_phase(section_type: str, unit_title: str) -> str:
+    if section_type == "THEME_OPENING":
+        return "opening"
+    if section_type == "THEME_ASSESSMENT":
+        return "assessment"
+    title = unit_title.casefold()
+    if any(key in title for key in ("yönet", "hazır", "planla")):
+        return "manage"
+    if any(key in title for key in ("değerl", "yansıt", "öz değerlend", "kontrol")):
+        return "reflect"
+    if section_type in {"SPEAKING", "WRITING"}:
+        return "analyze_apply"
+    if any(key in title for key in ("çözüm", "kural", "uygula", "gerçekleştir")):
+        return "analyze_apply"
+    return "meaning"
+
+
+def phase_hint(text: str) -> str | None:
+    norm = text.casefold()
+    if any(key in norm for key in ("tahmin", "strateji", "hazır", "amaç", "ön bilgi", "planla")):
+        return "manage"
+    if any(key in norm for key in ("öz değerlend", "geri bildirim", "revizyon", "yansıt", "değerlendir")):
+        return "reflect"
+    if any(key in norm for key in ("çözüm", "yapı", "üslup", "işlev", "uygula", "ürün", "taslak", "performans")):
+        return "analyze_apply"
+    if any(key in norm for key in ("konu", "tema", "ileti", "anlam", "yorum", "çıkarım", "soru")):
+        return "meaning"
+    return None
+
+
+def lower_first(text: str) -> str:
+    return text[:1].lower() + text[1:] if text else text
+
+
+def contextual_fallback(field: str, phase: str, profile: dict[str, Any], anchor: str) -> str:
+    values = profile.get(field)
+    if not isinstance(values, list) or not values:
+        raise ProjectionError(f"MISSING_PHASE_PROFILE:{phase}:{field}")
+    base = str(values[0]).strip()
+    if field == "teacher_moves":
+        return f"“{anchor}” görevinde {lower_first(base)}"
+    if field == "follow_up_questions":
+        return f"“{anchor}” için: {base}"
+    if field == "misconception_interventions":
+        return f"“{anchor}” sırasında {lower_first(base)}"
+    if field == "assessment_look_fors":
+        return f"“{anchor}” için ölçmede: {lower_first(base)}"
+    if field == "support":
+        return f"“{anchor}” için destek: {lower_first(base)}"
+    if field == "enrichment":
+        return f"“{anchor}” için zenginleştirme: {lower_first(base)}"
+    return base
+
+
 def delete_previous_projection(db: sqlite3.Connection) -> None:
-    unit_rows = db.execute(
-        "SELECT unit_id FROM teacher_guide_units WHERE unit_id LIKE ?",
-        (f"{SYNTHETIC_UNIT_PREFIX}%",),
-    ).fetchall()
-    unit_ids = [str(row[0]) for row in unit_rows]
+    unit_ids = [
+        str(row[0])
+        for row in db.execute(
+            "SELECT unit_id FROM teacher_guide_units WHERE unit_id LIKE ?",
+            (f"{SYNTHETIC_UNIT_PREFIX}%",),
+        )
+    ]
     if not unit_ids:
         return
     placeholders = ",".join("?" for _ in unit_ids)
-    item_rows = db.execute(
-        f"SELECT item_id FROM teacher_guide_items WHERE unit_id IN ({placeholders})",
-        unit_ids,
-    ).fetchall()
-    item_ids = [str(row[0]) for row in item_rows]
-    if item_ids:
-        item_placeholders = ",".join("?" for _ in item_ids)
-        db.execute(
-            f"DELETE FROM teacher_guide_item_relations "
-            f"WHERE item_id IN ({item_placeholders})",
-            item_ids,
-        )
-        db.execute(
-            f"DELETE FROM teacher_guide_items WHERE item_id IN ({item_placeholders})",
-            item_ids,
-        )
-    db.execute(
-        f"DELETE FROM teacher_guide_units WHERE unit_id IN ({placeholders})",
-        unit_ids,
-    )
-
-
-def section_ids(db: sqlite3.Connection) -> set[str]:
-    return {
-        str(row[0])
-        for row in db.execute("SELECT section_id FROM teacher_guide_sections")
-    }
-
-
-def canonical_item_ids(db: sqlite3.Connection) -> set[str]:
-    return {
+    item_ids = [
         str(row[0])
         for row in db.execute(
-            "SELECT item_id FROM teacher_guide_items WHERE unit_id NOT LIKE ?",
-            (f"{SYNTHETIC_UNIT_PREFIX}%",),
+            f"SELECT item_id FROM teacher_guide_items WHERE unit_id IN ({placeholders})",
+            unit_ids,
         )
-    }
+    ]
+    if item_ids:
+        item_placeholders = ",".join("?" for _ in item_ids)
+        db.execute(f"DELETE FROM teacher_guide_item_relations WHERE item_id IN ({item_placeholders})", item_ids)
+        db.execute(f"DELETE FROM teacher_guide_items WHERE item_id IN ({item_placeholders})", item_ids)
+    db.execute(f"DELETE FROM teacher_guide_units WHERE unit_id IN ({placeholders})", unit_ids)
 
 
-def source_relations(
-    db: sqlite3.Connection, source_item_refs: Iterable[str]
-) -> list[tuple[str, str, str]]:
+def source_relations(db: sqlite3.Connection, source_item_refs: Iterable[str]) -> list[tuple[str, str, str]]:
     result: list[tuple[str, str, str]] = []
     seen: set[tuple[str, str, str]] = set()
     for item_id in source_item_refs:
-        rows = db.execute(
+        for target_type, target_id, relation_type in db.execute(
             """
             SELECT target_type, target_id, relation_type
             FROM teacher_guide_item_relations
-            WHERE item_id = ?
+            WHERE item_id=?
             ORDER BY relation_order, target_type, target_id, relation_type
             """,
             (item_id,),
-        )
-        for target_type, target_id, relation_type in rows:
+        ):
             key = (str(target_type), str(target_id), str(relation_type))
             if key not in seen:
                 seen.add(key)
@@ -198,23 +210,12 @@ def source_relations(
 
 
 def item_payload_hash(
-    *,
-    item_id: str,
-    unit_id: str,
-    item_order: int,
-    title: str | None,
-    label: str,
-    item_type: str,
-    page_locator: str | None,
-    source_locator: str | None,
-    content_status: str,
-    expected_response: Any,
-    acceptance_criteria: Any,
-    teacher_guidance: Any,
-    common_misconceptions: Any,
-    assessment_evidence: Any,
-    differentiation_value: dict[str, Any],
-    provenance: dict[str, Any],
+    *, item_id: str, unit_id: str, item_order: int, title: str | None,
+    label: str, item_type: str, page_locator: str | None,
+    source_locator: str | None, content_status: str,
+    expected_response: Any, acceptance_criteria: Any, teacher_guidance: Any,
+    common_misconceptions: Any, assessment_evidence: Any,
+    differentiation_value: Any, provenance: Any,
     relations: list[tuple[str, str, str]],
 ) -> str:
     payload = {
@@ -235,53 +236,33 @@ def item_payload_hash(
         "differentiation": differentiation_value,
         "provenance": provenance,
         "relations": [
-            {
-                "target_type": target_type,
-                "target_id": target_id,
-                "relation_type": relation_type,
-                "order": order,
-            }
-            for order, (target_type, target_id, relation_type) in enumerate(
-                relations, start=1
-            )
+            {"target_type": t, "target_id": i, "relation_type": r, "order": order}
+            for order, (t, i, r) in enumerate(relations, start=1)
         ],
     }
     return sha256_bytes(compact_json(payload).encode("utf-8"))
 
 
 def insert_item(
-    db: sqlite3.Connection,
-    *,
-    item_id: str,
-    unit_id: str,
-    item_order: int,
-    title: str | None,
-    label: str,
-    item_type: str,
-    page_locator: str | None,
-    source_locator: str | None,
-    content_status: str,
-    expected_response: Any,
-    acceptance_criteria: Any,
-    teacher_guidance: Any,
-    common_misconceptions: Any,
-    assessment_evidence: Any,
-    differentiation_value: dict[str, Any],
-    provenance: dict[str, Any],
+    db: sqlite3.Connection, *, item_id: str, unit_id: str, title: str,
+    page_locator: str | None, source_locator: str, content_status: str,
+    expected_response: Any, teacher_guidance: Any,
+    common_misconceptions: Any, assessment_evidence: Any,
+    differentiation_value: Any, provenance: Any,
     relations: list[tuple[str, str, str]],
 ) -> None:
     payload_hash = item_payload_hash(
         item_id=item_id,
         unit_id=unit_id,
-        item_order=item_order,
+        item_order=1,
         title=title,
-        label=label,
-        item_type=item_type,
+        label="Öğretmen için V2.2 pedagojik uygulama notları",
+        item_type="ÖĞRETMEN_REHBERİ_V2_2",
         page_locator=page_locator,
         source_locator=source_locator,
         content_status=content_status,
         expected_response=expected_response,
-        acceptance_criteria=acceptance_criteria,
+        acceptance_criteria=[],
         teacher_guidance=teacher_guidance,
         common_misconceptions=common_misconceptions,
         assessment_evidence=assessment_evidence,
@@ -292,283 +273,258 @@ def insert_item(
     db.execute(
         """
         INSERT INTO teacher_guide_items(
-            item_id, unit_id, item_order, title, label, item_type,
-            page_locator, source_locator, content_status,
-            expected_response_json, acceptance_criteria_json,
-            teacher_guidance_json, common_misconceptions_json,
-            assessment_evidence_json, differentiation_json,
-            provenance_json, canonical_payload_sha256
+          item_id, unit_id, item_order, title, label, item_type,
+          page_locator, source_locator, content_status,
+          expected_response_json, acceptance_criteria_json, teacher_guidance_json,
+          common_misconceptions_json, assessment_evidence_json,
+          differentiation_json, provenance_json, canonical_payload_sha256
         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """,
         (
-            item_id,
-            unit_id,
-            item_order,
-            title,
-            label,
-            item_type,
-            page_locator,
-            source_locator,
-            content_status,
-            compact_json(expected_response),
-            compact_json(acceptance_criteria),
-            compact_json(teacher_guidance),
-            compact_json(common_misconceptions),
-            compact_json(assessment_evidence),
-            compact_json(differentiation_value),
-            compact_json(provenance),
-            payload_hash,
+            item_id, unit_id, 1, title,
+            "Öğretmen için V2.2 pedagojik uygulama notları",
+            "ÖĞRETMEN_REHBERİ_V2_2", page_locator, source_locator,
+            content_status, compact_json(expected_response), compact_json([]),
+            compact_json(teacher_guidance), compact_json(common_misconceptions),
+            compact_json(assessment_evidence), compact_json(differentiation_value),
+            compact_json(provenance), payload_hash,
         ),
     )
-    for order, (target_type, target_id, relation_type) in enumerate(
-        relations, start=1
-    ):
+    for order, (target_type, target_id, relation_type) in enumerate(relations, start=1):
         db.execute(
             """
             INSERT INTO teacher_guide_item_relations(
-                item_id, target_type, target_id, relation_type, relation_order
+              item_id,target_type,target_id,relation_type,relation_order
             ) VALUES (?,?,?,?,?)
             """,
             (item_id, target_type, target_id, relation_type, order),
         )
 
 
-def stable_task_id(block_id: str, task_id: str) -> str:
-    digest = sha256_bytes(f"{block_id}|{task_id}".encode("utf-8"))[:24]
-    return f"{SYNTHETIC_TASK_PREFIX}{digest}"
-
-
-def project_overlay(
-    db: sqlite3.Connection,
-    *,
-    course_root: Path,
-    overlay_path: Path,
-    overlay: dict[str, Any],
-    known_sections: set[str],
-    known_items: set[str],
-    next_unit_order: dict[str, int],
-) -> dict[str, int]:
-    require_text(overlay.get("course_id"), f"{overlay_path}:course_id")
-    version = require_text(
-        overlay.get("schema_version"), f"{overlay_path}:schema_version"
-    )
-    if version not in SUPPORTED_OVERLAY_VERSIONS:
-        raise ProjectionError(f"UNSUPPORTED_OVERLAY_VERSION:{overlay_path}:{version}")
-    status = require_text(overlay.get("status"), f"{overlay_path}:status")
-    relative_source = overlay_path.relative_to(course_root).as_posix()
-    string_list(
-        overlay.get("principles"), f"{overlay_path}:principles", required=True
-    )
-    blocks = overlay.get("blocks")
-    if not isinstance(blocks, list) or not blocks:
-        raise ProjectionError(f"BLOCKS_REQUIRED:{overlay_path}")
-
-    totals = {"blocks": 0, "task_cards": 0, "items": 0}
-    for block in blocks:
-        if not isinstance(block, dict):
-            raise ProjectionError(f"BLOCK_OBJECT_REQUIRED:{overlay_path}")
-        block_id = require_text(block.get("block_id"), f"{overlay_path}:block_id")
-        section_id = require_text(
-            block.get("section_id"), f"{overlay_path}:{block_id}:section_id"
-        )
-        if section_id not in known_sections:
-            raise ProjectionError(
-                f"UNKNOWN_TEACHER_GUIDE_SECTION:{overlay_path}:{block_id}:{section_id}"
+def load_section_units(db: sqlite3.Connection, section_id: str) -> list[dict[str, Any]]:
+    units: list[dict[str, Any]] = []
+    for unit_id, unit_order, title, page_locator, purpose_json in db.execute(
+        """
+        SELECT unit_id, unit_order, title, page_locator, purpose_json
+        FROM teacher_guide_units
+        WHERE section_id=? AND unit_id NOT LIKE ?
+        ORDER BY unit_order, unit_id
+        """,
+        (section_id, f"{SYNTHETIC_UNIT_PREFIX}%"),
+    ):
+        items = [
+            {"item_id": str(iid), "label": str(label or title or iid), "item_type": str(item_type or "")}
+            for iid, label, title, item_type in db.execute(
+                """
+                SELECT item_id,label,title,item_type
+                FROM teacher_guide_items
+                WHERE unit_id=?
+                ORDER BY item_order,item_id
+                """,
+                (unit_id,),
             )
-        source_item_refs = string_list(
-            block.get("source_item_refs"),
-            f"{overlay_path}:{block_id}:source_item_refs",
-            required=True,
-        )
-        unknown = [item_id for item_id in source_item_refs if item_id not in known_items]
-        if unknown:
-            raise ProjectionError(
-                f"UNKNOWN_SOURCE_ITEMS:{overlay_path}:{block_id}:{','.join(unknown)}"
-            )
+        ]
+        try:
+            purpose = json.loads(purpose_json) if purpose_json else None
+        except json.JSONDecodeError:
+            purpose = None
+        units.append({
+            "unit_id": str(unit_id), "unit_order": int(unit_order),
+            "title": str(title or unit_id), "page_locator": page_locator,
+            "purpose": purpose, "items": items,
+        })
+    return units
 
-        next_order = next_unit_order.get(section_id)
-        if next_order is None:
-            current = db.execute(
-                "SELECT COALESCE(MAX(unit_order),0) FROM teacher_guide_units "
-                "WHERE section_id=?",
-                (section_id,),
-            ).fetchone()[0]
-            next_order = int(current) + 1
-        next_unit_order[section_id] = next_order + 1
 
-        unit_id = f"{SYNTHETIC_UNIT_PREFIX}{block_id}"
-        title = require_text(block.get("title"), f"{overlay_path}:{block_id}:title")
-        page_locator = require_text(
-            block.get("printed_page_range"),
-            f"{overlay_path}:{block_id}:printed_page_range",
-        )
-        phase_name = block.get("phase_name")
-        if phase_name is not None:
-            phase_name = require_text(
-                phase_name, f"{overlay_path}:{block_id}:phase_name"
-            )
+def unit_descriptor(unit: dict[str, Any]) -> str:
+    parts = [unit["title"], compact_json(unit.get("purpose"))]
+    for item in unit["items"]:
+        parts.extend((item["label"], item["item_type"]))
+    return " ".join(parts)
 
-        unit_provenance = {
-            "source_ids": [OVERLAY_TYPE],
-            "source_locators": [relative_source],
-            "content_class": "PEDAGOGY_V2_BLOCK",
-            "overlay_schema_version": version,
-            "overlay_status": status,
-            "block_id": block_id,
-            "source_item_refs": source_item_refs,
+
+def task_anchor(unit: dict[str, Any]) -> str:
+    for item in unit["items"]:
+        if item["label"].strip():
+            return item["label"].strip()
+    return unit["title"]
+
+
+def assign_section_guidance(
+    units: list[dict[str, Any]], section_type: str, section_profile: dict[str, Any]
+) -> dict[str, dict[str, list[str]]]:
+    assignments = {unit["unit_id"]: {field: [] for field in PROFILE_FIELDS} for unit in units}
+    phases = {unit["unit_id"]: classify_phase(section_type, unit["title"]) for unit in units}
+    descriptors = {unit["unit_id"]: normalize_tokens(unit_descriptor(unit)) for unit in units}
+    for field in PROFILE_FIELDS:
+        entries = section_profile.get(field, [])
+        if not isinstance(entries, list):
+            continue
+        if field == "board_notes":
+            entries = entries[: 2 * len(units)]
+        for entry in entries:
+            if not isinstance(entry, str) or not entry.strip():
+                continue
+            tokens = normalize_tokens(entry)
+            hint = phase_hint(entry)
+            candidates: list[tuple[int, int, str]] = []
+            for index, unit in enumerate(units):
+                unit_id = unit["unit_id"]
+                if len(assignments[unit_id][field]) >= FIELD_CAPS[field]:
+                    continue
+                score = len(tokens & descriptors[unit_id]) * 10
+                if hint and phases[unit_id] == hint:
+                    score += 7
+                if not hint:
+                    preferred = "analyze_apply" if section_type in {"SPEAKING", "WRITING"} else "meaning"
+                    if phases[unit_id] == preferred:
+                        score += 2
+                candidates.append((score, -index, unit_id))
+            if not candidates:
+                raise ProjectionError(f"NO_GUIDANCE_CAPACITY:{field}:{entry}")
+            assignments[max(candidates)[2]][field].append(entry.strip())
+    return assignments
+
+
+def selected_field(
+    field: str, assigned: list[str], phase: str, phase_profile: dict[str, Any], anchor: str
+) -> list[str]:
+    if field == "board_notes":
+        return unique(assigned)[:2]
+    if field == "source_limitations":
+        return unique(assigned)
+    if assigned:
+        return unique(assigned)[: FIELD_CAPS[field]]
+    return [contextual_fallback(field, phase, phase_profile, anchor)]
+
+
+def section_rows(db: sqlite3.Connection) -> dict[str, dict[str, str]]:
+    return {
+        str(section_id): {
+            "theme_id": str(theme_id),
+            "section_type": str(section_type or ""),
+            "section_title": str(section_title or section_id),
         }
-        purpose = {
-            "pedagogical_intent": block.get("pedagogical_intent"),
-            "book_task_summaries": block.get("book_task_summaries", []),
-            "phase_name": phase_name,
-            "source_item_refs": source_item_refs,
-            "source_limitations": block.get("source_limitations", []),
-        }
-        db.execute(
+        for section_id, section_type, section_title, theme_id in db.execute(
             """
-            INSERT INTO teacher_guide_units(
-                unit_id, section_id, unit_order, title, page_locator,
-                source_locator, content_status, purpose_json, provenance_json
-            ) VALUES (?,?,?,?,?,?,?,?,?)
-            """,
-            (
-                unit_id,
-                section_id,
-                next_order,
-                title,
-                page_locator,
-                relative_source,
-                status,
-                compact_json(purpose),
-                compact_json(unit_provenance),
-            ),
+            SELECT s.section_id,s.section_type,s.section_title,g.theme_id
+            FROM teacher_guide_sections s
+            JOIN teacher_guides g ON g.guide_id=s.guide_id
+            """
         )
+    }
 
-        block_relations = source_relations(db, source_item_refs)
-        block_guidance = {
-            "pedagojik_amaç": block.get("pedagogical_intent"),
-            "öğretmen_hamleleri": block.get("teacher_moves", []),
-            "takip_soruları": block.get("follow_up_questions", []),
-            "tahtaya_yaz": block.get("board_notes", []),
-            "kaynak_sınırı": block.get("source_limitations", []),
-        }
-        block_provenance = {
-            **unit_provenance,
-            "content_class": "PEDAGOGY_V2_GUIDANCE",
-        }
-        block_item_id = f"{SYNTHETIC_BLOCK_PREFIX}{block_id}"
-        insert_item(
-            db,
-            item_id=block_item_id,
-            unit_id=unit_id,
-            item_order=1,
-            title=title,
-            label="Öğretmen için pedagojik uygulama notları",
-            item_type="ÖĞRETMEN_REHBERİ",
-            page_locator=page_locator,
-            source_locator=relative_source,
-            content_status=status,
-            expected_response={
-                "kitaptaki_görevler": block.get("book_task_summaries", []),
-                "faz": phase_name,
-            },
-            acceptance_criteria=[],
-            teacher_guidance=block_guidance,
-            common_misconceptions=block.get("misconception_interventions", []),
-            assessment_evidence=block.get("assessment_look_fors", []),
-            differentiation_value=differentiation(
-                block.get("differentiation"),
-                f"{overlay_path}:{block_id}:differentiation",
-            ),
-            provenance=block_provenance,
-            relations=block_relations,
-        )
-        totals["items"] += 1
 
-        task_cards = block.get("task_cards", [])
-        if task_cards is None:
-            task_cards = []
-        if not isinstance(task_cards, list):
-            raise ProjectionError(f"TASK_CARDS_LIST_REQUIRED:{overlay_path}:{block_id}")
-        for task_index, task in enumerate(task_cards, start=2):
-            if not isinstance(task, dict):
-                raise ProjectionError(
-                    f"TASK_CARD_OBJECT_REQUIRED:{overlay_path}:{block_id}:{task_index}"
-                )
-            source_item_ref = require_text(
-                task.get("source_item_ref"),
-                f"{overlay_path}:{block_id}:task.source_item_ref",
-            )
-            if source_item_ref not in source_item_refs:
-                raise ProjectionError(
-                    f"TASK_SOURCE_NOT_IN_BLOCK:{overlay_path}:{block_id}:{source_item_ref}"
-                )
-            task_id = require_text(
-                task.get("task_id"), f"{overlay_path}:{block_id}:task_id"
-            )
-            task_label = require_text(
-                task.get("label"), f"{overlay_path}:{block_id}:{task_id}:label"
-            )
-            task_page = task.get("printed_page_range")
-            if task_page is not None:
-                task_page = require_text(
-                    task_page,
-                    f"{overlay_path}:{block_id}:{task_id}:printed_page_range",
-                )
-            task_relations = source_relations(db, [source_item_ref])
-            task_provenance = {
-                "source_ids": [OVERLAY_TYPE],
-                "source_locators": [relative_source]
-                + string_list(
-                    task.get("source_locators"),
-                    f"{overlay_path}:{block_id}:{task_id}:source_locators",
-                ),
-                "content_class": "PEDAGOGY_V2_TASK",
-                "overlay_schema_version": version,
-                "overlay_status": status,
-                "block_id": block_id,
-                "task_id": task_id,
-                "source_item_ref": source_item_ref,
-            }
-            expected_response = {
-                "kitap_yönergesi": task.get("book_prompt"),
-                "yönerge_modu": task.get("prompt_mode"),
-                "soru_no": task.get("question_number"),
-                "beklenen_cevap": task.get("expected_answer"),
-                "beklenen_tepki": task.get("expected_response"),
-                "grup_sorusundan_ayrıldı": task.get("split_from_group", False),
-                "cevap_bileşeni": task.get("answer_component_key"),
-            }
-            insert_item(
-                db,
-                item_id=stable_task_id(block_id, task_id),
-                unit_id=unit_id,
-                item_order=task_index,
-                title=task_label,
-                label=task_label,
-                item_type="DERS_KİTABI_GÖREVİ",
-                page_locator=task_page or page_locator,
-                source_locator=relative_source,
-                content_status=status,
-                expected_response=expected_response,
-                acceptance_criteria=task.get("acceptance_criteria", []),
-                teacher_guidance=task.get("canonical_teacher_guidance", []),
-                common_misconceptions=task.get(
-                    "canonical_common_misconceptions", []
-                ),
-                assessment_evidence=task.get("canonical_assessment_evidence", []),
-                differentiation_value=differentiation(
-                    task.get("canonical_differentiation"),
-                    f"{overlay_path}:{block_id}:{task_id}:differentiation",
-                ),
-                provenance=task_provenance,
-                relations=task_relations,
-            )
-            totals["task_cards"] += 1
-            totals["items"] += 1
+def project_profiles(db: sqlite3.Connection, profiles: dict[str, Any], profile_path: Path) -> dict[str, Any]:
+    if profiles.get("architecture_version") != ARCHITECTURE_VERSION:
+        raise ProjectionError("PROFILE_ARCHITECTURE_VERSION_MISMATCH")
+    phase_profiles = profiles.get("phase_profiles")
+    theme_profiles = profiles.get("section_profiles")
+    if not isinstance(phase_profiles, dict) or not isinstance(theme_profiles, dict):
+        raise ProjectionError("PROFILE_STRUCTURE_INVALID")
 
-        totals["blocks"] += 1
-    return totals
+    sections = section_rows(db)
+    source_locator = profile_path.as_posix()
+    stats = {"themes": [], "sections": 0, "blocks": 0, "canonical_task_items_reused": 0}
+    for theme_id, section_profiles in theme_profiles.items():
+        if not isinstance(section_profiles, dict):
+            raise ProjectionError(f"THEME_PROFILE_INVALID:{theme_id}")
+        stats["themes"].append(theme_id)
+        for section_id, section_profile in section_profiles.items():
+            section = sections.get(section_id)
+            if section is None or section["theme_id"] != theme_id:
+                raise ProjectionError(f"CANONICAL_SECTION_MISSING:{theme_id}:{section_id}")
+            if not isinstance(section_profile, dict):
+                raise ProjectionError(f"SECTION_PROFILE_INVALID:{section_id}")
+            units = load_section_units(db, section_id)
+            if not units:
+                raise ProjectionError(f"CANONICAL_UNITS_MISSING:{section_id}")
+            assignments = assign_section_guidance(units, section["section_type"], section_profile)
+            max_order = max(unit["unit_order"] for unit in units)
+            focus = str(section_profile.get("focus") or section["section_title"])
+            for offset, unit in enumerate(units, start=1):
+                phase = classify_phase(section["section_type"], unit["title"])
+                phase_profile = phase_profiles.get(phase)
+                if not isinstance(phase_profile, dict):
+                    raise ProjectionError(f"PHASE_PROFILE_MISSING:{phase}")
+                anchor = task_anchor(unit)
+                assigned = assignments[unit["unit_id"]]
+                fields = {
+                    field: selected_field(field, assigned[field], phase, phase_profile, anchor)
+                    for field in PROFILE_FIELDS
+                }
+                source_item_refs = [item["item_id"] for item in unit["items"]]
+                stats["canonical_task_items_reused"] += len(source_item_refs)
+                synthetic_unit_id = f"{SYNTHETIC_UNIT_PREFIX}{unit['unit_id']}"
+                synthetic_item_id = f"{SYNTHETIC_ITEM_PREFIX}{unit['unit_id']}"
+                pedagogical_intent = f"{unit['title']} aşamasında: {focus}"
+                purpose = {
+                    "architecture_version": ARCHITECTURE_VERSION,
+                    "phase_name": phase,
+                    "pedagogical_intent": pedagogical_intent,
+                    "canonical_unit_id": unit["unit_id"],
+                    "source_item_refs": source_item_refs,
+                    "source_limitations": fields["source_limitations"],
+                }
+                provenance = {
+                    "source_ids": [PROFILE_SOURCE_ID],
+                    "source_locators": [source_locator],
+                    "source_tymm_commit": profiles.get("source_tymm_commit"),
+                    "content_class": "PEDAGOGY_V2_2_BLOCK",
+                    "architecture_version": ARCHITECTURE_VERSION,
+                    "profile_schema_version": profiles.get("schema_version"),
+                    "theme_id": theme_id,
+                    "section_id": section_id,
+                    "canonical_unit_id": unit["unit_id"],
+                    "source_item_refs": source_item_refs,
+                }
+                db.execute(
+                    """
+                    INSERT INTO teacher_guide_units(
+                      unit_id,section_id,unit_order,title,page_locator,source_locator,
+                      content_status,purpose_json,provenance_json
+                    ) VALUES (?,?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        synthetic_unit_id, section_id, max_order + offset,
+                        f"V2.2 · {unit['title']}", unit["page_locator"], source_locator,
+                        "REVIEW_REQUIRED", compact_json(purpose), compact_json(provenance),
+                    ),
+                )
+                relations = source_relations(db, source_item_refs)
+                insert_item(
+                    db,
+                    item_id=synthetic_item_id,
+                    unit_id=synthetic_unit_id,
+                    title=f"V2.2 · {unit['title']}",
+                    page_locator=unit["page_locator"],
+                    source_locator=source_locator,
+                    content_status="REVIEW_REQUIRED",
+                    expected_response={
+                        "pedagojik_amaç": pedagogical_intent,
+                        "faz": phase,
+                        "kaynak_görevler": [item["label"] for item in unit["items"]],
+                        "tahtaya_yaz": fields["board_notes"],
+                        "kaynak_sınırı": fields["source_limitations"],
+                    },
+                    teacher_guidance={
+                        "öğretmen_hamleleri": fields["teacher_moves"],
+                        "takip_soruları": fields["follow_up_questions"],
+                        "tahtaya_yaz": fields["board_notes"],
+                    },
+                    common_misconceptions=fields["misconception_interventions"],
+                    assessment_evidence=fields["assessment_look_fors"],
+                    differentiation_value={
+                        "support": fields["support"],
+                        "enrichment": fields["enrichment"],
+                    },
+                    provenance=provenance,
+                    relations=relations,
+                )
+                stats["blocks"] += 1
+            stats["sections"] += 1
+    stats["themes"] = sorted(stats["themes"])
+    return stats
 
 
 def teacher_counts(db: sqlite3.Connection) -> dict[str, int]:
@@ -576,53 +532,37 @@ def teacher_counts(db: sqlite3.Connection) -> dict[str, int]:
 
 
 def ordered_item_hashes(db: sqlite3.Connection) -> list[dict[str, str]]:
-    rows = db.execute(
-        """
-        SELECT i.item_id, i.canonical_payload_sha256
-        FROM teacher_guides g
-        JOIN teacher_guide_sections s ON s.guide_id = g.guide_id
-        JOIN teacher_guide_units u ON u.section_id = s.section_id
-        JOIN teacher_guide_items i ON i.unit_id = u.unit_id
-        ORDER BY g.guide_id, s.section_order, s.section_id,
-                 u.unit_order, u.unit_id, i.item_order, i.item_id
-        """
-    )
     return [
-        {
-            "item_id": str(item_id),
-            "canonical_payload_sha256": str(payload_sha),
-        }
-        for item_id, payload_sha in rows
+        {"item_id": str(item_id), "canonical_payload_sha256": str(payload_sha)}
+        for item_id, payload_sha in db.execute(
+            """
+            SELECT i.item_id,i.canonical_payload_sha256
+            FROM teacher_guides g
+            JOIN teacher_guide_sections s ON s.guide_id=g.guide_id
+            JOIN teacher_guide_units u ON u.section_id=s.section_id
+            JOIN teacher_guide_items i ON i.unit_id=u.unit_id
+            ORDER BY g.guide_id,s.section_order,s.section_id,u.unit_order,u.unit_id,i.item_order,i.item_id
+            """
+        )
     ]
 
 
-def update_manifest_and_seal(
-    *,
-    db: sqlite3.Connection,
-    runtime_dir: Path,
-    course_root: Path,
-    overlays: list[Path],
-    overlay_versions: list[str],
-    stats: dict[str, int],
-) -> dict[str, Any]:
+def update_metadata(
+    db: sqlite3.Connection, runtime_dir: Path, package_manifest_path: Path | None,
+    profile_path: Path, profiles: dict[str, Any], stats: dict[str, Any]
+) -> None:
     manifest_path = runtime_dir / "runtime_manifest.json"
     seal_path = runtime_dir / "teacher_guide_validation_seal.json"
     manifest = read_json(manifest_path)
-    if not seal_path.is_file():
-        raise ProjectionError(f"TEACHER_GUIDE_SEAL_MISSING:{seal_path}")
     old_seal = read_json(seal_path)
-    source_files_raw = old_seal.get("source_files", {})
+    source_files_raw = old_seal.get("source_files")
     if not isinstance(source_files_raw, dict):
-        raise ProjectionError("TEACHER_GUIDE_SEAL_SOURCE_FILES_INVALID")
+        raise ProjectionError("SEAL_SOURCE_FILES_INVALID")
     source_files = {
-        str(key): str(value)
-        for key, value in source_files_raw.items()
-        if not str(key).replace("\\", "/").endswith("/pedagogy_v2.json")
+        str(k): str(v) for k, v in source_files_raw.items()
+        if "teacher_guide_v2_profiles.json" not in str(k)
     }
-    for overlay_path in overlays:
-        key = overlay_path.relative_to(course_root).as_posix()
-        source_files[key] = sha256_file(overlay_path)
-
+    source_files[profile_path.as_posix()] = sha256_file(profile_path)
     counts = teacher_counts(db)
     teacher_payload = {
         "projection_version": PROJECTION_VERSION,
@@ -630,158 +570,102 @@ def update_manifest_and_seal(
         "row_counts": counts,
         "items": ordered_item_hashes(db),
     }
-    teacher_fingerprint = sha256_bytes(
-        compact_json(teacher_payload).encode("utf-8")
-    )
-    source_validation_status = old_seal.get(
-        "source_validation_status", "PASS_WITH_WARNINGS"
-    )
+    fingerprint = sha256_bytes(compact_json(teacher_payload).encode("utf-8"))
+    pedagogy = {
+        "available": True,
+        "architecture_version": ARCHITECTURE_VERSION,
+        "projection_version": PROJECTION_VERSION,
+        "profile_schema_version": profiles.get("schema_version"),
+        "source_tymm_commit": profiles.get("source_tymm_commit"),
+        "source_mode": "CANONICAL_RUNTIME_PLUS_V2_PROFILE",
+        **stats,
+    }
     seal = {
         "seal_type": "TEACHER_GUIDE_COURSE_VALIDATION_SEAL",
         "projection_version": PROJECTION_VERSION,
         "status": "PASS",
         "scope": "COURSE",
         "course_id": manifest.get("course_id"),
-        "canonical_content_fingerprint": manifest.get(
-            "canonical_content_fingerprint"
-        ),
-        "teacher_guide_content_fingerprint": teacher_fingerprint,
-        "source_validation_status": source_validation_status,
+        "canonical_content_fingerprint": manifest.get("canonical_content_fingerprint"),
+        "teacher_guide_content_fingerprint": fingerprint,
+        "source_validation_status": old_seal.get("source_validation_status", "PASS_WITH_WARNINGS"),
         "source_files": source_files,
         "row_counts": counts,
-        "pedagogy_overlay": {
-            "available": True,
-            "projection_version": PROJECTION_VERSION,
-            "overlay_schema_versions": sorted(set(overlay_versions)),
-            "overlay_count": len(overlays),
-            **stats,
-        },
+        "pedagogy_overlay": pedagogy,
     }
     seal_path.write_text(compact_json(seal) + "\n", encoding="utf-8")
     seal_sha = sha256_file(seal_path)
 
     row_counts = manifest.get("row_counts")
-    if not isinstance(row_counts, dict):
-        raise ProjectionError("RUNTIME_MANIFEST_ROW_COUNTS_REQUIRED")
-    row_counts.update(counts)
-
-    capabilities = manifest.get("capabilities")
-    if not isinstance(capabilities, dict) or capabilities.get("teacher_guide") is not True:
-        raise ProjectionError("TEACHER_GUIDE_CAPABILITY_REQUIRED")
-    metadata = manifest.get("teacher_guide_capabilities")
+    capabilities = manifest.get("teacher_guide_capabilities")
     validation = manifest.get("teacher_guide_validation")
-    if not isinstance(metadata, dict) or not isinstance(validation, dict):
-        raise ProjectionError("TEACHER_GUIDE_METADATA_REQUIRED")
-    metadata["row_counts"] = counts
-    metadata["pedagogy_overlay"] = seal["pedagogy_overlay"]
-    validation["content_fingerprint"] = f"sha256:{teacher_fingerprint}"
+    if not isinstance(row_counts, dict) or not isinstance(capabilities, dict) or not isinstance(validation, dict):
+        raise ProjectionError("RUNTIME_MANIFEST_TEACHER_GUIDE_METADATA_INVALID")
+    row_counts.update(counts)
+    capabilities["row_counts"] = counts
+    capabilities["pedagogy_overlay"] = pedagogy
+    validation["content_fingerprint"] = f"sha256:{fingerprint}"
     validation["seal_sha256"] = seal_sha
     validation["projection_version"] = PROJECTION_VERSION
-    validation["source_validation_status"] = source_validation_status
-    manifest_path.write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
-    return manifest
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-
-def update_package_manifest(
-    package_manifest_path: Path,
-    runtime_manifest: dict[str, Any],
-) -> None:
-    if not package_manifest_path.is_file():
-        raise ProjectionError(
-            f"PACKAGE_MANIFEST_MISSING:{package_manifest_path}"
-        )
-    package = read_json(package_manifest_path)
-    package["runtime_capabilities"] = runtime_manifest.get("capabilities", {})
-    package["teacher_guide_capabilities"] = runtime_manifest.get(
-        "teacher_guide_capabilities", {}
-    )
-    package["teacher_guide_validation"] = runtime_manifest.get(
-        "teacher_guide_validation", {}
-    )
-    row_counts = runtime_manifest.get("row_counts", {})
-    package["teacher_guide_row_counts"] = {
-        table: row_counts.get(table) for table in TEACHER_TABLES
-    }
-    package_manifest_path.write_text(
-        json.dumps(package, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    if package_manifest_path is not None:
+        package = read_json(package_manifest_path)
+        package["teacher_guide_source_commit"] = profiles.get("source_tymm_commit")
+        package["runtime_capabilities"] = manifest.get("capabilities", {})
+        package["teacher_guide_capabilities"] = capabilities
+        package["teacher_guide_validation"] = validation
+        package["teacher_guide_row_counts"] = counts
+        package_manifest_path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--course-id", required=True)
-    parser.add_argument("--course-root", type=Path, required=True)
+    parser.add_argument("--course-id", default="TDE_11")
     parser.add_argument("--runtime-dir", type=Path, required=True)
+    parser.add_argument("--profiles", type=Path, required=True)
     parser.add_argument("--package-manifest", type=Path)
+    parser.add_argument("--expected-canonical-fingerprint")
+    parser.add_argument("--expected-teacher-guide-fingerprint")
     args = parser.parse_args()
 
-    course_root = args.course_root.resolve()
     runtime_dir = args.runtime_dir.resolve()
+    profile_path = args.profiles.resolve()
     database_path = runtime_dir / "course_runtime.sqlite"
     manifest_path = runtime_dir / "runtime_manifest.json"
-    if not database_path.is_file() or not manifest_path.is_file():
-        raise ProjectionError("RUNTIME_PACKAGE_INCOMPLETE")
+    seal_path = runtime_dir / "teacher_guide_validation_seal.json"
+    for path in (database_path, manifest_path, seal_path, profile_path):
+        if not path.is_file():
+            raise ProjectionError(f"MISSING_REQUIRED_FILE:{path}")
 
-    overlays = overlay_files(course_root)
-    if not overlays:
-        print("PEDAGOGY_V2_PROJECTION: SKIP (no overlays)")
-        return 0
+    manifest = read_json(manifest_path)
+    seal = read_json(seal_path)
+    if manifest.get("course_id") != args.course_id:
+        raise ProjectionError("COURSE_ID_MISMATCH")
+    if args.expected_canonical_fingerprint and manifest.get("canonical_content_fingerprint") != args.expected_canonical_fingerprint:
+        raise ProjectionError("CANONICAL_FINGERPRINT_MISMATCH")
+    if args.expected_teacher_guide_fingerprint and seal.get("teacher_guide_content_fingerprint") != args.expected_teacher_guide_fingerprint:
+        # Idempotent reruns are allowed when the current seal already belongs to this projector.
+        if seal.get("projection_version") != PROJECTION_VERSION:
+            raise ProjectionError("TEACHER_GUIDE_FINGERPRINT_MISMATCH")
 
-    runtime_manifest = read_json(manifest_path)
-    if runtime_manifest.get("course_id") != args.course_id:
-        raise ProjectionError(
-            f"COURSE_ID_MISMATCH:{args.course_id}:{runtime_manifest.get('course_id')}"
-        )
-
+    profiles = read_json(profile_path)
     db = sqlite3.connect(database_path)
-    db.execute("PRAGMA foreign_keys = ON")
+    db.execute("PRAGMA foreign_keys=ON")
     try:
         for table in TEACHER_TABLES:
             if not table_exists(db, table):
                 raise ProjectionError(f"TEACHER_GUIDE_TABLE_MISSING:{table}")
         delete_previous_projection(db)
-        known_sections = section_ids(db)
-        known_items = canonical_item_ids(db)
-        next_unit_order: dict[str, int] = {}
-        totals = {"blocks": 0, "task_cards": 0, "items": 0}
-        overlay_versions: list[str] = []
-        for path in overlays:
-            overlay = read_json(path)
-            if overlay.get("document_type") != OVERLAY_TYPE:
-                continue
-            if overlay.get("course_id") != args.course_id:
-                raise ProjectionError(
-                    f"OVERLAY_COURSE_MISMATCH:{path}:{overlay.get('course_id')}"
-                )
-            overlay_versions.append(
-                require_text(overlay.get("schema_version"), f"{path}:schema_version")
-            )
-            result = project_overlay(
-                db,
-                course_root=course_root,
-                overlay_path=path,
-                overlay=overlay,
-                known_sections=known_sections,
-                known_items=known_items,
-                next_unit_order=next_unit_order,
-            )
-            for key, value in result.items():
-                totals[key] += value
+        stats = project_profiles(db, profiles, profile_path)
         fk_errors = db.execute("PRAGMA foreign_key_check").fetchall()
         if fk_errors:
             raise ProjectionError(f"FOREIGN_KEY_CHECK_FAILED:{fk_errors[:3]}")
         db.commit()
-        runtime_manifest = update_manifest_and_seal(
-            db=db,
-            runtime_dir=runtime_dir,
-            course_root=course_root,
-            overlays=overlays,
-            overlay_versions=overlay_versions,
-            stats=totals,
+        update_metadata(
+            db, runtime_dir,
+            args.package_manifest.resolve() if args.package_manifest else None,
+            profile_path, profiles, stats,
         )
     except Exception:
         db.rollback()
@@ -789,16 +673,12 @@ def main() -> int:
     finally:
         db.close()
 
-    if args.package_manifest:
-        update_package_manifest(args.package_manifest.resolve(), runtime_manifest)
-
-    print("PEDAGOGY_V2_PROJECTION: PASS")
-    print(f"COURSE_ID: {args.course_id}")
-    print(f"OVERLAYS: {len(overlays)}")
-    print(f"BLOCKS: {totals['blocks']}")
-    print(f"TASK_CARDS: {totals['task_cards']}")
-    print(f"SYNTHETIC_ITEMS: {totals['items']}")
-    print(f"PROJECTION_VERSION: {PROJECTION_VERSION}")
+    print("PEDAGOGY_V2_2_PROFILE_PROJECTION: PASS")
+    print(f"ARCHITECTURE_VERSION: {ARCHITECTURE_VERSION}")
+    print(f"THEMES: {','.join(stats['themes'])}")
+    print(f"SECTIONS: {stats['sections']}")
+    print(f"BLOCKS: {stats['blocks']}")
+    print(f"CANONICAL_TASK_ITEMS_REUSED: {stats['canonical_task_items_reused']}")
     return 0
 
 
