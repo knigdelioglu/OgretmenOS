@@ -1,0 +1,71 @@
+@@ -0,0 +1,70 @@
++{
++  "schema_version": "2.3.0",
++  "document_type": "TYMM_TEACHER_GUIDE_COMPONENT_REGISTRY",
++  "course_id": "TDE_11",
++  "theme_id": "TEMA_02",
++  "policy": "Bu registry yalnız mevcut canonical itemların resmî kitapta doğrulanmış alt görevlerini ekler. Var olan canonical cevap anahtarlarını değiştiremez ve her component mirror içinde kullanılmalıdır.",
++  "components": {
++    "T2_G01_P88_KULTUR_ONBILGI": {
++      "q1_toy_birlik": {"value": "Toylar ortak katılım, paylaşım, karar alma ve eğlence etrafında insanları bir araya getirerek grup aidiyetini ve toplumsal dayanışmayı güçlendirebilir.", "source_locator": "basılı s.88 / PDF s.89 — soru 1"},
++      "q2_nevruz_hasat": {"value": "Hasat ve Nevruz gibi farklı bölgelerde tekrarlanan ortak mevsimsel törenler, benzer ritüel ve değerleri kuşaktan kuşağa taşıyarak Türk dünyasında ortak kültürel belleği güçlendirir.", "source_locator": "basılı s.88 / PDF s.89 — soru 2"},
++      "q3_gonul_cografyasi": {"value": "Gönül coğrafyası yalnız siyasî sınırları değil tarih, dil, kültür ve ortak hafıza bağlarının sürdüğü bölgeleri düşündürür. Türk dünyası, Balkanlar veya tarihî-kültürel bağ kurulan başka bölgeler gerekçeyle örneklenebilir.", "source_locator": "basılı s.88 / PDF s.89 — soru 3"},
++      "q4_yas_yesil": {"value": "Yaş kelimesinin tazelik ve yeşil/yaşıl ile kurduğu anlam ilişkisi; canlılık, tabiat, üretim ve tarımsal hayatın söz varlığındaki izleri üzerinden yorumlanabilir. Metne ve dil ilişkisine dayanan farklı gerekçeler kabul edilebilir.", "source_locator": "basılı s.88 / PDF s.89 — soru 4"},
++      "q5_imece": {"value": "İmece ortak bir işi karşılık beklemeden birlikte yapma, yükü paylaşma, dayanışma ve toplumsal sorumluluk kültürünü görünür kılar.", "source_locator": "basılı s.88 / PDF s.89 — soru 5"},
++      "q6_besmele_kuslar": {"value": "Örnek; inanç, paylaşma, merhamet ve insan dışındaki canlıların hakkını gözetme anlayışının tarımsal hayatla birlikte yaşadığını gösterir.", "source_locator": "basılı s.88 / PDF s.89 — soru 6"}
++    },
++    "T2_G01_P89_90_OKUMA_STRATEJISI": {
++      "q1_soz_varligi": {"value": "Başlık, görsel, yazarın Kırgız kültürüyle ilişkisi ve metin bağlamından hareketle aile, savaş, bozkır/atlı yaşam ve Türk dünyasına özgü söz varlığıyla karşılaşılabileceği öngörülebilir. Tahmin görünür ipucuna bağlanmalıdır.", "source_locator": "basılı s.90 / PDF s.91 — hazırlık sorusu 1"},
++      "q2_konu_tur": {"value": "Başlık ve görsel baba-oğul ilişkisi, ayrılık, özlem ve buluşma ekseninde bir anlatıyı düşündürür; metnin olay ve kişiler çevresinde gelişen hikâye türünde olacağı tahmin edilebilir.", "source_locator": "basılı s.90 / PDF s.91 — hazırlık sorusu 2"}
++    },
++    "T2_G02_P95_96_SOZ_VARLIGI": {
++      "yular": {"value": "At gibi hayvanları başından tutup yönlendirmeye yarayan bağ/kayış; metinde Çordon'un atını çözmesi bağlamındadır.", "source_locator": "basılı s.95 / PDF s.96 — Söz Varlığımız"},
++      "uzengi": {"value": "Binicinin ata binerken ayağını bastığı, eyerin iki yanından sarkan ayaklık.", "source_locator": "basılı s.95 / PDF s.96 — Söz Varlığımız"},
++      "kelime_secimi": {"value": "Yular, üzengi, katar, kampana, hat ve toynak gibi kelimeler olayın geçtiği dönem, mekân, ulaşım ve atlı yaşam çevresini somutlaştırır; anlatının gerçeklik ve atmosfer duygusunu güçlendirir.", "source_locator": "basılı s.96 / PDF s.97 — soru 3"}
++    },
++    "T2_G02_P98_99_HATIRLAMA_KULTUR": {
++      "q2_gorsel_kavramlar": {"value": "Görsellerin somut içeriğine göre ortak yemek, müzik, el sanatı, oyun, giyim, mimari, bayram/şenlik, atlı yaşam veya misafirperverlik gibi kültür kavramları yazılabilir. Değerlendirmede kavramın görselle ilişkisi aranır; tek liste zorunlu değildir.", "source_locator": "basılı s.99 / PDF s.100 — soru 2"}
++    },
++    "T2_G02_P102_104_DIL_BILGISI": {
++      "task1_kip_cekimi": {"value": "Verilen örneklerdeki fiiller haber/dilek kipleri ile basit/birleşik çekim bakımından, fiilin aldığı kip-zaman ve ek-fiil yapısı birlikte dikkate alınarak sınıflandırılır.", "source_locator": "basılı s.102 / PDF s.103 — dil bilgisi görev 1"},
++      "task2_ozne_cati": {"value": "Fiiller özne-fiil ilişkisine göre etken, edilgen, dönüşlü veya işteş olarak sınıflandırılır; yalnız eke değil cümlede işi yapan/işten etkilenen ögeye de bakılır.", "source_locator": "basılı s.103 / PDF s.104 — dil bilgisi görev 2"},
++      "task3_nesne_cati": {"value": "Fiiller nesne alıp almama ve ettirme/oldurma ilişkisine göre geçişli, geçişsiz, oldurgan veya ettirgen olarak sınıflandırılır; karar cümledeki nesne ve yaptırma ilişkisiyle gerekçelendirilir.", "source_locator": "basılı s.104 / PDF s.105 — dil bilgisi görev 3"},
++      "task4_noktalama": {"value": "Parçadaki noktalama işaretleri cümleyi bitirme, alıntı/konuşmayı gösterme, açıklama veya ara sözleri ayırma gibi bağlamdaki gerçek işlevleri üzerinden açıklanır.", "source_locator": "basılı s.104 / PDF s.105 — dil bilgisi görev 4"}
++    },
++    "T2_G03_P108_110_ANI": {
++      "q1_vatan_bagi": {"value": "Vatanla bağı; aile ve hatıralar, ortak tarih, dil, kültür, değerler, yaşanan mekânlar ve toplumsal aidiyet gibi unsurlar oluşturabilir. Öğrenci cevabını gerekçelendirmelidir.", "source_locator": "basılı s.108 / PDF s.109 — soru 1"},
++      "q2_vatan_sevgisi": {"value": "Vatan sevgisi ortak hafıza ve kültüre aidiyet, birlikte yaşama, sorumluluk ve gelecek kuşaklara karşı yükümlülük üzerinden gerekçelendirilebilir; tek kalıp gerekçe aranmaz.", "source_locator": "basılı s.108 / PDF s.109 — soru 2"},
++      "q3_kultur_kelime_tahmini": {"value": "Metne göz gezdirirken Kapalıçarşı, bereket, selamlaşma, haydariye, hat sanatı, ud-keman-kanun, bekçi, sebilci, saka, kına gecesi, âmin alayı, ramazan ve bayram gibi dönem/kültür unsurlarını düşündüren kelime ve ifadeler tahmin edilebilir. Liste örnektir; metne dayalı başka seçimler kabul edilir.", "source_locator": "basılı s.108 / PDF s.109 — soru 3"},
++      "reading_focus": {"value": "Eski İstanbul’dan Çizgiler anı metni kişisel hatırlama üzerinden eski İstanbul'un gündelik hayatı, esnaf ilişkileri, dinî-kültürel pratikleri, sanatları ve toplumsal değişimini görünür kılan dönem tanıklığı olarak okunur.", "source_locator": "basılı s.108-110 / PDF s.109-111 — ana metin"}
++    },
++    "T2_G06_P119_120_KARSILASTIRMA": {
++      "p119_q1_gerceklik": {"value": "Oğulla Buluşma kurmaca bir hikâye olarak gerçek hayattan malzeme alsa da olay, kişi ve ayrıntıları edebî kurgu içinde düzenler. Kül Tigin Âbidesi ise tarihî kişi, olay, devlet ve mekânlara doğrudan tanıklık eden yazılı bir belge niteliği taşır; anlatım ve hitabet seçimi yine metni biçimlendirir.", "source_locator": "basılı s.119 / PDF s.120 — Yorumlayalım soru 1"},
++      "p120_q2_yazilis_amaci": {"value": "Hikâye estetik bir kurgu içinde insanî yaşantıyı ve duyguyu düşündürmeyi; Kül Tigin Âbidesi ise tarihî hafıza bırakmayı, bilgi vermeyi, uyarmayı ve yönlendirmeyi öne çıkarır. Tür ve amaç farkı anlatım tercihlerini de değiştirir.", "source_locator": "basılı s.120 / PDF s.121 — Yorumlayalım soru 2"}
++    },
++    "T2_G07_P121_124_ORHUN_TAHLIL": {
++      "p122_q4_amaclar": {"value": "Metinde bilgi verme, uyarma/yönlendirme, ikna etme, sorgulatma ve tarihî hafıza bırakma amaçları birlikte görülebilir. Öğrenci seçtiği amacı metindeki hitap, öğüt, olay anlatımı veya tekrarlarla örneklemelidir.", "source_locator": "basılı s.122 / PDF s.123 — soru 4"},
++      "p123_q1_ogretici_tur_benzerlik": {"value": "Kül Tigin Âbidesi; doğrudan hitap ve ikna yönüyle söyleve, geçmiş olayları aktarmasıyla anı/tarihî anlatıya ve bilgi-öğüt vermesiyle öğretici metinlere benzer. Benzerlik tür adı kadar metin özelliğiyle gerekçelendirilmelidir.", "source_locator": "basılı s.123 / PDF s.124 — Yorumlayalım soru 1"},
++      "p123_q2_soz_varligi_uslup": {"value": "Söz varlığı ve üslup; dönemin diline, kağanın millete hitap etmesine, uyarma/öğüt verme amacına ve sözün kalıcı/etkileyici olması isteğine bağlıdır. Özlü, doğrudan ve tekrarlarla güçlenen anlatım hatırlanabilirliği ve ikna gücünü artırır.", "source_locator": "basılı s.123 / PDF s.124 — Yorumlayalım soru 2"},
++      "p123_q3_uyum": {"value": "İçerik, yapı, dil ve üslup ortak bir amaç çevresinde uyumludur: tarihî olay ve öğütler doğrudan hitap, tekrar, karşıtlık ve güçlü cümlelerle düzenlenerek devlet/millet bilincini pekiştirir. Metin örneğiyle gerekçelendirilmiş farklı yorumlar kabul edilir.", "source_locator": "basılı s.123 / PDF s.124 — Yorumlayalım soru 3"},
++      "p124_q4_cok_yonlu_uslup": {"value": "Evet. Hitabet yönü doğrudan seslenme ve ikna gücünü, anı/tarih yönü olay ve kişi aktarımını, edebî yön ise tekrar ve etkileyici söyleyişi güçlendirir; bu çok yönlülük üslubun hem öğretici hem coşkulu olmasına katkı sağlar.", "source_locator": "basılı s.124 / PDF s.125 — Yorumlayalım soru 4"},
++      "p124_q5_kultur": {"value": "Kül Tigin’in ölümü ve yas töreninin tarihlenmesi, anma/yas töreni düzenlenmesi ve ölümü 'uçmak/bulut çöktürmek' gibi ifadelerle anlatma; dönemin ölüm, anma ve toplumsal hafıza anlayışına dair kültürel izler verir.", "source_locator": "basılı s.124 / PDF s.125 — Yorumlayalım soru 5"}
++    },
++    "T2_G07_P124_DEGERLER_DISIPLIN": {
++      "p125_degerlendirme_orhun_degeri": {"value": "Orhun Abideleri Türkçenin erken ve kapsamlı yazılı belgeleri arasında yer alır; dönemin dili, devlet anlayışı, tarihî olayları, toplum yapısı ve kültürü hakkında doğrudan veri sunar. Bu nedenle hem Türk dili hem tarih araştırmaları için temel kaynak niteliğindedir.", "source_locator": "basılı s.125 / PDF s.126 — Değerlendirme"}
++    },
++    "T2_G07_P125_127_DLT": {
++      "reading_reference": {"value": "Dîvânu Lugâti’t-Türk ara metni ve sözlük örnekleri basılı s.125-126'da okunur; dil, söz varlığı ve kültür verileri s.127'deki sorular için kanıt olarak kullanılır.", "source_locator": "basılı s.125-126 / PDF s.126-127 — Dîvânu Lugâti’t-Türk ara metni"},
++      "kaplan_q2_dil_arkeoloji": {"value": "Tek zorunlu görüş yoktur. Dil; yalnız nesneleri değil adlandırma biçimlerini, inançları, gelenekleri, ilişkileri ve düşünce dünyasını da taşıdığı için geniş bir kültür hazinesi olarak savunulabilir. Arkeoloji ise maddi kalıntılar üzerinden güçlü kanıt sunar. Öğrenci katılma/katılmama görüşünü gerekçelendirmelidir.", "source_locator": "basılı s.127 / PDF s.128 — Fark Edelim soru 2"}
++    },
++    "T2_G13_P136_KONUYA_BASLARKEN": {
++      "q1_sazin_yeri": {"value": "Saz, âşığa doğaçlama sırasında düşünme ve söyleyişi düzenleme imkânı verir; ölçü, kafiye ve anlam uyumunu kurmaya yardım eder. Aynı zamanda âşığın şiirini müzikle birleştirdiği temel icra aracı ve günlük/sanatsal kimliğinin parçasıdır.", "source_locator": "basılı s.136 / PDF s.137 — soru 1"},
++      "q2_sanat_sanatci": {"value": "Petek–arı benzetmesi, saz ile sanatçının birbirini tamamlayan üretim ilişkisini anlatır: saz üretimin zemini ve aracı, Veysel ise onu işleyerek sanat eserine dönüştüren sanatçıdır; birlikte 'bal' yani sanat ortaya çıkarırlar.", "source_locator": "basılı s.136 / PDF s.137 — soru 2"}
++    },
++    "T2_G18_P150_151_KULTUR_MIRAS": {
++      "q1_muze_unsurlari": {"value": ["arkeolojik eserler", "giyim ve tekstil ürünleri", "el sanatları", "müzik araçları", "yazma eserler", "gündelik yaşam eşyaları", "mimari ve sanat örnekleri"], "source_locator": "basılı s.150 / PDF s.151 — soru 1"}
++    },
++    "T2_G20_P153_OZ_DEGERLENDIRME": {
++      "degerlendirme_adimlari": {"value": ["Öz değerlendirme, akran değerlendirmesi ve öğretmen rubriğiyle geri bildirim toplama.", "Geri bildirimlere göre gerekli düzeltmeleri yapıp yeni çalışmalar için hedef belirleme.", "Özgün yazar kimliğini geliştirmeye çalışma.", "Uygun yazıyı sınıf/okul panosu veya okulun resmî çevrim içi ortamında paylaşma."], "source_locator": "basılı s.153 / PDF s.154 — Değerlendirme adımları 1-4"}
++    }
++  }
++}
