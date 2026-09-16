@@ -11,6 +11,9 @@ from typing import Any
 
 THEMES = ("TEMA_01", "TEMA_02", "TEMA_03", "TEMA_04")
 SOURCE_COMMIT = "20860e3165d5e9de18913364286e6f89f28f6046"
+BASELINE_RUNTIME_COMMIT = "da93b3aa22a1edafe85e66c4b5a7c3ba9f7a1bf2"
+EXPECTED_CANONICAL_ITEMS = 283
+EXPECTED_CANONICAL_RELATIONS = 3750
 ALLOWED_OVERRIDE_FIELDS = {
     "expected_response",
     "acceptance_criteria",
@@ -72,6 +75,32 @@ def key_exists(value: Any, keys: list[str]) -> bool:
     return isinstance(value, dict) and all(key in value for key in keys)
 
 
+def load_canonical_snapshot(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        raise AuditError(f"CANONICAL_SNAPSHOT_MISSING:{path}")
+    data = load_json(path)
+    if data.get("document_type") != "TYMM_TEACHER_GUIDE_CANONICAL_SNAPSHOT":
+        raise AuditError("CANONICAL_SNAPSHOT_DOC_TYPE_INVALID")
+    if data.get("course_id") != "TDE_11":
+        raise AuditError("CANONICAL_SNAPSHOT_COURSE_INVALID")
+    if data.get("source_runtime_commit") != BASELINE_RUNTIME_COMMIT:
+        raise AuditError("CANONICAL_SNAPSHOT_BASELINE_COMMIT_MISMATCH")
+    items = data.get("items")
+    relations = data.get("relations")
+    if not isinstance(items, dict) or len(items) != EXPECTED_CANONICAL_ITEMS:
+        raise AuditError(
+            f"CANONICAL_SNAPSHOT_ITEM_COUNT:{0 if not isinstance(items, dict) else len(items)}"
+        )
+    if not isinstance(relations, dict) or int(data.get("relation_count") or 0) != EXPECTED_CANONICAL_RELATIONS:
+        raise AuditError("CANONICAL_SNAPSHOT_RELATION_COUNT_INVALID")
+    canonical: dict[str, Any] = {}
+    for item_id, item in items.items():
+        if not isinstance(item, dict):
+            raise AuditError(f"CANONICAL_SNAPSHOT_ITEM_OBJECT_REQUIRED:{item_id}")
+        canonical[str(item_id)] = item.get("expected_response", [])
+    return canonical
+
+
 def load_runtime_overrides(path: Path | None, canonical: dict[str, Any]) -> tuple[dict[str, str], int]:
     if path is None:
         return {}, 0
@@ -113,21 +142,30 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", type=Path, required=True)
     parser.add_argument("--database", type=Path, required=True)
+    parser.add_argument("--canonical-snapshot", type=Path)
     parser.add_argument("--overrides", type=Path)
     args = parser.parse_args()
 
     root = args.source_root.resolve()
     database = args.database.resolve()
     override_path = args.overrides.resolve() if args.overrides else None
+    snapshot_path = args.canonical_snapshot.resolve() if args.canonical_snapshot else None
     db = sqlite3.connect(database)
     try:
         sections = {str(row[0]) for row in db.execute("SELECT section_id FROM teacher_guide_sections")}
-        canonical: dict[str, Any] = {}
-        for item_id, expected_json in db.execute(
-            "SELECT item_id, expected_response_json FROM teacher_guide_items "
-            "WHERE item_id NOT LIKE '__pedv2_block__%' AND item_id NOT LIKE '__v23_item__%'"
-        ):
-            canonical[str(item_id)] = decode(expected_json, [])
+        if snapshot_path is not None:
+            canonical = load_canonical_snapshot(snapshot_path)
+        else:
+            canonical: dict[str, Any] = {}
+            for item_id, expected_json in db.execute(
+                "SELECT item_id, expected_response_json FROM teacher_guide_items "
+                "WHERE item_id NOT LIKE '__pedv2_block__%' AND item_id NOT LIKE '__v23_item__%'"
+            ):
+                canonical[str(item_id)] = decode(expected_json, [])
+            if len(canonical) != EXPECTED_CANONICAL_ITEMS:
+                raise AuditError(
+                    "CANONICAL_BASELINE_UNAVAILABLE: pass --canonical-snapshot when auditing an already-projected runtime"
+                )
     finally:
         db.close()
 
@@ -177,8 +215,6 @@ def main() -> int:
                 components[item_id].update(values)
                 all_component_keys[item_id].update(str(key) for key in values)
 
-        # Build the exact answer map the projector will see: pinned canonical overrides first,
-        # then additive component registries. Component keys may never overwrite canonical keys.
         answer_map = dict(canonical)
         for item_id, values in components.items():
             if item_id not in canonical:
@@ -294,6 +330,7 @@ def main() -> int:
         "questions": total_questions,
         "locator_only_questions": total_locator_only,
         "canonical_baseline_items": len(canonical),
+        "canonical_snapshot": snapshot_path is not None,
         "canonical_override_items": override_items,
         "section_aliases_used": sum(alias_use.values()),
         "component_keys": sum(len(keys) for keys in all_component_keys.values()),
