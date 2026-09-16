@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-"""Run the existing V2.3 projector against the audited full-course source contract.
+"""Run the TDE11 V2.3 projector against the audited full-course source contract.
 
-The base projector was written while Theme 1 only had the first pilot fragment, so its
-embedded row-count contract is stale.  This adapter does not weaken validation: it pins
-counts to the source-audit result, applies the single explicit section-id correction from
-the source-bound override registry, restores the generic runtime provenance contract, and
-replaces the stale final-count assertion.
+The adapter pins the full-course counts, consumes a frozen pre-V2.3 canonical snapshot so
+projection remains reproducible after runtime materialization, normalizes provenance for
+the Flutter domain model, and emits deterministic repo-relative source evidence.
 """
 from __future__ import annotations
 
+import copy
 import json
 import sqlite3
 import sys
@@ -24,7 +23,11 @@ EXPECTED_THEME_COUNTS = {
     "TEMA_04": (143, 105),
 }
 EXPECTED_TOTALS = {"entries": 573, "questions": 404, "locator_only_questions": 0}
+EXPECTED_CANONICAL_ITEMS = 283
+EXPECTED_CANONICAL_RELATIONS = 3750
+BASELINE_RUNTIME_COMMIT = "da93b3aa22a1edafe85e66c4b5a7c3ba9f7a1bf2"
 SOURCE_IDS = ["official_textbook_pdf"]
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _arg_path(name: str) -> Path:
@@ -36,6 +39,16 @@ def _arg_path(name: str) -> Path:
     return Path(value).resolve()
 
 
+def _pop_arg_path(name: str) -> Path:
+    try:
+        index = sys.argv.index(name)
+        value = sys.argv[index + 1]
+    except (ValueError, IndexError) as exc:
+        raise core.ProjectionError(f"MISSING_REQUIRED_ARGUMENT:{name}") from exc
+    del sys.argv[index : index + 2]
+    return Path(value).resolve()
+
+
 def _load_overrides() -> dict[str, Any]:
     path = _arg_path("--overrides")
     data = core.read_json(path)
@@ -44,16 +57,97 @@ def _load_overrides() -> dict[str, Any]:
     return data
 
 
+def _load_canonical_snapshot(
+    path: Path,
+) -> tuple[dict[str, dict[str, Any]], dict[str, list[tuple[str, str, str]]]]:
+    if not path.is_file():
+        raise core.ProjectionError(f"CANONICAL_SNAPSHOT_MISSING:{path}")
+    data = core.read_json(path)
+    if data.get("document_type") != "TYMM_TEACHER_GUIDE_CANONICAL_SNAPSHOT":
+        raise core.ProjectionError("CANONICAL_SNAPSHOT_DOC_TYPE_INVALID")
+    if data.get("course_id") != "TDE_11":
+        raise core.ProjectionError("CANONICAL_SNAPSHOT_COURSE_INVALID")
+    if data.get("source_runtime_commit") != BASELINE_RUNTIME_COMMIT:
+        raise core.ProjectionError("CANONICAL_SNAPSHOT_BASELINE_COMMIT_MISMATCH")
+
+    raw_items = data.get("items")
+    raw_relations = data.get("relations")
+    if not isinstance(raw_items, dict) or len(raw_items) != EXPECTED_CANONICAL_ITEMS:
+        raise core.ProjectionError("CANONICAL_SNAPSHOT_ITEM_COUNT_INVALID")
+    if int(data.get("item_count") or 0) != EXPECTED_CANONICAL_ITEMS:
+        raise core.ProjectionError("CANONICAL_SNAPSHOT_DECLARED_ITEM_COUNT_INVALID")
+    if not isinstance(raw_relations, dict):
+        raise core.ProjectionError("CANONICAL_SNAPSHOT_RELATIONS_OBJECT_REQUIRED")
+
+    items: dict[str, dict[str, Any]] = {}
+    for item_id, raw in raw_items.items():
+        if not isinstance(raw, dict):
+            raise core.ProjectionError(f"CANONICAL_SNAPSHOT_ITEM_OBJECT_REQUIRED:{item_id}")
+        section_id = str(raw.get("section_id") or "").strip()
+        if not section_id:
+            raise core.ProjectionError(f"CANONICAL_SNAPSHOT_SECTION_MISSING:{item_id}")
+        items[str(item_id)] = copy.deepcopy(raw)
+
+    relations: dict[str, list[tuple[str, str, str]]] = {}
+    relation_count = 0
+    for item_id, raw_list in raw_relations.items():
+        item_id = str(item_id)
+        if item_id not in items:
+            raise core.ProjectionError(f"CANONICAL_SNAPSHOT_RELATION_UNKNOWN_ITEM:{item_id}")
+        if not isinstance(raw_list, list):
+            raise core.ProjectionError(f"CANONICAL_SNAPSHOT_RELATION_LIST_REQUIRED:{item_id}")
+        converted: list[tuple[str, str, str]] = []
+        for raw in raw_list:
+            if not isinstance(raw, dict):
+                raise core.ProjectionError(f"CANONICAL_SNAPSHOT_RELATION_OBJECT_REQUIRED:{item_id}")
+            relation = (
+                str(raw.get("target_type") or "").strip(),
+                str(raw.get("target_id") or "").strip(),
+                str(raw.get("relation_type") or "").strip(),
+            )
+            if not all(relation):
+                raise core.ProjectionError(f"CANONICAL_SNAPSHOT_RELATION_EMPTY:{item_id}")
+            converted.append(relation)
+            relation_count += 1
+        if converted:
+            relations[item_id] = converted
+
+    if relation_count != EXPECTED_CANONICAL_RELATIONS:
+        raise core.ProjectionError(
+            f"CANONICAL_SNAPSHOT_RELATION_COUNT:{relation_count}!={EXPECTED_CANONICAL_RELATIONS}"
+        )
+    if int(data.get("relation_count") or 0) != EXPECTED_CANONICAL_RELATIONS:
+        raise core.ProjectionError("CANONICAL_SNAPSHOT_DECLARED_RELATION_COUNT_INVALID")
+    return items, relations
+
+
 def _normalized_locators(value: Any, fallback: str) -> list[str]:
     raw = value if isinstance(value, list) else [value]
     result = [str(entry).strip() for entry in raw if str(entry or "").strip()]
     return result or [fallback]
 
 
-def _install_source_contract(overrides: dict[str, Any]) -> None:
+def _repo_relative(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(REPO_ROOT).as_posix()
+    except ValueError as exc:
+        raise core.ProjectionError(f"SOURCE_PATH_OUTSIDE_REPOSITORY:{resolved}") from exc
+
+
+def _install_source_contract(overrides: dict[str, Any], snapshot_path: Path) -> None:
     core.EXPECTED_THEME_COUNTS = dict(EXPECTED_THEME_COUNTS)
     core.EXPECTED_TOTALS = dict(EXPECTED_TOTALS)
-    core.PROJECTION_VERSION = "1.1.0+book-first-v2.3-full-course"
+    core.PROJECTION_VERSION = "1.2.0+book-first-v2.3-snapshot"
+
+    canonical_items, canonical_relations = _load_canonical_snapshot(snapshot_path)
+
+    def snapshot_canonical(
+        _db: sqlite3.Connection,
+    ) -> tuple[dict[str, dict[str, Any]], dict[str, list[tuple[str, str, str]]]]:
+        return copy.deepcopy(canonical_items), copy.deepcopy(canonical_relations)
+
+    core.snapshot_canonical = snapshot_canonical
 
     aliases_raw = overrides.get("section_aliases") or {}
     if not isinstance(aliases_raw, dict):
@@ -81,9 +175,8 @@ def _install_source_contract(overrides: dict[str, Any]) -> None:
 
     core.load_mirror_entries = load_mirror_entries
 
-    # The Flutter domain model has always required source_ids/source_locators in
-    # provenance.  The early V2.3 projector omitted source_ids.  Inject them before
-    # hashing so canonical_payload_sha256 still represents the exact stored item.
+    # The Flutter domain model requires source_ids/source_locators in provenance.
+    # Inject them before hashing so canonical_payload_sha256 represents stored data.
     original_item_digest = core.item_digest
 
     def item_digest(payload: dict[str, Any]) -> str:
@@ -99,8 +192,8 @@ def _install_source_contract(overrides: dict[str, Any]) -> None:
 
     core.item_digest = item_digest
 
-    # Units have no payload hash, so normalize their provenance immediately after
-    # the base build and before manifest/seal fingerprints are generated.
+    # Units have no payload hash, so normalize their provenance after the base build.
+    # Add the frozen snapshot to source_paths so it participates in the validation seal.
     original_build_projection = core.build_projection
 
     def build_projection(
@@ -128,7 +221,7 @@ def _install_source_contract(overrides: dict[str, Any]) -> None:
                 "UPDATE teacher_guide_units SET provenance_json=? WHERE unit_id=?",
                 (core.compact(provenance), unit_id),
             )
-        return metrics, paths
+        return metrics, [*paths, snapshot_path]
 
     core.build_projection = build_projection
 
@@ -173,10 +266,116 @@ def _install_source_contract(overrides: dict[str, Any]) -> None:
 
     core.verify_projection = verify_projection
 
+    # The original projector stores absolute Action-runner paths in source_files because
+    # main() resolves every input path.  Rebuild metadata with stable repo-relative keys.
+    def update_metadata(
+        db: sqlite3.Connection,
+        runtime_dir: Path,
+        package_path: Path | None,
+        source_paths: list[Path],
+        override_path: Path,
+        metrics: dict[str, Any],
+    ) -> None:
+        manifest_path = runtime_dir / "runtime_manifest.json"
+        seal_path = runtime_dir / "teacher_guide_validation_seal.json"
+        manifest = core.read_json(manifest_path)
+        old_seal = core.read_json(seal_path)
+
+        source_files: dict[str, str] = {}
+        existing = old_seal.get("source_files")
+        volatile_markers = (
+            "teacher_guide_v2_profiles.json",
+            "v23_source",
+            "v23_canonical_overrides.json",
+            "v23_canonical_snapshot.json",
+        )
+        if isinstance(existing, dict):
+            for raw_key, value in existing.items():
+                key = str(raw_key)
+                if key.startswith("/") or any(marker in key for marker in volatile_markers):
+                    continue
+                source_files[key] = str(value)
+
+        for path in sorted(set(source_paths), key=lambda value: _repo_relative(value)):
+            source_files[_repo_relative(path)] = core.sha256_file(path)
+        if override_path.is_file():
+            source_files[_repo_relative(override_path)] = core.sha256_file(override_path)
+        source_files = dict(sorted(source_files.items()))
+
+        counts = core.teacher_counts(db)
+        fingerprint_payload = {
+            "projection_version": core.PROJECTION_VERSION,
+            "source_tymm_commit": core.SOURCE_COMMIT,
+            "source_hashes": source_files,
+            "row_counts": counts,
+            "items": core.ordered_item_hashes(db),
+        }
+        fingerprint = core.sha256_bytes(core.compact(fingerprint_payload).encode("utf-8"))
+        book_first = {
+            "available": True,
+            "architecture_version": core.ARCHITECTURE_VERSION,
+            "projection_version": core.PROJECTION_VERSION,
+            "source_tymm_commit": core.SOURCE_COMMIT,
+            "source_mode": "VENDORED_SOURCE_BOUND_BOOK_FIRST_PROJECTION",
+            **metrics,
+        }
+        seal = {
+            "seal_type": "TEACHER_GUIDE_COURSE_VALIDATION_SEAL",
+            "projection_version": core.PROJECTION_VERSION,
+            "status": "PASS",
+            "scope": "COURSE",
+            "course_id": manifest.get("course_id"),
+            "canonical_content_fingerprint": manifest.get("canonical_content_fingerprint"),
+            "teacher_guide_content_fingerprint": fingerprint,
+            "source_validation_status": "PASS_WITH_WARNINGS",
+            "source_files": source_files,
+            "row_counts": counts,
+            "book_first_v23": book_first,
+        }
+        seal_path.write_text(core.compact(seal) + "\n", encoding="utf-8")
+        seal_sha = core.sha256_file(seal_path)
+
+        row_counts = manifest.get("row_counts")
+        capabilities = manifest.get("teacher_guide_capabilities")
+        validation = manifest.get("teacher_guide_validation")
+        if not isinstance(row_counts, dict) or not isinstance(capabilities, dict) or not isinstance(validation, dict):
+            raise core.ProjectionError("RUNTIME_MANIFEST_TEACHER_GUIDE_METADATA_INVALID")
+        row_counts.update(counts)
+        capabilities["row_counts"] = counts
+        capabilities.pop("pedagogy_overlay", None)
+        capabilities["book_first_v23"] = book_first
+        capabilities["architecture_version"] = core.ARCHITECTURE_VERSION
+        validation["content_fingerprint"] = f"sha256:{fingerprint}"
+        validation["seal_sha256"] = seal_sha
+        validation["projection_version"] = core.PROJECTION_VERSION
+        validation["architecture_version"] = core.ARCHITECTURE_VERSION
+        manifest["teacher_guide_source_commit"] = core.SOURCE_COMMIT
+        manifest["runtime_package_version"] = "1.4.0"
+        manifest_path.write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+        if package_path is not None:
+            package = core.read_json(package_path)
+            package["teacher_guide_source_commit"] = core.SOURCE_COMMIT
+            package["runtime_package_version"] = "1.4.0"
+            package["runtime_capabilities"] = manifest.get("capabilities", {})
+            package["teacher_guide_capabilities"] = capabilities
+            package["teacher_guide_validation"] = validation
+            package["teacher_guide_row_counts"] = counts
+            package_path.write_text(
+                json.dumps(package, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+    core.update_metadata = update_metadata
+
 
 def main() -> int:
+    snapshot_path = _pop_arg_path("--canonical-snapshot")
     overrides = _load_overrides()
-    _install_source_contract(overrides)
+    _install_source_contract(overrides, snapshot_path)
     return core.main()
 
 
