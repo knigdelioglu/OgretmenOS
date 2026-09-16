@@ -6,12 +6,14 @@ on:
       - teacher-guide-v23-ui
     paths:
       - 'tool/migrate_teacher_guide_v23_viewer.py'
+      - 'tool/normalize_teacher_guide_v23_viewer.py'
       - 'lib/features/resources/teacher_guide_viewer_page.dart'
       - 'test/teacher_guide_viewer_test.dart'
       - '.github/workflows/teacher-guide-v23-ui.yml'
   pull_request:
     paths:
       - 'tool/migrate_teacher_guide_v23_viewer.py'
+      - 'tool/normalize_teacher_guide_v23_viewer.py'
       - 'lib/features/resources/teacher_guide_viewer_page.dart'
       - 'test/teacher_guide_viewer_test.dart'
       - '.github/workflows/teacher-guide-v23-ui.yml'
@@ -31,6 +33,7 @@ jobs:
       - name: Materialize viewer migration in CI workspace
         run: |
           python tool/migrate_teacher_guide_v23_viewer.py
+          python tool/normalize_teacher_guide_v23_viewer.py
           dart format --set-exit-if-changed \
             lib/features/resources/teacher_guide_viewer_page.dart \
             test/teacher_guide_viewer_test.dart || \
@@ -63,6 +66,7 @@ jobs:
       - name: Materialize viewer files
         run: |
           python tool/migrate_teacher_guide_v23_viewer.py
+          python tool/normalize_teacher_guide_v23_viewer.py
           dart format \
             lib/features/resources/teacher_guide_viewer_page.dart \
             test/teacher_guide_viewer_test.dart
