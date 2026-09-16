@@ -1,0 +1,25 @@
+name: V2.3 Private Source Probe
+
+on:
+  push:
+    branches: [v23-integration-probe]
+    paths: [.github/workflows/v23-private-source-probe.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TYMM_TOKEN: ${{ secrets.TYMM_READ_TOKEN || secrets.GH_PAT || secrets.PAT || github.token }}
+    steps:
+      - name: Probe private TYMM commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$TYMM_TOKEN"
+          git ls-remote "https://x-access-token:${TYMM_TOKEN}@github.com/knigdelioglu/tymm.git" 20860e3165d5e9de18913364286e6f89f28f6046 >/tmp/lsremote.txt
+          cat /tmp/lsremote.txt
+          grep -q 20860e3165d5e9de18913364286e6f89f28f6046 /tmp/lsremote.txt
