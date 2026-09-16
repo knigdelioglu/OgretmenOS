@@ -4,13 +4,19 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sqlite3
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
 THEMES = ("TEMA_01", "TEMA_02", "TEMA_03", "TEMA_04")
+SOURCE_COMMIT = "20860e3165d5e9de18913364286e6f89f28f6046"
+ALLOWED_OVERRIDE_FIELDS = {
+    "expected_response",
+    "acceptance_criteria",
+    "common_misconceptions",
+    "differentiation",
+}
 
 
 class AuditError(ValueError):
@@ -37,6 +43,13 @@ def load_patch(path: Path) -> dict[str, Any]:
     return value
 
 
+def load_json(path: Path) -> dict[str, Any]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise AuditError(f"JSON_OBJECT_REQUIRED:{path}")
+    return value
+
+
 def decode(raw: str | None, default: Any) -> Any:
     if raw is None or not str(raw).strip():
         return default
@@ -59,14 +72,53 @@ def key_exists(value: Any, keys: list[str]) -> bool:
     return isinstance(value, dict) and all(key in value for key in keys)
 
 
+def load_runtime_overrides(path: Path | None, canonical: dict[str, Any]) -> tuple[dict[str, str], int]:
+    if path is None:
+        return {}, 0
+    if not path.is_file():
+        raise AuditError(f"OVERRIDES_FILE_MISSING:{path}")
+    data = load_json(path)
+    if data.get("source_commit") != SOURCE_COMMIT:
+        raise AuditError("CANONICAL_OVERRIDE_SOURCE_COMMIT_MISMATCH")
+
+    aliases_raw = data.get("section_aliases") or {}
+    if not isinstance(aliases_raw, dict):
+        raise AuditError("SECTION_ALIASES_OBJECT_REQUIRED")
+    section_aliases = {str(key): str(value) for key, value in aliases_raw.items()}
+    if any(not key or not value for key, value in section_aliases.items()):
+        raise AuditError("SECTION_ALIAS_EMPTY")
+
+    items = data.get("items") or {}
+    if not isinstance(items, dict):
+        raise AuditError("CANONICAL_OVERRIDES_OBJECT_REQUIRED")
+    applied = 0
+    for item_id, fields in items.items():
+        item_id = str(item_id)
+        if item_id not in canonical:
+            raise AuditError(f"CANONICAL_OVERRIDE_UNKNOWN_ITEM:{item_id}")
+        if not isinstance(fields, dict):
+            raise AuditError(f"CANONICAL_OVERRIDE_FIELDS_OBJECT_REQUIRED:{item_id}")
+        unknown = set(fields) - ALLOWED_OVERRIDE_FIELDS
+        if unknown:
+            raise AuditError(f"CANONICAL_OVERRIDE_FIELDS_NOT_ALLOWED:{item_id}:{sorted(unknown)}")
+        if "expected_response" in fields:
+            if not nonempty(fields["expected_response"]):
+                raise AuditError(f"CANONICAL_OVERRIDE_EMPTY_EXPECTED_RESPONSE:{item_id}")
+            canonical[item_id] = fields["expected_response"]
+        applied += 1
+    return section_aliases, applied
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", type=Path, required=True)
     parser.add_argument("--database", type=Path, required=True)
+    parser.add_argument("--overrides", type=Path)
     args = parser.parse_args()
 
     root = args.source_root.resolve()
     database = args.database.resolve()
+    override_path = args.overrides.resolve() if args.overrides else None
     db = sqlite3.connect(database)
     try:
         sections = {str(row[0]) for row in db.execute("SELECT section_id FROM teacher_guide_sections")}
@@ -79,12 +131,18 @@ def main() -> int:
     finally:
         db.close()
 
+    section_aliases, override_items = load_runtime_overrides(override_path, canonical)
+    bad_alias_targets = {source: target for source, target in section_aliases.items() if target not in sections}
+    if bad_alias_targets:
+        raise AuditError(f"SECTION_ALIAS_TARGET_UNKNOWN:{bad_alias_targets}")
+
     failures: list[str] = []
     warnings: list[str] = []
     metrics: dict[str, Any] = {"themes": {}}
     all_mirror_ids: set[str] = set()
     all_component_keys: dict[str, set[str]] = defaultdict(set)
     all_component_refs_used: Counter[str] = Counter()
+    alias_use: Counter[str] = Counter()
     total_entries = total_questions = total_locator_only = 0
 
     for theme in THEMES:
@@ -107,6 +165,7 @@ def main() -> int:
             if doc.get("theme_id") != theme:
                 failures.append(f"{theme}:{path.name}:COMPONENT_THEME_MISMATCH:{doc.get('theme_id')}")
             for item_id, values in (doc.get("components") or {}).items():
+                item_id = str(item_id)
                 if item_id not in canonical:
                     failures.append(f"{theme}:{path.name}:COMPONENT_UNKNOWN_CANONICAL:{item_id}")
                 if not isinstance(values, dict):
@@ -118,7 +177,8 @@ def main() -> int:
                 components[item_id].update(values)
                 all_component_keys[item_id].update(str(key) for key in values)
 
-        # Build the answer map the projector will see before canonical overrides.
+        # Build the exact answer map the projector will see: pinned canonical overrides first,
+        # then additive component registries. Component keys may never overwrite canonical keys.
         answer_map = dict(canonical)
         for item_id, values in components.items():
             if item_id not in canonical:
@@ -165,9 +225,12 @@ def main() -> int:
                     failures.append(f"{theme}:{mirror_id}:DUPLICATE_MIRROR_ID")
                 all_mirror_ids.add(mirror_id)
 
-                section_id = str(entry.get("section_id") or "")
+                source_section_id = str(entry.get("section_id") or "")
+                section_id = section_aliases.get(source_section_id, source_section_id)
+                if source_section_id != section_id:
+                    alias_use[source_section_id] += 1
                 if section_id not in sections:
-                    failures.append(f"{theme}:{mirror_id}:UNKNOWN_SECTION:{section_id}")
+                    failures.append(f"{theme}:{mirror_id}:UNKNOWN_SECTION:{source_section_id}")
 
                 refs = [str(ref) for ref in entry.get("canonical_item_refs") or []]
                 if not refs:
@@ -220,15 +283,19 @@ def main() -> int:
 
     reused_components = [key for key, count in all_component_refs_used.items() if count > 1]
     if reused_components:
-        # Reuse can be intentional when one verified component supports several display cards,
-        # so surface it rather than failing the build.
         warnings.append(f"COMPONENT_KEYS_REUSED:{len(reused_components)}")
+
+    unused_aliases = sorted(set(section_aliases) - set(alias_use))
+    if unused_aliases:
+        failures.append(f"UNUSED_SECTION_ALIASES:{unused_aliases}")
 
     metrics.update({
         "entries": total_entries,
         "questions": total_questions,
         "locator_only_questions": total_locator_only,
         "canonical_baseline_items": len(canonical),
+        "canonical_override_items": override_items,
+        "section_aliases_used": sum(alias_use.values()),
         "component_keys": sum(len(keys) for keys in all_component_keys.values()),
     })
 
