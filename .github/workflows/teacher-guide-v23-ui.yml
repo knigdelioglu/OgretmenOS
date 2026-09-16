@@ -10,6 +10,7 @@ on:
       - 'tool/migrate_teacher_guide_v23_page_jump.py'
       - 'lib/features/resources/teacher_guide_viewer_page.dart'
       - 'test/teacher_guide_viewer_test.dart'
+      - 'test/teacher_guide_v23_runtime_viewer_test.dart'
       - '.github/workflows/teacher-guide-v23-ui.yml'
   pull_request:
     paths:
@@ -18,6 +19,7 @@ on:
       - 'tool/migrate_teacher_guide_v23_page_jump.py'
       - 'lib/features/resources/teacher_guide_viewer_page.dart'
       - 'test/teacher_guide_viewer_test.dart'
+      - 'test/teacher_guide_v23_runtime_viewer_test.dart'
       - '.github/workflows/teacher-guide-v23-ui.yml'
 
 permissions:
@@ -39,16 +41,20 @@ jobs:
           python tool/migrate_teacher_guide_v23_page_jump.py
           dart format --set-exit-if-changed \
             lib/features/resources/teacher_guide_viewer_page.dart \
-            test/teacher_guide_viewer_test.dart || \
+            test/teacher_guide_viewer_test.dart \
+            test/teacher_guide_v23_runtime_viewer_test.dart || \
           dart format \
             lib/features/resources/teacher_guide_viewer_page.dart \
-            test/teacher_guide_viewer_test.dart
+            test/teacher_guide_viewer_test.dart \
+            test/teacher_guide_v23_runtime_viewer_test.dart
       - name: Install dependencies
         run: flutter pub get
       - name: Analyze viewer integration
         run: flutter analyze
-      - name: Run viewer tests
+      - name: Run fixture viewer tests
         run: flutter test test/teacher_guide_viewer_test.dart --reporter expanded
+      - name: Run real-runtime viewer tests
+        run: flutter test test/teacher_guide_v23_runtime_viewer_test.dart --reporter expanded
 
   materialize-viewer:
     name: Materialize V2.3 viewer
@@ -73,17 +79,20 @@ jobs:
           python tool/migrate_teacher_guide_v23_page_jump.py
           dart format \
             lib/features/resources/teacher_guide_viewer_page.dart \
-            test/teacher_guide_viewer_test.dart
+            test/teacher_guide_viewer_test.dart \
+            test/teacher_guide_v23_runtime_viewer_test.dart
       - name: Verify materialized viewer
         run: |
           flutter pub get
           flutter analyze
           flutter test test/teacher_guide_viewer_test.dart --reporter expanded
+          flutter test test/teacher_guide_v23_runtime_viewer_test.dart --reporter expanded
       - name: Commit viewer migration
         run: |
           git add \
             lib/features/resources/teacher_guide_viewer_page.dart \
-            test/teacher_guide_viewer_test.dart
+            test/teacher_guide_viewer_test.dart \
+            test/teacher_guide_v23_runtime_viewer_test.dart
           if git diff --cached --quiet; then
             echo 'V2.3 viewer already materialized.'
             exit 0
