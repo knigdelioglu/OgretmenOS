@@ -4,7 +4,8 @@
 The base projector was written while Theme 1 only had the first pilot fragment, so its
 embedded row-count contract is stale.  This adapter does not weaken validation: it pins
 counts to the source-audit result, applies the single explicit section-id correction from
-the source-bound override registry, and replaces the stale final-count assertion.
+the source-bound override registry, restores the generic runtime provenance contract, and
+replaces the stale final-count assertion.
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ EXPECTED_THEME_COUNTS = {
     "TEMA_04": (143, 105),
 }
 EXPECTED_TOTALS = {"entries": 573, "questions": 404, "locator_only_questions": 0}
+SOURCE_IDS = ["official_textbook_pdf"]
 
 
 def _arg_path(name: str) -> Path:
@@ -40,6 +42,12 @@ def _load_overrides() -> dict[str, Any]:
     if data.get("source_commit") != core.SOURCE_COMMIT:
         raise core.ProjectionError("CANONICAL_OVERRIDE_SOURCE_COMMIT_MISMATCH")
     return data
+
+
+def _normalized_locators(value: Any, fallback: str) -> list[str]:
+    raw = value if isinstance(value, list) else [value]
+    result = [str(entry).strip() for entry in raw if str(entry or "").strip()]
+    return result or [fallback]
 
 
 def _install_source_contract(overrides: dict[str, Any]) -> None:
@@ -72,6 +80,57 @@ def _install_source_contract(overrides: dict[str, Any]) -> None:
         return normalized, statuses, paths
 
     core.load_mirror_entries = load_mirror_entries
+
+    # The Flutter domain model has always required source_ids/source_locators in
+    # provenance.  The early V2.3 projector omitted source_ids.  Inject them before
+    # hashing so canonical_payload_sha256 still represents the exact stored item.
+    original_item_digest = core.item_digest
+
+    def item_digest(payload: dict[str, Any]) -> str:
+        provenance = payload.get("provenance")
+        if not isinstance(provenance, dict):
+            raise core.ProjectionError(f"ITEM_PROVENANCE_OBJECT_REQUIRED:{payload.get('item_id')}")
+        provenance["source_ids"] = list(SOURCE_IDS)
+        provenance["source_locators"] = _normalized_locators(
+            provenance.get("source_locators"),
+            f"basılı s.{payload.get('page_locator')}",
+        )
+        return original_item_digest(payload)
+
+    core.item_digest = item_digest
+
+    # Units have no payload hash, so normalize their provenance immediately after
+    # the base build and before manifest/seal fingerprints are generated.
+    original_build_projection = core.build_projection
+
+    def build_projection(
+        db: sqlite3.Connection,
+        source_root: Path,
+        override_path: Path,
+    ):
+        metrics, paths = original_build_projection(db, source_root, override_path)
+        rows = db.execute(
+            """SELECT unit_id,page_locator,source_locator,provenance_json
+               FROM teacher_guide_units
+               WHERE unit_id LIKE ?""",
+            (f"{core.V23_UNIT_PREFIX}%",),
+        ).fetchall()
+        for unit_id, page_locator, source_locator, raw in rows:
+            provenance = json.loads(str(raw))
+            if not isinstance(provenance, dict):
+                raise core.ProjectionError(f"UNIT_PROVENANCE_OBJECT_REQUIRED:{unit_id}")
+            provenance["source_ids"] = list(SOURCE_IDS)
+            provenance["source_locators"] = _normalized_locators(
+                [source_locator],
+                f"basılı s.{page_locator}",
+            )
+            db.execute(
+                "UPDATE teacher_guide_units SET provenance_json=? WHERE unit_id=?",
+                (core.compact(provenance), unit_id),
+            )
+        return metrics, paths
+
+    core.build_projection = build_projection
 
     def verify_projection(db: sqlite3.Connection, metrics: dict[str, Any]) -> None:
         item_count = core.table_count(db, "teacher_guide_items")
