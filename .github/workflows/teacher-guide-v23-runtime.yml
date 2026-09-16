@@ -11,6 +11,7 @@ on:
       - 'tool/project_teacher_guide_v23.py'
       - 'tool/run_teacher_guide_v23_projection.py'
       - 'tool/teacher_guide/v23_canonical_overrides.json'
+      - 'tool/runtime_verifier/**'
       - '.github/workflows/teacher-guide-v23-runtime.yml'
   pull_request:
     paths:
@@ -50,19 +51,29 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Project V2.3 into an isolated runtime copy
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: '3.12.2'
+      - name: Project V2.3 into an isolated package copy
         run: |
-          rm -rf /tmp/tde11-v23-runtime
-          mkdir -p /tmp/tde11-v23-runtime
-          cp -a tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/. /tmp/tde11-v23-runtime/
-          cp tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json /tmp/tde11-v23-package_manifest.json
+          rm -rf /tmp/tde11-v23-package
+          mkdir -p /tmp/tde11-v23-package/runtime
+          cp -a tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/. /tmp/tde11-v23-package/runtime/
+          cp tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json /tmp/tde11-v23-package/package_manifest.json
           python tool/run_teacher_guide_v23_projection.py \
-            --runtime-dir /tmp/tde11-v23-runtime \
+            --runtime-dir /tmp/tde11-v23-package/runtime \
             --source-root tool/teacher_guide/v23_source \
             --overrides tool/teacher_guide/v23_canonical_overrides.json \
-            --package-manifest /tmp/tde11-v23-package_manifest.json
+            --package-manifest /tmp/tde11-v23-package/package_manifest.json
       - name: Audit projected V2.3 runtime quality
         run: |
           python tool/audit_teacher_guide_v23_projection.py \
-            --runtime-dir /tmp/tde11-v23-runtime \
-            --package-manifest /tmp/tde11-v23-package_manifest.json
+            --runtime-dir /tmp/tde11-v23-package/runtime \
+            --package-manifest /tmp/tde11-v23-package/package_manifest.json
+      - name: Verify projected package with runtime verifier
+        working-directory: tool/runtime_verifier
+        run: |
+          dart pub get
+          dart run bin/verify_runtime.dart \
+            --course TDE_11 \
+            --package-root /tmp/tde11-v23-package
