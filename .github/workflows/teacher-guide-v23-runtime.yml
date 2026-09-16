@@ -1,0 +1,38 @@
+name: Teacher Guide V2.3 Runtime
+
+on:
+  push:
+    branches:
+      - teacher-guide-v23-runtime
+    paths:
+      - 'tool/teacher_guide/v23_source/**'
+      - 'tool/audit_teacher_guide_v23_source.py'
+      - 'tool/project_teacher_guide_v23.py'
+      - 'tool/teacher_guide/v23_canonical_overrides.json'
+      - '.github/workflows/teacher-guide-v23-runtime.yml'
+  pull_request:
+    paths:
+      - 'tool/teacher_guide/v23_source/**'
+      - 'tool/audit_teacher_guide_v23_source.py'
+      - 'tool/project_teacher_guide_v23.py'
+      - 'tool/teacher_guide/v23_canonical_overrides.json'
+      - 'tool/runtime_verifier/**'
+      - 'test/teacher_guide_repository_test.dart'
+      - '.github/workflows/teacher-guide-v23-runtime.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  source-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Audit vendored V2.3 source
+        run: |
+          python tool/audit_teacher_guide_v23_source.py \
+            --source-root tool/teacher_guide/v23_source \
+            --database tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/course_runtime.sqlite
