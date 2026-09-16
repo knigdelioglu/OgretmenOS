@@ -1,0 +1,130 @@
+@@ -0,0 +1,129 @@
++{
++  "schema_version": "2.3.0",
++  "document_type": "TYMM_TEACHER_GUIDE_BOOK_MIRROR",
++  "course_id": "TDE_11",
++  "theme_id": "TEMA_01",
++  "scope": {
++    "printed_page_range": "53-58",
++    "status": "REVIEW_REQUIRED"
++  },
++  "source_policy": {
++    "primary_source": "official_textbook_pdf",
++    "prompt_modes": ["VERBATIM_SHORT", "VERIFIED_SUMMARY", "LOCATOR_ONLY"],
++    "locator_only_policy": "QUESTION öğelerinde LOCATOR_ONLY normal davranış değildir; yalnız güvenilir kısa tanım üretilemediğinde REVIEW_REQUIRED olarak kullanılabilir."
++  },
++  "guide_principles": [
++    "Konuşma/drama bölümünde kitapta basılı aşama başlıkları aynen korunur: Konuşmayı Yönetebilme, İçerik Oluşturabilme, Kural Uygulayabilme ve Süreci Değerlendirebilme.",
++    "Yazılı senaryo canlı sözlü performansın yerine geçmez; TDE3.3 için gözlenebilir performans kanıtı korunur.",
++    "Altışar kişilik grup yapısı ve kitapta görünür kontrol/öz değerlendirme ölçütleri rehberde açık tutulur.",
++    "PDF'de görünmeyen dış QR dereceli puanlama anahtarının ölçüt×düzey açıklamaları üretilmez veya tahmin edilmez."
++  ],
++  "entries": [
++    {
++      "mirror_id": "T1V23_P53_BARRIERS",
++      "section_id": "T1_SEC_03_KONUSMA_DRAMA",
++      "unit_id": "T1_GUIDE_U09_KONUSMA_HAZIRLIK",
++      "printed_page_range": "53",
++      "book_heading": "Edebiyat Atölyesi-1 — Drama hazırlığı",
++      "presentation_type": "QUESTION",
++      "canonical_item_refs": ["T1_G09_P53_BARRIERS"],
++      "prompt_display": "Sözlü iletişimi engelleyen davranışlar nelerdir; bu davranışlar iletişimi nasıl etkiler ve doğru iletişim için ne yapılabilir?",
++      "prompt_mode": "VERIFIED_SUMMARY",
++      "teacher_note": "Öğrencinin yalnız engel adını söylemesiyle yetinmeyin; “hangi davranış, hangi sonucu doğurdu ve yerine ne yapılabilir?” zincirini kurdurun.",
++      "show_acceptance": true,
++      "show_common_misconceptions": true,
++      "rights_mode": "DERIVED_ACTIVITY",
++      "source_locator": "basılı s.53 / PDF s.54 — drama hazırlık çalışması"
++    },
++    {
++      "mirror_id": "T1V23_P54_MANAGE",
++      "section_id": "T1_SEC_03_KONUSMA_DRAMA",
++      "unit_id": "T1_GUIDE_U10_KONUSMA_YONETIM",
++      "printed_page_range": "54",
++      "book_heading": "Konuşmayı Yönetebilme",
++      "presentation_type": "PROCESS",
++      "canonical_item_refs": ["T1_G10_P54_PERFORMANCE_SETUP"],
++      "teacher_note": "Altışar kişilik grup yapısını, görev dağılımını, konu–amaç–hedef kitle–yöntem–araç–süre/ortam kararlarını görünür hâle getirin. Kontrol listesini yalnız sonda değil planlama sırasında da kullandırın.",
++      "show_acceptance": true,
++      "show_common_misconceptions": true,
++      "rights_mode": "DERIVED_ACTIVITY",
++      "source_locator": "basılı s.54 / PDF s.55 — Konuşmayı Yönetebilme"
++    },
++    {
++      "mirror_id": "T1V23_P55_56_CONTENT",
++      "section_id": "T1_SEC_03_KONUSMA_DRAMA",
++      "unit_id": "T1_GUIDE_U11_KONUSMA_ICERIK",
++      "printed_page_range": "55-56",
++      "book_heading": "İçerik Oluşturabilme",
++      "presentation_type": "PROCESS",
++      "canonical_item_refs": ["T1_G11_P55_56_CONTENT_PLAN"],
++      "teacher_note": "Senaryonun edebî güzelliğinden önce iletişim engelinin neden–sonuç–çözüm zinciri ile hedef kitleye uygun içerik görünürlüğünü kontrol edin; akran geri bildirimi sonrası en az bir gerçek revizyon izi arayın.",
++      "show_acceptance": true,
++      "show_common_misconceptions": true,
++      "rights_mode": "DERIVED_ACTIVITY",
++      "source_locator": "basılı s.55-56 / PDF s.56-57 — İçerik Oluşturabilme"
++    },
++    {
++      "mirror_id": "T1V23_P56_ERROR_SOLUTION",
++      "section_id": "T1_SEC_03_KONUSMA_DRAMA",
++      "unit_id": "T1_GUIDE_U11_KONUSMA_ICERIK",
++      "printed_page_range": "56",
++      "book_heading": "İletişim hataları ve çözüm önerileri",
++      "presentation_type": "TABLE",
++      "canonical_item_refs": ["T1_G11_P56_ERROR_SOLUTION_TABLE"],
++      "teacher_note": "“Daha iyi iletişim kurmalı” gibi soyut çözümleri kabul etmek yerine çözümü gözlenebilir davranışa dönüştürtün.",
++      "show_acceptance": true,
++      "rights_mode": "DERIVED_ACTIVITY",
++      "source_locator": "basılı s.56 / PDF s.57 — hata/çözüm çalışması"
++    },
++    {
++      "mirror_id": "T1V23_P57_APPLY",
++      "section_id": "T1_SEC_03_KONUSMA_DRAMA",
++      "unit_id": "T1_GUIDE_U12_KONUSMA_UYGULAMA",
++      "printed_page_range": "57",
++      "book_heading": "Kural Uygulayabilme",
++      "presentation_type": "PROCESS",
++      "canonical_item_refs": ["T1_G12_P57_LIVE_PERFORMANCE"],
++      "teacher_note": "Yazılı senaryoyu tek başına yeterli kanıt saymayın. Canlı performansta beden dili, diksiyon/telaffuz, vurgu-tonlama, dinleyici etkileşimi ve iletişim engelinin görünürlüğünü gözleyin.",
++      "show_acceptance": true,
++      "show_common_misconceptions": true,
++      "rights_mode": "DERIVED_ACTIVITY",
++      "source_locator": "basılı s.57 / PDF s.58 — Kural Uygulayabilme / canlı canlandırma"
++    },
++    {
++      "mirror_id": "T1V23_P58_SELF_ASSESS",
++      "section_id": "T1_SEC_03_KONUSMA_DRAMA",
++      "unit_id": "T1_GUIDE_U13_KONUSMA_DEGERLENDIRME",
++      "printed_page_range": "58",
++      "book_heading": "Süreci Değerlendirebilme",
++      "presentation_type": "ASSESSMENT",
++      "canonical_item_refs": ["T1_G13_P58_SELF_ASSESSMENT"],
++      "teacher_note": [
++        "Öz değerlendirme formunu öğrencinin yerine doldurmayın; Evet/Kısmen/Hayır seçimini “hangi performans anı bunu kanıtlıyor?” sorusuyla somutlaştırın.",
++        "Öğrencinin sonunda bir güçlü yön ve bir geliştirme hedefi yazmasını isteyin."
++      ],
++      "show_acceptance": true,
++      "rights_mode": "DERIVED_ACTIVITY",
++      "source_locator": "basılı s.58 / PDF s.59 — görünür öz değerlendirme formu"
++    },
++    {
++      "mirror_id": "T1V23_P58_QR_LIMIT",
++      "section_id": "T1_SEC_03_KONUSMA_DRAMA",
++      "unit_id": "T1_GUIDE_U13_KONUSMA_DEGERLENDIRME",
++      "printed_page_range": "58",
++      "book_heading": "Süreci Değerlendirebilme — akran/öğretmen değerlendirmesi",
++      "presentation_type": "REFERENCE",
++      "canonical_item_refs": ["T1_G13_P58_EXTERNAL_RUBRIC_NOTE"],
++      "teacher_note": "Kitapta görünür öz/akran/öğretmen değerlendirme yönlendirmelerini kullanın; dış QR'da bulunup PDF sayfasında görünmeyen dereceli puanlama ölçüt×düzey açıklamalarını uydurmayın. Bu nedenle bu alt bölüm REVIEW_REQUIRED kalır.",
++      "rights_mode": "PAGE_REFERENCE",
++      "source_locator": "basılı s.58 / PDF s.59 — dış QR rubrik sınırı"
++    }
++  ],
++  "page_checklist": [
++    {"printed_page_range": "53", "check": "İletişim engeli → etkisi → alternatif doğru davranış ilişkisi kuruldu mu?"},
++    {"printed_page_range": "54", "check": "Altı kişilik grup, görev dağılımı, amaç, hedef kitle, yöntem/araç ve olası engeller planlandı mı?"},
++    {"printed_page_range": "55-56", "check": "İçerikte neden–sonuç–çözüm, hedef kitleye uygun dil ve revizyon izi görünür mü?"},
++    {"printed_page_range": "57", "check": "Yazılı taslak yerine canlı sözlü performans gerçekten gözlendi mi?"},
++    {"printed_page_range": "58", "check": "Öz değerlendirme performans kanıtına dayandı mı ve dış QR rubrik düzeyleri uydurulmadan sınır korundu mu?"}
++  ]
++}
