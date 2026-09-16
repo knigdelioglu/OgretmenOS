@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
+EXPECTED_PROJECTION_VERSION = "1.2.0+book-first-v2.3-snapshot"
 
 
 def _decode(raw: Any, label: str) -> dict[str, Any]:
@@ -73,7 +74,7 @@ def main() -> int:
                     raise ValueError(f"{label}:BAD_CONTENT_CLASS")
                 if provenance.get("architecture_version") != "2.3.0":
                     raise ValueError(f"{label}:BAD_ARCHITECTURE_VERSION")
-                if provenance.get("projection_version") != "1.1.0+book-first-v2.3-full-course":
+                if provenance.get("projection_version") != EXPECTED_PROJECTION_VERSION:
                     raise ValueError(f"{label}:BAD_PROJECTION_VERSION")
                 if provenance.get("source_tymm_commit") != "20860e3165d5e9de18913364286e6f89f28f6046":
                     raise ValueError(f"{label}:BAD_SOURCE_COMMIT")
