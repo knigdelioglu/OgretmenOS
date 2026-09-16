@@ -3,7 +3,8 @@
 
 The adapter pins the full-course counts, consumes a frozen pre-V2.3 canonical snapshot so
 projection remains reproducible after runtime materialization, normalizes provenance for
-the Flutter domain model, and emits deterministic repo-relative source evidence.
+the Flutter domain model, and emits deterministic repo-relative source evidence.  A
+source-bound preflight leaves an already-current SQLite file byte-for-byte untouched.
 """
 from __future__ import annotations
 
@@ -25,6 +26,9 @@ EXPECTED_THEME_COUNTS = {
 EXPECTED_TOTALS = {"entries": 573, "questions": 404, "locator_only_questions": 0}
 EXPECTED_CANONICAL_ITEMS = 283
 EXPECTED_CANONICAL_RELATIONS = 3750
+EXPECTED_UNITS = 431
+EXPECTED_RELATIONS = 7547
+PROJECTION_VERSION = "1.2.0+book-first-v2.3-snapshot"
 BASELINE_RUNTIME_COMMIT = "da93b3aa22a1edafe85e66c4b5a7c3ba9f7a1bf2"
 SOURCE_IDS = ["official_textbook_pdf"]
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -37,6 +41,17 @@ def _arg_path(name: str) -> Path:
     except (ValueError, IndexError) as exc:
         raise core.ProjectionError(f"MISSING_REQUIRED_ARGUMENT:{name}") from exc
     return Path(value).resolve()
+
+
+def _optional_arg_path(name: str) -> Path | None:
+    try:
+        index = sys.argv.index(name)
+    except ValueError:
+        return None
+    try:
+        return Path(sys.argv[index + 1]).resolve()
+    except IndexError as exc:
+        raise core.ProjectionError(f"MISSING_REQUIRED_ARGUMENT:{name}") from exc
 
 
 def _pop_arg_path(name: str) -> Path:
@@ -135,10 +150,152 @@ def _repo_relative(path: Path) -> str:
         raise core.ProjectionError(f"SOURCE_PATH_OUTSIDE_REPOSITORY:{resolved}") from exc
 
 
+def _v23_source_hashes(
+    source_root: Path,
+    snapshot_path: Path,
+    override_path: Path,
+) -> dict[str, str]:
+    paths = sorted(
+        [path.resolve() for path in source_root.rglob("*.patch") if path.is_file()],
+        key=_repo_relative,
+    )
+    paths.extend([snapshot_path.resolve(), override_path.resolve()])
+    return dict(
+        sorted(
+            (_repo_relative(path), core.sha256_file(path))
+            for path in paths
+        )
+    )
+
+
+def _metadata_contract_current(
+    manifest: dict[str, Any],
+    seal: dict[str, Any],
+    package: dict[str, Any] | None,
+    expected_hashes: dict[str, str],
+) -> bool:
+    book = (manifest.get("teacher_guide_capabilities") or {}).get("book_first_v23") or {}
+    if not isinstance(book, dict):
+        return False
+    if (
+        book.get("available") is not True
+        or book.get("architecture_version") != "2.3.0"
+        or book.get("projection_version") != PROJECTION_VERSION
+        or book.get("source_tymm_commit") != core.SOURCE_COMMIT
+        or book.get("entries") != EXPECTED_TOTALS["entries"]
+        or book.get("questions") != EXPECTED_TOTALS["questions"]
+        or book.get("locator_only_questions") != 0
+        or book.get("units") != EXPECTED_UNITS
+    ):
+        return False
+    if (
+        manifest.get("teacher_guide_source_commit") != core.SOURCE_COMMIT
+        or seal.get("status") != "PASS"
+        or seal.get("projection_version") != PROJECTION_VERSION
+    ):
+        return False
+
+    stored = seal.get("source_files")
+    if not isinstance(stored, dict):
+        return False
+    relevant_prefix = "tool/teacher_guide/v23_source/"
+    relevant_exact = {
+        "tool/teacher_guide/v23_canonical_snapshot.json",
+        "tool/teacher_guide/v23_canonical_overrides.json",
+    }
+    stored_relevant = {
+        str(key): str(value)
+        for key, value in stored.items()
+        if str(key).startswith(relevant_prefix) or str(key) in relevant_exact
+    }
+    if stored_relevant != expected_hashes:
+        return False
+
+    if package is not None:
+        package_book = (package.get("teacher_guide_capabilities") or {}).get("book_first_v23") or {}
+        if not isinstance(package_book, dict):
+            return False
+        if (
+            package_book.get("projection_version") != PROJECTION_VERSION
+            or package_book.get("entries") != EXPECTED_TOTALS["entries"]
+            or package_book.get("questions") != EXPECTED_TOTALS["questions"]
+            or package.get("teacher_guide_source_commit") != core.SOURCE_COMMIT
+        ):
+            return False
+    return True
+
+
+def _database_contract_current(database_path: Path) -> bool:
+    if not database_path.is_file():
+        return False
+    db = sqlite3.connect(database_path)
+    try:
+        checks = {
+            "items": int(db.execute("SELECT COUNT(*) FROM teacher_guide_items").fetchone()[0]),
+            "questions": int(
+                db.execute("SELECT COUNT(*) FROM teacher_guide_items WHERE item_type='QUESTION'").fetchone()[0]
+            ),
+            "v23_items": int(
+                db.execute("SELECT COUNT(*) FROM teacher_guide_items WHERE item_id LIKE '__v23_item__%'").fetchone()[0]
+            ),
+            "units": int(db.execute("SELECT COUNT(*) FROM teacher_guide_units").fetchone()[0]),
+            "v23_units": int(
+                db.execute("SELECT COUNT(*) FROM teacher_guide_units WHERE unit_id LIKE '__v23_unit__%'").fetchone()[0]
+            ),
+            "relations": int(db.execute("SELECT COUNT(*) FROM teacher_guide_item_relations").fetchone()[0]),
+            "v22_units": int(
+                db.execute("SELECT COUNT(*) FROM teacher_guide_units WHERE unit_id LIKE '__pedv2_unit__%'").fetchone()[0]
+            ),
+            "v22_items": int(
+                db.execute("SELECT COUNT(*) FROM teacher_guide_items WHERE item_id LIKE '__pedv2_block__%'").fetchone()[0]
+            ),
+        }
+        if checks != {
+            "items": EXPECTED_TOTALS["entries"],
+            "questions": EXPECTED_TOTALS["questions"],
+            "v23_items": EXPECTED_TOTALS["entries"],
+            "units": EXPECTED_UNITS,
+            "v23_units": EXPECTED_UNITS,
+            "relations": EXPECTED_RELATIONS,
+            "v22_units": 0,
+            "v22_items": 0,
+        }:
+            return False
+        if db.execute("PRAGMA foreign_key_check").fetchall():
+            return False
+    except sqlite3.Error:
+        return False
+    finally:
+        db.close()
+    return True
+
+
+def _already_current(
+    runtime_dir: Path,
+    package_path: Path | None,
+    source_root: Path,
+    snapshot_path: Path,
+    override_path: Path,
+) -> bool:
+    manifest_path = runtime_dir / "runtime_manifest.json"
+    seal_path = runtime_dir / "teacher_guide_validation_seal.json"
+    database_path = runtime_dir / "course_runtime.sqlite"
+    if not manifest_path.is_file() or not seal_path.is_file():
+        return False
+    try:
+        manifest = core.read_json(manifest_path)
+        seal = core.read_json(seal_path)
+        package = core.read_json(package_path) if package_path is not None else None
+        expected_hashes = _v23_source_hashes(source_root, snapshot_path, override_path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return False
+    return _metadata_contract_current(manifest, seal, package, expected_hashes) and _database_contract_current(database_path)
+
+
 def _install_source_contract(overrides: dict[str, Any], snapshot_path: Path) -> None:
     core.EXPECTED_THEME_COUNTS = dict(EXPECTED_THEME_COUNTS)
     core.EXPECTED_TOTALS = dict(EXPECTED_TOTALS)
-    core.PROJECTION_VERSION = "1.2.0+book-first-v2.3-snapshot"
+    core.PROJECTION_VERSION = PROJECTION_VERSION
 
     canonical_items, canonical_relations = _load_canonical_snapshot(snapshot_path)
 
@@ -267,7 +424,7 @@ def _install_source_contract(overrides: dict[str, Any], snapshot_path: Path) -> 
     core.verify_projection = verify_projection
 
     # The original projector stores absolute Action-runner paths in source_files because
-    # main() resolves every input path.  Rebuild metadata with stable repo-relative keys.
+    # main() resolves every input path. Rebuild metadata with stable repo-relative keys.
     def update_metadata(
         db: sqlite3.Connection,
         runtime_dir: Path,
@@ -373,9 +530,30 @@ def _install_source_contract(overrides: dict[str, Any], snapshot_path: Path) -> 
 
 
 def main() -> int:
+    runtime_dir = _arg_path("--runtime-dir")
+    source_root = _arg_path("--source-root")
+    override_path = _arg_path("--overrides")
+    package_path = _optional_arg_path("--package-manifest")
     snapshot_path = _pop_arg_path("--canonical-snapshot")
     overrides = _load_overrides()
     _install_source_contract(overrides, snapshot_path)
+
+    if _already_current(
+        runtime_dir=runtime_dir,
+        package_path=package_path,
+        source_root=source_root,
+        snapshot_path=snapshot_path,
+        override_path=override_path,
+    ):
+        print("TEACHER_GUIDE_V23_BOOK_FIRST_PROJECTION: ALREADY_CURRENT")
+        print(f"ARCHITECTURE_VERSION: {core.ARCHITECTURE_VERSION}")
+        print(f"PROJECTION_VERSION: {PROJECTION_VERSION}")
+        print(f"ENTRIES: {EXPECTED_TOTALS['entries']}")
+        print(f"QUESTIONS: {EXPECTED_TOTALS['questions']}")
+        print("LOCATOR_ONLY_QUESTIONS: 0")
+        print(f"UNITS: {EXPECTED_UNITS}")
+        return 0
+
     return core.main()
 
 
