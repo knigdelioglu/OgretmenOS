@@ -10,6 +10,7 @@ on:
       - 'tool/audit_teacher_guide_v23_projection.py'
       - 'tool/project_teacher_guide_v23.py'
       - 'tool/run_teacher_guide_v23_projection.py'
+      - 'tool/migrate_teacher_guide_v23_repository_test.py'
       - 'tool/teacher_guide/v23_canonical_overrides.json'
       - 'tool/runtime_verifier/**'
       - '.github/workflows/teacher-guide-v23-runtime.yml'
@@ -20,6 +21,7 @@ on:
       - 'tool/audit_teacher_guide_v23_projection.py'
       - 'tool/project_teacher_guide_v23.py'
       - 'tool/run_teacher_guide_v23_projection.py'
+      - 'tool/migrate_teacher_guide_v23_repository_test.py'
       - 'tool/teacher_guide/v23_canonical_overrides.json'
       - 'tool/runtime_verifier/**'
       - 'test/teacher_guide_repository_test.dart'
@@ -77,3 +79,15 @@ jobs:
           dart run bin/verify_runtime.dart \
             --course TDE_11 \
             --package-root /tmp/tde11-v23-package
+      - name: Set up Flutter for repository integration test
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          cache: true
+      - name: Exercise repository adapter against projected V2.3 package
+        env:
+          TDE11_RUNTIME_PACKAGE_ROOT: /tmp/tde11-v23-package
+        run: |
+          python tool/migrate_teacher_guide_v23_repository_test.py
+          flutter pub get
+          flutter test test/teacher_guide_repository_test.dart --reporter expanded
