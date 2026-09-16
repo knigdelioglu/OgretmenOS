@@ -162,7 +162,7 @@ def migrate_viewer(path: Path) -> bool:
         "String _itemTypeLabel(String value) => switch (value.trim().toUpperCase()) {\n",
         "int _pageSortKey(String value) {\n"
         "  final match = RegExp(r'\\d+').firstMatch(value);\n"
-        "  return int.tryParse(match?.group(0) ?? '') ?? 1 << 30;\n"
+        "  return int.tryParse(match?.group(0) ?? '') ?? (1 << 30);\n"
         "}\n\n"
         "String _itemTypeLabel(String value) => switch (value.trim().toUpperCase()) {\n",
         "page-sort-key",
