@@ -330,6 +330,36 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'book-first page jump follows printed-page order and opens the page item',
+    (tester) async {
+      _useSize(tester, const Size(412, 915));
+
+      await tester.pumpWidget(_viewerApp(bookFirst: true));
+      await tester.pumpAndSettle();
+
+      final pageJump = find.byKey(const ValueKey('book-first-page-jump'));
+      expect(pageJump, findsOneWidget);
+      expect(find.text('Kitap sayfasına git'), findsOneWidget);
+      expect(
+        find.text('Soru 1 — Edebî eser gerçek hayatı nasıl yansıtır?'),
+        findsOneWidget,
+      );
+
+      await tester.tap(pageJump);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('s. 15 —'), findsOneWidget);
+      await tester.tap(find.textContaining('s. 15 —').last);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Soru 2 — Edebî dil iletişimi nasıl etkiler?'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 void _useSize(WidgetTester tester, Size size) {
@@ -606,6 +636,38 @@ class _GuideRepository
         'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
   );
 
+  static const bookFirstItemTwo = TeacherGuideItem(
+    itemId: '__v23_item__T1_TEST_Q02',
+    unitId: 'UNIT_OBSERVATION',
+    order: 2,
+    title: 'Soru 2 — Edebî dil iletişimi nasıl etkiler?',
+    label: 'Konuya Başlarken',
+    itemType: 'QUESTION',
+    pageLocator: '15',
+    sourceLocator: 'official_textbook_pdf#printed-p15',
+    contentStatus: 'VERIFIED',
+    expectedResponse: {
+      'temel_yaklasim': 'Edebî dil anlamı ve iletişim biçimini zenginleştirir.',
+    },
+    acceptanceCriteria: [],
+    teacherGuidance: [],
+    commonMisconceptions: [],
+    assessmentEvidence: [],
+    differentiation: TeacherGuideDifferentiation(support: [], enrichment: []),
+    provenance: TeacherGuideProvenance(
+      sourceIds: ['official_textbook_pdf'],
+      sourceLocators: ['basılı s.15'],
+      contentClass: 'BOOK_FIRST_V2_3_ITEM',
+      additional: {
+        'architecture_version': '2.3.0',
+        'prompt_mode': 'VERIFIED_SUMMARY',
+        'rights_mode': 'PAGE_REFERENCE',
+      },
+    ),
+    canonicalPayloadSha256:
+        'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  );
+
   static const teacherPackage = model.TeacherPackage(
     theme: theme,
     blocks: [],
@@ -755,7 +817,9 @@ class _GuideRepository
   Future<List<TeacherGuideItem>> getTeacherGuideItems(String unitId) async {
     if (!guideAvailable) return const [];
     if (unitId == unit.unitId) {
-      return bookFirst ? const [bookFirstItem] : const [observation];
+      return bookFirst
+          ? const [bookFirstItem, bookFirstItemTwo]
+          : const [observation];
     }
     if (!bookFirst && unitId == modelUnit.unitId) return const [modelItem];
     return const [];
@@ -779,7 +843,7 @@ class _GuideRepository
 
   TeacherGuideItem? _itemById(String itemId) {
     final items = bookFirst
-        ? const [bookFirstItem]
+        ? const [bookFirstItem, bookFirstItemTwo]
         : const [observation, modelItem];
     for (final item in items) {
       if (item.itemId == itemId) return item;

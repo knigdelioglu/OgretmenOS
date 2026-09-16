@@ -403,6 +403,10 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 children: [
                   search,
+                  if (data.isBookFirstV23) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    _bookFirstPageJump(data),
+                  ],
                   const SizedBox(height: AppSpacing.md),
                   if (searchResults.isNotEmpty)
                     _SearchResults(
@@ -438,7 +442,16 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
                     AppSpacing.lg,
                     0,
                   ),
-                  child: search,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      search,
+                      if (data.isBookFirstV23) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        _bookFirstPageJump(data),
+                      ],
+                    ],
+                  ),
                 ),
                 if (searchResults.isNotEmpty)
                   Padding(
@@ -539,6 +552,42 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
     ),
   );
 
+  Widget _bookFirstPageJump(_GuideViewData data) {
+    final targets = data.pageTargets;
+    final selectedLocator = data.itemById(_selectedItemId)?.pageLocator?.trim();
+    final currentValue =
+        targets.any((target) => target.locator == selectedLocator)
+        ? selectedLocator
+        : null;
+    return DropdownButtonFormField<String>(
+      key: const ValueKey('book-first-page-jump'),
+      initialValue: currentValue,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Kitap sayfasına git',
+        prefixIcon: Icon(Icons.menu_book_outlined),
+      ),
+      items: [
+        for (final target in targets)
+          DropdownMenuItem(
+            value: target.locator,
+            child: Text(
+              's. ${target.locator} — ${target.title}',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
+      onChanged: (locator) {
+        if (locator == null) return;
+        final target = targets
+            .where((candidate) => candidate.locator == locator)
+            .firstOrNull;
+        final item = target == null ? null : data.itemById(target.itemId);
+        if (item != null) unawaited(_selectItem(item, data));
+      },
+    );
+  }
+
   Widget _phoneSelectors(BuildContext context, _GuideViewData data) {
     final selectedSection =
         data.sections.any(
@@ -622,7 +671,46 @@ class _GuideViewData {
       ? null
       : items.where((value) => value.itemId == itemId).firstOrNull;
 
+  List<_GuidePageTarget> get pageTargets {
+    final byLocator = <String, _GuidePageTarget>{};
+    for (final section in sections) {
+      for (final unit in section.units) {
+        for (final item in unit.items) {
+          final locator = item.pageLocator?.trim();
+          if (locator == null || locator.isEmpty) continue;
+          byLocator.putIfAbsent(
+            locator,
+            () => _GuidePageTarget(
+              locator: locator,
+              itemId: item.itemId,
+              title: unit.unit.title,
+            ),
+          );
+        }
+      }
+    }
+    final result = byLocator.values.toList(growable: false)
+      ..sort((a, b) {
+        final pageCompare = _pageSortKey(a.locator)
+            .compareTo(_pageSortKey(b.locator));
+        return pageCompare != 0 ? pageCompare : a.locator.compareTo(b.locator);
+      });
+    return result;
+  }
+
   bool get isBookFirstV23 => items.any(_isBookFirstV23Item);
+}
+
+class _GuidePageTarget {
+  const _GuidePageTarget({
+    required this.locator,
+    required this.itemId,
+    required this.title,
+  });
+
+  final String locator;
+  final String itemId;
+  final String title;
 }
 
 class _ReviewSummary extends StatelessWidget {
@@ -1359,6 +1447,11 @@ String _humanizeKey(String value) {
   if (known != null) return known;
   final normalized = value.replaceAll('_', ' ').trim();
   return normalized.isEmpty ? value : normalized;
+}
+
+int _pageSortKey(String value) {
+  final match = RegExp(r'\d+').firstMatch(value);
+  return int.tryParse(match?.group(0) ?? '') ?? (1 << 30);
 }
 
 String _itemTypeLabel(String value) => switch (value.trim().toUpperCase()) {
