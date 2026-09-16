@@ -8,14 +8,10 @@ PATH = Path("lib/features/resources/teacher_guide_viewer_page.dart")
 OLD = """  final normalized = value.replaceAll('_', ' ').trim();
   if (normalized.isEmpty) return value;
   return normalized[0].toUpperCase() + normalized.substring(1);
-}
-
-String _itemTypeLabel"""
+}"""
 NEW = """  final normalized = value.replaceAll('_', ' ').trim();
   return normalized.isEmpty ? value : normalized;
-}
-
-String _itemTypeLabel"""
+}"""
 
 
 def main() -> int:
@@ -25,7 +21,9 @@ def main() -> int:
         return 0
     count = text.count(OLD)
     if count != 1:
-        raise SystemExit(f"TEACHER_GUIDE_V23_VIEWER_KEY_NORMALIZATION: EXPECTED_ONCE found={count}")
+        raise SystemExit(
+            f"TEACHER_GUIDE_V23_VIEWER_KEY_NORMALIZATION: EXPECTED_ONCE found={count}"
+        )
     PATH.write_text(text.replace(OLD, NEW, 1), encoding="utf-8")
     print("TEACHER_GUIDE_V23_VIEWER_KEY_NORMALIZATION: UPDATED")
     return 0
