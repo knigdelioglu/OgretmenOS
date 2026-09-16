@@ -17,6 +17,7 @@ EXPECTED_THEME_COUNTS = {
     "TEMA_04": (143, 105),
 }
 EXPECTED_TOTALS = (573, 404)
+EXPECTED_PROJECTION_VERSION = "1.2.0+book-first-v2.3-snapshot"
 ALLOWED_PROMPT_MODES = {"VERBATIM_SHORT", "VERIFIED_SUMMARY"}
 
 
@@ -216,7 +217,7 @@ def main() -> int:
     if manifest.get("teacher_guide_source_commit") != "20860e3165d5e9de18913364286e6f89f28f6046":
         failures.append(f"MANIFEST_SOURCE_COMMIT:{manifest.get('teacher_guide_source_commit')}")
 
-    if seal.get("status") != "PASS" or seal.get("projection_version") != "1.1.0+book-first-v2.3-full-course":
+    if seal.get("status") != "PASS" or seal.get("projection_version") != EXPECTED_PROJECTION_VERSION:
         failures.append(f"SEAL_STATUS_OR_VERSION:{seal.get('status')}:{seal.get('projection_version')}")
 
     if package is not None:
