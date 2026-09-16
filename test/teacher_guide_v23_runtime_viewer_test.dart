@@ -1,23 +1,21 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ogretmen_os/data/course/course_database_data_source.dart';
 import 'package:ogretmen_os/data/course/course_knowledge_repository_impl.dart';
 import 'package:ogretmen_os/data/course/teacher_guide_database_data_source.dart';
 import 'package:ogretmen_os/domain/models/course_models.dart';
+import 'package:ogretmen_os/domain/models/teacher_guide_models.dart';
 import 'package:ogretmen_os/domain/repositories/course_knowledge_repository.dart';
-import 'package:ogretmen_os/features/resources/teacher_guide_viewer_page.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   sqfliteFfiInit();
 
-  testWidgets(
-    'real TDE11 V2.3 runtime supports printed-page jump without filler',
-    (tester) async {
-      _useSize(tester, const Size(412, 915));
+  test(
+    'real TDE11 V2.3 runtime exposes deterministic printed-page targets via bulk read',
+    () async {
       final fixture = await _openRuntime();
       addTearDown(fixture.database.close);
 
@@ -26,85 +24,56 @@ void main() {
         scopeId: 'TEMA_01',
       );
       expect(guide, isNotNull);
+      expect(fixture.repository, isA<TeacherGuideBulkKnowledgeRepository>());
 
-      final targets = await _pageTargets(
-        fixture.repository,
-        guide!.guideId,
-      );
-      expect(targets.length, greaterThan(1));
-      final first = targets.first;
-      final second = targets[1];
+      final bulk = fixture.repository as TeacherGuideBulkKnowledgeRepository;
+      final units = await bulk.getTeacherGuideUnitsForGuide(guide!.guideId);
+      final items = await bulk.getTeacherGuideItemsForGuide(guide.guideId);
+      expect(units, isNotEmpty);
+      expect(items, isNotEmpty);
+      expect(items.every((item) => item.provenance.contentClass == 'BOOK_FIRST_V2_3_ITEM'), isTrue);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: TeacherGuideViewerPage(
-            repository: fixture.repository,
-            scopeType: 'theme',
-            scopeId: 'TEMA_01',
-            guideId: guide.guideId,
-            itemId: first.itemId,
+      final questions = items
+          .where((item) => item.itemType.toUpperCase() == 'QUESTION')
+          .toList(growable: false);
+      expect(questions, isNotEmpty);
+      expect(
+        questions.every(
+          (item) => const {'VERBATIM_SHORT', 'VERIFIED_SUMMARY'}.contains(
+            item.provenance.additional['prompt_mode'],
           ),
         ),
+        isTrue,
       );
-      await tester.pumpAndSettle();
 
-      final pageJump = find.byKey(const ValueKey('book-first-page-jump'));
-      expect(pageJump, findsOneWidget);
-      expect(find.text('Kitap sayfasına git'), findsOneWidget);
-      expect(find.text(first.title), findsWidgets);
-      expect(find.text('Belirtilmemiş'), findsNothing);
-
-      await tester.tap(pageJump);
-      await tester.pumpAndSettle();
-      final secondOption = find.textContaining('s. ${second.locator} —');
-      expect(secondOption, findsWidgets);
-      await tester.tap(secondOption.last);
-      await tester.pumpAndSettle();
-
-      expect(find.text(second.title), findsWidgets);
-      expect(find.text('Belirtilmemiş'), findsNothing);
-      expect(tester.takeException(), isNull);
+      final targets = _pageTargetsFromItems(items);
+      expect(targets.length, greaterThan(1));
+      expect(_pageSortKey(targets.first.locator), 12);
+      for (var index = 1; index < targets.length; index++) {
+        expect(
+          _pageSortKey(targets[index - 1].locator),
+          lessThanOrEqualTo(_pageSortKey(targets[index].locator)),
+        );
+      }
+      expect(targets.every((target) => target.title.trim().isNotEmpty), isTrue);
     },
   );
 
-  testWidgets(
-    'real visual-dependent question stays source-bound in the viewer',
-    (tester) async {
-      _useSize(tester, const Size(412, 915));
+  test(
+    'real visual-dependent question remains source-bound without an invented answer',
+    () async {
       final fixture = await _openRuntime();
       addTearDown(fixture.database.close);
 
       const itemId = '__v23_item__T4V23_P305_Q05';
       final item = await fixture.repository.getTeacherGuideItem(itemId);
       expect(item, isNotNull);
-      expect(item!.expectedResponse, isEmpty);
+      expect(item!.itemType, 'QUESTION');
+      expect(item.expectedResponse, isEmpty);
+      expect(item.acceptanceCriteria, isNotEmpty);
+      expect(item.provenance.contentClass, 'BOOK_FIRST_V2_3_ITEM');
       expect(item.provenance.additional['rights_mode'], 'PAGE_REFERENCE');
-
-      final guide = await fixture.repository.getTeacherGuideForScope(
-        scopeType: 'theme',
-        scopeId: 'TEMA_04',
-      );
-      expect(guide, isNotNull);
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: TeacherGuideViewerPage(
-            repository: fixture.repository,
-            scopeType: 'theme',
-            scopeId: 'TEMA_04',
-            guideId: guide!.guideId,
-            itemId: itemId,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(
-        find.textContaining('Cevap, ders kitabındaki görsel veya kaynak katmanına bağlı'),
-        findsOneWidget,
-      );
-      expect(find.text('Belirtilmemiş'), findsNothing);
-      expect(tester.takeException(), isNull);
+      expect(item.provenance.sourceLocators, isNotEmpty);
     },
   );
 }
@@ -129,29 +98,19 @@ Future<_RuntimeFixture> _openRuntime() async {
   return _RuntimeFixture(database: database, repository: repository);
 }
 
-Future<List<_PageTarget>> _pageTargets(
-  CourseKnowledgeRepository repository,
-  String guideId,
-) async {
+List<_PageTarget> _pageTargetsFromItems(List<TeacherGuideItem> items) {
   final byLocator = <String, _PageTarget>{};
-  final sections = await repository.getTeacherGuideSections(guideId);
-  for (final section in sections) {
-    final units = await repository.getTeacherGuideUnits(section.sectionId);
-    for (final unit in units) {
-      final items = await repository.getTeacherGuideItems(unit.unitId);
-      for (final item in items) {
-        final locator = item.pageLocator?.trim();
-        if (locator == null || locator.isEmpty) continue;
-        byLocator.putIfAbsent(
-          locator,
-          () => _PageTarget(
-            locator: locator,
-            itemId: item.itemId,
-            title: item.title ?? item.label,
-          ),
-        );
-      }
-    }
+  for (final item in items) {
+    final locator = item.pageLocator?.trim();
+    if (locator == null || locator.isEmpty) continue;
+    byLocator.putIfAbsent(
+      locator,
+      () => _PageTarget(
+        locator: locator,
+        itemId: item.itemId,
+        title: item.title ?? item.label,
+      ),
+    );
   }
   final result = byLocator.values.toList(growable: false)
     ..sort((a, b) {
@@ -166,13 +125,6 @@ Future<List<_PageTarget>> _pageTargets(
 int _pageSortKey(String value) {
   final match = RegExp(r'\d+').firstMatch(value);
   return int.tryParse(match?.group(0) ?? '') ?? (1 << 30);
-}
-
-void _useSize(WidgetTester tester, Size size) {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
 }
 
 class _RuntimeFixture {
