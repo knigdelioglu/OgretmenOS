@@ -289,7 +289,7 @@ void main() {
     expect(bookFirst['architecture_version'], '2.3.0');
     expect(
       bookFirst['projection_version'],
-      '1.1.0+book-first-v2.3-full-course',
+      '1.2.0+book-first-v2.3-snapshot',
     );
     expect(bookFirst['source_tymm_commit'],
         '20860e3165d5e9de18913364286e6f89f28f6046');

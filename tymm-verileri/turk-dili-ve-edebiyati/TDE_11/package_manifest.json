@@ -59,7 +59,7 @@
     "book_first_v23": {
       "available": true,
       "architecture_version": "2.3.0",
-      "projection_version": "1.1.0+book-first-v2.3-full-course",
+      "projection_version": "1.2.0+book-first-v2.3-snapshot",
       "source_tymm_commit": "20860e3165d5e9de18913364286e6f89f28f6046",
       "source_mode": "VENDORED_SOURCE_BOUND_BOOK_FIRST_PROJECTION",
       "themes": {
@@ -104,12 +104,12 @@
     "status": "PASS",
     "scope": "COURSE",
     "source_bound": true,
-    "content_fingerprint": "sha256:f98985710ded8911ecdf686cd4e46d2ef3491c5bb33c0235275901a2d7247e5d",
+    "content_fingerprint": "sha256:8cc3f036f4d555d5faba7278d2e8c8e100b26bbccfce52488349917c99342bbc",
     "canonical_content_fingerprint": "67507026f1019f3e014eec12e89c266a662723ead48cf92ca07539a66ca59a95",
     "source_validation_status": "PASS_WITH_WARNINGS",
     "seal_path": "runtime/teacher_guide_validation_seal.json",
-    "seal_sha256": "e8d08cf842e343f29b9a4caf21ec8a9661fffb8538ad709347d472086afac2c7",
-    "projection_version": "1.1.0+book-first-v2.3-full-course",
+    "seal_sha256": "868e780adc43148d6212f38fa48d0b30fbc8e6e6b5067a7b77ac37079d6a7ea7",
+    "projection_version": "1.2.0+book-first-v2.3-snapshot",
     "architecture_version": "2.3.0"
   },
   "teacher_guide_row_counts": {
