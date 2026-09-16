@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Replace the V2.2-only TDE11 repository fixture with the V2.3-aware contract test.
+"""Replace or normalize the TDE11 repository fixture with the V2.3-aware contract test.
 
-The migration is intentionally deterministic so CI can exercise the projected runtime
-before the generated SQLite is committed.  It retains a small legacy branch until the
-repository runtime itself is materialized as V2.3.
+The migration is deterministic so CI can exercise the projected runtime before generated
+SQLite is committed.  Existing V2.3 fixtures are also normalized when the projection
+contract version advances.
 """
 from __future__ import annotations
 
@@ -13,6 +13,8 @@ from pathlib import Path
 OLD_MARKER = "  test('TDE_11 V2.2 additive runtime canonical katmanı korur', () async {"
 NEW_MARKER = "  test('TDE_11 teacher guide runtime ilan edilen mimariyi karşılar', () async {"
 END_MARKER = "\n}\n\nCourseKnowledgeRepositoryImpl _repository"
+OLD_PROJECTION_VERSION = "1.1.0+book-first-v2.3-full-course"
+NEW_PROJECTION_VERSION = "1.2.0+book-first-v2.3-snapshot"
 
 REPLACEMENT = r'''  test('TDE_11 teacher guide runtime ilan edilen mimariyi karşılar', () async {
     final configuredRoot =
@@ -61,7 +63,7 @@ REPLACEMENT = r'''  test('TDE_11 teacher guide runtime ilan edilen mimariyi kar�
     expect(bookFirst['architecture_version'], '2.3.0');
     expect(
       bookFirst['projection_version'],
-      '1.1.0+book-first-v2.3-full-course',
+      '1.2.0+book-first-v2.3-snapshot',
     );
     expect(bookFirst['source_tymm_commit'],
         '20860e3165d5e9de18913364286e6f89f28f6046');
@@ -200,6 +202,10 @@ def migrate(path: Path) -> bool:
     if NEW_MARKER in text:
         if OLD_MARKER in text:
             raise RuntimeError("OLD_AND_NEW_TEST_MARKERS_PRESENT")
+        normalized = text.replace(OLD_PROJECTION_VERSION, NEW_PROJECTION_VERSION)
+        if normalized != text:
+            path.write_text(normalized, encoding="utf-8")
+            return True
         return False
     start = text.find(OLD_MARKER)
     if start < 0:
