@@ -2,8 +2,8 @@
 """Replace or normalize the TDE11 repository fixture with the V2.3-aware contract test.
 
 The migration is deterministic so CI can exercise the projected runtime before generated
-SQLite is committed.  Existing V2.3 fixtures are also normalized when the projection
-contract version advances.
+SQLite is committed. Once V2.3 is materialized, the fixture is strict: disappearance of
+the book-first capability is a regression, never a permitted V2.2 fallback.
 """
 from __future__ import annotations
 
@@ -15,6 +15,25 @@ NEW_MARKER = "  test('TDE_11 teacher guide runtime ilan edilen mimariyi karşıl
 END_MARKER = "\n}\n\nCourseKnowledgeRepositoryImpl _repository"
 OLD_PROJECTION_VERSION = "1.1.0+book-first-v2.3-full-course"
 NEW_PROJECTION_VERSION = "1.2.0+book-first-v2.3-snapshot"
+
+LEGACY_V23_FALLBACK = '''    final bookFirstRaw = capabilities['book_first_v23'];
+
+    // This branch keeps the test green during the one commit between adding the
+    // migration tooling and materializing the generated V2.3 runtime.  Once the
+    // runtime advertises V2.3, every assertion below becomes mandatory.
+    if (bookFirstRaw is! Map || bookFirstRaw['available'] != true) {
+      final overlay = capabilities['pedagogy_overlay'];
+      expect(overlay, isA<Map>());
+      expect((overlay as Map)['available'], isTrue);
+      return;
+    }
+
+    final bookFirst = Map<String, dynamic>.from(bookFirstRaw);'''
+
+STRICT_V23_CAPABILITY = '''    final bookFirstRaw = capabilities['book_first_v23'];
+    expect(bookFirstRaw, isA<Map>());
+    expect((bookFirstRaw as Map)['available'], isTrue);
+    final bookFirst = Map<String, dynamic>.from(bookFirstRaw);'''
 
 REPLACEMENT = r'''  test('TDE_11 teacher guide runtime ilan edilen mimariyi karşılar', () async {
     final configuredRoot =
@@ -44,17 +63,8 @@ REPLACEMENT = r'''  test('TDE_11 teacher guide runtime ilan edilen mimariyi kar�
       manifestMap['teacher_guide_capabilities'] as Map,
     );
     final bookFirstRaw = capabilities['book_first_v23'];
-
-    // This branch keeps the test green during the one commit between adding the
-    // migration tooling and materializing the generated V2.3 runtime.  Once the
-    // runtime advertises V2.3, every assertion below becomes mandatory.
-    if (bookFirstRaw is! Map || bookFirstRaw['available'] != true) {
-      final overlay = capabilities['pedagogy_overlay'];
-      expect(overlay, isA<Map>());
-      expect((overlay as Map)['available'], isTrue);
-      return;
-    }
-
+    expect(bookFirstRaw, isA<Map>());
+    expect((bookFirstRaw as Map)['available'], isTrue);
     final bookFirst = Map<String, dynamic>.from(bookFirstRaw);
     expect(
       packageManifest['teacher_guide_source_commit'],
@@ -134,7 +144,7 @@ REPLACEMENT = r'''  test('TDE_11 teacher guide runtime ilan edilen mimariyi kar�
     );
     expect(firstQuestion.expectedResponse, isNotEmpty);
 
-    // s.305/Q5 görsel seçenekleri PDF'nin görsel katmanına bağlıdır.  Rehber
+    // s.305/Q5 görsel seçenekleri PDF'nin görsel katmanına bağlıdır. Rehber
     // tek bir uydurma görsel cevabı üretmez; kaynak locator + kabul ölçütü taşır.
     final visualQuestion = await repository.getTeacherGuideItem(
       '__v23_item__T4V23_P305_Q05',
@@ -203,6 +213,7 @@ def migrate(path: Path) -> bool:
         if OLD_MARKER in text:
             raise RuntimeError("OLD_AND_NEW_TEST_MARKERS_PRESENT")
         normalized = text.replace(OLD_PROJECTION_VERSION, NEW_PROJECTION_VERSION)
+        normalized = normalized.replace(LEGACY_V23_FALLBACK, STRICT_V23_CAPABILITY)
         if normalized != text:
             path.write_text(normalized, encoding="utf-8")
             return True
@@ -226,7 +237,10 @@ def main() -> int:
     )
     args = parser.parse_args()
     changed = migrate(args.path.resolve())
-    print(f"TEACHER_GUIDE_V23_REPOSITORY_TEST_MIGRATION: {'UPDATED' if changed else 'ALREADY_CURRENT'}")
+    print(
+        "TEACHER_GUIDE_V23_REPOSITORY_TEST_MIGRATION: "
+        f"{'UPDATED' if changed else 'ALREADY_CURRENT'}"
+    )
     return 0
 
 
