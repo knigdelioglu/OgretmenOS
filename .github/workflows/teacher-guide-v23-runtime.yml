@@ -35,4 +35,5 @@ jobs:
         run: |
           python tool/audit_teacher_guide_v23_source.py \
             --source-root tool/teacher_guide/v23_source \
-            --database tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/course_runtime.sqlite
+            --database tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/course_runtime.sqlite \
+            --overrides tool/teacher_guide/v23_canonical_overrides.json
