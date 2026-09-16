@@ -9,6 +9,7 @@ on:
       - 'tool/normalize_teacher_guide_v23_viewer.py'
       - 'tool/migrate_teacher_guide_v23_page_jump.py'
       - 'tool/migrate_teacher_guide_v23_bulk_loading.py'
+      - 'tool/normalize_teacher_guide_v23_bulk_loading.py'
       - 'lib/domain/repositories/course_knowledge_repository.dart'
       - 'lib/data/course/course_knowledge_repository_impl.dart'
       - 'lib/data/course/teacher_guide_database_data_source.dart'
@@ -23,6 +24,7 @@ on:
       - 'tool/normalize_teacher_guide_v23_viewer.py'
       - 'tool/migrate_teacher_guide_v23_page_jump.py'
       - 'tool/migrate_teacher_guide_v23_bulk_loading.py'
+      - 'tool/normalize_teacher_guide_v23_bulk_loading.py'
       - 'lib/domain/repositories/course_knowledge_repository.dart'
       - 'lib/data/course/course_knowledge_repository_impl.dart'
       - 'lib/data/course/teacher_guide_database_data_source.dart'
@@ -50,6 +52,7 @@ jobs:
           python tool/normalize_teacher_guide_v23_viewer.py
           python tool/migrate_teacher_guide_v23_page_jump.py
           python tool/migrate_teacher_guide_v23_bulk_loading.py
+          python tool/normalize_teacher_guide_v23_bulk_loading.py
           dart format --set-exit-if-changed \
             lib/domain/repositories/course_knowledge_repository.dart \
             lib/data/course/course_knowledge_repository_impl.dart \
@@ -99,6 +102,7 @@ jobs:
           python tool/normalize_teacher_guide_v23_viewer.py
           python tool/migrate_teacher_guide_v23_page_jump.py
           python tool/migrate_teacher_guide_v23_bulk_loading.py
+          python tool/normalize_teacher_guide_v23_bulk_loading.py
           dart format \
             lib/domain/repositories/course_knowledge_repository.dart \
             lib/data/course/course_knowledge_repository_impl.dart \
