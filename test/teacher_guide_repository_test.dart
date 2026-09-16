@@ -270,17 +270,8 @@ void main() {
       manifestMap['teacher_guide_capabilities'] as Map,
     );
     final bookFirstRaw = capabilities['book_first_v23'];
-
-    // This branch keeps the test green during the one commit between adding the
-    // migration tooling and materializing the generated V2.3 runtime.  Once the
-    // runtime advertises V2.3, every assertion below becomes mandatory.
-    if (bookFirstRaw is! Map || bookFirstRaw['available'] != true) {
-      final overlay = capabilities['pedagogy_overlay'];
-      expect(overlay, isA<Map>());
-      expect((overlay as Map)['available'], isTrue);
-      return;
-    }
-
+    expect(bookFirstRaw, isA<Map>());
+    expect((bookFirstRaw as Map)['available'], isTrue);
     final bookFirst = Map<String, dynamic>.from(bookFirstRaw);
     expect(
       packageManifest['teacher_guide_source_commit'],
