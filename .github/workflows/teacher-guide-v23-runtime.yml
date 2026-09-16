@@ -7,14 +7,18 @@ on:
     paths:
       - 'tool/teacher_guide/v23_source/**'
       - 'tool/audit_teacher_guide_v23_source.py'
+      - 'tool/audit_teacher_guide_v23_projection.py'
       - 'tool/project_teacher_guide_v23.py'
+      - 'tool/run_teacher_guide_v23_projection.py'
       - 'tool/teacher_guide/v23_canonical_overrides.json'
       - '.github/workflows/teacher-guide-v23-runtime.yml'
   pull_request:
     paths:
       - 'tool/teacher_guide/v23_source/**'
       - 'tool/audit_teacher_guide_v23_source.py'
+      - 'tool/audit_teacher_guide_v23_projection.py'
       - 'tool/project_teacher_guide_v23.py'
+      - 'tool/run_teacher_guide_v23_projection.py'
       - 'tool/teacher_guide/v23_canonical_overrides.json'
       - 'tool/runtime_verifier/**'
       - 'test/teacher_guide_repository_test.dart'
@@ -37,3 +41,28 @@ jobs:
             --source-root tool/teacher_guide/v23_source \
             --database tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/course_runtime.sqlite \
             --overrides tool/teacher_guide/v23_canonical_overrides.json
+
+  projection-smoke:
+    needs: source-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Project V2.3 into an isolated runtime copy
+        run: |
+          rm -rf /tmp/tde11-v23-runtime
+          mkdir -p /tmp/tde11-v23-runtime
+          cp -a tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/. /tmp/tde11-v23-runtime/
+          cp tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json /tmp/tde11-v23-package_manifest.json
+          python tool/run_teacher_guide_v23_projection.py \
+            --runtime-dir /tmp/tde11-v23-runtime \
+            --source-root tool/teacher_guide/v23_source \
+            --overrides tool/teacher_guide/v23_canonical_overrides.json \
+            --package-manifest /tmp/tde11-v23-package_manifest.json
+      - name: Audit projected V2.3 runtime quality
+        run: |
+          python tool/audit_teacher_guide_v23_projection.py \
+            --runtime-dir /tmp/tde11-v23-runtime \
+            --package-manifest /tmp/tde11-v23-package_manifest.json
