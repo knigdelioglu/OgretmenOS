@@ -117,7 +117,8 @@ def main() -> int:
         rows = db.execute(
             """
             SELECT i.item_id,i.title,i.label,i.item_type,i.page_locator,
-                   i.expected_response_json,i.teacher_guidance_json,i.provenance_json,
+                   i.expected_response_json,i.acceptance_criteria_json,
+                   i.teacher_guidance_json,i.provenance_json,
                    u.section_id,u.unit_order,i.item_order
             FROM teacher_guide_items i
             JOIN teacher_guide_units u ON u.unit_id=i.unit_id
@@ -128,6 +129,7 @@ def main() -> int:
         recognizable_questions = 0
         review_required = 0
         question_without_answer = 0
+        source_bound_answer_contracts = 0
         for row in rows:
             provenance = decode(row["provenance_json"], {})
             if provenance.get("content_class") != "BOOK_FIRST_V2_3_ITEM":
@@ -152,10 +154,20 @@ def main() -> int:
                     failures.append(f"QUESTION_NOT_RECOGNIZABLE:{row['item_id']}:{title}")
                 else:
                     recognizable_questions += 1
+
                 expected = decode(row["expected_response_json"], [])
                 if not nonempty(expected):
                     question_without_answer += 1
-                    failures.append(f"QUESTION_EXPECTED_RESPONSE_EMPTY:{row['item_id']}")
+                    acceptance = decode(row["acceptance_criteria_json"], [])
+                    source_bound = (
+                        provenance.get("rights_mode") == "PAGE_REFERENCE"
+                        and nonempty(acceptance)
+                        and bool(provenance.get("source_locators"))
+                    )
+                    if source_bound:
+                        source_bound_answer_contracts += 1
+                    else:
+                        failures.append(f"QUESTION_EXPECTED_RESPONSE_EMPTY:{row['item_id']}")
 
         duplicates = [value for value, count in guidance_counter.items() if count > 1]
         if duplicates:
@@ -217,6 +229,7 @@ def main() -> int:
         "questions": questions,
         "recognizable_questions": recognizable_questions,
         "question_without_answer": question_without_answer,
+        "source_bound_answer_contracts": source_bound_answer_contracts,
         "units": units,
         "relations": relations,
         "review_required_entries": review_required,
