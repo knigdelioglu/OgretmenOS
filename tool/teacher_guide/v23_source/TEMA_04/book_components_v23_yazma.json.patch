@@ -1,0 +1,16 @@
+@@ -0,0 +1,27 @@
++{
++  "schema_version": "2.3.0",
++  "document_type": "TYMM_TEACHER_GUIDE_COMPONENT_REGISTRY",
++  "course_id": "TDE_11",
++  "theme_id": "TEMA_04",
++  "policy": "Bu fragment s.302 afiş değerlendirme maddelerini resmî PDF'deki gerçek görev yapısına göre ayırır; canonical boyutları değiştirmez, yalnız source-verified projeksiyon bileşenleri ekler.",
++  "components": {
++    "T4_G05_P302_AFIS_OZDEGER": {
++      "q1_surec_degisim": {"value": "Öğrenci afiş hazırlama sürecinde duygu, düşünce veya davranışında meydana gelen en az bir değişimi başlangıçtaki yaklaşımıyla karşılaştırır ve bu değişimi belirli bir tasarım/geri bildirim deneyimiyle ilişkilendirir.", "source_locator": "basılı s.302 / PDF s.303 — Süreci Değerlendirebilme soru 1"},
++      "q2_icerik_dil": {"value": "Afiş içerik bakımından ana iletiyi doğru ve yeterli yansıtma; dil/anlatım bakımından açıklık, hedef kitleye uygunluk, söz varlığı, yazım-noktalama ve görsel-söz tutarlılığı ölçütleriyle değerlendirilir.", "source_locator": "basılı s.302 / PDF s.303 — Süreci Değerlendirebilme soru 2"},
++      "q3_telif_hakkaniyet": {"value": "Kullanılan her görsel ve alıntının kaynağı, kullanım hakkı/atıf durumu ve başkasının emeğini kendi üretimi gibi göstermeme ilkesi kontrol edilir; hakkaniyet ve dürüstlük yalnız biçimsel kaynakça maddesine indirgenmez.", "source_locator": "basılı s.302 / PDF s.303 — Süreci Değerlendirebilme soru 3"},
++      "q4_paylasim": {"value": "Son ürün, okulun izin verdiği sınıf/okul panosu veya resmî çevrim içi ortamda paylaşılır; telif, kişisel veri ve okul kuralları paylaşım öncesinde yeniden kontrol edilir.", "source_locator": "basılı s.302 / PDF s.303 — Süreci Değerlendirebilme madde 4"}
++    }
++  }
++}
