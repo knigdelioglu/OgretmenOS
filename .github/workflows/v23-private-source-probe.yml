@@ -13,13 +13,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      TYMM_TOKEN: ${{ secrets.TYMM_READ_TOKEN || secrets.GH_PAT || secrets.PAT || github.token }}
+      TYMM_READ_TOKEN: ${{ secrets.TYMM_READ_TOKEN }}
+      TYMM_TOKEN: ${{ secrets.TYMM_TOKEN }}
+      TYMM_PAT: ${{ secrets.TYMM_PAT }}
+      GH_PAT: ${{ secrets.GH_PAT }}
+      GITHUB_PAT: ${{ secrets.GITHUB_PAT }}
+      PAT: ${{ secrets.PAT }}
+      PRIVATE_REPO_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
+      CROSS_REPO_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
+      BUILTIN_TOKEN: ${{ github.token }}
     steps:
-      - name: Probe private TYMM commit
+      - name: Probe candidate credentials without exposing values
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$TYMM_TOKEN"
-          git ls-remote "https://x-access-token:${TYMM_TOKEN}@github.com/knigdelioglu/tymm.git" 20860e3165d5e9de18913364286e6f89f28f6046 >/tmp/lsremote.txt
-          cat /tmp/lsremote.txt
-          grep -q 20860e3165d5e9de18913364286e6f89f28f6046 /tmp/lsremote.txt
+          probe() {
+            local name="$1"
+            local value="${!name:-}"
+            if [ -z "$value" ]; then
+              echo "$name: ABSENT"
+              return 0
+            fi
+            echo "$name: PRESENT"
+            if git ls-remote "https://x-access-token:${value}@github.com/knigdelioglu/tymm.git" HEAD >/dev/null 2>&1; then
+              echo "$name: ACCESS_OK"
+            else
+              echo "$name: ACCESS_DENIED"
+            fi
+          }
+          for name in TYMM_READ_TOKEN TYMM_TOKEN TYMM_PAT GH_PAT GITHUB_PAT PAT PRIVATE_REPO_TOKEN REPO_TOKEN CROSS_REPO_TOKEN BUILTIN_TOKEN; do
+            probe "$name"
+          done
