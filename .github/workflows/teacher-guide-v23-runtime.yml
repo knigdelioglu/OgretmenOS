@@ -8,6 +8,7 @@ on:
       - 'tool/teacher_guide/v23_source/**'
       - 'tool/audit_teacher_guide_v23_source.py'
       - 'tool/audit_teacher_guide_v23_projection.py'
+      - 'tool/audit_teacher_guide_v23_provenance.py'
       - 'tool/project_teacher_guide_v23.py'
       - 'tool/run_teacher_guide_v23_projection.py'
       - 'tool/migrate_teacher_guide_v23_repository_test.py'
@@ -19,6 +20,7 @@ on:
       - 'tool/teacher_guide/v23_source/**'
       - 'tool/audit_teacher_guide_v23_source.py'
       - 'tool/audit_teacher_guide_v23_projection.py'
+      - 'tool/audit_teacher_guide_v23_provenance.py'
       - 'tool/project_teacher_guide_v23.py'
       - 'tool/run_teacher_guide_v23_projection.py'
       - 'tool/migrate_teacher_guide_v23_repository_test.py'
@@ -72,6 +74,10 @@ jobs:
           python tool/audit_teacher_guide_v23_projection.py \
             --runtime-dir /tmp/tde11-v23-package/runtime \
             --package-manifest /tmp/tde11-v23-package/package_manifest.json
+      - name: Audit projected V2.3 provenance contract
+        run: |
+          python tool/audit_teacher_guide_v23_provenance.py \
+            --database /tmp/tde11-v23-package/runtime/course_runtime.sqlite
       - name: Verify projected package with runtime verifier
         working-directory: tool/runtime_verifier
         run: |
