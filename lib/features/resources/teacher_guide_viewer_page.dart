@@ -97,20 +97,56 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
       guide.guideId,
     );
     final sectionData = <_GuideSectionData>[];
-    for (final section in sections) {
-      final units = await widget.repository.getTeacherGuideUnits(
-        section.sectionId,
+    final bulkRepository =
+        widget.repository is TeacherGuideBulkKnowledgeRepository
+        ? widget.repository as TeacherGuideBulkKnowledgeRepository
+        : null;
+    if (bulkRepository != null) {
+      final units = await bulkRepository.getTeacherGuideUnitsForGuide(
+        guide.guideId,
       );
-      final unitData = <_GuideUnitData>[];
+      final items = await bulkRepository.getTeacherGuideItemsForGuide(
+        guide.guideId,
+      );
+      final unitsBySection = <String, List<TeacherGuideUnit>>{};
       for (final unit in units) {
-        unitData.add(
-          _GuideUnitData(
-            unit: unit,
-            items: await widget.repository.getTeacherGuideItems(unit.unitId),
+        unitsBySection.putIfAbsent(unit.sectionId, () => []).add(unit);
+      }
+      final itemsByUnit = <String, List<TeacherGuideItem>>{};
+      for (final item in items) {
+        itemsByUnit.putIfAbsent(item.unitId, () => []).add(item);
+      }
+      for (final section in sections) {
+        final sectionUnits = unitsBySection[section.sectionId] ?? const [];
+        sectionData.add(
+          _GuideSectionData(
+            section: section,
+            units: [
+              for (final unit in sectionUnits)
+                _GuideUnitData(
+                  unit: unit,
+                  items: itemsByUnit[unit.unitId] ?? const [],
+                ),
+            ],
           ),
         );
       }
-      sectionData.add(_GuideSectionData(section: section, units: unitData));
+    } else {
+      for (final section in sections) {
+        final units = await widget.repository.getTeacherGuideUnits(
+          section.sectionId,
+        );
+        final unitData = <_GuideUnitData>[];
+        for (final unit in units) {
+          unitData.add(
+            _GuideUnitData(
+              unit: unit,
+              items: await widget.repository.getTeacherGuideItems(unit.unitId),
+            ),
+          );
+        }
+        sectionData.add(_GuideSectionData(section: section, units: unitData));
+      }
     }
     final data = _GuideViewData(guide: guide, sections: sectionData);
     _repairSelection(data);

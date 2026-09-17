@@ -17,7 +17,8 @@ class CourseKnowledgeRepositoryImpl
         FormKnowledgeRepository,
         CoursePlanningKnowledgeRepository,
         LessonPlanKnowledgeRepository,
-        TeacherGuideKnowledgeRepository {
+        TeacherGuideKnowledgeRepository,
+        TeacherGuideBulkKnowledgeRepository {
   CourseKnowledgeRepositoryImpl({
     required this.dataSource,
     required this.manifest,
@@ -292,5 +293,27 @@ class CourseKnowledgeRepositoryImpl
       targetId: targetId,
       relationType: relationType,
     );
+  }
+
+  @override
+  Future<List<TeacherGuideUnit>> getTeacherGuideUnitsForGuide(
+    String guideId,
+  ) async {
+    final teacherGuide = teacherGuideDataSource;
+    if (teacherGuide == null || !(await getTeacherGuideCapability()).usable) {
+      return const [];
+    }
+    return teacherGuide.getTeacherGuideUnitsForGuide(guideId);
+  }
+
+  @override
+  Future<List<TeacherGuideItem>> getTeacherGuideItemsForGuide(
+    String guideId,
+  ) async {
+    final teacherGuide = teacherGuideDataSource;
+    if (teacherGuide == null || !(await getTeacherGuideCapability()).usable) {
+      return const [];
+    }
+    return teacherGuide.getTeacherGuideItemsForGuide(guideId);
   }
 }

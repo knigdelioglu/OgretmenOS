@@ -159,6 +159,28 @@ class TeacherGuideDatabaseDataSource {
     return rows.map(TeacherGuideUnit.fromRow).toList(growable: false);
   }
 
+  Future<List<TeacherGuideUnit>> getTeacherGuideUnitsForGuide(
+    String guideId,
+  ) async {
+    if (!await _hasTable('teacher_guide_units') ||
+        !await _hasTable('teacher_guide_sections')) {
+      return const [];
+    }
+    final rows = await _database.rawQuery(
+      '''
+      SELECT u.unit_id, u.section_id, u.unit_order, u.title, u.page_locator,
+             u.source_locator, u.content_status, u.purpose_json,
+             u.provenance_json
+      FROM teacher_guide_units u
+      INNER JOIN teacher_guide_sections s ON s.section_id = u.section_id
+      WHERE s.guide_id = ?
+      ORDER BY s.section_order, s.section_id, u.unit_order, u.unit_id
+      ''',
+      [guideId],
+    );
+    return rows.map(TeacherGuideUnit.fromRow).toList(growable: false);
+  }
+
   Future<TeacherGuideUnit?> getTeacherGuideUnit(String unitId) async {
     if (!await _hasTable('teacher_guide_units')) return null;
     final rows = await _database.rawQuery(
@@ -189,6 +211,34 @@ class TeacherGuideDatabaseDataSource {
       ORDER BY item_order, item_id
       ''',
       [unitId],
+    );
+    return _hydrateItems(rows);
+  }
+
+  Future<List<TeacherGuideItem>> getTeacherGuideItemsForGuide(
+    String guideId,
+  ) async {
+    if (!await _hasTable('teacher_guide_items') ||
+        !await _hasTable('teacher_guide_units') ||
+        !await _hasTable('teacher_guide_sections')) {
+      return const [];
+    }
+    final rows = await _database.rawQuery(
+      '''
+      SELECT i.item_id, i.unit_id, i.item_order, i.title, i.label, i.item_type,
+             i.page_locator, i.source_locator, i.content_status,
+             i.expected_response_json, i.acceptance_criteria_json,
+             i.teacher_guidance_json, i.common_misconceptions_json,
+             i.assessment_evidence_json, i.differentiation_json,
+             i.provenance_json, i.canonical_payload_sha256
+      FROM teacher_guide_items i
+      INNER JOIN teacher_guide_units u ON u.unit_id = i.unit_id
+      INNER JOIN teacher_guide_sections s ON s.section_id = u.section_id
+      WHERE s.guide_id = ?
+      ORDER BY s.section_order, s.section_id, u.unit_order, u.unit_id,
+               i.item_order, i.item_id
+      ''',
+      [guideId],
     );
     return _hydrateItems(rows);
   }

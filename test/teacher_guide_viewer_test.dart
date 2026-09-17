@@ -360,6 +360,34 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('book-first bulk repository path avoids per-unit loading', (
+    tester,
+  ) async {
+    _useSize(tester, const Size(412, 915));
+    final repository = _BulkGuideRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TeacherGuideViewerPage(
+          repository: repository,
+          scopeType: 'theme',
+          scopeId: 'THEME_FORCE',
+          guideId: 'GUIDE_PHYSICS',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(repository.bulkUnitCalls, 1);
+    expect(repository.bulkItemCalls, 1);
+    expect(repository.perSectionUnitCalls, 0);
+    expect(repository.perUnitItemCalls, 0);
+    expect(find.byKey(const ValueKey('book-first-page-jump')), findsOneWidget);
+    expect(find.text('Kitap sayfasına git'), findsOneWidget);
+    expect(find.text('Belirtilmemiş'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 void _useSize(WidgetTester tester, Size size) {
@@ -849,6 +877,51 @@ class _GuideRepository
       if (item.itemId == itemId) return item;
     }
     return null;
+  }
+}
+
+class _BulkGuideRepository extends _GuideRepository
+    implements TeacherGuideBulkKnowledgeRepository {
+  _BulkGuideRepository() : super(bookFirst: true);
+
+  int bulkUnitCalls = 0;
+  int bulkItemCalls = 0;
+  int perSectionUnitCalls = 0;
+  int perUnitItemCalls = 0;
+
+  @override
+  Future<List<TeacherGuideUnit>> getTeacherGuideUnitsForGuide(
+    String guideId,
+  ) async {
+    bulkUnitCalls++;
+    return guideId == _GuideRepository.guide.guideId
+        ? const [_GuideRepository.unit]
+        : const [];
+  }
+
+  @override
+  Future<List<TeacherGuideItem>> getTeacherGuideItemsForGuide(
+    String guideId,
+  ) async {
+    bulkItemCalls++;
+    return guideId == _GuideRepository.guide.guideId
+        ? const [
+            _GuideRepository.bookFirstItem,
+            _GuideRepository.bookFirstItemTwo,
+          ]
+        : const [];
+  }
+
+  @override
+  Future<List<TeacherGuideUnit>> getTeacherGuideUnits(String sectionId) async {
+    perSectionUnitCalls++;
+    return super.getTeacherGuideUnits(sectionId);
+  }
+
+  @override
+  Future<List<TeacherGuideItem>> getTeacherGuideItems(String unitId) async {
+    perUnitItemCalls++;
+    return super.getTeacherGuideItems(unitId);
   }
 }
 

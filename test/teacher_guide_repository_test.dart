@@ -75,6 +75,36 @@ void main() {
       },
     );
 
+    test(
+      'bulk guide read keeps deterministic guide order and relations',
+      () async {
+        final guide = (await repository.getTeacherGuideForTheme(
+          'THEME_MECHANICS',
+        ))!;
+        final bulk = repository as TeacherGuideBulkKnowledgeRepository;
+
+        final units = await bulk.getTeacherGuideUnitsForGuide(guide.guideId);
+        expect(
+          units.map((unit) => unit.unitId),
+          orderedEquals(['UNIT_OBSERVATION', 'UNIT_MODEL', 'UNIT_EXTENSION']),
+        );
+
+        final items = await bulk.getTeacherGuideItemsForGuide(guide.guideId);
+        expect(
+          items.map((item) => item.itemId),
+          orderedEquals([
+            'ITEM_BLOCK',
+            'ITEM_ACTIVITY',
+            'ITEM_OUTCOME',
+            'ITEM_UNRELATED',
+            'ITEM_EXTENSION',
+          ]),
+        );
+        expect(items.first.relations.single.targetId, 'BLOCK_MECHANICS');
+        expect(items[1].relations.single.targetId, 'ACTIVITY_EXPERIMENT');
+      },
+    );
+
     test('explicit activity/block/outcome relationları item bulur', () async {
       final activityItems = await repository.getTeacherGuideItemsForEntity(
         targetType: 'activity',
@@ -122,30 +152,27 @@ void main() {
       },
     );
 
-    test(
-      'text/list/structured response JSON kayıpsız ve status/provenance korunur',
-      () async {
-        final textItem = await repository.getTeacherGuideItem('ITEM_ACTIVITY');
-        final listItem = await repository.getTeacherGuideItem('ITEM_BLOCK');
-        final structuredItem = await repository.getTeacherGuideItem(
-          'ITEM_OUTCOME',
-        );
+    test('text/list/structured response JSON kayıpsız ve status/provenance korunur', () async {
+      final textItem = await repository.getTeacherGuideItem('ITEM_ACTIVITY');
+      final listItem = await repository.getTeacherGuideItem('ITEM_BLOCK');
+      final structuredItem = await repository.getTeacherGuideItem(
+        'ITEM_OUTCOME',
+      );
 
-        expect(textItem!.expectedResponse, 'Bir ölçüm tablosu oluşturur.');
-        expect(listItem!.expectedResponse, ['ölçüm', 'model', 'kanıt']);
-        expect(structuredItem!.expectedResponse, {
-          'steps': ['ölç', 'karşılaştır'],
-          'threshold': 0.5,
-        });
-        expect(structuredItem.contentStatus, 'REVIEW_REQUIRED');
-        expect(structuredItem.provenance.contentClass, 'MIXED');
-        expect(structuredItem.provenance.sourceIds, ['physics_textbook']);
-        expect(structuredItem.differentiation.support, ['grafik şablonu']);
-        expect(structuredItem.differentiation.enrichment, {
-          'challenge': 'modeli değiştir',
-        });
-      },
-    );
+      expect(textItem!.expectedResponse, 'Bir ölçüm tablosu oluşturur.');
+      expect(listItem!.expectedResponse, ['ölçüm', 'model', 'kanıt']);
+      expect(structuredItem!.expectedResponse, {
+        'steps': ['ölç', 'karşılaştır'],
+        'threshold': 0.5,
+      });
+      expect(structuredItem.contentStatus, 'REVIEW_REQUIRED');
+      expect(structuredItem.provenance.contentClass, 'MIXED');
+      expect(structuredItem.provenance.sourceIds, ['physics_textbook']);
+      expect(structuredItem.differentiation.support, ['grafik şablonu']);
+      expect(structuredItem.differentiation.enrichment, {
+        'challenge': 'modeli değiştir',
+      });
+    });
   });
 
   test(
@@ -243,21 +270,19 @@ void main() {
   );
 
   test('TDE_11 teacher guide runtime ilan edilen mimariyi karşılar', () async {
-    final configuredRoot =
-        Platform.environment['TDE11_RUNTIME_PACKAGE_ROOT']?.trim();
+    final configuredRoot = Platform.environment['TDE11_RUNTIME_PACKAGE_ROOT']
+        ?.trim();
     final packageRoot = configuredRoot != null && configuredRoot.isNotEmpty
         ? configuredRoot
         : '${Directory.current.path}/tymm-verileri/turk-dili-ve-edebiyati/TDE_11';
     final runtimeRoot = '$packageRoot/runtime';
-    final manifestMap =
-        jsonDecode(
-              await File('$runtimeRoot/runtime_manifest.json').readAsString(),
-            )
-            as Map<String, dynamic>;
+    final manifestMap = jsonDecode(
+      await File('$runtimeRoot/runtime_manifest.json').readAsString(),
+    ) as Map<String, dynamic>;
     final manifest = RuntimeManifest.fromJson(manifestMap);
-    final packageManifest =
-        jsonDecode(await File('$packageRoot/package_manifest.json').readAsString())
-            as Map<String, dynamic>;
+    final packageManifest = jsonDecode(
+      await File('$packageRoot/package_manifest.json').readAsString(),
+    ) as Map<String, dynamic>;
 
     expect(packageManifest['data_mode'], 'FULL_RUNTIME');
     expect(packageManifest['textbook_status'], 'AVAILABLE');
@@ -278,12 +303,11 @@ void main() {
       '20860e3165d5e9de18913364286e6f89f28f6046',
     );
     expect(bookFirst['architecture_version'], '2.3.0');
+    expect(bookFirst['projection_version'], '1.2.0+book-first-v2.3-snapshot');
     expect(
-      bookFirst['projection_version'],
-      '1.2.0+book-first-v2.3-snapshot',
+      bookFirst['source_tymm_commit'],
+      '20860e3165d5e9de18913364286e6f89f28f6046',
     );
-    expect(bookFirst['source_tymm_commit'],
-        '20860e3165d5e9de18913364286e6f89f28f6046');
     expect(bookFirst['entries'], 573);
     expect(bookFirst['questions'], 404);
     expect(bookFirst['locator_only_questions'], 0);
@@ -359,7 +383,10 @@ void main() {
     expect(visualQuestion, isNotNull);
     expect(visualQuestion!.expectedResponse, isEmpty);
     expect(visualQuestion.acceptanceCriteria, isNotEmpty);
-    expect(visualQuestion.provenance.additional['rights_mode'], 'PAGE_REFERENCE');
+    expect(
+      visualQuestion.provenance.additional['rights_mode'],
+      'PAGE_REFERENCE',
+    );
     expect(visualQuestion.provenance.sourceLocators, isNotEmpty);
 
     final guide = await repository.getTeacherGuideForScope(
@@ -369,7 +396,9 @@ void main() {
     expect(guide, isNotNull);
     final sections = await repository.getTeacherGuideSections(guide!.guideId);
     expect(sections, hasLength(7));
-    final units = await repository.getTeacherGuideUnits(sections.first.sectionId);
+    final units = await repository.getTeacherGuideUnits(
+      sections.first.sectionId,
+    );
     expect(units, isNotEmpty);
     final items = await repository.getTeacherGuideItems(units.first.unitId);
     expect(items, isNotEmpty);
