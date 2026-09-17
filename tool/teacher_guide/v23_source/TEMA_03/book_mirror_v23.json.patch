@@ -1,0 +1,33 @@
+@@ -0,0 +1,127 @@
++{
++  "schema_version": "2.3.0",
++  "document_type": "TYMM_TEACHER_GUIDE_BOOK_MIRROR",
++  "course_id": "TDE_11",
++  "theme_id": "TEMA_03",
++  "scope": {"printed_page_range": "160-163", "status": "PILOT"},
++  "source_policy": {
++    "primary_source": "official_textbook_pdf",
++    "prompt_modes": ["VERBATIM_SHORT", "VERIFIED_SUMMARY", "LOCATOR_ONLY"],
++    "locator_only_policy": "QUESTION öğelerinde LOCATOR_ONLY normal davranış değildir; resmî PDF'den doğrulanmış kısa soru tanımı gerekir."
++  },
++  "guide_principles": [
++    "s.160-163 tema açılışı 2026 resmî ders kitabı PDF'sinden sayfa ve soru düzeyinde yeniden doğrulanmıştır.",
++    "Tema sunusu ve karekodu bağımsız bir öğrenci görevi gibi çoğaltılmaz; tema çerçevesini destekleyen kaynak olarak tutulur.",
++    "Görsel yorumlarında tek doğru cevap aranmaz; her çıkarım görünür bir ayrıntıya ve olasılık diline dayanmalıdır.",
++    "Biyografi ve tezkire ön karşılaştırmasında gerçek kişiyi tanıtma ortaklığı ile dönem/dil/anlatım farkı birlikte görünür kılınır."
++  ],
++  "entries": [
++    {"mirror_id":"T3V23_P160_161_THEME_OPEN","section_id":"T3_GUIDE_SEC_00_TEMA_ACILIS","unit_id":"T3_GUIDE_U00_TEMA_ACILIS","printed_page_range":"160-161","book_heading":"3. Tema — Yaşamın İzinde / tema çerçevesi","presentation_type":"REFERENCE","canonical_item_refs":["T3_G00_P160_TEMA_CERCEVESI"],"teacher_note":"Bu iki sayfayı hedef listesi okutmaya indirgemeyin; Huzur, biyografi-tezkire, radyo tiyatrosu, hayalî mülakat ve tür dönüştürme görevlerinin ortak sorusunu 'edebiyat yaşamdan ve sanatçıdan hangi izleri taşır?' ekseninde görünür kılın.","rights_mode":"PAGE_REFERENCE","source_locator":"basılı s.160-161 / PDF s.161-162 — tema açılışı ve tema sunusu"},
++    {"mirror_id":"T3V23_P162_Q01","section_id":"T3_GUIDE_SEC_00_TEMA_ACILIS","unit_id":"T3_GUIDE_U00_TEMA_ACILIS","printed_page_range":"162","book_heading":"Temaya Başlarken — edebiyat ve yaşam","presentation_type":"QUESTION","canonical_item_refs":["T3_G00_P162_Q1_4"],"answer_keys":["1"],"prompt_display":"Soru 1 — Görselde bir yol üzerinde yürüyen insan ayrıntısının neyi temsil edebileceğini açıklayınız.","prompt_mode":"VERIFIED_SUMMARY","teacher_note":"'Hayat yolculuğu' makul bir örnektir ama zorunlu cevap değildir; öğrencinin seçtiği anlamı yol, kişi, yön, uzaklık veya atmosfer gibi görünür bir ayrıntıyla gerekçelendirmesini isteyin.","show_acceptance":true,"rights_mode":"DERIVED_ACTIVITY","source_locator":"basılı s.162 / PDF s.163 — soru 1"},
++    {"mirror_id":"T3V23_P162_Q02","section_id":"T3_GUIDE_SEC_00_TEMA_ACILIS","unit_id":"T3_GUIDE_U00_TEMA_ACILIS","printed_page_range":"162","book_heading":"Temaya Başlarken — edebiyat ve yaşam","presentation_type":"QUESTION","canonical_item_refs":["T3_G00_P162_Q1_4"],"answer_keys":["2"],"prompt_display":"Soru 2 — Görselin kendi hayatınızla ilgili çağrıştırdıklarını gerekçelendirerek ifade ediniz.","prompt_mode":"VERIFIED_SUMMARY","rights_mode":"DERIVED_ACTIVITY","source_locator":"basılı s.162 / PDF s.163 — soru 2"},
++    {"mirror_id":"T3V23_P162_Q03","section_id":"T3_GUIDE_SEC_00_TEMA_ACILIS","unit_id":"T3_GUIDE_U00_TEMA_ACILIS","printed_page_range":"162","book_heading":"Temaya Başlarken — edebiyat ve yaşam","presentation_type":"QUESTION","canonical_item_refs":["T3_G00_P162_Q1_4"],"answer_keys":["3"],"prompt_display":"Soru 3 — Görselden hareketle yaşama dair hangi çıkarımlarda bulunulabileceğini açıklayınız.","prompt_mode":"VERIFIED_SUMMARY","teacher_note":"Görselden kesin olay öyküsü çıkarmayı teşvik etmeyin; 'olabilir, düşündürüyor, çağrıştırıyor' gibi çıkarım dilini kullanıp görsel kanıt ile yorum arasındaki sınırı koruyun.","show_acceptance":true,"rights_mode":"DERIVED_ACTIVITY","source_locator":"basılı s.162 / PDF s.163 — soru 3"},
++    {"mirror_id":"T3V23_P162_Q04","section_id":"T3_GUIDE_SEC_00_TEMA_ACILIS","unit_id":"T3_GUIDE_U00_TEMA_ACILIS","printed_page_range":"162","book_heading":"Temaya Başlarken — edebiyat ve yaşam","presentation_type":"QUESTION","canonical_item_refs":["T3_G00_P162_Q1_4"],"answer_keys":["4"],"prompt_display":"Soru 4 — Görsel bir roman kapağı olsaydı romana hangi adı vereceğinizi gerekçesiyle açıklayınız.","prompt_mode":"VERIFIED_SUMMARY","rights_mode":"DERIVED_ACTIVITY","source_locator":"basılı s.162 / PDF s.163 — soru 4"},
++    {"mirror_id":"T3V23_P163_Q05","section_id":"T3_GUIDE_SEC_00_TEMA_ACILIS","unit_id":"T3_GUIDE_U00_TEMA_ACILIS","printed_page_range":"163","book_heading":"Temaya Başlarken — görsellerin çağrışımı","presentation_type":"QUESTION","canonical_item_refs":["T3_G00_P163_Q5"],"prompt_display":"Soru 5 — Verilen görsellerin size neleri çağrıştırdığını ifade ediniz.","prompt_mode":"VERIFIED_SUMMARY","teacher_note":"Görselde kim olduğuna dair kaynakta verilmeyen biyografik bilgiyi tahmin ettirmeyin; çağrışımı fotoğrafın görünür ayrıntısı ile yaşam öyküsü, sanatçı kimliği, dönem veya mekân gibi bir kavram arasında kurdurun.","show_acceptance":true,"rights_mode":"DERIVED_ACTIVITY","source_locator":"basılı s.163 / PDF s.164 — soru 5"},
++    {"mirror_id":"T3V23_P163_Q06","section_id":"T3_GUIDE_SEC_00_TEMA_ACILIS","unit_id":"T3_GUIDE_U00_TEMA_ACILIS","printed_page_range":"163","book_heading":"Temaya Başlarken — biyografi ve tezkire ön karşılaştırması","presentation_type":"QUESTION","canonical_item_refs":["T3_G00_P163_Q6"],"prompt_display":"Soru 6 — Alev Alatlı'yı tanıtan metin ile Sehî Beg tezkiresindeki Yahyâ maddesinin ortak ve farklı özelliklerini belirleyiniz.","prompt_mode":"VERIFIED_SUMMARY","teacher_note":"Öğrenciden yalnız 'ikisi de bir kişiyi anlatıyor' demesini değil, modern biyografi/sözlük maddesinin belgeleyici-açıklayıcı dili ile tezkirenin dönem dili ve değerlendirme/övgü kalıplarından en az bir fark göstermesini isteyin.","show_acceptance":true,"rights_mode":"DERIVED_ACTIVITY","source_locator":"basılı s.163 / PDF s.164 — soru 6"}
++  ],
++  "page_checklist": [
++    {"printed_page_range":"160-161","check":"Tema çerçevesi sonraki Huzur, biyografi/tezkire, radyo tiyatrosu ve anlatma görevleriyle ilişkilendirildi mi; tema sunusu yapay bir görev olarak çoğaltılmadı mı?"},
++    {"printed_page_range":"162","check":"Dört soru ayrı ve tanınabilir mi; her yorum görünür görsel kanıtına dayanıyor ve kesinlik yerine çıkarım dili kullanıyor mu?"},
++    {"printed_page_range":"163","check":"Görsel çağrışımı ile kaynakta olmayan biyografik bilgi karıştırılmadı mı; biyografi-tezkire karşılaştırmasında ortaklık ve en az bir dönem/dil/anlatım farkı görünür mü?"}
++  ]
++}

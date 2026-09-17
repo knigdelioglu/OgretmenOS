@@ -1,0 +1,14 @@
+@@ -0,0 +1,19 @@
++{
++  "schema_version": "2.3.0",
++  "document_type": "TYMM_TEACHER_GUIDE_COMPONENT_REGISTRY",
++  "course_id": "TDE_11",
++  "theme_id": "TEMA_04",
++  "policy": "Tema sonu ölçmede yalnız canonical yapıda birleşmiş veya dış medya nedeniyle boş bırakılmış gerçek kitap sorularını source-verified component olarak açar. Dış videonun görülmeyen kişi/olay ayrıntıları üretilmez.",
++  "components": {
++    "T4_G06_P307_Q13_14": {
++      "13": {"value": "Cevap Aidiyet videosunda gerçekten görülen davranış, olay, söz veya görsel ayrıntıya dayanmalıdır. Anadolu insanına ilişkin belirgin özellik; çalışkanlık, dayanışma, fedakârlık, bağlılık, misafirperverlik vb. ancak video kanıtıyla kabul edilir; rehber videoyu görmeden özellik dayatmaz.", "source_locator": "basılı s.307 / PDF s.308 — Soru 13 / Anadolu İnsanı-Aidiyet dış QR videosu"},
++      "14": {"value": "Aidiyet; yer, insan ilişkisi, hatıra, kültür, emek, güven, sorumluluk veya toplumsal bağ boyutlarından biri ya da birkaçıyla açıklanabilir. Kabul için seçilen boyutun Aidiyet videosundaki gerçek bir sahne/olay/sözle ilişkilendirilmesi gerekir.", "source_locator": "basılı s.307 / PDF s.308 — Soru 14 / Anadolu İnsanı-Aidiyet dış QR videosu"}
++    }
++  }
++}

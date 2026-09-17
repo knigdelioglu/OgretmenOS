@@ -242,9 +242,13 @@ void main() {
     },
   );
 
-  test('TDE_11 V2.2 additive runtime canonical katmanı korur', () async {
-    final runtimeRoot =
-        '${Directory.current.path}/tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime';
+  test('TDE_11 teacher guide runtime ilan edilen mimariyi karşılar', () async {
+    final configuredRoot =
+        Platform.environment['TDE11_RUNTIME_PACKAGE_ROOT']?.trim();
+    final packageRoot = configuredRoot != null && configuredRoot.isNotEmpty
+        ? configuredRoot
+        : '${Directory.current.path}/tymm-verileri/turk-dili-ve-edebiyati/TDE_11';
+    final runtimeRoot = '$packageRoot/runtime';
     final manifestMap =
         jsonDecode(
               await File('$runtimeRoot/runtime_manifest.json').readAsString(),
@@ -252,40 +256,38 @@ void main() {
             as Map<String, dynamic>;
     final manifest = RuntimeManifest.fromJson(manifestMap);
     final packageManifest =
-        jsonDecode(
-              await File(
-                '${Directory.current.path}/tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json',
-              ).readAsString(),
-            )
+        jsonDecode(await File('$packageRoot/package_manifest.json').readAsString())
             as Map<String, dynamic>;
+
     expect(packageManifest['data_mode'], 'FULL_RUNTIME');
     expect(packageManifest['textbook_status'], 'AVAILABLE');
     expect(packageManifest['lesson_plan_package_count'], 88);
     expect(packageManifest['lesson_plan_instruction_hours'], 172);
     expect(packageManifest['lesson_plan_validation_status'], 'VERIFIED');
     expect(packageManifest['lesson_plan_source_payload_parity'], isFalse);
+
+    final capabilities = Map<String, dynamic>.from(
+      manifestMap['teacher_guide_capabilities'] as Map,
+    );
+    final bookFirstRaw = capabilities['book_first_v23'];
+    expect(bookFirstRaw, isA<Map>());
+    expect((bookFirstRaw as Map)['available'], isTrue);
+    final bookFirst = Map<String, dynamic>.from(bookFirstRaw);
     expect(
       packageManifest['teacher_guide_source_commit'],
-      'dc12e50ccf2e2e27e7a4a1d06793a9b8c0fb091a',
+      '20860e3165d5e9de18913364286e6f89f28f6046',
     );
-    final overlay = Map<String, dynamic>.from(
-      manifestMap['teacher_guide_capabilities'] is Map
-          ? ((manifestMap['teacher_guide_capabilities']
-                    as Map)['pedagogy_overlay']
-                as Map)
-          : const <String, dynamic>{},
-    );
-    expect(overlay['available'], isTrue);
-    expect(overlay['architecture_version'], '2.2.0');
-    expect(overlay['projection_version'], '1.2.0+pedagogy-v2.2-profile');
+    expect(bookFirst['architecture_version'], '2.3.0');
     expect(
-      overlay['source_tymm_commit'],
-      'dc12e50ccf2e2e27e7a4a1d06793a9b8c0fb091a',
+      bookFirst['projection_version'],
+      '1.2.0+book-first-v2.3-snapshot',
     );
-    expect(overlay['themes'], ['TEMA_02', 'TEMA_03', 'TEMA_04']);
-    expect(overlay['sections'], 21);
-    expect(overlay['blocks'], 69);
-    expect(overlay['canonical_task_items_reused'], 216);
+    expect(bookFirst['source_tymm_commit'],
+        '20860e3165d5e9de18913364286e6f89f28f6046');
+    expect(bookFirst['entries'], 573);
+    expect(bookFirst['questions'], 404);
+    expect(bookFirst['locator_only_questions'], 0);
+
     final database = await databaseFactoryFfi.openDatabase(
       '$runtimeRoot/course_runtime.sqlite',
       options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
@@ -299,10 +301,12 @@ void main() {
 
     final capability = await repository.getTeacherGuideCapability();
     expect(capability.available, isTrue);
+    expect(capability.usable, isTrue);
     expect(capability.guideCount, 4);
     expect(capability.sectionCount, 28);
-    expect(capability.unitCount, 163);
-    expect(capability.itemCount, 352);
+    expect(capability.unitCount, 431);
+    expect(capability.itemCount, 573);
+    expect(capability.relationCount, 7547);
     expect(
       capability.relationCount,
       manifest.rowCounts['teacher_guide_item_relations'],
@@ -310,51 +314,53 @@ void main() {
 
     expect(
       (await database.rawQuery(
-        "SELECT COUNT(*) AS count FROM teacher_guide_units WHERE unit_id NOT LIKE '__pedv2_unit__%'",
+        "SELECT COUNT(*) AS count FROM teacher_guide_items WHERE item_id LIKE '__v23_item__%'",
       )).single['count'],
-      94,
+      573,
     );
     expect(
       (await database.rawQuery(
-        "SELECT COUNT(*) AS count FROM teacher_guide_items WHERE item_id NOT LIKE '__pedv2_block__%'",
+        "SELECT COUNT(*) AS count FROM teacher_guide_items WHERE item_type='QUESTION'",
       )).single['count'],
-      283,
-    );
-    expect(
-      (await database.rawQuery(
-        "SELECT COUNT(*) AS count FROM teacher_guide_item_relations WHERE item_id NOT LIKE '__pedv2_block__%'",
-      )).single['count'],
-      3750,
+      404,
     );
     expect(
       (await database.rawQuery(
         "SELECT COUNT(*) AS count FROM teacher_guide_units WHERE unit_id LIKE '__pedv2_unit__%'",
       )).single['count'],
-      69,
+      0,
     );
     expect(
       (await database.rawQuery(
         "SELECT COUNT(*) AS count FROM teacher_guide_items WHERE item_id LIKE '__pedv2_block__%'",
       )).single['count'],
-      69,
+      0,
     );
     expect(await database.rawQuery('PRAGMA foreign_key_check'), isEmpty);
 
-    final v22ItemId = (await database.rawQuery(
-      "SELECT item_id FROM teacher_guide_items WHERE item_id LIKE '__pedv2_block__%' ORDER BY item_id LIMIT 1",
+    final firstQuestionId = (await database.rawQuery(
+      "SELECT item_id FROM teacher_guide_items WHERE item_type='QUESTION' ORDER BY item_id LIMIT 1",
     )).single['item_id']!.toString();
-    final v22Item = await repository.getTeacherGuideItem(v22ItemId);
-    expect(v22Item, isNotNull);
-    expect(v22Item!.itemType, 'ÖĞRETMEN_REHBERİ_V2_2');
-    final guidance = v22Item.teacherGuidance as Map;
-    expect(guidance['öğretmen_hamleleri'], isNotEmpty);
-    expect(guidance['takip_soruları'], isNotEmpty);
-    expect(guidance['tahtaya_yaz'], isNotEmpty);
-    expect(v22Item.commonMisconceptions, isNotEmpty);
-    expect(v22Item.assessmentEvidence, isNotEmpty);
-    expect(v22Item.differentiation.support, isNotEmpty);
-    expect(v22Item.differentiation.enrichment, isNotEmpty);
-    expect(v22Item.canonicalPayloadSha256, matches(RegExp(r'^[0-9a-f]{64}$')));
+    final firstQuestion = await repository.getTeacherGuideItem(firstQuestionId);
+    expect(firstQuestion, isNotNull);
+    expect(firstQuestion!.title, isNotEmpty);
+    expect(firstQuestion.provenance.contentClass, 'BOOK_FIRST_V2_3_ITEM');
+    expect(
+      firstQuestion.provenance.additional['prompt_mode'],
+      anyOf('VERBATIM_SHORT', 'VERIFIED_SUMMARY'),
+    );
+    expect(firstQuestion.expectedResponse, isNotEmpty);
+
+    // s.305/Q5 görsel seçenekleri PDF'nin görsel katmanına bağlıdır.  Rehber
+    // tek bir uydurma görsel cevabı üretmez; kaynak locator + kabul ölçütü taşır.
+    final visualQuestion = await repository.getTeacherGuideItem(
+      '__v23_item__T4V23_P305_Q05',
+    );
+    expect(visualQuestion, isNotNull);
+    expect(visualQuestion!.expectedResponse, isEmpty);
+    expect(visualQuestion.acceptanceCriteria, isNotEmpty);
+    expect(visualQuestion.provenance.additional['rights_mode'], 'PAGE_REFERENCE');
+    expect(visualQuestion.provenance.sourceLocators, isNotEmpty);
 
     final guide = await repository.getTeacherGuideForScope(
       scopeType: 'theme',
@@ -363,9 +369,7 @@ void main() {
     expect(guide, isNotNull);
     final sections = await repository.getTeacherGuideSections(guide!.guideId);
     expect(sections, hasLength(7));
-    final units = await repository.getTeacherGuideUnits(
-      sections.first.sectionId,
-    );
+    final units = await repository.getTeacherGuideUnits(sections.first.sectionId);
     expect(units, isNotEmpty);
     final items = await repository.getTeacherGuideItems(units.first.unitId);
     expect(items, isNotEmpty);

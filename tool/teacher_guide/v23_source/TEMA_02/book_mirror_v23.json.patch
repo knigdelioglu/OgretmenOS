@@ -1,0 +1,139 @@
+@@ -0,0 +1,138 @@
++{
++  "schema_version": "2.3.0",
++  "document_type": "TYMM_TEACHER_GUIDE_BOOK_MIRROR",
++  "course_id": "TDE_11",
++  "theme_id": "TEMA_02",
++  "scope": {"printed_page_range": "84-87", "status": "PILOT"},
++  "source_policy": {
++    "primary_source": "official_textbook_pdf",
++    "prompt_modes": ["VERBATIM_SHORT", "VERIFIED_SUMMARY", "LOCATOR_ONLY"],
++    "locator_only_policy": "QUESTION öğelerinde LOCATOR_ONLY normal davranış değildir; öğretmenin kitabı açmadan soruyu tanıyabileceği doğrulanmış kısa ifade gerekir."
++  },
++  "guide_principles": [
++    "Tema 1 V2.3 kalite kontratı korunur: kitap sayfası ve gerçek başlık birinci seviye navigasyondur.",
++    "Ortak dil ve kültür, tek tiplik veya üstünlük hiyerarşisi kurulmadan tarihî ve bağlamsal çeşitlilik içinde ele alınır.",
++    "Açık uçlu sorularda tek kalıp yerine gerekçeli ve kaynağa uygun alternatifler kabul edilir.",
++    "Uzun kitap metni yeniden basılmaz; kısa doğrulanmış soru özeti, sayfa konumu ve canonical cevap odağı birlikte gösterilir."
++  ],
++  "entries": [
++    {
++      "mirror_id": "T2V23_P84_FRAME",
++      "section_id": "T2_GUIDE_SEC_00_TEMA_ACILIS",
++      "unit_id": "T2_GUIDE_U00_TEMA_ACILIS",
++      "printed_page_range": "84",
++      "book_heading": "2. Tema — Kültür Yolculuğu",
++      "presentation_type": "REFERENCE",
++      "canonical_item_refs": ["T2_G00_P84_TEMA_CERCEVESI"],
++      "teacher_note": "Bu çerçeveyi ezberletilecek hedef listesi gibi değil, tema boyunca dönülecek dil–kültür–edebiyat yol haritası olarak kullanın.",
++      "rights_mode": "PAGE_REFERENCE",
++      "source_locator": "basılı s.84 / PDF s.85 — tema çerçevesi"
++    },
++    {
++      "mirror_id": "T2V23_P85_DEDE_KORKUT",
++      "section_id": "T2_GUIDE_SEC_00_TEMA_ACILIS",
++      "unit_id": "T2_GUIDE_U00_TEMA_ACILIS",
++      "printed_page_range": "85",
++      "book_heading": "Tema sunusu — Dede Korkut",
++      "presentation_type": "REFERENCE",
++      "canonical_item_refs": ["T2_G00_P85_DEDE_KORKUT"],
++      "rights_mode": "PAGE_REFERENCE",
++      "source_locator": "basılı s.85 / PDF s.86 — tema sunusu"
++    },
++    {
++      "mirror_id": "T2V23_P86_Q01",
++      "section_id": "T2_GUIDE_SEC_00_TEMA_ACILIS",
++      "unit_id": "T2_GUIDE_U00_TEMA_ACILIS",
++      "printed_page_range": "86",
++      "book_heading": "Temaya Başlarken — Vatan yahut Silistre",
++      "presentation_type": "QUESTION",
++      "canonical_item_refs": ["T2_G00_P86_Q1_3"],
++      "answer_keys": ["1"],
++      "prompt_display": "Soru 1 — Edebiyatın millî kimlik ve kültürün oluşmasındaki işleviyle ilgili çıkarımınızı açıklayınız.",
++      "prompt_mode": "VERIFIED_SUMMARY",
++      "show_acceptance": true,
++      "rights_mode": "DERIVED_ACTIVITY",
++      "source_locator": "basılı s.86 / PDF s.87 — soru 1"
++    },
++    {
++      "mirror_id": "T2V23_P86_Q02",
++      "section_id": "T2_GUIDE_SEC_00_TEMA_ACILIS",
++      "unit_id": "T2_GUIDE_U00_TEMA_ACILIS",
++      "printed_page_range": "86",
++      "book_heading": "Temaya Başlarken — Vatan yahut Silistre",
++      "presentation_type": "QUESTION",
++      "canonical_item_refs": ["T2_G00_P86_Q1_3"],
++      "answer_keys": ["2"],
++      "prompt_display": "Soru 2 — İslâm Bey'in yalnız kahraman değil, 'vatan fikrinin nazariyatçısı' oluşunu yorumlayınız.",
++      "prompt_mode": "VERIFIED_SUMMARY",
++      "teacher_note": "'Nazariyatçı' ifadesini yalnız kahramanlık sıfatı gibi değil, vatan fikrini açıklayan ve savunan düşünce taşıyıcısı olarak açtırın.",
++      "rights_mode": "DERIVED_ACTIVITY",
++      "source_locator": "basılı s.86 / PDF s.87 — soru 2"
++    },
++    {
++      "mirror_id": "T2V23_P86_Q03",
++      "section_id": "T2_GUIDE_SEC_00_TEMA_ACILIS",
++      "unit_id": "T2_GUIDE_U00_TEMA_ACILIS",
++      "printed_page_range": "86",
++      "book_heading": "Temaya Başlarken — Vatan yahut Silistre",
++      "presentation_type": "QUESTION",
++      "canonical_item_refs": ["T2_G00_P86_Q1_3"],
++      "answer_keys": ["3"],
++      "prompt_display": "Soru 3 — Millî kimlik ve kültürün oluşmasında edebiyatın işlevini bildiğiniz eserlerden örneklerle açıklayınız.",
++      "prompt_mode": "VERIFIED_SUMMARY",
++      "show_acceptance": true,
++      "rights_mode": "DERIVED_ACTIVITY",
++      "source_locator": "basılı s.86 / PDF s.87 — soru 3"
++    },
++    {
++      "mirror_id": "T2V23_P87_Q01",
++      "section_id": "T2_GUIDE_SEC_00_TEMA_ACILIS",
++      "unit_id": "T2_GUIDE_U00_TEMA_ACILIS",
++      "printed_page_range": "87",
++      "book_heading": "Düşünelim Paylaşalım — Ortak Türk Alfabesi",
++      "presentation_type": "QUESTION",
++      "canonical_item_refs": ["T2_G00_P87_Q1_3"],
++      "answer_keys": ["1"],
++      "prompt_display": "Soru 1 — Aynı dili konuşan ülkelerin ortak yazı dili kullanmasının dili hangi yönlerden etkileyebileceğini açıklayınız.",
++      "prompt_mode": "VERIFIED_SUMMARY",
++      "rights_mode": "DERIVED_ACTIVITY",
++      "source_locator": "basılı s.87 / PDF s.88 — soru 1"
++    },
++    {
++      "mirror_id": "T2V23_P87_Q02",
++      "section_id": "T2_GUIDE_SEC_00_TEMA_ACILIS",
++      "unit_id": "T2_GUIDE_U00_TEMA_ACILIS",
++      "printed_page_range": "87",
++      "book_heading": "Düşünelim Paylaşalım — Ortak Türk Alfabesi",
++      "presentation_type": "QUESTION",
++      "canonical_item_refs": ["T2_G00_P87_Q1_3"],
++      "answer_keys": ["2"],
++      "prompt_display": "Soru 2 — Ortak Türk alfabesinin Türk diline sağlayabileceği katkıları yorumlayınız.",
++      "prompt_mode": "VERIFIED_SUMMARY",
++      "teacher_note": "Ortak alfabe ile Türk lehçelerinin tek dile dönüşeceği gibi aşırı genellemeleri ayırın; karşılıklı okunabilirlik ve kültürel dolaşım üzerine odaklanın.",
++      "rights_mode": "DERIVED_ACTIVITY",
++      "source_locator": "basılı s.87 / PDF s.88 — soru 2"
++    },
++    {
++      "mirror_id": "T2V23_P87_Q03",
++      "section_id": "T2_GUIDE_SEC_00_TEMA_ACILIS",
++      "unit_id": "T2_GUIDE_U00_TEMA_ACILIS",
++      "printed_page_range": "87",
++      "book_heading": "Düşünelim Paylaşalım — Ortak Türk Alfabesi",
++      "presentation_type": "QUESTION",
++      "canonical_item_refs": ["T2_G00_P87_Q1_3"],
++      "answer_keys": ["3"],
++      "prompt_display": "Soru 3 — Türk dünyasında dil birliği ve kültürel bağları güçlendirmek için uygulanabilir öneriler sununuz.",
++      "prompt_mode": "VERIFIED_SUMMARY",
++      "show_acceptance": true,
++      "rights_mode": "DERIVED_ACTIVITY",
++      "source_locator": "basılı s.87 / PDF s.88 — soru 3"
++    }
++  ],
++  "page_checklist": [
++    {"printed_page_range": "84", "check": "Tema hedefleri dil, kültür, edebiyat ve anlatma becerileri arasında yol haritası olarak görünür mü?"},
++    {"printed_page_range": "85", "check": "Dede Korkut alıntısı için kitapta olmayan yeni zorunlu soru üretilmedi mi?"},
++    {"printed_page_range": "86", "check": "Üç soru ayrı kartlarda mı; eser örnekleri işlev gerekçesiyle ilişkilendiriliyor mu?"},
++    {"printed_page_range": "87", "check": "Ortak alfabe, dil çeşitliliğini yok sayan tek-tiplik iddiasına dönüştürülmeden tartışılıyor mu?"}
++  ]
++}

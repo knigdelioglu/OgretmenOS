@@ -1,0 +1,44 @@
+@@ -0,0 +1,43 @@
++{
++  "schema_version": "2.3.0",
++  "document_type": "TYMM_TEACHER_GUIDE_COMPONENT_REGISTRY",
++  "course_id": "TDE_11",
++  "theme_id": "TEMA_01",
++  "policy": "Tema 1 golden mirror için mevcut canonical item kimliklerini değiştirmeden, resmî PDF'den doğrulanmış doğal sunum bileşenlerini ekler. Registry canonical anahtarları ezemez ve tüm bileşenler mirror tarafından kullanılmalıdır.",
++  "components": {
++    "T1_G17_P74_75_WRITING_PLAN": {
++      "q1_timing": {"value": "İletişimde zamanlama iletinin güncelliğini, doğru anlaşılmasını ve karşı tarafın uygun zamanda tepki verebilmesini etkiler; günlük hayattan uygun örnekle gerekçelendirilir.", "source_locator": "basılı s.74 / PDF s.75 — soru 1"},
++      "q2_mental_reply": {"value": "Evet. Mesajı okuyup zihinde cevaplamak fakat göndermeyi unutmak, taslakta bırakmak veya daha sonra döneceğini düşünüp yanıtsız bırakmak güncel benzer durumlardır.", "source_locator": "basılı s.74 / PDF s.75 — soru 2"},
++      "q3_cultural_permanence": {"value": "Tek zorunlu cevap yoktur. Mektup fiziksel belge ve dönem tanıklığı; dijital ileti arşivlenebilirlik, çoğaltılabilirlik ve erişim bakımından gerekçelendirilebilir. Kalıcılık ve bağlamın korunması aranır.", "source_locator": "basılı s.74 / PDF s.75 — soru 3"},
++      "q4_tools": {"value": {"telgraf": "Dönemi için hızlı ve uzak mesafede etkili; kısa ve sınırlı içeriklidir.", "mektup": "Daha yavaş fakat ayrıntılı ve fiziksel olarak saklanabilir.", "konferans": "Canlı/sözlü etki ve geniş kitleye ulaşma sağlayabilir; kalıcılığı kayıt altına alınmasına bağlıdır."}, "source_locator": "basılı s.74 / PDF s.75 — soru 4"},
++      "q5a_language_change": {"value": "Eski ve güncel yazım farkları Türkçenin yazı dili ve ortografi standartlarının zaman içinde değişebildiğini gösterir.", "source_locator": "basılı s.74 / PDF s.75 — soru 5a"},
++      "q5b_digital_abbreviations": {"value": "Dijital kısaltmalar hızlı iletişimi kolaylaştırabilir; bağlam dışı ve sürekli kullanım standart yazım, açıklık ve özenli Türkçe alışkanlığı üzerinde olumsuz etki oluşturabilir. Araştırma ve örnekle gerekçelendirilmelidir.", "source_locator": "basılı s.74 / PDF s.75 — soru 5b"},
++      "performance_plan": {"value": {"amac": "İkna, bilgilendirme veya resmî talep gibi yazma amacı belirlenir.", "alici_hedef_kitle": "Alıcı ve alıcıyla ilişki düzeyi belirlenir.", "metin_ozellikleri": "Kapsam, konu, resmiyet ve gerekli ekler planlanır.", "olasi_engeller": "Eksik bilgi, belirsiz konu, uygunsuz üslup veya teknik sorunlar önceden düşünülür.", "strateji": "Amaç, konu ve alıcıya uygun yazma stratejisi seçilir."}, "source_locator": "basılı s.75 / PDF s.76 — Performans Görevi"}
++    },
++    "T1_G18_P76_CONTENT_DESIGN": {
++      "step01_prior_knowledge": {"value": "Dinleme/izleme bölümündeki iletişim ve e-posta bilgilerini yeni yazma görevine aktarır.", "source_locator": "basılı s.76 / PDF s.77 — adım 1"},
++      "step02_attachments": {"value": "Alıcı ve amaca hizmet eden ek belge türlerini seçer ve neden gerekli olduklarını açıklar.", "source_locator": "basılı s.76 / PDF s.77 — adım 2"},
++      "step03_mail_letter_comparison": {"value": {"benzerlikler": ["Belirli bir alıcıya yazılı ileti taşırlar.", "Amaç, hitap, içerik ve kapanış kararları içerirler."], "farkliliklar": ["E-posta hızlı iletilir ve dijital ek/bağlantı taşıyabilir.", "Mektup fiziksel taşıyıcı ve posta sürecine bağlıdır; maddi belge niteliği daha belirgindir."]}, "source_locator": "basılı s.76 / PDF s.77 — adım 3 / T diyagramı"},
++      "step04_message": {"value": "Yazma amacı ve alıcıya uygun, açık bir ana ileti belirler.", "source_locator": "basılı s.76 / PDF s.77 — adım 4"},
++      "step05_content_outline": {"value": "Bilgileri önem ve mantık sırasına koyarak içerik taslağı oluşturur.", "source_locator": "basılı s.76 / PDF s.77 — adım 5"},
++      "step06_language_functions": {"value": "Bağlama göre rica, koşul, gerekçelendirme, açıklama, teşekkür veya talep gibi dil işlevlerini seçer.", "source_locator": "basılı s.76 / PDF s.77 — adım 6"},
++      "step07_vocabulary": {"value": "Hedef kitleye ve amaca uygun, açık ve işlevsel söz varlığı kullanır.", "source_locator": "basılı s.76 / PDF s.77 — adım 7"},
++      "step08_attachment_classification": {"value": "Ekleri türüne ve işlevine göre sınıflandırır; gereksiz ekleri çıkarır.", "source_locator": "basılı s.76 / PDF s.77 — adım 8"},
++      "step09_email_fields": {"value": "Gönderici, alıcı, konu, gövde ve ek bilgilerini amaca ve alıcıya uygun biçimde belirler.", "source_locator": "basılı s.76 / PDF s.77 — adım 9"},
++      "step10_feedback_for_gaps": {"value": "Eksik bilgi veya kavram karmaşasını akran/öğretmen geri bildirimiyle belirleyip düzeltir.", "source_locator": "basılı s.77 / PDF s.78 — adım 10"},
++      "step11_multimodal_support": {"value": "İçeriği gerçekten destekleyen görsel/işitsel ögeleri seçer; süs amaçlı gereksiz kullanımdan kaçınır.", "source_locator": "basılı s.77 / PDF s.78 — adım 11"},
++      "step12_peer_review": {"value": "Taslağı amaca uygunluk ve dilin doğru kullanımı bakımından akran incelemesine açar.", "source_locator": "basılı s.77 / PDF s.78 — adım 12"},
++      "step13_revision": {"value": "Geri bildirimlerden gerekli olanları uygulayarak taslağa son şeklini verir.", "source_locator": "basılı s.77 / PDF s.78 — adım 13"}
++    },
++    "T1_G19_P77_FINAL_PRODUCT": {
++      "rule_checklist": {"value": ["İçeriğe uygun konu satırı", "Alıcıya uygun hitap ve giriş", "Başlatma-sürdürme-bitirme ifadeleri", "Düşünceyi geliştirme", "Özgün ve tutarlı üslup", "Amaç-konu-alıcıya uygun dil", "Bağlama uygun söz varlığı", "Açık/örtük iletilerin işlevsel kullanımı", "Doğru ifade", "Toplumsal hassasiyet", "Değer ve kültür unsurlarını bağlama uygun gözetme", "Dil yapıları, bağdaşıklık, yazım ve noktalama"], "source_locator": "basılı s.77 / PDF s.78 — Kural Uygulayabilme"},
++      "final_product": {"value": "Taslak, kitap kontrol listesine göre gözden geçirilerek amaç, alıcı, konu, hitap, bütünlük, üslup ve dil kuralları bakımından düzenlenmiş e-posta ürününe dönüştürülür.", "source_locator": "basılı s.77 / PDF s.78 — Kural Uygulayabilme"}
++    },
++    "T1_G20_P78_SELF_REVIEW": {
++      "spelling_revision": {"value": "Öğrenci e-postasını yeniden okuyup yazım ve noktalama hatalarını düzeltir; düzeltme ürün üzerinde görünür olmalıdır.", "source_locator": "basılı s.78 / PDF s.79 — Değerlendirme 1"},
++      "self_assessment": {"value": ["İçeriğe uygun taslak oluşturma", "Ek belgeleri sınıflandırma", "Alıcıya uygun dil ve üslup", "İçeriğe uygun işitsel/görsel öge", "Söz varlığını hedef kitle ve amaca uygun kullanma", "Düşünceyi geliştirme yolları", "İçeriğe uygun başlık", "Özgün ve tutarlı üslup"], "source_locator": "basılı s.78 / PDF s.79 — Öz Değerlendirme Formu"},
++      "exit_card": {"value": "Üç Yaz: temayla ilgili üç öğrenme; İki Sor: daha fazla bilgi edinilmek istenen iki gerçek soru; Bir Paylaş: öğrenmekte zorlanılan bir konu. Öğrenciye özgüdür.", "source_locator": "basılı s.78 / PDF s.79 — Çıkış Kartı"},
++      "rubric_limit": {"value": "Kitap sayfasında Türkçenin doğru kullanımı, üslup, özgünlük, gerektiğinde öznel/nesnel ifadeler, başlık-hitap ve yazım-noktalama gibi genel değerlendirme başlıkları görünür; QR içindeki tam ölçüt×düzey matrisi kaynak görülmeden üretilmez.", "source_locator": "basılı s.78 / PDF s.79 — Dereceli Puanlama Anahtarı QR"}
++    }
++  }
++}

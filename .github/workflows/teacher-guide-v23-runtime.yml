@@ -1,0 +1,184 @@
+name: Teacher Guide V2.3 Runtime
+
+on:
+  push:
+    branches:
+      - teacher-guide-v23-runtime
+    paths:
+      - 'tool/teacher_guide/v23_source/**'
+      - 'tool/teacher_guide/v23_canonical_snapshot.json'
+      - 'tool/audit_teacher_guide_v23_source.py'
+      - 'tool/audit_teacher_guide_v23_projection.py'
+      - 'tool/audit_teacher_guide_v23_provenance.py'
+      - 'tool/export_teacher_guide_v23_canonical_snapshot.py'
+      - 'tool/prepare_teacher_guide_v23_canonical_snapshot.py'
+      - 'tool/project_teacher_guide_v23.py'
+      - 'tool/run_teacher_guide_v23_projection.py'
+      - 'tool/migrate_teacher_guide_v23_repository_test.py'
+      - 'tool/teacher_guide/v23_canonical_overrides.json'
+      - 'tool/runtime_verifier/**'
+      - '.github/workflows/teacher-guide-v23-runtime.yml'
+  pull_request:
+    paths:
+      - 'tool/teacher_guide/v23_source/**'
+      - 'tool/teacher_guide/v23_canonical_snapshot.json'
+      - 'tool/audit_teacher_guide_v23_source.py'
+      - 'tool/audit_teacher_guide_v23_projection.py'
+      - 'tool/audit_teacher_guide_v23_provenance.py'
+      - 'tool/export_teacher_guide_v23_canonical_snapshot.py'
+      - 'tool/prepare_teacher_guide_v23_canonical_snapshot.py'
+      - 'tool/project_teacher_guide_v23.py'
+      - 'tool/run_teacher_guide_v23_projection.py'
+      - 'tool/migrate_teacher_guide_v23_repository_test.py'
+      - 'tool/teacher_guide/v23_canonical_overrides.json'
+      - 'tool/runtime_verifier/**'
+      - 'test/teacher_guide_repository_test.dart'
+      - '.github/workflows/teacher-guide-v23-runtime.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  source-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Prepare or verify frozen canonical snapshot
+        run: python tool/prepare_teacher_guide_v23_canonical_snapshot.py
+      - name: Audit vendored V2.3 source
+        run: |
+          python tool/audit_teacher_guide_v23_source.py \
+            --source-root tool/teacher_guide/v23_source \
+            --database tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/course_runtime.sqlite \
+            --canonical-snapshot tool/teacher_guide/v23_canonical_snapshot.json \
+            --overrides tool/teacher_guide/v23_canonical_overrides.json
+
+  projection-smoke:
+    needs: source-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Prepare or verify frozen canonical snapshot
+        run: python tool/prepare_teacher_guide_v23_canonical_snapshot.py
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: '3.12.2'
+      - name: Project V2.3 into an isolated package copy
+        run: |
+          rm -rf /tmp/tde11-v23-package
+          mkdir -p /tmp/tde11-v23-package/runtime
+          cp -a tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/. /tmp/tde11-v23-package/runtime/
+          cp tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json /tmp/tde11-v23-package/package_manifest.json
+          python tool/run_teacher_guide_v23_projection.py \
+            --runtime-dir /tmp/tde11-v23-package/runtime \
+            --source-root tool/teacher_guide/v23_source \
+            --canonical-snapshot tool/teacher_guide/v23_canonical_snapshot.json \
+            --overrides tool/teacher_guide/v23_canonical_overrides.json \
+            --package-manifest /tmp/tde11-v23-package/package_manifest.json
+          cp /tmp/tde11-v23-package/runtime/runtime_manifest.json /tmp/v23-first-runtime-manifest.json
+          cp /tmp/tde11-v23-package/runtime/teacher_guide_validation_seal.json /tmp/v23-first-seal.json
+          cp /tmp/tde11-v23-package/package_manifest.json /tmp/v23-first-package-manifest.json
+      - name: Prove V2.3 projection idempotency
+        run: |
+          python tool/run_teacher_guide_v23_projection.py \
+            --runtime-dir /tmp/tde11-v23-package/runtime \
+            --source-root tool/teacher_guide/v23_source \
+            --canonical-snapshot tool/teacher_guide/v23_canonical_snapshot.json \
+            --overrides tool/teacher_guide/v23_canonical_overrides.json \
+            --package-manifest /tmp/tde11-v23-package/package_manifest.json
+          cmp /tmp/v23-first-runtime-manifest.json /tmp/tde11-v23-package/runtime/runtime_manifest.json
+          cmp /tmp/v23-first-seal.json /tmp/tde11-v23-package/runtime/teacher_guide_validation_seal.json
+          cmp /tmp/v23-first-package-manifest.json /tmp/tde11-v23-package/package_manifest.json
+          echo 'TEACHER_GUIDE_V23_IDEMPOTENCY: PASS'
+      - name: Audit projected V2.3 runtime quality
+        run: |
+          python tool/audit_teacher_guide_v23_projection.py \
+            --runtime-dir /tmp/tde11-v23-package/runtime \
+            --package-manifest /tmp/tde11-v23-package/package_manifest.json
+      - name: Audit projected V2.3 provenance contract
+        run: |
+          python tool/audit_teacher_guide_v23_provenance.py \
+            --database /tmp/tde11-v23-package/runtime/course_runtime.sqlite
+      - name: Verify projected package with runtime verifier
+        working-directory: tool/runtime_verifier
+        run: |
+          dart pub get
+          dart run bin/verify_runtime.dart \
+            --course TDE_11 \
+            --package-root /tmp/tde11-v23-package
+      - name: Set up Flutter for repository integration test
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          cache: true
+      - name: Exercise repository adapter against projected V2.3 package
+        env:
+          TDE11_RUNTIME_PACKAGE_ROOT: /tmp/tde11-v23-package
+        run: |
+          python tool/migrate_teacher_guide_v23_repository_test.py
+          flutter pub get
+          flutter test test/teacher_guide_repository_test.dart --reporter expanded
+
+  materialize-runtime:
+    name: Materialize audited V2.3 runtime
+    needs: projection-smoke
+    if: github.event_name == 'push' && github.ref == 'refs/heads/teacher-guide-v23-runtime'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: teacher-guide-v23-runtime
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: '3.12.2'
+      - name: Prepare or verify frozen canonical snapshot
+        run: python tool/prepare_teacher_guide_v23_canonical_snapshot.py
+      - name: Materialize V2.3 package files
+        run: |
+          python tool/run_teacher_guide_v23_projection.py \
+            --runtime-dir tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime \
+            --source-root tool/teacher_guide/v23_source \
+            --canonical-snapshot tool/teacher_guide/v23_canonical_snapshot.json \
+            --overrides tool/teacher_guide/v23_canonical_overrides.json \
+            --package-manifest tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json
+          python tool/migrate_teacher_guide_v23_repository_test.py
+      - name: Verify materialized package
+        run: |
+          python tool/audit_teacher_guide_v23_projection.py \
+            --runtime-dir tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime \
+            --package-manifest tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json
+          python tool/audit_teacher_guide_v23_provenance.py \
+            --database tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/course_runtime.sqlite
+          cd tool/runtime_verifier
+          dart pub get
+          dart run bin/verify_runtime.dart --course TDE_11
+      - name: Commit generated runtime and V2.3 contract test
+        run: |
+          git add \
+            tool/teacher_guide/v23_canonical_snapshot.json \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/course_runtime.sqlite \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/runtime_manifest.json \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/teacher_guide_validation_seal.json \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json \
+            test/teacher_guide_repository_test.dart
+          if git diff --cached --quiet; then
+            echo 'V2.3 runtime already materialized and deterministic.'
+            exit 0
+          fi
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(tde11): materialize snapshot-backed Teacher Guide V2.3 runtime'
+          git push origin HEAD:teacher-guide-v23-runtime

@@ -1,0 +1,210 @@
+{
+  "schema_version": "2.3.0",
+  "document_type": "TYMM_TEACHER_GUIDE_V23_RUNTIME_OVERRIDES",
+  "source_commit": "20860e3165d5e9de18913364286e6f89f28f6046",
+  "policy": "Runtime SQLite, V2.3 source checkpointinden önce üretildiği için yalnız source checkpointte doğrulanmış canonical alanlar burada dar kapsamda eşitlenir. Mirror kaynak hataları sessizce yutulmaz; mekanik section aliasları ayrıca açıkça kaydedilir.",
+  "section_aliases": {
+    "T4_SEC_04_DINLEME_BELSEL": "T4_SEC_04_DINLEME_BELGESEL"
+  },
+  "items": {
+    "T1_G14_P59_PREP": {
+      "expected_response": {
+        "q1_dilin_onemi": "Etkili ve güzel dil; duygu ve düşüncelerin açık, doğru ve karşıdakine uygun aktarılmasını kolaylaştırır, yanlış anlamayı azaltır ve iletişimin etkisini güçlendirir.",
+        "q2_dize_yorumu": "Dizelerde insanın doğa ve hayatla iç içe, çevresine yarar sağlayan ve geniş bir dünyaya açılan varlığı imgelerle anlatılır. Yıldızlara çoban, değirmenlere su ve bozkırlara gölge olma; yön verme, hayat verme ve koruyuculuk çağrışımları oluşturabilir. Metne dayalı farklı gerekçeli yorumlar kabul edilebilir.",
+        "q3_saglikli_iletisim": "Açık ve anlaşılır konuşma, etkin dinleme, uygun hitap ve ses tonu, empati, saygı, geri bildirim verme, söz kesmeme ve yanlış anlaşılınca açıklama isteme sağlıklı iletişimi destekler. Öğrencinin verdiği örnek bu davranışlardan biriyle ilişkilendirilmelidir."
+      },
+      "acceptance_criteria": [
+        "Dilin iletişimdeki etkisini en az bir işlevle açıklar.",
+        "Şiirsel dizeleri sözcüklerin çağrışımından hareketle gerekçeli yorumlar.",
+        "Sağlıklı iletişim için en az iki davranış ve bunlardan birine ilişkin örnek verir."
+      ],
+      "common_misconceptions": [
+        "Şiirsel dizeyi yalnız gerçek anlamıyla açıklamak.",
+        "Sağlıklı iletişimi yalnız güzel konuşmaya indirgemek."
+      ],
+      "differentiation": {
+        "support": ["Açıklık–dinleme–saygı–empati anahtar sözcüklerini ipucu olarak ver."],
+        "enrichment": ["Aynı mesajın farklı dil ve tonla iletilmesinin sonucunu karşılaştırmasını iste."]
+      }
+    },
+    "T1_G15_P60_64_MANAGEMENT": {
+      "expected_response": {
+        "p60_61_q1": "Hitap biçimlerinden alıcı ve içerik hakkında tahmin yapılabilir: 'kardeşim/canım' türü hitaplar yakın kişisel ilişkiyi; 'muhterem/sayın' biçimleri daha resmî veya mesafeli ilişkiyi düşündürür. Tahmin, hitap ve tarih/bağlam göstergesiyle gerekçelendirilmelidir.",
+        "p60_61_q2": "Hitap ifadeleri muhataba verilen değeri ve ilişki düzeyini gösterir. 'Sevgili/canım' sevgi ve yakınlığı; 'vefakâr dost' dostluk ve bağlılığı; 'muhterem/sayın' saygı ve nezaketi öne çıkarır.",
+        "p62_63_q1": "Mektup ve e-postada hitap muhataba göre seçilir; ikisinde de saygı/yakınlık derecesi görünür. E-posta hitapları çoğu zaman daha kısa ve güncel kalıplarla, geleneksel mektuplar ise dönemin ve ilişkinin özelliklerine göre daha ayrıntılı veya edebî ifadelerle kurulabilir.",
+        "p62_63_q2": "Elektronik ortam iletiyi çok hızlı ulaştırır; aynı anda çok kişiye gönderim, dosya ekleme, arşivleme, arama, düşük maliyet ve yerden bağımsız erişim gibi kolaylıklar sağlar.",
+        "p62_63_q3": "Kişisel bir yorum sorusudur. Öğrenci I. Metin'den kendisini etkileyen gerçek bir ifadeyi seçmeli ve seçimini duygu, kardeşlik, özlem, samimiyet veya anlatım özelliği gibi bir gerekçeyle açıklamalıdır.",
+        "p62_63_q4": "Kardeşlik, sevgi, özlem, bağlılık, paylaşma, yardımlaşma ve aile bağı gibi değerlere ulaşılabilir. Kabul için değer, metindeki bir davranış veya ifadeyle gerekçelendirilmelidir.",
+        "p63_research": "Üç grup yazılı, görsel ve işitsel iletişim araçlarının geçmişten bugüne değişimini araştırır; e-postaya kadar kullanılan araçları sınıflandırır ve hız/pratiklik artışının hem olumlu hem olumsuz sonuçlarını değerlendirir.",
+        "p64_q1_amac": "İletişim araçlarının geçmişten bugüne değişimini, bu değişimin insan yaşamına ve iletişim biçimlerine etkisini anlamak.",
+        "p64_q2_tahmin": "Başlık ve görselden, iletişim araçlarının değişimi ve bunun günlük hayata etkilerinin konuşulduğu bilgilendirici/tartışmaya dayalı çok modlu bir içerik beklenebilir. Tahmin daha sonra medya içeriğiyle karşılaştırılmalıdır.",
+        "p64_q3_engeller": "Gürültü, dikkat dağıtan cihazlar, uygunsuz oturma/görüş koşulları veya kişisel dikkat dağınıklığı gibi metin ve ortam engelleri dinleme öncesinde azaltılır.",
+        "p64_q4_strateji": "Not alma, anahtar kavramları belirleme, geçmiş–günümüz karşılaştırması yapma ve metindeki dil/iletişim örneklerini kendi yaşamıyla ilişkilendirme stratejileri kullanılabilir.",
+        "p64_q5_dinleme": "Öğrenci QR'daki çok modlu metni dikkatini yoğunlaştırarak dinler/izler ve önemli gördüğü noktaları not eder; bu görevde ürün, medyanın yerine geçen hazır transkript değil dinleme/izleme sırasında oluşan nottur."
+      },
+      "acceptance_criteria": [
+        "Hitaplardan ilişki/bağlam çıkarımını somut ifadeye dayandırır.",
+        "Mektup–e-posta karşılaştırmasında en az bir ortak ve bir farklı yön belirtir.",
+        "Ders dışı araştırmada iletişim araçlarını kaynak kullanarak sınıflandırır.",
+        "Dinleme/izleme amacını, tahminini ve stratejisini medya açılmadan önce görünür hâle getirir.",
+        "Dinleme/izleme sırasında not üretir."
+      ],
+      "common_misconceptions": [
+        "Resmî hitabı daha değerli, samimi hitabı daha değersiz saymak.",
+        "Elektronik iletişimin hızlı olmasını her bakımdan daha nitelikli iletişimle eşitlemek.",
+        "Tahmini doğru çıkma zorunluluğu sanmak."
+      ],
+      "differentiation": {
+        "support": ["Hitap → ilişki; araç → avantaj/dezavantaj; amaç → strateji eşleştirme şablonu kullan."],
+        "enrichment": ["Aynı iletinin mektup, e-posta ve yüz yüze iletişimde nasıl değişeceğini karşılaştırmasını iste."]
+      }
+    },
+    "T1_G16_P65_71_COMPREHENSION": {
+      "expected_response": {
+        "p65_vocab": {
+          "tasavvur": "göz önüne getirme, hayal etme, zihinde canlandırma",
+          "güdü": "davranışı doğuran, sürdürmesini sağlayan ve yön veren güç; saik",
+          "sosyal": "toplumsal",
+          "nörolojik": "sinir bilimsel",
+          "medeni": "uygar",
+          "muhabbet": "sevgi, dostluk; bağlama göre dostça konuşma/sohbet"
+        },
+        "q1_arastirma_baglantisi": "Araştırma ile medya arasında iletişim araçlarının zamanla hız, erişim ve pratiklik kazanması; mektup gibi araçların daha yavaş ama kişisel/kalıcı bir iletişim deneyimi sunması gibi bağlantılar kurulabilir. Kabul için öğrenci kendi araştırmasından bir bulguyu medyada duyduğu/gördüğü gerçek bir kanıtla ilişkilendirmelidir.",
+        "q2_eposta_avantaj": "E-posta hızlı ve düşük maliyetlidir; uzak mesafelere anında ulaşabilir, dosya/görsel eklenebilir, arşivlenebilir, aranabilir ve aynı ileti birden fazla alıcıya gönderilebilir. Avantajın hangi iletişim durumunda önemli olduğu gerekçelendirilmelidir.",
+        "q3_medenilesme": "İnsan sosyal bir varlık olarak bilgi, deneyim, duygu ve değerleri iletişim yoluyla paylaşır. Bu paylaşım ortak yaşamı, iş birliğini ve kültürel birikimin aktarılmasını geliştirir; bu nedenle iletişim medeniyetin oluşması ve sürdürülmesiyle ilişkilendirilebilir.",
+        "q4_konu_tema": {
+          "konu": "İletişim araçlarının geçmişten günümüze değişimi ve bu değişimin insan hayatındaki/ilişkilerindeki yeri.",
+          "tema": "İletişim, teknolojik değişim ve insan ilişkileri; hız/pratiklik ile iletişimin insani-duygusal boyutu arasındaki denge."
+        },
+        "q5_ana_yardimci": {
+          "ana_dusunce": "İletişim araçları değişip iletişimi hızlandırsa da nitelikli iletişim yalnız teknolojiye değil insanların birbirini anlama, uygun dil kullanma ve ilişki kurma biçimine bağlıdır.",
+          "yardimci_dusunceler": [
+            "İnsan iletişim kurma ihtiyacı taşır.",
+            "Mektup ve e-posta hız, emek, kalıcılık ve duygusal aktarım bakımından farklı özellikler gösterir.",
+            "Yeni araçlar hız ve erişim kolaylığı sağlar.",
+            "Teknolojik gelişme bazı iletişim alışkanlıklarını değiştirir.",
+            "İletişimin niteliğinde dil, saygı, nezaket ve karşılıklı anlayış önemlidir."
+          ]
+        },
+        "q6_tahmin_karsilastirma": "Öğrenci dinleme öncesi tahminini dinleme sonrası gerçek tespitleriyle yan yana koyar. Tahminin tutmaması hata sayılmaz; hangi medya kanıtının tahmini doğruladığı veya değiştirdiği açıklanmalıdır.",
+        "q7_iletisim_sonuclari": "İletişim araçları değişse de anlaşılma ihtiyacı sürer; hız tek başına iletişimin kalitesini garanti etmez. Dilin açıklığı, doğru kanal seçimi, dinleme, saygı ve geri bildirim iletişimin niteliğini belirler. Metin kanıtına dayalı farklı sonuçlar kabul edilebilir.",
+        "q8_oznel_nesnel": {
+          "oznel": "Kişisel beğeni, değerlendirme, özlem veya bir aracı daha samimi/değerli bulma gibi doğruluğu kişiden kişiye değişebilen ifadeler.",
+          "nesnel": "Tarih, araçların teknik özellikleri veya doğrulanabilir olgular gibi kişisel beğeniden bağımsız bilgiler.",
+          "katki": "Nesnel ifadeler bilgi ve dayanak sağlar; öznel ifadeler konuşmacının deneyim ve bakış açısını görünür kılar. Öğrenci örnekleri doğrudan medya içeriğinden seçmelidir."
+        },
+        "q9_ozet": "Özet; iletişim araçlarının geçmişten günümüze değişmesini, mektup/e-posta gibi araçların farklı özelliklerini, iletişimin insan ve toplum için önemini ve teknoloji gelişse de etkili iletişimde dil ve insani ilişkinin belirleyici oluşunu ana çizgileriyle vermelidir. Medyada yer almayan ayrıntı eklenmemelidir.",
+        "p68_gelecek_tartisma": "Gelecekte artırılmış/sanal gerçeklik, anlık çeviri, holografik görüşme, giyilebilir veya beyin-bilgisayar arayüzleri gibi araçların kullanılabileceği öne sürülebilir. Önemli olan araç adından çok bunun hız, erişim, mahremiyet, yüz yüze ilişki veya dil kullanımı üzerindeki olası etkisini gerekçelendirmektir.",
+        "p68_69_dil_aksakligi": "Paydos parçasında konuşmacının karşıdakini tam dinlememesi, söz kesme/konuşmayı tekeline alma, söyleneni yanlış yorumlama, bilgi üstünlüğü gösterme ve dilsel anlaşmazlığın konuşmanın amacının önüne geçmesi iletişim aksaklığı doğurur. Öğrenci seçtiği örneği metindeki bir replik/davranışla göstermelidir.",
+        "p70_engeller": {
+          "sosyokulturel": ["ön yargılar", "statü/eğitim farkına dayalı peşin hüküm"],
+          "fiziksel_cevre": ["gürültü veya dikkat dağıtan çevresel etkenler"],
+          "dil_anlatim": ["anlaşılmayan sözcükler", "belirsiz/yanlış ifade", "muhataba uygun olmayan dil"],
+          "davranissal_dusunsel": ["söz kesme", "dinlememe", "ısrarla kendi bilgisini öne çıkarma"],
+          "psikolojik": ["sabırsızlık", "gerginlik", "küçümseme veya savunmacı tutum"]
+        },
+        "p70_cozumler": "Etkin dinleme, açıklama isteme, anlaşılır ve muhataba uygun dil kullanma, söz kesmeme, ön yargıyı fark etme, çevresel gürültüyü azaltma ve sakin/empatik geri bildirim verme gibi çözümler iletişim engelinin türüne göre seçilmelidir.",
+        "p71_grup_karsilastirma": "Altı kişilik grup, ürettiği çözüm yollarını uygulanabilirlik, sorunun kaynağına uygunluk ve iletişimi gerçekten iyileştirme gücü açısından karşılaştırır; tek bir zorunlu çözüm yoktur.",
+        "p71_kanal_dili": {
+          "yuz_yuze": "Açık, saygılı ve karşılıklı geri bildirime açık dil; ses tonu ve beden dili sözü destekler.",
+          "telefon": "Kısa, açık ve anlaşılır sözlü dil; görsel ipucu olmadığı için tonlama ve açıklık daha önemlidir.",
+          "eposta": "Konu ve muhataba uygun, düzenli, açık ve gerektiğinde resmî dil; uygun hitap, konu satırı ve kapanış kullanılır."
+        },
+        "p71_elestirel_dil": "Çok modlu metnin dili açıklık, anlaşılır söz varlığı, muhataba uygunluk, nezaket, konuşma akışı ve öznel/nesnel denge bakımından değerlendirilebilir. Öğrenci olumlu veya olumsuz yargısını medyadan somut bir ifade/davranışla gerekçelendirmelidir."
+      },
+      "acceptance_criteria": [
+        "Söz varlığı eşleştirmelerini bağlama ve sözlük kontrolüne göre yapar.",
+        "Dokuz Metni Anlayalım sorusunun her birinde ilgili medya/ön bilgi kanıtını kullanır.",
+        "Konu, tema, ana düşünce ve yardımcı düşünceleri birbirinden ayırır.",
+        "Öznel/nesnel örnekleri doğrudan medya içeriğinden seçer.",
+        "Paydos çalışmasında iletişim engelini metindeki davranış veya ifadeyle kanıtlar.",
+        "İletişim kanalı ile kullanılacak dil arasındaki ilişkiyi gerekçelendirir."
+      ],
+      "common_misconceptions": [
+        "Konu, tema ve ana düşünceyi aynı şey saymak.",
+        "Öznel ifadeyi yanlış bilgi; nesnel ifadeyi doğru bilgi sanmak.",
+        "Görsel/işitsel kanıt gerektiren soruyu yalnız genel iletişim bilgisiyle cevaplamak.",
+        "İletişim engelini yalnız gürültü gibi fiziksel engellere indirgemek."
+      ],
+      "differentiation": {
+        "support": ["Konu–tema–ana düşünce için ayrı kutular; iletişim engeli → metin kanıtı → çözüm şablonu kullan."],
+        "enrichment": ["Aynı iletişim problemini yüz yüze, telefon ve e-posta kanallarında ayrı çözümlerle yeniden tasarlat."]
+      }
+    },
+    "T1_G17_P72_ANALYSIS": {
+      "expected_response": {
+        "q1_deger_ifadeleri": {
+          "nezaket": "Kitapta örnek olarak 'Aklıselim programına hoş geldiniz.' ifadesi verilmiştir.",
+          "guven": "Medyadan güven oluşturan gerçek bir ifade seçilmelidir.",
+          "saygi": "Medyadan muhataba saygıyı gösteren gerçek bir ifade seçilmelidir.",
+          "yapicilik": "Medyadan iletişimi çözüm/iş birliği yönünde ilerleten gerçek bir ifade seçilmelidir."
+        },
+        "q2_iliskiler": "Örneğin saygı ile nezaket birbirini destekler; güven açık ve yapıcı iletişimi kolaylaştırır. Kavram haritasındaki her bağ kısa bir gerekçeyle açıklanmalı ve mümkünse q1'de seçilen medya kanıtına dayanmalıdır."
+      },
+      "acceptance_criteria": [
+        "Güven, saygı, yapıcılık ve nezaket için medya içeriğinden somut kanıt seçer.",
+        "En az iki iletişim unsuru arasında gerekçeli ilişki kurar.",
+        "Kitabın verdiği nezaket örneğini diğer kategorilere otomatik kopyalamaz."
+      ],
+      "common_misconceptions": [
+        "Değer adını kanıt yerine yazmak.",
+        "Aynı ifadeyi gerekçesiz biçimde bütün kategorilere yerleştirmek."
+      ],
+      "differentiation": {
+        "support": ["İfade → hangi unsur? → neden? üçlü tablosu kullan."],
+        "enrichment": ["Bir iletişim unsurunun çıkarılması durumunda konuşmanın etkisinin nasıl değişeceğini tartıştır."]
+      }
+    },
+    "T1_G18_P73_EXIT_CARD": {
+      "expected_response": {
+        "q1_dil_degerlendirme": "Öğrenci metnin dilini açıklık, anlaşılırlık, hitap, nezaket, akıcılık ve konuya uygunluk gibi ölçütlerden en az biriyle değerlendirir; beğenisini QR medyasındaki gerçek bir ifade veya konuşma davranışıyla gerekçelendirir.",
+        "q2_elestiri_cozum": "Olumsuz eleştirilen her hususun karşısına uygulanabilir bir çözüm yazılmalıdır. Örneğin ifade fazla belirsizse daha açık sözcük seçimi; konuşmacılar birbirinin sözünü kesiyorsa sıra ile konuşma/etkin dinleme önerilebilir. Öğrenci eleştirisini gerçek medya kanıtına dayandırmalıdır.",
+        "uc_yaz": "Dinleme/izleme çalışmalarında iletişime dair öğrenilen veya önemli bulunan üç ayrı bilgi.",
+        "iki_sor": "İlgi çeken ve daha fazla bilgi edinilmek istenen iki gerçek soru.",
+        "bir_paylas": "Çalışmalarda öğrenilenlere ilişkin arkadaşlarla paylaşılacak, gerekçelendirilebilir bir görüş."
+      },
+      "acceptance_criteria": [
+        "Dil değerlendirmesini en az bir açık ölçüte ve medya kanıtına dayandırır.",
+        "Olumsuz eleştiri ile çözüm önerisi arasında doğrudan ilişki kurar.",
+        "Üç bilgi birbirinin tekrarı değildir ve bölümdeki çalışmalara dayanır.",
+        "İki soru daha fazla araştırmaya açıktır.",
+        "Paylaşılan görüş en az bir ders kanıtıyla gerekçelendirilebilir."
+      ],
+      "common_misconceptions": [
+        "Dil değerlendirmesinde yalnız 'güzeldi/kötüydü' demek.",
+        "Eleştiri ile ilgisiz genel çözüm yazmak.",
+        "Sorular kısmına zaten cevabı bilinen bilgi cümleleri yazmak."
+      ],
+      "differentiation": {
+        "support": ["ölçüt → kanıt → yargı ve eleştiri → çözüm şablonları kullan."],
+        "enrichment": ["Seçtiği bir iletişim sorununu daha etkili bir konuşma biçimiyle yeniden tasarlat."]
+      }
+    },
+    "T4_G03_P281_DIL_TIYATRO": {
+      "expected_response": {
+        "q3_diyalog_dil": "Diyalog tiyatroda ilişkiyi ve eylemi taşır; doğru ve bağlama uygun dil anlamı, karakteri ve iletişimi güçlendirir. Günlük hayatta da sözcük seçimi, ton ve açıklık iletişimin doğru kurulmasını etkiler.",
+        "q4_tiyatro_tanimi": "‘İnsanı, insana, insanla anlatma’ sözü; insan deneyiminin oyuncu ve karakter aracılığıyla başka insanlara canlı, eyleme dayalı ve sahnelenmiş biçimde sunulmasını vurgular."
+      },
+      "acceptance_criteria": [
+        "Diyalog ile günlük iletişim arasında işlevsel bağ kurar.",
+        "Tiyatro tanımını insan-karakter-izleyici ilişkisiyle açıklar."
+      ],
+      "common_misconceptions": [],
+      "differentiation": {"support": [], "enrichment": []}
+    },
+    "T4_G03_P283_YANSITMA": {
+      "expected_response": {
+        "q1_yansitma": "Öğrenci canlandırdığı rolün kendisinde oluşturduğu duygu ve düşünceleri somut performans deneyimiyle ilişkilendirerek yansıtma yazısında değerlendirir.",
+        "q2_rol_arkadasi": "Rol arkadaşlarının görüşlerini toplar; geri bildirimleri güçlü ve geliştirilmesi gereken yönler bakımından değerlendirir ve gerekçeli olarak kabul eder, sınırlar veya reddeder.",
+        "q3_konusmaci_kimligi": "Aldığı eleştiriler ve edindiği tecrübelerden hareketle diksiyon, beden dili, özgünlük, rol tutarlılığı veya izleyiciyle iletişim gibi alanlarda kendi konuşmacı kimliğine ilişkin somut bir gelişim hedefi belirler."
+      },
+      "acceptance_criteria": [
+        "Öz değerlendirme somut performans kanıtına dayanır.",
+        "Akran geribildirimini aynen kabul etmek yerine gerekçeli biçimde değerlendirir.",
+        "Yeni hedef belirler."
+      ],
+      "common_misconceptions": [],
+      "differentiation": {"support": [], "enrichment": []}
+    }
+  }
+}
