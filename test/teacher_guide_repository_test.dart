@@ -294,22 +294,22 @@ void main() {
     final capabilities = Map<String, dynamic>.from(
       manifestMap['teacher_guide_capabilities'] as Map,
     );
-    final bookFirstRaw = capabilities['book_first_v23'];
+    final bookFirstRaw = capabilities['book_first_v3'];
     expect(bookFirstRaw, isA<Map>());
     expect((bookFirstRaw as Map)['available'], isTrue);
     final bookFirst = Map<String, dynamic>.from(bookFirstRaw);
     expect(
       packageManifest['teacher_guide_source_commit'],
-      '20860e3165d5e9de18913364286e6f89f28f6046',
+      'bb345b0c51074aa351b1b88b6b889cebf6a2af48',
     );
-    expect(bookFirst['architecture_version'], '2.3.0');
-    expect(bookFirst['projection_version'], '1.2.0+book-first-v2.3-snapshot');
+    expect(bookFirst['architecture_version'], '3.0.0');
+    expect(bookFirst['projection_version'], '1.0.0+textbook-first-v3-snapshot');
     expect(
       bookFirst['source_tymm_commit'],
-      '20860e3165d5e9de18913364286e6f89f28f6046',
+      'bb345b0c51074aa351b1b88b6b889cebf6a2af48',
     );
-    expect(bookFirst['entries'], 573);
-    expect(bookFirst['questions'], 404);
+    expect(bookFirst['entries'], 576);
+    expect(bookFirst['questions'], 407);
     expect(bookFirst['locator_only_questions'], 0);
 
     final database = await databaseFactoryFfi.openDatabase(
@@ -329,8 +329,8 @@ void main() {
     expect(capability.guideCount, 4);
     expect(capability.sectionCount, 28);
     expect(capability.unitCount, 431);
-    expect(capability.itemCount, 573);
-    expect(capability.relationCount, 7547);
+    expect(capability.itemCount, 576);
+    expect(capability.relationCount, manifest.rowCounts['teacher_guide_item_relations']);
     expect(
       capability.relationCount,
       manifest.rowCounts['teacher_guide_item_relations'],
@@ -340,13 +340,13 @@ void main() {
       (await database.rawQuery(
         "SELECT COUNT(*) AS count FROM teacher_guide_items WHERE item_id LIKE '__v23_item__%'",
       )).single['count'],
-      573,
+      576,
     );
     expect(
       (await database.rawQuery(
         "SELECT COUNT(*) AS count FROM teacher_guide_items WHERE item_type='QUESTION'",
       )).single['count'],
-      404,
+      407,
     );
     expect(
       (await database.rawQuery(

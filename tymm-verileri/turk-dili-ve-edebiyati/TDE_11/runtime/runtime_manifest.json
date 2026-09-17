@@ -1,5 +1,5 @@
 {
-  "runtime_package_version": "1.4.0",
+  "runtime_package_version": "1.5.0",
   "schema_version": "1.2.0",
   "course_id": "TDE_11",
   "grade": 11,
@@ -337,8 +337,8 @@
     "teacher_guides": 4,
     "teacher_guide_sections": 28,
     "teacher_guide_units": 431,
-    "teacher_guide_items": 573,
-    "teacher_guide_item_relations": 7547,
+    "teacher_guide_items": 576,
+    "teacher_guide_item_relations": 7586,
     "form_templates": 43
   },
   "timeline_resolution": "BLOCK_TIME_RESOLVED",
@@ -415,19 +415,19 @@
       "teacher_guides": 4,
       "teacher_guide_sections": 28,
       "teacher_guide_units": 431,
-      "teacher_guide_items": 573,
-      "teacher_guide_item_relations": 7547
+      "teacher_guide_items": 576,
+      "teacher_guide_item_relations": 7586
     },
     "book_first_v23": {
       "available": true,
-      "architecture_version": "2.3.0",
-      "projection_version": "1.2.0+book-first-v2.3-snapshot",
-      "source_tymm_commit": "20860e3165d5e9de18913364286e6f89f28f6046",
-      "source_mode": "VENDORED_SOURCE_BOUND_BOOK_FIRST_PROJECTION",
+      "architecture_version": "3.0.0",
+      "projection_version": "1.0.0+textbook-first-v3-snapshot",
+      "source_tymm_commit": "bb345b0c51074aa351b1b88b6b889cebf6a2af48",
+      "source_mode": "VENDORED_SOURCE_BOUND_TEXTBOOK_FIRST_V3_PROJECTION",
       "themes": {
         "TEMA_01": {
-          "entries": 126,
-          "questions": 78,
+          "entries": 129,
+          "questions": 81,
           "locator_only_questions": 0,
           "mirror_files": 6,
           "component_registry_entries": 26
@@ -454,25 +454,70 @@
           "component_registry_entries": 65
         }
       },
-      "entries": 573,
-      "questions": 404,
+      "entries": 576,
+      "questions": 407,
       "locator_only_questions": 0,
       "component_registry_entries": 170,
-      "units": 431
+      "units": 431,
+      "review_required_items": 302,
+      "compatibility_alias": "book_first_v3"
     },
-    "architecture_version": "2.3.0"
+    "architecture_version": "3.0.0",
+    "book_first_v3": {
+      "available": true,
+      "architecture_version": "3.0.0",
+      "projection_version": "1.0.0+textbook-first-v3-snapshot",
+      "source_tymm_commit": "bb345b0c51074aa351b1b88b6b889cebf6a2af48",
+      "source_mode": "VENDORED_SOURCE_BOUND_TEXTBOOK_FIRST_V3_PROJECTION",
+      "themes": {
+        "TEMA_01": {
+          "entries": 129,
+          "questions": 81,
+          "locator_only_questions": 0,
+          "mirror_files": 6,
+          "component_registry_entries": 26
+        },
+        "TEMA_02": {
+          "entries": 158,
+          "questions": 107,
+          "locator_only_questions": 0,
+          "mirror_files": 7,
+          "component_registry_entries": 35
+        },
+        "TEMA_03": {
+          "entries": 146,
+          "questions": 114,
+          "locator_only_questions": 0,
+          "mirror_files": 7,
+          "component_registry_entries": 44
+        },
+        "TEMA_04": {
+          "entries": 143,
+          "questions": 105,
+          "locator_only_questions": 0,
+          "mirror_files": 7,
+          "component_registry_entries": 65
+        }
+      },
+      "entries": 576,
+      "questions": 407,
+      "locator_only_questions": 0,
+      "component_registry_entries": 170,
+      "units": 431,
+      "review_required_items": 302
+    }
   },
   "teacher_guide_validation": {
     "status": "PASS",
     "scope": "COURSE",
     "source_bound": true,
-    "content_fingerprint": "sha256:8cc3f036f4d555d5faba7278d2e8c8e100b26bbccfce52488349917c99342bbc",
+    "content_fingerprint": "sha256:7f5120e598cbc6384a3821d05aefc3931ef9bce4ce4e764aff4e981f8056f682",
     "canonical_content_fingerprint": "67507026f1019f3e014eec12e89c266a662723ead48cf92ca07539a66ca59a95",
-    "source_validation_status": "PASS_WITH_WARNINGS",
+    "source_validation_status": "PASS_WITH_REVIEW",
     "seal_path": "runtime/teacher_guide_validation_seal.json",
-    "seal_sha256": "868e780adc43148d6212f38fa48d0b30fbc8e6e6b5067a7b77ac37079d6a7ea7",
-    "projection_version": "1.2.0+book-first-v2.3-snapshot",
-    "architecture_version": "2.3.0"
+    "seal_sha256": "c82abcfbf16dbee1c590645f0d6b32f76964f5461ac49feb2572ba5e040f204d",
+    "projection_version": "1.0.0+textbook-first-v3-snapshot",
+    "architecture_version": "3.0.0"
   },
   "form_template_schema_versions": [
     "1.0"
@@ -498,5 +543,5 @@
     "LINK_T4_KONUSMA_DPA": "unresolved_form_reference",
     "LINK_T4_YAZMA_DPA": "unresolved_form_reference"
   },
-  "teacher_guide_source_commit": "20860e3165d5e9de18913364286e6f89f28f6046"
+  "teacher_guide_source_commit": "bb345b0c51074aa351b1b88b6b889cebf6a2af48"
 }
