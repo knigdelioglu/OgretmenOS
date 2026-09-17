@@ -168,4 +168,20 @@ if TEST_NAME not in text:
 """
     text = text.replace(anchor, test_case + anchor, 1)
 
+# The richer mock guidance makes this existing navigation test scroll farther
+# after editing the note. Ensure the selector is actually on-screen before tap;
+# this stabilizes the test without changing production behavior.
+OLD_DROPDOWN_TAP = """    final unitDropdown = find.byType(DropdownButtonFormField<String>).at(1);
+    await tester.tap(unitDropdown);
+"""
+NEW_DROPDOWN_TAP = """    final unitDropdown = find.byType(DropdownButtonFormField<String>).at(1);
+    await tester.ensureVisible(unitDropdown);
+    await tester.pumpAndSettle();
+    await tester.tap(unitDropdown);
+"""
+if NEW_DROPDOWN_TAP not in text:
+    if OLD_DROPDOWN_TAP not in text:
+        raise SystemExit("unit dropdown test anchor not found")
+    text = text.replace(OLD_DROPDOWN_TAP, NEW_DROPDOWN_TAP, 1)
+
 TEST.write_text(text, encoding="utf-8")
