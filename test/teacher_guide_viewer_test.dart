@@ -310,6 +310,84 @@ void main() {
     expect(find.textContaining('Not kaydedilemedi'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'book-first V2.3 hides empty pedagogy and uses textbook-first labels',
+    (tester) async {
+      _useSize(tester, const Size(412, 915));
+
+      await tester.pumpWidget(_viewerApp(bookFirst: true));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sayfa / etkinlik'), findsOneWidget);
+      expect(find.text('Soru'), findsOneWidget);
+      expect(find.text('Cevap / kabul edilebilir yaklaşım'), findsOneWidget);
+      expect(find.text('Kaynak kontrolü'), findsWidgets);
+      expect(find.text('Kaynak denetimi sürüyor'), findsOneWidget);
+      expect(find.text('Öğretmene not'), findsNothing);
+      expect(find.text('Öğretmen yönlendirmesi'), findsNothing);
+      expect(find.text('Belirtilmemiş'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'book-first page jump follows printed-page order and opens the page item',
+    (tester) async {
+      _useSize(tester, const Size(412, 915));
+
+      await tester.pumpWidget(_viewerApp(bookFirst: true));
+      await tester.pumpAndSettle();
+
+      final pageJump = find.byKey(const ValueKey('book-first-page-jump'));
+      expect(pageJump, findsOneWidget);
+      expect(find.text('Kitap sayfasına git'), findsOneWidget);
+      expect(
+        find.text('Soru 1 — Edebî eser gerçek hayatı nasıl yansıtır?'),
+        findsOneWidget,
+      );
+
+      await tester.tap(pageJump);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('s. 15 —'), findsOneWidget);
+      await tester.tap(find.textContaining('s. 15 —').last);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Soru 2 — Edebî dil iletişimi nasıl etkiler?'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('book-first bulk repository path avoids per-unit loading', (
+    tester,
+  ) async {
+    _useSize(tester, const Size(412, 915));
+    final repository = _BulkGuideRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TeacherGuideViewerPage(
+          repository: repository,
+          scopeType: 'theme',
+          scopeId: 'THEME_FORCE',
+          guideId: 'GUIDE_PHYSICS',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(repository.bulkUnitCalls, 1);
+    expect(repository.bulkItemCalls, 1);
+    expect(repository.perSectionUnitCalls, 0);
+    expect(repository.perUnitItemCalls, 0);
+    expect(find.byKey(const ValueKey('book-first-page-jump')), findsOneWidget);
+    expect(find.text('Kitap sayfasına git'), findsOneWidget);
+    expect(find.text('Belirtilmemiş'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 void _useSize(WidgetTester tester, Size size) {
@@ -319,9 +397,13 @@ void _useSize(WidgetTester tester, Size size) {
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
-Widget _viewerApp({String? assignmentId, _MemoryNotes? notes}) => MaterialApp(
+Widget _viewerApp({
+  String? assignmentId,
+  _MemoryNotes? notes,
+  bool bookFirst = false,
+}) => MaterialApp(
   home: TeacherGuideViewerPage(
-    repository: _GuideRepository(),
+    repository: _GuideRepository(bookFirst: bookFirst),
     scopeType: 'theme',
     scopeId: 'THEME_FORCE',
     guideId: 'GUIDE_PHYSICS',
@@ -347,10 +429,15 @@ class _GuideRepository
         FormTemplateKnowledgeRepository,
         FormTemplateStatusKnowledgeRepository,
         FormKnowledgeRepository {
-  _GuideRepository({this.guideAvailable = true, this.templateStatus});
+  _GuideRepository({
+    this.guideAvailable = true,
+    this.templateStatus,
+    this.bookFirst = false,
+  });
 
   final bool guideAvailable;
   final FormTemplateStatus? templateStatus;
+  final bool bookFirst;
 
   static const course = model.Course(
     courseId: 'FIZIK_10',
@@ -545,6 +632,70 @@ class _GuideRepository
     canonicalPayloadSha256: 'model-hash',
   );
 
+  static const bookFirstItem = TeacherGuideItem(
+    itemId: '__v23_item__T1_TEST_Q01',
+    unitId: 'UNIT_OBSERVATION',
+    order: 1,
+    title: 'Soru 1 — Edebî eser gerçek hayatı nasıl yansıtır?',
+    label: 'Konuya Başlarken',
+    itemType: 'QUESTION',
+    pageLocator: '14',
+    sourceLocator: 'official_textbook_pdf#printed-p14',
+    contentStatus: 'REVIEW_REQUIRED',
+    expectedResponse: {
+      'temel_yaklasim': 'Edebî eser hayatı seçerek ve dönüştürerek yansıtır.',
+    },
+    acceptanceCriteria: [],
+    teacherGuidance: [],
+    commonMisconceptions: [],
+    assessmentEvidence: [],
+    differentiation: TeacherGuideDifferentiation(support: [], enrichment: []),
+    provenance: TeacherGuideProvenance(
+      sourceIds: ['official_textbook_pdf'],
+      sourceLocators: ['basılı s.14'],
+      contentClass: 'BOOK_FIRST_V2_3_ITEM',
+      additional: {
+        'architecture_version': '2.3.0',
+        'prompt_mode': 'VERIFIED_SUMMARY',
+        'rights_mode': 'PAGE_REFERENCE',
+      },
+    ),
+    canonicalPayloadSha256:
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  );
+
+  static const bookFirstItemTwo = TeacherGuideItem(
+    itemId: '__v23_item__T1_TEST_Q02',
+    unitId: 'UNIT_OBSERVATION',
+    order: 2,
+    title: 'Soru 2 — Edebî dil iletişimi nasıl etkiler?',
+    label: 'Konuya Başlarken',
+    itemType: 'QUESTION',
+    pageLocator: '15',
+    sourceLocator: 'official_textbook_pdf#printed-p15',
+    contentStatus: 'VERIFIED',
+    expectedResponse: {
+      'temel_yaklasim': 'Edebî dil anlamı ve iletişim biçimini zenginleştirir.',
+    },
+    acceptanceCriteria: [],
+    teacherGuidance: [],
+    commonMisconceptions: [],
+    assessmentEvidence: [],
+    differentiation: TeacherGuideDifferentiation(support: [], enrichment: []),
+    provenance: TeacherGuideProvenance(
+      sourceIds: ['official_textbook_pdf'],
+      sourceLocators: ['basılı s.15'],
+      contentClass: 'BOOK_FIRST_V2_3_ITEM',
+      additional: {
+        'architecture_version': '2.3.0',
+        'prompt_mode': 'VERIFIED_SUMMARY',
+        'rights_mode': 'PAGE_REFERENCE',
+      },
+    ),
+    canonicalPayloadSha256:
+        'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  );
+
   static const teacherPackage = model.TeacherPackage(
     theme: theme,
     blocks: [],
@@ -677,7 +828,9 @@ class _GuideRepository
   @override
   Future<List<TeacherGuideUnit>> getTeacherGuideUnits(String sectionId) async =>
       sectionId == section.sectionId && guideAvailable
-      ? const [unit, modelUnit]
+      ? bookFirst
+            ? const [unit]
+            : const [unit, modelUnit]
       : [];
 
   @override
@@ -691,8 +844,12 @@ class _GuideRepository
   @override
   Future<List<TeacherGuideItem>> getTeacherGuideItems(String unitId) async {
     if (!guideAvailable) return const [];
-    if (unitId == unit.unitId) return const [observation];
-    if (unitId == modelUnit.unitId) return const [modelItem];
+    if (unitId == unit.unitId) {
+      return bookFirst
+          ? const [bookFirstItem, bookFirstItemTwo]
+          : const [observation];
+    }
+    if (!bookFirst && unitId == modelUnit.unitId) return const [modelItem];
     return const [];
   }
 
@@ -713,10 +870,58 @@ class _GuideRepository
   }
 
   TeacherGuideItem? _itemById(String itemId) {
-    for (final item in const [observation, modelItem]) {
+    final items = bookFirst
+        ? const [bookFirstItem, bookFirstItemTwo]
+        : const [observation, modelItem];
+    for (final item in items) {
       if (item.itemId == itemId) return item;
     }
     return null;
+  }
+}
+
+class _BulkGuideRepository extends _GuideRepository
+    implements TeacherGuideBulkKnowledgeRepository {
+  _BulkGuideRepository() : super(bookFirst: true);
+
+  int bulkUnitCalls = 0;
+  int bulkItemCalls = 0;
+  int perSectionUnitCalls = 0;
+  int perUnitItemCalls = 0;
+
+  @override
+  Future<List<TeacherGuideUnit>> getTeacherGuideUnitsForGuide(
+    String guideId,
+  ) async {
+    bulkUnitCalls++;
+    return guideId == _GuideRepository.guide.guideId
+        ? const [_GuideRepository.unit]
+        : const [];
+  }
+
+  @override
+  Future<List<TeacherGuideItem>> getTeacherGuideItemsForGuide(
+    String guideId,
+  ) async {
+    bulkItemCalls++;
+    return guideId == _GuideRepository.guide.guideId
+        ? const [
+            _GuideRepository.bookFirstItem,
+            _GuideRepository.bookFirstItemTwo,
+          ]
+        : const [];
+  }
+
+  @override
+  Future<List<TeacherGuideUnit>> getTeacherGuideUnits(String sectionId) async {
+    perSectionUnitCalls++;
+    return super.getTeacherGuideUnits(sectionId);
+  }
+
+  @override
+  Future<List<TeacherGuideItem>> getTeacherGuideItems(String unitId) async {
+    perUnitItemCalls++;
+    return super.getTeacherGuideItems(unitId);
   }
 }
 

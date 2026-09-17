@@ -1,0 +1,145 @@
+name: Teacher Guide V2.3 Viewer
+
+on:
+  push:
+    branches:
+      - teacher-guide-v23-ui
+    paths:
+      - 'tool/migrate_teacher_guide_v23_viewer.py'
+      - 'tool/normalize_teacher_guide_v23_viewer.py'
+      - 'tool/migrate_teacher_guide_v23_page_jump.py'
+      - 'tool/migrate_teacher_guide_v23_bulk_loading.py'
+      - 'tool/materialize_teacher_guide_v23_bulk_current.py'
+      - 'tool/normalize_teacher_guide_v23_bulk_viewer_contract.py'
+      - 'lib/domain/repositories/course_knowledge_repository.dart'
+      - 'lib/data/course/course_knowledge_repository_impl.dart'
+      - 'lib/data/course/teacher_guide_database_data_source.dart'
+      - 'lib/features/resources/teacher_guide_viewer_page.dart'
+      - 'test/teacher_guide_repository_test.dart'
+      - 'test/teacher_guide_viewer_test.dart'
+      - 'test/teacher_guide_v23_runtime_viewer_test.dart'
+      - '.github/workflows/teacher-guide-v23-ui.yml'
+  pull_request:
+    paths:
+      - 'tool/migrate_teacher_guide_v23_viewer.py'
+      - 'tool/normalize_teacher_guide_v23_viewer.py'
+      - 'tool/migrate_teacher_guide_v23_page_jump.py'
+      - 'tool/migrate_teacher_guide_v23_bulk_loading.py'
+      - 'tool/materialize_teacher_guide_v23_bulk_current.py'
+      - 'tool/normalize_teacher_guide_v23_bulk_viewer_contract.py'
+      - 'lib/domain/repositories/course_knowledge_repository.dart'
+      - 'lib/data/course/course_knowledge_repository_impl.dart'
+      - 'lib/data/course/teacher_guide_database_data_source.dart'
+      - 'lib/features/resources/teacher_guide_viewer_page.dart'
+      - 'test/teacher_guide_repository_test.dart'
+      - 'test/teacher_guide_viewer_test.dart'
+      - 'test/teacher_guide_v23_runtime_viewer_test.dart'
+      - '.github/workflows/teacher-guide-v23-ui.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  viewer-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          cache: true
+      - name: Materialize viewer migration in CI workspace
+        run: |
+          python tool/migrate_teacher_guide_v23_viewer.py
+          python tool/normalize_teacher_guide_v23_viewer.py
+          python tool/migrate_teacher_guide_v23_page_jump.py
+          python tool/materialize_teacher_guide_v23_bulk_current.py
+          python tool/normalize_teacher_guide_v23_bulk_viewer_contract.py
+          dart format --set-exit-if-changed \
+            lib/domain/repositories/course_knowledge_repository.dart \
+            lib/data/course/course_knowledge_repository_impl.dart \
+            lib/data/course/teacher_guide_database_data_source.dart \
+            lib/features/resources/teacher_guide_viewer_page.dart \
+            test/teacher_guide_repository_test.dart \
+            test/teacher_guide_viewer_test.dart \
+            test/teacher_guide_v23_runtime_viewer_test.dart || \
+          dart format \
+            lib/domain/repositories/course_knowledge_repository.dart \
+            lib/data/course/course_knowledge_repository_impl.dart \
+            lib/data/course/teacher_guide_database_data_source.dart \
+            lib/features/resources/teacher_guide_viewer_page.dart \
+            test/teacher_guide_repository_test.dart \
+            test/teacher_guide_viewer_test.dart \
+            test/teacher_guide_v23_runtime_viewer_test.dart
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Analyze viewer integration
+        run: flutter analyze
+      - name: Run bulk repository tests
+        run: flutter test test/teacher_guide_repository_test.dart --reporter expanded
+      - name: Run fixture viewer tests
+        run: flutter test test/teacher_guide_viewer_test.dart --reporter expanded
+      - name: Run real-runtime projection tests
+        run: flutter test test/teacher_guide_v23_runtime_viewer_test.dart --reporter expanded
+
+  materialize-viewer:
+    name: Materialize V2.3 viewer
+    needs: viewer-contract
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/teacher-guide-v23-ui') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.head.ref == 'teacher-guide-v23-ui')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: teacher-guide-v23-ui
+          fetch-depth: 0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          cache: true
+      - name: Materialize viewer files
+        run: |
+          python tool/migrate_teacher_guide_v23_viewer.py
+          python tool/normalize_teacher_guide_v23_viewer.py
+          python tool/migrate_teacher_guide_v23_page_jump.py
+          python tool/materialize_teacher_guide_v23_bulk_current.py
+          python tool/normalize_teacher_guide_v23_bulk_viewer_contract.py
+          dart format \
+            lib/domain/repositories/course_knowledge_repository.dart \
+            lib/data/course/course_knowledge_repository_impl.dart \
+            lib/data/course/teacher_guide_database_data_source.dart \
+            lib/features/resources/teacher_guide_viewer_page.dart \
+            test/teacher_guide_repository_test.dart \
+            test/teacher_guide_viewer_test.dart \
+            test/teacher_guide_v23_runtime_viewer_test.dart
+      - name: Verify materialized viewer
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test test/teacher_guide_repository_test.dart --reporter expanded
+          flutter test test/teacher_guide_viewer_test.dart --reporter expanded
+          flutter test test/teacher_guide_v23_runtime_viewer_test.dart --reporter expanded
+      - name: Commit viewer migration
+        run: |
+          git add \
+            lib/domain/repositories/course_knowledge_repository.dart \
+            lib/data/course/course_knowledge_repository_impl.dart \
+            lib/data/course/teacher_guide_database_data_source.dart \
+            lib/features/resources/teacher_guide_viewer_page.dart \
+            test/teacher_guide_repository_test.dart \
+            test/teacher_guide_viewer_test.dart \
+            test/teacher_guide_v23_runtime_viewer_test.dart
+          if git diff --cached --quiet; then
+            echo 'V2.3 viewer already materialized.'
+            exit 0
+          fi
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'perf(tde11): bulk-load Teacher Guide V2.3 viewer'
+          git push origin HEAD:teacher-guide-v23-ui

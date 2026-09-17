@@ -164,6 +164,17 @@ abstract interface class TeacherGuideKnowledgeRepository {
   });
 }
 
+/// Optional bulk read path for teacher-guide viewers that need a whole guide.
+///
+/// Keeping this separate from [TeacherGuideKnowledgeRepository] means legacy
+/// fakes and small subject runtimes do not have to implement it. Production
+/// SQLite repositories can use it to avoid N+1 section/unit/item reads.
+abstract interface class TeacherGuideBulkKnowledgeRepository {
+  Future<List<TeacherGuideUnit>> getTeacherGuideUnitsForGuide(String guideId);
+
+  Future<List<TeacherGuideItem>> getTeacherGuideItemsForGuide(String guideId);
+}
+
 extension TeacherGuideKnowledgeAccess on CourseKnowledgeRepository {
   Future<TeacherGuideCapability> getTeacherGuideCapability() {
     final repository = this;

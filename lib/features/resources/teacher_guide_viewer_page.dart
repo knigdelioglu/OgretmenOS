@@ -97,20 +97,56 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
       guide.guideId,
     );
     final sectionData = <_GuideSectionData>[];
-    for (final section in sections) {
-      final units = await widget.repository.getTeacherGuideUnits(
-        section.sectionId,
+    final bulkRepository =
+        widget.repository is TeacherGuideBulkKnowledgeRepository
+        ? widget.repository as TeacherGuideBulkKnowledgeRepository
+        : null;
+    if (bulkRepository != null) {
+      final units = await bulkRepository.getTeacherGuideUnitsForGuide(
+        guide.guideId,
       );
-      final unitData = <_GuideUnitData>[];
+      final items = await bulkRepository.getTeacherGuideItemsForGuide(
+        guide.guideId,
+      );
+      final unitsBySection = <String, List<TeacherGuideUnit>>{};
       for (final unit in units) {
-        unitData.add(
-          _GuideUnitData(
-            unit: unit,
-            items: await widget.repository.getTeacherGuideItems(unit.unitId),
+        unitsBySection.putIfAbsent(unit.sectionId, () => []).add(unit);
+      }
+      final itemsByUnit = <String, List<TeacherGuideItem>>{};
+      for (final item in items) {
+        itemsByUnit.putIfAbsent(item.unitId, () => []).add(item);
+      }
+      for (final section in sections) {
+        final sectionUnits = unitsBySection[section.sectionId] ?? const [];
+        sectionData.add(
+          _GuideSectionData(
+            section: section,
+            units: [
+              for (final unit in sectionUnits)
+                _GuideUnitData(
+                  unit: unit,
+                  items: itemsByUnit[unit.unitId] ?? const [],
+                ),
+            ],
           ),
         );
       }
-      sectionData.add(_GuideSectionData(section: section, units: unitData));
+    } else {
+      for (final section in sections) {
+        final units = await widget.repository.getTeacherGuideUnits(
+          section.sectionId,
+        );
+        final unitData = <_GuideUnitData>[];
+        for (final unit in units) {
+          unitData.add(
+            _GuideUnitData(
+              unit: unit,
+              items: await widget.repository.getTeacherGuideItems(unit.unitId),
+            ),
+          );
+        }
+        sectionData.add(_GuideSectionData(section: section, units: unitData));
+      }
     }
     final data = _GuideViewData(guide: guide, sections: sectionData);
     _repairSelection(data);
@@ -403,6 +439,10 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 children: [
                   search,
+                  if (data.isBookFirstV23) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    _bookFirstPageJump(data),
+                  ],
                   const SizedBox(height: AppSpacing.md),
                   if (searchResults.isNotEmpty)
                     _SearchResults(
@@ -438,7 +478,16 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
                     AppSpacing.lg,
                     0,
                   ),
-                  child: search,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      search,
+                      if (data.isBookFirstV23) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        _bookFirstPageJump(data),
+                      ],
+                    ],
+                  ),
                 ),
                 if (searchResults.isNotEmpty)
                   Padding(
@@ -539,6 +588,42 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
     ),
   );
 
+  Widget _bookFirstPageJump(_GuideViewData data) {
+    final targets = data.pageTargets;
+    final selectedLocator = data.itemById(_selectedItemId)?.pageLocator?.trim();
+    final currentValue =
+        targets.any((target) => target.locator == selectedLocator)
+        ? selectedLocator
+        : null;
+    return DropdownButtonFormField<String>(
+      key: const ValueKey('book-first-page-jump'),
+      initialValue: currentValue,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Kitap sayfasına git',
+        prefixIcon: Icon(Icons.menu_book_outlined),
+      ),
+      items: [
+        for (final target in targets)
+          DropdownMenuItem(
+            value: target.locator,
+            child: Text(
+              's. ${target.locator} — ${target.title}',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
+      onChanged: (locator) {
+        if (locator == null) return;
+        final target = targets
+            .where((candidate) => candidate.locator == locator)
+            .firstOrNull;
+        final item = target == null ? null : data.itemById(target.itemId);
+        if (item != null) unawaited(_selectItem(item, data));
+      },
+    );
+  }
+
   Widget _phoneSelectors(BuildContext context, _GuideViewData data) {
     final selectedSection =
         data.sections.any(
@@ -578,7 +663,9 @@ class _TeacherGuideViewerPageState extends State<TeacherGuideViewerPage> {
           DropdownButtonFormField<String>(
             initialValue: selectedUnit,
             isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Ünite'),
+            decoration: InputDecoration(
+              labelText: data.isBookFirstV23 ? 'Sayfa / etkinlik' : 'Ünite',
+            ),
             items: [
               for (final value in sectionData.units)
                 DropdownMenuItem(
@@ -611,13 +698,55 @@ class _GuideViewData {
       .where((value) => value.section.sectionId == sectionId)
       .firstOrNull;
 
-  _GuideUnitData? unitFor(String unitId) => [
-    for (final section in sections) ...section.units,
-  ].where((value) => value.unit.unitId == unitId).firstOrNull;
+  _GuideUnitData? unitFor(String unitId) =>
+      [for (final section in sections) ...section.units]
+          .where((value) => value.unit.unitId == unitId)
+          .firstOrNull;
 
   TeacherGuideItem? itemById(String? itemId) => itemId == null
       ? null
       : items.where((value) => value.itemId == itemId).firstOrNull;
+
+  List<_GuidePageTarget> get pageTargets {
+    final byLocator = <String, _GuidePageTarget>{};
+    for (final section in sections) {
+      for (final unit in section.units) {
+        for (final item in unit.items) {
+          final locator = item.pageLocator?.trim();
+          if (locator == null || locator.isEmpty) continue;
+          byLocator.putIfAbsent(
+            locator,
+            () => _GuidePageTarget(
+              locator: locator,
+              itemId: item.itemId,
+              title: unit.unit.title,
+            ),
+          );
+        }
+      }
+    }
+    final result = byLocator.values.toList(growable: false)
+      ..sort((a, b) {
+        final pageCompare = _pageSortKey(a.locator)
+            .compareTo(_pageSortKey(b.locator));
+        return pageCompare != 0 ? pageCompare : a.locator.compareTo(b.locator);
+      });
+    return result;
+  }
+
+  bool get isBookFirstV23 => items.any(_isBookFirstV23Item);
+}
+
+class _GuidePageTarget {
+  const _GuidePageTarget({
+    required this.locator,
+    required this.itemId,
+    required this.title,
+  });
+
+  final String locator;
+  final String itemId;
+  final String title;
 }
 
 class _ReviewSummary extends StatelessWidget {
@@ -653,6 +782,7 @@ class _ReviewSummary extends StatelessWidget {
         reviewUnits > 0 ||
         reviewItems > 0;
     final scheme = Theme.of(context).colorScheme;
+    final bookFirst = data.isBookFirstV23;
 
     return Card.outlined(
       child: Padding(
@@ -661,10 +791,16 @@ class _ReviewSummary extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(
-              needsReview
+              bookFirst
+                  ? Icons.fact_check_outlined
+                  : needsReview
                   ? Icons.rate_review_outlined
                   : Icons.verified_outlined,
-              color: needsReview ? scheme.error : scheme.primary,
+              color: bookFirst
+                  ? scheme.tertiary
+                  : needsReview
+                  ? scheme.error
+                  : scheme.primary,
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
@@ -672,12 +808,20 @@ class _ReviewSummary extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    needsReview
+                    bookFirst
+                        ? needsReview
+                              ? 'Kaynak denetimi sürüyor'
+                              : 'Kitap odaklı rehber doğrulandı'
+                        : needsReview
                         ? 'İnceleme durumu: Öğretmen incelemesi gerekli'
                         : 'İnceleme durumu: Doğrulandı',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: needsReview ? scheme.error : scheme.primary,
+                      color: bookFirst
+                          ? scheme.tertiary
+                          : needsReview
+                          ? scheme.error
+                          : scheme.primary,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -901,6 +1045,7 @@ class _ItemDetail extends StatelessWidget {
     final theme = Theme.of(context);
     final enrichment =
         item.provenance.contentClass?.toUpperCase() == 'PEDAGOGICAL_ENRICHMENT';
+    final bookFirst = _isBookFirstV23Item(item);
     final formRelations = item.relations
         .where((relation) => relation.targetType.toLowerCase() == 'form')
         .toList(growable: false);
@@ -916,7 +1061,7 @@ class _ItemDetail extends StatelessWidget {
               Chip(label: Text('s. ${item.pageLocator}')),
             Chip(label: Text(_itemTypeLabel(item.itemType))),
             if (item.contentStatus.toUpperCase() == 'REVIEW_REQUIRED')
-              const _ReviewBadge(),
+              _ReviewBadge(bookFirst: bookFirst),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -931,16 +1076,20 @@ class _ItemDetail extends StatelessWidget {
           Text(item.label, style: theme.textTheme.titleMedium),
         ],
         const SizedBox(height: AppSpacing.xl),
-        _ContentBlock(
-          title: 'Beklenen cevap / öğrenci tepkisi',
-          icon: Icons.forum_outlined,
-          value: item.expectedResponse,
-        ),
-        _ContentBlock(
-          title: 'Öğretmene not',
-          icon: Icons.lightbulb_outline,
-          value: item.teacherGuidance,
-        ),
+        if (_hasContent(item.expectedResponse))
+          _ContentBlock(
+            title: _expectedResponseTitle(item),
+            icon: Icons.forum_outlined,
+            value: item.expectedResponse,
+          )
+        else if (_isSourceBoundUnanswered(item))
+          const _SourceBoundAnswerNotice(),
+        if (_hasContent(item.teacherGuidance))
+          _ContentBlock(
+            title: bookFirst ? 'Öğretmen yönlendirmesi' : 'Öğretmene not',
+            icon: Icons.lightbulb_outline,
+            value: item.teacherGuidance,
+          ),
         if (enrichment)
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -982,26 +1131,31 @@ class _ItemDetail extends StatelessWidget {
               AppSpacing.lg,
             ),
             children: [
-              _ContentBlock(
-                title: 'Kabul ölçütleri',
-                value: item.acceptanceCriteria,
-              ),
-              _ContentBlock(
-                title: 'Sık yapılan hata',
-                value: item.commonMisconceptions,
-              ),
-              _ContentBlock(
-                title: 'Değerlendirme kanıtı',
-                value: item.assessmentEvidence,
-              ),
-              _ContentBlock(
-                title: 'Destek',
-                value: item.differentiation.support,
-              ),
-              _ContentBlock(
-                title: 'Zenginleştirme',
-                value: item.differentiation.enrichment,
-              ),
+              if (_hasContent(item.acceptanceCriteria))
+                _ContentBlock(
+                  title: 'Kabul ölçütleri',
+                  value: item.acceptanceCriteria,
+                ),
+              if (_hasContent(item.commonMisconceptions))
+                _ContentBlock(
+                  title: 'Sık yapılan hata',
+                  value: item.commonMisconceptions,
+                ),
+              if (_hasContent(item.assessmentEvidence))
+                _ContentBlock(
+                  title: 'Değerlendirme kanıtı',
+                  value: item.assessmentEvidence,
+                ),
+              if (_hasContent(item.differentiation.support))
+                _ContentBlock(
+                  title: 'Destek',
+                  value: item.differentiation.support,
+                ),
+              if (_hasContent(item.differentiation.enrichment))
+                _ContentBlock(
+                  title: 'Zenginleştirme',
+                  value: item.differentiation.enrichment,
+                ),
               _ProvenanceBlock(provenance: item.provenance),
             ],
           ),
@@ -1125,9 +1279,8 @@ class _ContentBlock extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
           ],
@@ -1192,7 +1345,7 @@ class _JsonValue extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    entry.key.toString(),
+                    _humanizeKey(entry.key.toString()),
                     style: Theme.of(context).textTheme.labelLarge,
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -1224,12 +1377,43 @@ class _ProvenanceBlock extends StatelessWidget {
 }
 
 class _ReviewBadge extends StatelessWidget {
-  const _ReviewBadge();
+  const _ReviewBadge({this.bookFirst = false});
+
+  final bool bookFirst;
 
   @override
   Widget build(BuildContext context) => Chip(
-    avatar: const Icon(Icons.rate_review_outlined, size: 16),
-    label: const Text('Öğretmen incelemesi gerekli'),
+    avatar: Icon(
+      bookFirst ? Icons.fact_check_outlined : Icons.rate_review_outlined,
+      size: 16,
+    ),
+    label: Text(bookFirst ? 'Kaynak kontrolü' : 'Öğretmen incelemesi gerekli'),
+  );
+}
+
+class _SourceBoundAnswerNotice extends StatelessWidget {
+  const _SourceBoundAnswerNotice();
+
+  @override
+  Widget build(BuildContext context) => Card.outlined(
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.image_search_outlined, size: 20),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'Cevap, ders kitabındaki görsel veya kaynak katmanına bağlı. '
+              'Rehber doğrulanmamış bir cevap üretmez; kabul ölçütü ve kaynak '
+              'bilgisi Ayrıntılar bölümünde gösterilir.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ],
+      ),
+    ),
   );
 }
 
@@ -1257,11 +1441,69 @@ String _locator(String? value) =>
 bool _isReviewStatus(String value) =>
     value.trim().toUpperCase() == 'REVIEW_REQUIRED';
 
-String _itemTypeLabel(String value) {
-  final normalized = value.replaceAll('_', ' ').trim();
-  if (normalized.isEmpty) return 'İçerik';
-  return normalized[0].toUpperCase() + normalized.substring(1).toLowerCase();
+bool _isBookFirstV23Item(TeacherGuideItem item) =>
+    item.provenance.contentClass?.trim().toUpperCase() ==
+    'BOOK_FIRST_V2_3_ITEM';
+
+bool _hasContent(Object? value) {
+  if (value == null) return false;
+  if (value is String) return value.trim().isNotEmpty;
+  if (value is Iterable) return value.isNotEmpty;
+  if (value is Map) return value.isNotEmpty;
+  return true;
 }
+
+bool _isSourceBoundUnanswered(TeacherGuideItem item) =>
+    _isBookFirstV23Item(item) &&
+    item.itemType.trim().toUpperCase() == 'QUESTION' &&
+    !_hasContent(item.expectedResponse) &&
+    item.provenance.additional['rights_mode'] == 'PAGE_REFERENCE';
+
+String _expectedResponseTitle(TeacherGuideItem item) {
+  if (!_isBookFirstV23Item(item)) return 'Beklenen cevap / öğrenci tepkisi';
+  return switch (item.itemType.trim().toUpperCase()) {
+    'QUESTION' => 'Cevap / kabul edilebilir yaklaşım',
+    'PROCESS' => 'Uygulama / beklenen süreç',
+    'REFERENCE' => 'Başvuru bilgisi',
+    'VOCABULARY' => 'Söz varlığı / açıklama',
+    'TABLE' => 'Tablo / örnek çözüm',
+    'COMPARISON' => 'Karşılaştırma',
+    'ASSESSMENT' => 'Değerlendirme anahtarı',
+    _ => 'Beklenen çıktı',
+  };
+}
+
+String _humanizeKey(String value) {
+  final known = switch (value) {
+    'canonical_ref' => 'Kaynak maddesi',
+    'label' => 'Başlık',
+    'value' => 'İçerik',
+    _ => null,
+  };
+  if (known != null) return known;
+  final normalized = value.replaceAll('_', ' ').trim();
+  return normalized.isEmpty ? value : normalized;
+}
+
+int _pageSortKey(String value) {
+  final match = RegExp(r'\d+').firstMatch(value);
+  return int.tryParse(match?.group(0) ?? '') ?? (1 << 30);
+}
+
+String _itemTypeLabel(String value) => switch (value.trim().toUpperCase()) {
+  'QUESTION' => 'Soru',
+  'PROCESS' => 'Süreç',
+  'REFERENCE' => 'Kaynak',
+  'VOCABULARY' => 'Söz varlığı',
+  'TABLE' => 'Tablo',
+  'COMPARISON' => 'Karşılaştırma',
+  'ASSESSMENT' => 'Değerlendirme',
+  _ => () {
+    final normalized = value.replaceAll('_', ' ').trim();
+    if (normalized.isEmpty) return 'İçerik';
+    return normalized[0].toUpperCase() + normalized.substring(1).toLowerCase();
+  }(),
+};
 
 String _provenanceLabel(String? value) => switch (value?.toUpperCase()) {
   'OFFICIAL_TEXTBOOK' => 'Resmî ders kitabı',
