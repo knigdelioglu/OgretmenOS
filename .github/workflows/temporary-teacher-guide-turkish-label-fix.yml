@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - .github/workflows/temporary-teacher-guide-turkish-label-fix.yml
+      - tool/apply_teacher_guide_turkish_labels_fix.py
 
 permissions:
   contents: write
