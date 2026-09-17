@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Update source-level OgretmenOS tests to the materialized TDE11 V3 runtime contract."""
+"""Update source-level OgretmenOS tests to the materialized TDE11 V3 runtime contract.
+
+The migration is deliberately idempotent because the runtime publishing workflow runs it
+both before and after rebasing the generated commit onto the latest main branch.
+"""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,10 +22,19 @@ replacements = {
     "      573,\n    );": "      576,\n    );",
     "      404,\n    );": "      407,\n    );",
 }
-for old, new in replacements.items():
-    if old not in text:
-        raise SystemExit(f"expected contract text missing: {old!r}")
-    text = text.replace(old, new)
 
-PATH.write_text(text, encoding="utf-8")
-print("TDE11 V3 repository test contract updated")
+changed = False
+for old, new in replacements.items():
+    if old in text:
+        text = text.replace(old, new)
+        changed = True
+    elif new in text:
+        continue
+    else:
+        raise SystemExit(f"expected old or migrated contract text missing: {old!r}")
+
+if changed:
+    PATH.write_text(text, encoding="utf-8")
+    print("TDE11 V3 repository test contract updated")
+else:
+    print("TDE11 V3 repository test contract already current")
