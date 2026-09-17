@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0.0",
+  "course_id": "TDE_11",
+  "source_id": "official_textbook_pdf",
+  "source_sha256": "87248cb5f6940c29b7d152fab5cb1f7b800e4d5ddc46ac4cdeb5542f0361a1ba",
+  "description": "Source-verified grouped textbook prompt overrides extracted directly from the official TDE 11 compressed textbook PDF.",
+  "overrides": {
+    "T1V23_P28_INTERPRET": [
+      {
+        "question_number": "1",
+        "answer_key": "q1",
+        "prompt": "Yazıcı metnindeki tiplerin söz varlıklarının onların sosyal statülerine ve eğitim durumlarına uygunluğu hakkındaki düşüncelerinizi metinden örneklerle ifade ediniz.",
+        "prompt_mode": "VERBATIM_SHORT",
+        "printed_page_range": "28",
+        "pdf_page_range": "29",
+        "source_locator": "basılı s.28, soru 1 / PDF s.29"
+      },
+      {
+        "question_number": "2",
+        "answer_key": "q2",
+        "prompt": "Edebî metinlerde kişilerin kullandığı söz varlığının metne katkısı başka bir yolla sağlanabilir mi? Açıklayınız.",
+        "prompt_mode": "VERBATIM_SHORT",
+        "printed_page_range": "28",
+        "pdf_page_range": "29",
+        "source_locator": "basılı s.28, soru 2 / PDF s.29"
+      },
+      {
+        "question_number": "3",
+        "answer_key": "q3",
+        "prompt": "Günlük hayatta Yazıcı oyunundaki tiplere benzer şekilde konuşan veya davranan kişilerle karşılaştığınızda bu durum size ne hissettirir? Bu tür davranışları nasıl değerlendirirsiniz? Açıklayınız.",
+        "prompt_mode": "VERBATIM_SHORT",
+        "printed_page_range": "28",
+        "pdf_page_range": "29",
+        "source_locator": "basılı s.28, soru 3 / PDF s.29"
+      }
+    ],
+    "T1V23_P29_FRIENDSHIP": [
+      {
+        "question_number": "1",
+        "answer_key": "q1",
+        "prompt": "Hacivat ve Karagöz’ün kişilik özellikleri, eğitim durumları, kültür düzeyleri ve sosyal statüleri farklıdır. Bu farklılıklara rağmen aralarındaki dostluğu nasıl sürdürebildiklerini tartışınız. Ulaştığınız sonuçları tahtaya yazınız.",
+        "prompt_mode": "VERBATIM_SHORT",
+        "printed_page_range": "29",
+        "pdf_page_range": "30",
+        "source_locator": "basılı s.29, soru 1 / PDF s.30"
+      },
+      {
+        "question_number": "2",
+        "answer_key": "q2",
+        "prompt": "Aşağıdaki dörtlükten ve atasözünden hareketle “dostluk” kavramının sizin için ifade ettiği anlamları aşağıdaki alana yazınız.",
+        "prompt_mode": "VERBATIM_SHORT",
+        "printed_page_range": "29",
+        "pdf_page_range": "30",
+        "source_locator": "basılı s.29, soru 2 / PDF s.30"
+      }
+    ]
+  }
+}

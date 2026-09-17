@@ -1,0 +1,131 @@
+name: TDE11 Teacher Guide V3 Runtime
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tool/run_teacher_guide_v3_projection.py"
+      - "tool/update_teacher_guide_v3_contracts.py"
+      - "tool/project_teacher_guide_v23.py"
+      - "tool/run_teacher_guide_v23_projection.py"
+      - "tool/teacher_guide/v3_prompt_overrides.json"
+      - "tool/teacher_guide/v23_source/**"
+      - "tool/teacher_guide/v23_canonical_snapshot.json"
+      - "tool/teacher_guide/v23_canonical_overrides.json"
+      - "tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/**"
+      - "tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json"
+      - ".github/workflows/tde11-teacher-guide-v3-runtime.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tde11-teacher-guide-v3-runtime-main
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Materialize TDE11 Teacher Guide V3 runtime
+        run: |
+          python3 tool/run_teacher_guide_v3_projection.py \
+            --runtime-dir tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime \
+            --source-root tool/teacher_guide/v23_source \
+            --canonical-snapshot tool/teacher_guide/v23_canonical_snapshot.json \
+            --canonical-overrides tool/teacher_guide/v23_canonical_overrides.json \
+            --prompt-overrides tool/teacher_guide/v3_prompt_overrides.json \
+            --package-manifest tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json
+
+      - name: Update source-level V3 runtime contract tests
+        run: python3 tool/update_teacher_guide_v3_contracts.py
+
+      - name: Verify V3 SQLite contract
+        run: |
+          python3 - <<'PY'
+          import json
+          import sqlite3
+          from pathlib import Path
+
+          root = Path("tymm-verileri/turk-dili-ve-edebiyati/TDE_11")
+          db = sqlite3.connect(root / "runtime/course_runtime.sqlite")
+          try:
+              items = db.execute("SELECT COUNT(*) FROM teacher_guide_items").fetchone()[0]
+              questions = db.execute(
+                  "SELECT COUNT(*) FROM teacher_guide_items WHERE item_type='QUESTION'"
+              ).fetchone()[0]
+              v3_items = db.execute(
+                  "SELECT COUNT(*) FROM teacher_guide_items WHERE item_id LIKE '__v23_item__%'"
+              ).fetchone()[0]
+              units = db.execute("SELECT COUNT(*) FROM teacher_guide_units").fetchone()[0]
+              fk = db.execute("PRAGMA foreign_key_check").fetchall()
+          finally:
+              db.close()
+
+          manifest = json.loads((root / "runtime/runtime_manifest.json").read_text())
+          cap = manifest["teacher_guide_capabilities"]["book_first_v3"]
+
+          assert items == 576, items
+          assert questions == 407, questions
+          assert v3_items == 576, v3_items
+          assert units == 431, units
+          assert not fk, fk
+          assert cap["available"] is True
+          assert cap["architecture_version"] == "3.0.0"
+          assert cap["source_tymm_commit"] == "bb345b0c51074aa351b1b88b6b889cebf6a2af48"
+          assert cap["entries"] == 576
+          assert cap["questions"] == 407
+          assert cap["locator_only_questions"] == 0
+          print("TDE11 V3 runtime contract: PASS")
+          PY
+
+      - name: Persist generated runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/course_runtime.sqlite \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/runtime_manifest.json \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/teacher_guide_validation_seal.json \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json \
+            test/teacher_guide_repository_test.dart
+
+          if git diff --cached --quiet; then
+            echo "Runtime already current; no commit required."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(tde11): publish Teacher Guide V3 runtime"
+
+          git pull --rebase origin main
+          python3 tool/run_teacher_guide_v3_projection.py \
+            --runtime-dir tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime \
+            --source-root tool/teacher_guide/v23_source \
+            --canonical-snapshot tool/teacher_guide/v23_canonical_snapshot.json \
+            --canonical-overrides tool/teacher_guide/v23_canonical_overrides.json \
+            --prompt-overrides tool/teacher_guide/v3_prompt_overrides.json \
+            --package-manifest tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json
+          python3 tool/update_teacher_guide_v3_contracts.py
+
+          if ! git diff --quiet -- \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime \
+            tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json \
+            test/teacher_guide_repository_test.dart; then
+            git add \
+              tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/course_runtime.sqlite \
+              tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/runtime_manifest.json \
+              tymm-verileri/turk-dili-ve-edebiyati/TDE_11/runtime/teacher_guide_validation_seal.json \
+              tymm-verileri/turk-dili-ve-edebiyati/TDE_11/package_manifest.json \
+              test/teacher_guide_repository_test.dart
+            git commit --amend --no-edit
+          fi
+
+          git push origin HEAD:main
