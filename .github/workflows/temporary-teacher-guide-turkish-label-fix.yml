@@ -1,8 +1,9 @@
-name: Temporary Teacher Guide Turkish Label Fix
+name: Teacher Guide Turkish Label Migration
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
       - .github/workflows/temporary-teacher-guide-turkish-label-fix.yml
 
@@ -10,197 +11,38 @@ permissions:
   contents: write
 
 jobs:
-  patch:
+  migrate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Localize teacher-guide JSON field labels
-        shell: bash
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Apply localization migration
+        run: python3 tool/apply_teacher_guide_turkish_labels_fix.py
+
+      - name: Format changed Dart files
+        run: dart format lib/features/resources/teacher_guide_viewer_page.dart test/teacher_guide_viewer_test.dart
+
+      - name: Run focused tests
+        run: flutter test test/teacher_guide_viewer_test.dart
+
+      - name: Check diff
+        run: git diff --check
+
+      - name: Commit fix
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          viewer = Path('lib/features/resources/teacher_guide_viewer_page.dart')
-          text = viewer.read_text(encoding='utf-8')
-          old = '''String _humanizeKey(String value) {
-            final known = switch (value) {
-              'canonical_ref' => 'Kaynak maddesi',
-              'label' => 'Başlık',
-              'value' => 'İçerik',
-              _ => null,
-            };
-            if (known != null) return known;
-            final normalized = value.replaceAll('_', ' ').trim();
-            return normalized.isEmpty ? value : normalized;
-          }
-          '''
-          new = '''String _humanizeKey(String value) {
-            final key = value.trim();
-            final known = switch (key) {
-              'canonical_ref' => 'Kaynak maddesi',
-              'label' => 'Başlık',
-              'value' => 'İçerik',
-              'book_prompt' => 'Kitaptaki soru / yönerge',
-              'source_context' => 'Kaynak bağlamı',
-              'expected_answer' => 'Beklenen cevap',
-              'expected_response' => 'Beklenen cevap / öğrenci tepkisi',
-              'acceptable_answers' => 'Kabul edilebilir cevaplar',
-              'answer_explanation' => 'Cevabın açıklaması',
-              'teacher_background' => 'Öğretmen için arka plan',
-              'student_explanation' => 'Öğrenciye açıklama',
-              'why_it_matters' => 'Neden önemli?',
-              'teacher_moves' => 'Öğretmen adımları',
-              'follow_up_questions' => 'Takip soruları',
-              'common_misconceptions' => 'Yaygın yanlış anlamalar',
-              'misconception_interventions' => 'Yanlış anlamalara müdahale',
-              'evidence_anchor' => 'Kanıt dayanağı',
-              'assessment_look_fors' => 'Değerlendirmede aranacaklar',
-              'assessment_evidence' => 'Değerlendirme kanıtı',
-              'support' => 'Destek',
-              'enrichment' => 'Zenginleştirme',
-              'board_notes' => 'Tahta notları',
-              'source_limitations' => 'Kaynak sınırlılıkları',
-              'source_locator' => 'Kaynak konumu',
-              'source_locators' => 'Kaynak konumları',
-              'prompt_mode' => 'Soru aktarım biçimi',
-              'answer_component_keys' => 'Cevap bileşenleri',
-              'review_status' => 'İnceleme durumu',
-              'review_reason' => 'İnceleme gerekçesi',
-              'generation_profile' => 'Üretim profili',
-              'v3_profile' => 'Pedagoji profili',
-              'v3_focus' => 'Pedagojik odak',
-              'printed_page_range' => 'Basılı sayfa aralığı',
-              'pdf_page_range' => 'PDF sayfa aralığı',
-              'book_heading' => 'Kitap başlığı',
-              'activity_id' => 'Etkinlik kimliği',
-              'question_number' => 'Soru numarası',
-              'group_id' => 'Grup kimliği',
-              'parent_prompt_id' => 'Üst soru kimliği',
-              'observations' => 'Gözlemler',
-              'claim' => 'Yargı',
-              'prompt' => 'Yönerge',
-              'model' => 'Model',
-              'force' => 'Kuvvet',
-              'speed' => 'Hız',
-              'temel_yaklasim' => 'Temel yaklaşım',
-              'organizasyon' => 'Organizasyon',
-              'kart_ornekleri' => 'Kart örnekleri',
-              'paylasim' => 'Paylaşım',
-              _ => null,
-            };
-            if (known != null) return known;
-
-            final withoutQuestionPrefix = key.replaceFirst(RegExp(r'^q\\d+_'), '');
-            final normalized = withoutQuestionPrefix.replaceAll('_', ' ').trim();
-            if (normalized.isEmpty) return value;
-            final words = normalized
-                .split(RegExp(r'\\s+'))
-                .map(_turkishizeKeyToken)
-                .toList(growable: false);
-            final humanized = words.join(' ');
-            if (humanized.isEmpty) return value;
-            return humanized[0].toUpperCase() + humanized.substring(1);
-          }
-
-          String _turkishizeKeyToken(String token) => switch (token.toLowerCase()) {
-            'paylasim' => 'paylaşım',
-            'ornek' => 'örnek',
-            'ornekler' => 'örnekler',
-            'ornekleri' => 'örnekleri',
-            'surec' => 'süreç',
-            'sureci' => 'süreci',
-            'degisim' => 'değişim',
-            'degisimi' => 'değişimi',
-            'degerlendirme' => 'değerlendirme',
-            'dusunce' => 'düşünce',
-            'davranis' => 'davranış',
-            'ogretmen' => 'öğretmen',
-            'ogrenci' => 'öğrenci',
-            'aciklama' => 'açıklama',
-            'yaklasim' => 'yaklaşım',
-            'kanit' => 'kanıt',
-            'karsilastirma' => 'karşılaştırma',
-            'ozet' => 'özet',
-            'icerik' => 'içerik',
-            'gorsel' => 'görsel',
-            'gozlem' => 'gözlem',
-            'gozlemler' => 'gözlemler',
-            'baslik' => 'başlık',
-            'baglam' => 'bağlam',
-            'yonerge' => 'yönerge',
-            'soru' => 'soru',
-            'cevap' => 'cevap',
-            'kabul' => 'kabul',
-            'edilebilir' => 'edilebilir',
-            'tanim' => 'tanım',
-            _ => token,
-          };
-          '''
-          if old not in text:
-              raise SystemExit('viewer _humanizeKey anchor not found')
-          viewer.write_text(text.replace(old, new, 1), encoding='utf-8')
-
-          test = Path('test/teacher_guide_viewer_test.dart')
-          text = test.read_text(encoding='utf-8')
-          text = text.replace(
-              "      expect(find.text('observations'), findsOneWidget);",
-              "      expect(find.text('Gözlemler'), findsOneWidget);",
-              1,
-          )
-          old_guidance = "    teacherGuidance: 'Değişkenleri sabit tut.',"
-          new_guidance = """    teacherGuidance: {
-              'answer_explanation': 'Cevabın neden geçerli olduğunu açıkla.',
-              'board_notes': ['Tahtaya temel ayrımı yaz.'],
-              'follow_up_questions': ['Bu çıkarımı hangi kanıt destekliyor?'],
-              'q4_paylasim': 'Ürünü uygun ortamda paylaş.',
-            },"""
-          if old_guidance not in text:
-              raise SystemExit('test teacherGuidance anchor not found')
-          text = text.replace(old_guidance, new_guidance, 1)
-
-          anchor = """  testWidgets('guide item exposes form deep-link and review summary', (
-          """
-          test_case = """  testWidgets('V3 alan adları kullanıcıya Türkçe etiketlerle gösterilir', (
-            tester,
-          ) async {
-            _useSize(tester, const Size(412, 915));
-
-            await tester.pumpWidget(_viewerApp());
-            await tester.pumpAndSettle();
-
-            expect(find.text('Cevabın açıklaması'), findsOneWidget);
-            expect(find.text('Tahta notları'), findsOneWidget);
-            expect(find.text('Takip soruları'), findsOneWidget);
-            expect(find.text('Paylaşım'), findsOneWidget);
-            expect(find.text('answer explanation'), findsNothing);
-            expect(find.text('board notes'), findsNothing);
-            expect(find.text('follow up questions'), findsNothing);
-            expect(find.textContaining('paylasim'), findsNothing);
-            expect(tester.takeException(), isNull);
-          });
-
-"""
-          if anchor not in text:
-              raise SystemExit('test insertion anchor not found')
-          text = text.replace(anchor, test_case + anchor, 1)
-          test.write_text(text, encoding='utf-8')
-          PY
-
-      - name: Format and test focused viewer suite
-        shell: bash
-        run: |
-          dart format lib/features/resources/teacher_guide_viewer_page.dart test/teacher_guide_viewer_test.dart
-          flutter test test/teacher_guide_viewer_test.dart
-          git diff --check
-
-      - name: Commit source fix
-        shell: bash
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add lib/features/resources/teacher_guide_viewer_page.dart test/teacher_guide_viewer_test.dart
-          git commit -m 'fix: localize teacher guide field labels in Turkish'
+          git commit -m "fix: localize teacher guide field labels in Turkish"
           git push origin HEAD:main
