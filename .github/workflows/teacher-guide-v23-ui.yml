@@ -9,7 +9,7 @@ on:
       - 'tool/normalize_teacher_guide_v23_viewer.py'
       - 'tool/migrate_teacher_guide_v23_page_jump.py'
       - 'tool/migrate_teacher_guide_v23_bulk_loading.py'
-      - 'tool/normalize_teacher_guide_v23_bulk_loading.py'
+      - 'tool/materialize_teacher_guide_v23_bulk_current.py'
       - 'tool/normalize_teacher_guide_v23_bulk_viewer_contract.py'
       - 'lib/domain/repositories/course_knowledge_repository.dart'
       - 'lib/data/course/course_knowledge_repository_impl.dart'
@@ -25,7 +25,7 @@ on:
       - 'tool/normalize_teacher_guide_v23_viewer.py'
       - 'tool/migrate_teacher_guide_v23_page_jump.py'
       - 'tool/migrate_teacher_guide_v23_bulk_loading.py'
-      - 'tool/normalize_teacher_guide_v23_bulk_loading.py'
+      - 'tool/materialize_teacher_guide_v23_bulk_current.py'
       - 'tool/normalize_teacher_guide_v23_bulk_viewer_contract.py'
       - 'lib/domain/repositories/course_knowledge_repository.dart'
       - 'lib/data/course/course_knowledge_repository_impl.dart'
@@ -53,8 +53,7 @@ jobs:
           python tool/migrate_teacher_guide_v23_viewer.py
           python tool/normalize_teacher_guide_v23_viewer.py
           python tool/migrate_teacher_guide_v23_page_jump.py
-          python tool/migrate_teacher_guide_v23_bulk_loading.py
-          python tool/normalize_teacher_guide_v23_bulk_loading.py
+          python tool/materialize_teacher_guide_v23_bulk_current.py
           python tool/normalize_teacher_guide_v23_bulk_viewer_contract.py
           dart format --set-exit-if-changed \
             lib/domain/repositories/course_knowledge_repository.dart \
@@ -104,8 +103,7 @@ jobs:
           python tool/migrate_teacher_guide_v23_viewer.py
           python tool/normalize_teacher_guide_v23_viewer.py
           python tool/migrate_teacher_guide_v23_page_jump.py
-          python tool/migrate_teacher_guide_v23_bulk_loading.py
-          python tool/normalize_teacher_guide_v23_bulk_loading.py
+          python tool/materialize_teacher_guide_v23_bulk_current.py
           python tool/normalize_teacher_guide_v23_bulk_viewer_contract.py
           dart format \
             lib/domain/repositories/course_knowledge_repository.dart \
