@@ -22,13 +22,32 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Beklenen cevap / öğrenci tepkisi'), findsOneWidget);
-      expect(find.text('observations'), findsOneWidget);
+      expect(find.text('Gözlemler'), findsOneWidget);
       expect(find.text('hız değişimi'), findsOneWidget);
       expect(find.text('Öğretmen incelemesi gerekli'), findsOneWidget);
       expect(find.text('Gözlem kaydı'), findsWidgets);
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('V3 alan adları kullanıcıya Türkçe etiketlerle gösterilir', (
+    tester,
+  ) async {
+    _useSize(tester, const Size(412, 915));
+
+    await tester.pumpWidget(_viewerApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cevabın açıklaması'), findsOneWidget);
+    expect(find.text('Tahta notları'), findsOneWidget);
+    expect(find.text('Takip soruları'), findsOneWidget);
+    expect(find.text('Paylaşım'), findsOneWidget);
+    expect(find.text('answer explanation'), findsNothing);
+    expect(find.text('board notes'), findsNothing);
+    expect(find.text('follow up questions'), findsNothing);
+    expect(find.textContaining('paylasim'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('guide item exposes form deep-link and review summary', (
     tester,
@@ -257,6 +276,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     final unitDropdown = find.byType(DropdownButtonFormField<String>).at(1);
+    await tester.ensureVisible(unitDropdown);
+    await tester.pumpAndSettle();
     await tester.tap(unitDropdown);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Modelleme').last);
@@ -574,7 +595,12 @@ class _GuideRepository
       'claim': null,
     },
     acceptanceCriteria: ['Veri kaydı bulunur.'],
-    teacherGuidance: 'Değişkenleri sabit tut.',
+    teacherGuidance: {
+      'answer_explanation': 'Cevabın neden geçerli olduğunu açıkla.',
+      'board_notes': ['Tahtaya temel ayrımı yaz.'],
+      'follow_up_questions': ['Bu çıkarımı hangi kanıt destekliyor?'],
+      'q4_paylasim': 'Ürünü uygun ortamda paylaş.',
+    },
     commonMisconceptions: {'force': 'speed'},
     assessmentEvidence: ['öğrenci kaydı'],
     differentiation: TeacherGuideDifferentiation(

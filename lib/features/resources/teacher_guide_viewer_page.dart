@@ -698,10 +698,9 @@ class _GuideViewData {
       .where((value) => value.section.sectionId == sectionId)
       .firstOrNull;
 
-  _GuideUnitData? unitFor(String unitId) =>
-      [for (final section in sections) ...section.units]
-          .where((value) => value.unit.unitId == unitId)
-          .firstOrNull;
+  _GuideUnitData? unitFor(String unitId) => [
+    for (final section in sections) ...section.units,
+  ].where((value) => value.unit.unitId == unitId).firstOrNull;
 
   TeacherGuideItem? itemById(String? itemId) => itemId == null
       ? null
@@ -727,8 +726,9 @@ class _GuideViewData {
     }
     final result = byLocator.values.toList(growable: false)
       ..sort((a, b) {
-        final pageCompare = _pageSortKey(a.locator)
-            .compareTo(_pageSortKey(b.locator));
+        final pageCompare = _pageSortKey(
+          a.locator,
+        ).compareTo(_pageSortKey(b.locator));
         return pageCompare != 0 ? pageCompare : a.locator.compareTo(b.locator);
       });
     return result;
@@ -1279,8 +1279,9 @@ class _ContentBlock extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
           ],
@@ -1474,16 +1475,102 @@ String _expectedResponseTitle(TeacherGuideItem item) {
 }
 
 String _humanizeKey(String value) {
-  final known = switch (value) {
+  final key = value.trim();
+  final known = switch (key) {
     'canonical_ref' => 'Kaynak maddesi',
     'label' => 'Başlık',
     'value' => 'İçerik',
+    'book_prompt' => 'Kitaptaki soru / yönerge',
+    'source_context' => 'Kaynak bağlamı',
+    'expected_answer' => 'Beklenen cevap',
+    'expected_response' => 'Beklenen cevap / öğrenci tepkisi',
+    'acceptable_answers' => 'Kabul edilebilir cevaplar',
+    'answer_explanation' => 'Cevabın açıklaması',
+    'teacher_background' => 'Öğretmen için arka plan',
+    'student_explanation' => 'Öğrenciye açıklama',
+    'why_it_matters' => 'Neden önemli?',
+    'teacher_moves' => 'Öğretmen adımları',
+    'follow_up_questions' => 'Takip soruları',
+    'common_misconceptions' => 'Yaygın yanlış anlamalar',
+    'misconception_interventions' => 'Yanlış anlamalara müdahale',
+    'evidence_anchor' => 'Kanıt dayanağı',
+    'assessment_look_fors' => 'Değerlendirmede aranacaklar',
+    'assessment_evidence' => 'Değerlendirme kanıtı',
+    'support' => 'Destek',
+    'enrichment' => 'Zenginleştirme',
+    'board_notes' => 'Tahta notları',
+    'source_limitations' => 'Kaynak sınırlılıkları',
+    'source_locator' => 'Kaynak konumu',
+    'source_locators' => 'Kaynak konumları',
+    'prompt_mode' => 'Soru aktarım biçimi',
+    'answer_component_keys' => 'Cevap bileşenleri',
+    'review_status' => 'İnceleme durumu',
+    'review_reason' => 'İnceleme gerekçesi',
+    'generation_profile' => 'Üretim profili',
+    'v3_profile' => 'Pedagoji profili',
+    'v3_focus' => 'Pedagojik odak',
+    'printed_page_range' => 'Basılı sayfa aralığı',
+    'pdf_page_range' => 'PDF sayfa aralığı',
+    'book_heading' => 'Kitap başlığı',
+    'activity_id' => 'Etkinlik kimliği',
+    'question_number' => 'Soru numarası',
+    'group_id' => 'Grup kimliği',
+    'parent_prompt_id' => 'Üst soru kimliği',
+    'observations' => 'Gözlemler',
+    'claim' => 'Yargı',
+    'prompt' => 'Yönerge',
+    'model' => 'Model',
+    'force' => 'Kuvvet',
+    'speed' => 'Hız',
+    'temel_yaklasim' => 'Temel yaklaşım',
+    'organizasyon' => 'Organizasyon',
+    'kart_ornekleri' => 'Kart örnekleri',
+    'paylasim' => 'Paylaşım',
     _ => null,
   };
   if (known != null) return known;
-  final normalized = value.replaceAll('_', ' ').trim();
-  return normalized.isEmpty ? value : normalized;
+
+  final withoutQuestionPrefix = key.replaceFirst(RegExp(r'^q\d+_'), '');
+  final normalized = withoutQuestionPrefix.replaceAll('_', ' ').trim();
+  if (normalized.isEmpty) return value;
+  final words = normalized
+      .split(RegExp(r'\s+'))
+      .map(_turkishizeKeyToken)
+      .toList(growable: false);
+  final humanized = words.join(' ');
+  if (humanized.isEmpty) return value;
+  return humanized[0].toUpperCase() + humanized.substring(1);
 }
+
+String _turkishizeKeyToken(String token) => switch (token.toLowerCase()) {
+  'paylasim' => 'paylaşım',
+  'ornek' => 'örnek',
+  'ornekler' => 'örnekler',
+  'ornekleri' => 'örnekleri',
+  'surec' => 'süreç',
+  'sureci' => 'süreci',
+  'degisim' => 'değişim',
+  'degisimi' => 'değişimi',
+  'degerlendirme' => 'değerlendirme',
+  'dusunce' => 'düşünce',
+  'davranis' => 'davranış',
+  'ogretmen' => 'öğretmen',
+  'ogrenci' => 'öğrenci',
+  'aciklama' => 'açıklama',
+  'yaklasim' => 'yaklaşım',
+  'kanit' => 'kanıt',
+  'karsilastirma' => 'karşılaştırma',
+  'ozet' => 'özet',
+  'icerik' => 'içerik',
+  'gorsel' => 'görsel',
+  'gozlem' => 'gözlem',
+  'gozlemler' => 'gözlemler',
+  'baslik' => 'başlık',
+  'baglam' => 'bağlam',
+  'yonerge' => 'yönerge',
+  'tanim' => 'tanım',
+  _ => token,
+};
 
 int _pageSortKey(String value) {
   final match = RegExp(r'\d+').firstMatch(value);
